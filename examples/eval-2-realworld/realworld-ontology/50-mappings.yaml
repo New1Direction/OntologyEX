@@ -1,0 +1,25 @@
+mappings:
+- app: users_table
+  domain: Member
+  upper: Person
+  evidence: src/prisma/schema.prisma model User
+- app: articles_table
+  domain: Article
+  upper: CreativeWork
+  evidence: src/prisma/schema.prisma model Article
+- app: comments_table
+  domain: Comment
+  upper: CreativeWork
+  evidence: src/prisma/schema.prisma model Comment
+- app: tags_table
+  domain: Tag
+  upper: Intangible
+  evidence: src/prisma/schema.prisma model Tag
+- app: user_follows_join
+  domain: Member
+  upper: Person
+  evidence: schema.prisma @relation(UserFollows)
+- app: article_api
+  domain: Article
+  upper: CreativeWork
+  evidence: article.controller.ts routes

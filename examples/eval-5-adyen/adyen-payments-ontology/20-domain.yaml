@@ -1,0 +1,143 @@
+# L1 — the nouns of card payments, modeled from Adyen but named canonically so they survive a
+# competitor swap. Adyen-specific surface terms live in `synonyms`; the canonical id is the
+# field-level concept. Compare against eval-1-stripe/20-domain.yaml — the overlap is the point.
+classes:
+  - id: Payment
+    definition: "An authorised attempt to move funds from a shopper's payment method to a merchant; reserves funds pending capture."
+    upper: Transaction
+    synonyms: [Authorisation, Charge]
+    source: "docs.adyen.com/online-payments (authorisation reserves funds); /payments"
+  - id: Capture
+    definition: "The settlement step that claims previously authorised funds, in full or part; first-class in Adyen (separate from authorisation)."
+    upper: Transaction
+    synonyms: [Settlement]
+    source: "docs.adyen.com/online-payments/capture (manual vs automatic; /payments/{pspRef}/captures)"
+  - id: Refund
+    definition: "Return of captured funds to the shopper's payment method; partial or full, after capture."
+    upper: Transaction
+    synonyms: [Credit]
+    source: "docs.adyen.com/online-payments/refund; /payments/{pspRef}/refunds"
+  - id: Cancellation
+    definition: "Voiding of an authorised-but-not-yet-captured payment; no funds settle."
+    upper: Transaction
+    synonyms: [Reversal, Void, Cancel]
+    source: "docs.adyen.com/online-payments/capture (cancel voids authorisation before capture); /payments/{pspRef}/cancels"
+  - id: Dispute
+    definition: "A cardholder's challenge to a payment raised via their issuer; begins as a request for information and may escalate."
+    upper: Event
+    synonyms: [DisputeCase]
+    source: "docs.adyen.com/risk-management/disputes-api (RFI → chargeback stages)"
+  - id: Chargeback
+    definition: "The stage of a dispute at which funds are forcibly withdrawn from the merchant; defensible once notified."
+    upper: Transaction
+    synonyms: [ForcedDebit]
+    source: "docs.adyen.com/risk-management/disputes-api (NOTIFICATION_OF_CHARGEBACK; funds debited)"
+  - id: DefenseDocument
+    definition: "Evidence (receipt, delivery proof, policy) uploaded to contest a dispute; JPG/TIFF/PDF within size limits."
+    upper: Content
+    synonyms: [DisputeEvidence, DefenseMaterial]
+    source: "docs.adyen.com/risk-management/disputes-api (/supplyDefenseDocument)"
+  - id: DefenseReason
+    definition: "A coded justification under which a dispute is defended; must be drawn from the applicable reasons for that dispute."
+    upper: Category
+    synonyms: [DefenseReasonCode]
+    source: "docs.adyen.com/risk-management/disputes-api (/retrieveApplicableDefenseReasons, defenseReasonCode)"
+  - id: Customer
+    definition: "The party whose payment method funds a payment."
+    upper: Person
+    synonyms: [Shopper, Cardholder]
+    source: "docs.adyen.com/online-payments (shopper); note: B2B payers exist — a fuller run would union Person|Organization"
+  - id: MerchantAccount
+    definition: "The merchant's account within the processor that holds configuration and receives settled funds."
+    upper: Account
+    synonyms: [MerchantAccountIdentifier]
+    source: "docs.adyen.com/online-payments/capture (merchantAccount parameter)"
+  - id: PaymentsAgent
+    definition: "Person or automated operator authorised to capture, refund, cancel, and defend on a merchant account."
+    upper: Person
+    synonyms: [SupportAgent, PaymentOperator]
+    source: "consumer scope: payments-operations agent (see 00-scope.md)"
+  - id: MonetaryAmount
+    definition: "A quantity of money in a currency's minor units."
+    upper: Magnitude
+    synonyms: [Amount]
+    source: "docs.adyen.com/online-payments/capture (amount.value in minor units, amount.currency)"
+  - id: Payout
+    definition: "A settlement transfer of accumulated captured funds from the processor to the merchant's bank."
+    upper: Transaction
+    synonyms: [Settlement, SettlementBatch]
+    source: "docs.adyen.com (settlement / payout to merchant account)"
+
+relations:
+  - id: captures_payment
+    definition: "A capture claims funds against a specific authorised payment."
+    domain: Capture
+    range: Payment
+    cardinality: many-to-one
+    source: "docs.adyen.com/online-payments/capture (capture references the authorisation pspReference)"
+  - id: refunds_payment
+    definition: "A refund returns funds against a previously captured payment."
+    domain: Refund
+    range: Payment
+    cardinality: many-to-one
+    source: "docs.adyen.com/online-payments/refund (/payments/{pspRef}/refunds)"
+  - id: cancels_payment
+    definition: "A cancellation voids a specific uncaptured authorisation."
+    domain: Cancellation
+    range: Payment
+    cardinality: one-to-one
+    source: "docs.adyen.com/online-payments/capture (cancel before capture)"
+  - id: disputes_payment
+    definition: "A dispute challenges a specific payment."
+    domain: Dispute
+    range: Payment
+    cardinality: many-to-one
+    source: "docs.adyen.com/risk-management/disputes-api"
+  - id: chargeback_of
+    definition: "A chargeback is the funds-withdrawal stage of a dispute."
+    domain: Chargeback
+    range: Dispute
+    cardinality: one-to-one
+    source: "docs.adyen.com/risk-management/disputes-api (chargeback escalates a dispute)"
+  - id: defends_dispute
+    definition: "A defense document is submitted against a specific dispute."
+    domain: DefenseDocument
+    range: Dispute
+    cardinality: many-to-one
+    source: "docs.adyen.com/risk-management/disputes-api (/supplyDefenseDocument)"
+  - id: defense_reason
+    definition: "A dispute is defended under a specific applicable reason code."
+    domain: Dispute
+    range: DefenseReason
+    cardinality: many-to-one
+    source: "docs.adyen.com/risk-management/disputes-api (/defendDispute defenseReasonCode)"
+  - id: funded_by
+    definition: "A payment is funded by a customer's payment method."
+    domain: Payment
+    range: Customer
+    cardinality: many-to-one
+    source: "docs.adyen.com/online-payments (shopper funds payment)"
+  - id: credited_to
+    definition: "A payment's captured funds are credited to a merchant account."
+    domain: Payment
+    range: MerchantAccount
+    cardinality: many-to-one
+    source: "docs.adyen.com/online-payments/capture (merchantAccount)"
+  - id: settled_by
+    definition: "A payout settles accumulated funds to a merchant account."
+    domain: Payout
+    range: MerchantAccount
+    cardinality: many-to-one
+    source: "docs.adyen.com (settlement to merchant account)"
+  - id: valued_at
+    definition: "A payment has a monetary amount."
+    domain: Payment
+    range: MonetaryAmount
+    cardinality: many-to-one
+    source: "docs.adyen.com/online-payments/capture (amount.value/currency)"
+  - id: denominated_in
+    definition: "A refund's amount is a monetary quantity."
+    domain: Refund
+    range: MonetaryAmount
+    cardinality: many-to-one
+    source: "docs.adyen.com/online-payments/refund (amount)"

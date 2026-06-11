@@ -1,0 +1,43 @@
+system: "stripe-support-agent"
+concepts:
+  - id: refund_object
+    kind: api_type
+    binds: Refund
+    used_by_tasks: [ProcessRefund, CancelRefund]
+    fields:
+      - name: amount
+        maps_to: "Refund -> denominated_in -> MonetaryAmount"
+      - name: charge
+        maps_to: "refunds_charge relation"
+      - name: status
+        maps_to: "Refund state: pending|requires_action|succeeded|failed|canceled"
+      - name: reason
+        maps_to: "duplicate|fraudulent|requested_by_customer"
+    source: "docs.stripe.com/api/refunds/object"
+  - id: dispute_object
+    kind: api_type
+    binds: Dispute
+    used_by_tasks: [SubmitDisputeEvidence, CloseDispute]
+    fields:
+      - name: evidence
+        maps_to: "supports_dispute -> DisputeEvidence"
+      - name: evidence_details.due_by
+        maps_to: "SubmitDisputeEvidence precondition deadline"
+      - name: is_charge_refundable
+        maps_to: "ProcessRefund precondition signal"
+    source: "docs.stripe.com/api/disputes/close (response shape)"
+  - id: charge_object
+    kind: api_type
+    binds: Charge
+    used_by_tasks: [ProcessRefund]
+    source: "docs.stripe.com/api (Charges)"
+  - id: tool.process_refund
+    kind: tool_schema
+    binds: Refund
+    used_by_tasks: [ProcessRefund]
+    source: "emitted from L2 per output-formats.md"
+  - id: tool.submit_dispute_evidence
+    kind: tool_schema
+    binds: DisputeEvidence
+    used_by_tasks: [SubmitDisputeEvidence]
+    source: "emitted from L2 per output-formats.md"

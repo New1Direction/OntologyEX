@@ -1,0 +1,19 @@
+source_ontology: gist
+version: "14.0.0"  # pinned per fallback rule; re-verify in Protégé
+anchors:
+  - id: Agreement
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Agreement"
+  - id: Event
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Event"
+  - id: Person
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Person"
+  - id: Organization
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Organization"
+  - id: Content
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Content"
+  - id: Magnitude
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Magnitude"
+overlay:
+  - id: prov_Activity
+    iri: "http://www.w3.org/ns/prov#Activity"
+    note: "Resolution provenance: oracle attestation chain"

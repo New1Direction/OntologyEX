@@ -1,0 +1,131 @@
+{
+  "_comment": "Consumer binding emitted from 30-task.yaml per references/output-formats.md. One tool per LEAF L2 task; ExtractOntology is orchestration (has decomposes_to) so it is NOT a tool. Preconditions/effects are folded into each description so the operating agent reads them before calling.",
+  "tools": [
+    {
+      "name": "scaffold_workspace",
+      "description": "Create the canonical 7-file ontology workspace (00-scope.md … 50-mappings.yaml + README). Precondition: a target name is given. Effect: files written from templates. Output: Ontology (L1).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "ExtractionTarget (L1) identifier, e.g. 'stripe'" },
+          "out": { "type": "string", "description": "Ontology (L1) workspace directory; defaults to ./<name>-ontology" }
+        },
+        "required": ["name"]
+      }
+    },
+    {
+      "name": "scope_target",
+      "description": "Establish target (research vs retrofit), consumer, and boundary. Precondition: consumer is chosen — it determines depth and output format. Effect: 00-scope.md target/consumer/boundary populated.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "target": { "type": "string", "description": "ExtractionTarget (L1) — a company/API/market or a codebase" },
+          "mode": { "type": "string", "enum": ["research", "retrofit"] },
+          "consumer": { "type": "string", "enum": ["agent_tools", "mcp", "rag", "knowledge_graph", "db_api", "docs"] },
+          "boundary": { "type": "string", "description": "what is explicitly in and out of scope" }
+        },
+        "required": ["target", "mode", "consumer", "boundary"]
+      }
+    },
+    {
+      "name": "write_competency_questions",
+      "description": "Write 5–15 questions per layer the finished ontology must answer using only its own terms. Effect: CQs recorded in 00-scope.md; they define done. Output: CompetencyQuestion (L1).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "target": { "type": "string", "description": "ExtractionTarget (L1)" }
+        },
+        "required": ["target"]
+      }
+    },
+    {
+      "name": "mine_sources",
+      "description": "Harvest evidence from the target's artifacts and map each to a layer. Precondition: boundary is set so mining doesn't boil the ocean. Effect: candidate terms collected, each with a source pointer. Output: EvidenceSource (L1).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "target": { "type": "string", "description": "ExtractionTarget (L1)" }
+        },
+        "required": ["target"]
+      }
+    },
+    {
+      "name": "anchor_upper",
+      "description": "Select an upper ontology and pin 10–25 anchor categories. Precondition: do NOT invent L0 — select from a published standard (gist | bfo+cco | schema.org | dolce | sumo). Effect: 10-upper.yaml records ontology, version, anchor IRIs. Output: UpperOntology (L1).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "source_ontology": { "type": "string", "enum": ["gist", "bfo+cco", "schema.org", "dolce", "sumo", "custom-minimal"] }
+        },
+        "required": ["source_ontology"]
+      }
+    },
+    {
+      "name": "build_domain_layer",
+      "description": "Build domain classes and relations from mined evidence. Preconditions: synonyms collapsed to one canonical id; every class anchored to an upper category. Effect: 20-domain.yaml populated; a class list with no relations is rejected as a taxonomy. Outputs: OntologyClass, Relation (L1).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "evidence_refs": { "type": "array", "items": { "type": "string" }, "description": "EvidenceSource (L1) ids" }
+        },
+        "required": ["evidence_refs"]
+      }
+    },
+    {
+      "name": "build_task_layer",
+      "description": "Define task/workflow activities with IOPE (inputs, outputs, preconditions, effects), referencing domain nouns. Precondition: domain classes exist to serve as inputs/outputs/roles. Effect: 30-task.yaml populated. Output: OntologyTask (L1/L2).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "class_ids": { "type": "array", "items": { "type": "string" }, "description": "OntologyClass (L1) ids available as participants" }
+        },
+        "required": ["class_ids"]
+      }
+    },
+    {
+      "name": "project_application_layer",
+      "description": "Bind the system's concrete artifacts (db tables, api types, tool schemas, events, ui objects) to domain classes and tasks. Precondition: L1 and L2 exist to bind upward. Effect: 40-application.yaml populated; unbindable artifacts flagged as dead schema. Output: ApplicationConcept (L3).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "class_ids": { "type": "array", "items": { "type": "string" } },
+          "task_ids": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["class_ids", "task_ids"]
+      }
+    },
+    {
+      "name": "validate_ontology",
+      "description": "Check structure, answer every competency question, and round-trip real records. Precondition: all four layers populated. Effects: unanchored classes, dangling refs, duplicate ids, and orphans reported; NONZERO ERRORS → exit 1 (build fails). Run this BEFORE emitting any binding.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "dir": { "type": "string", "description": "Ontology (L1) workspace directory" }
+        },
+        "required": ["dir"]
+      }
+    },
+    {
+      "name": "generate_mappings",
+      "description": "Regenerate the app→domain→upper mapping table from the layers. Precondition: application concepts bind to known domain classes. Effect: 50-mappings.yaml written. Output: Mapping (L1).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "dir": { "type": "string", "description": "Ontology (L1) workspace directory" }
+        },
+        "required": ["dir"]
+      }
+    },
+    {
+      "name": "emit_consumer_binding",
+      "description": "Emit the consumer-specific output (MCP tool JSON, Turtle/RDF, JSON-LD context, TS/Pydantic types, RAG metadata, or Mermaid). PRECONDITION: validation passes — emit AFTER validation, never before. Output: ConsumerBinding (L1).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "format": { "type": "string", "enum": ["mcp", "turtle", "jsonld", "types", "rag", "mermaid"] }
+        },
+        "required": ["format"]
+      }
+    }
+  ]
+}

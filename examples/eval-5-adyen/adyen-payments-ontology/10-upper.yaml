@@ -1,0 +1,21 @@
+source_ontology: gist
+version: "14.0.0"   # same anchor set as eval-1-stripe for clean competitor comparison; re-verify IRIs in Protégé (live TTL not fetched)
+anchors:
+  - id: Person
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Person"
+  - id: Organization
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Organization"
+  - id: Event
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Event"
+  - id: Transaction
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Transaction"
+  - id: Account
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Account"
+  - id: Intention
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Intention"
+  - id: Content
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Content"
+  - id: Category
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Category"
+  - id: Magnitude
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Magnitude"

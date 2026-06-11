@@ -1,0 +1,112 @@
+system: "ontologyex"
+# L3 — the concrete artifacts THIS repo ships. Each binds an L1 class and is used_by a
+# leaf L2 task. In retrofit mode this layer is mostly already written in the codebase; the
+# work is mapping it upward and exposing gaps.
+concepts:
+  # --- the tool (scaffold.py subcommands) ---
+  - id: scaffold.init
+    kind: tool_schema
+    binds: Ontology
+    used_by_tasks: [ScaffoldWorkspace]
+    fields:
+      - name: --name
+        maps_to: "ExtractionTarget identifier"
+      - name: --out
+        maps_to: "Ontology workspace location"
+    source: "ontology-extraction/scripts/scaffold.py def init()"
+  - id: scaffold.validate
+    kind: tool_schema
+    binds: Ontology
+    used_by_tasks: [ValidateOntology]
+    fields:
+      - name: errors
+        maps_to: "unanchored class / dangling ref / duplicate id / unbound concept"
+      - name: warnings
+        maps_to: "missing definition|source / orphan class / synonym collision"
+    source: "ontology-extraction/scripts/scaffold.py def validate() (exit 1 on errors)"
+  - id: scaffold.mappings
+    kind: tool_schema
+    binds: Mapping
+    used_by_tasks: [GenerateMappings]
+    source: "ontology-extraction/scripts/scaffold.py def mappings()"
+
+  # --- the canonical file templates (db of the method, effectively) ---
+  - id: file.00-scope
+    kind: db_table
+    binds: CompetencyQuestion
+    used_by_tasks: [ScopeTarget, WriteCompetencyQuestions]
+    source: "scaffold.py TEMPLATES['00-scope.md']"
+  - id: file.10-upper
+    kind: db_table
+    binds: UpperOntology
+    used_by_tasks: [AnchorUpper]
+    fields:
+      - name: anchors[].iri
+        maps_to: "UpperOntology category IRI"
+    source: "scaffold.py TEMPLATES['10-upper.yaml']"
+  - id: file.20-domain
+    kind: db_table
+    binds: OntologyClass
+    used_by_tasks: [BuildDomainLayer]
+    fields:
+      - name: classes[].upper
+        maps_to: "anchors_to relation"
+      - name: relations[]
+        maps_to: "Relation (domain/range/cardinality)"
+    source: "scaffold.py TEMPLATES['20-domain.yaml']"
+  - id: file.30-task
+    kind: db_table
+    binds: OntologyTask
+    used_by_tasks: [BuildTaskLayer]
+    source: "scaffold.py TEMPLATES['30-task.yaml']"
+  - id: file.40-application
+    kind: db_table
+    binds: ApplicationConcept
+    used_by_tasks: [ProjectApplicationLayer]
+    source: "scaffold.py TEMPLATES['40-application.yaml']"
+  - id: file.50-mappings
+    kind: db_table
+    binds: Mapping
+    used_by_tasks: [GenerateMappings]
+    source: "scaffold.py mappings() output target"
+
+  # --- the skill/spec documents ---
+  - id: doc.AGENT_SKILL
+    kind: api_type
+    binds: OntologyTask
+    used_by_tasks: [ExtractOntology]
+    source: "AGENT_SKILL.md (portable runtime-agnostic workflow)"
+  - id: doc.SKILL
+    kind: api_type
+    binds: Ontology
+    used_by_tasks: [ExtractOntology]
+    source: "ontology-extraction/SKILL.md (frontmatter-triggered skill)"
+
+  # --- the reference catalogs ---
+  - id: ref.reuse-catalog
+    kind: api_type
+    binds: UpperOntology
+    used_by_tasks: [AnchorUpper, BuildDomainLayer]
+    source: "ontology-extraction/references/reuse-catalog.md"
+  - id: ref.source-mining
+    kind: api_type
+    binds: EvidenceSource
+    used_by_tasks: [MineSources]
+    source: "ontology-extraction/references/source-mining.md"
+  - id: ref.output-formats
+    kind: api_type
+    binds: ConsumerBinding
+    used_by_tasks: [EmitConsumerBinding]
+    source: "ontology-extraction/references/output-formats.md"
+
+  # --- the worked evals, treated as instances ---
+  - id: example.stripe-ontology
+    kind: ui_object
+    binds: Ontology
+    used_by_tasks: [ValidateOntology]
+    source: "examples/eval-1-stripe/stripe-support-agent-ontology/"
+  - id: example.mcp-tools-json
+    kind: ui_object
+    binds: ConsumerBinding
+    used_by_tasks: [EmitConsumerBinding]
+    source: "examples/eval-1-stripe/mcp-tools.json (MCP binding emitted from L2)"

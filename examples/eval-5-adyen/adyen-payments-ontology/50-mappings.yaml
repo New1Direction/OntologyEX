@@ -1,0 +1,71 @@
+mappings:
+- app: api.captures
+  domain: Capture
+  upper: Transaction
+  evidence: POST /payments/{paymentPspReference}/captures
+- app: api.refunds
+  domain: Refund
+  upper: Transaction
+  evidence: POST /payments/{paymentPspReference}/refunds
+- app: api.cancels
+  domain: Cancellation
+  upper: Transaction
+  evidence: POST /payments/{paymentPspReference}/cancels
+- app: api.dispute
+  domain: Dispute
+  upper: Event
+  evidence: docs.adyen.com/risk-management/disputes-api (dispute object)
+- app: api.applicableDefenseReasons
+  domain: DefenseReason
+  upper: Category
+  evidence: POST /retrieveApplicableDefenseReasons
+- app: api.supplyDefenseDocument
+  domain: DefenseDocument
+  upper: Content
+  evidence: POST /supplyDefenseDocument
+- app: field.pspReference
+  domain: Payment
+  upper: Transaction
+  evidence: docs.adyen.com (PSP reference; modification originalReference)
+- app: webhook.AUTHORISATION
+  domain: Payment
+  upper: Transaction
+  evidence: Standard webhook eventCode AUTHORISATION
+- app: webhook.CAPTURE
+  domain: Capture
+  upper: Transaction
+  evidence: Standard webhook eventCode CAPTURE
+- app: webhook.REFUND
+  domain: Refund
+  upper: Transaction
+  evidence: Standard webhook eventCode REFUND
+- app: webhook.CANCELLATION
+  domain: Cancellation
+  upper: Transaction
+  evidence: Standard webhook eventCode CANCELLATION
+- app: webhook.NOTIFICATION_OF_CHARGEBACK
+  domain: Chargeback
+  upper: Transaction
+  evidence: Dispute webhook eventCode NOTIFICATION_OF_CHARGEBACK (defense period opens,
+    funds debited)
+- app: webhook.REQUEST_FOR_INFORMATION
+  domain: Dispute
+  upper: Event
+  evidence: Dispute webhook eventCode REQUEST_FOR_INFORMATION (no funds withdrawn
+    yet)
+- app: tool.capture_payment
+  domain: Capture
+  upper: Transaction
+  evidence: emitted from L2 per output-formats.md
+- app: tool.refund_payment
+  domain: Refund
+  upper: Transaction
+  evidence: emitted from L2 per output-formats.md
+- app: tool.defend_dispute
+  domain: Dispute
+  upper: Event
+  evidence: emitted from L2 per output-formats.md
+- app: report.settlementDetail
+  domain: Payout
+  upper: Transaction
+  evidence: docs.adyen.com (settlement detail report)

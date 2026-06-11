@@ -1,0 +1,1112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Ontology Kit - Skill For AI Agents</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #101418;
+      --muted: #5b6570;
+      --paper: #f5f1e8;
+      --panel: #fffdf7;
+      --line: #d8d0c2;
+      --night: #101418;
+      --night-soft: #171d23;
+      --green: #13846f;
+      --blue: #256eb2;
+      --red: #cf4c42;
+      --gold: #c28719;
+      --violet: #7654b5;
+      --shadow: 0 24px 80px rgba(16, 20, 24, .14);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+      letter-spacing: 0;
+      overflow-x: hidden;
+    }
+
+    a {
+      color: inherit;
+      text-underline-offset: 4px;
+      text-decoration-thickness: 2px;
+    }
+
+    code,
+    pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    .hero {
+      position: relative;
+      min-height: 92vh;
+      color: #f8fbf8;
+      background: var(--night);
+      overflow: hidden;
+      border-bottom: 1px solid rgba(255,255,255,.13);
+    }
+
+    #field {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: .8;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(16, 20, 24, .48);
+      pointer-events: none;
+    }
+
+    .hero-inner {
+      position: relative;
+      z-index: 2;
+      width: min(1180px, calc(100% - 40px));
+      min-height: 92vh;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1.03fr) minmax(320px, .82fr);
+      gap: 48px;
+      align-items: center;
+      padding: 54px 0 42px;
+    }
+
+    .kicker {
+      display: inline-flex;
+      gap: 10px;
+      align-items: center;
+      width: fit-content;
+      margin: 0 0 18px;
+      padding: 8px 11px;
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      color: #cdeee7;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      backdrop-filter: blur(12px);
+    }
+
+    .kicker::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ed1bb;
+      box-shadow: 0 0 0 5px rgba(78, 209, 187, .16);
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 820px;
+      font-size: clamp(44px, 7.8vw, 96px);
+      line-height: .93;
+      letter-spacing: 0;
+    }
+
+    .hero-copy {
+      max-width: 730px;
+      margin: 26px 0 0;
+      color: #dce5ec;
+      font-size: clamp(18px, 2vw, 22px);
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 32px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 11px 17px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.22);
+      background: rgba(255,255,255,.09);
+      color: #f8fbf8;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 900;
+      backdrop-filter: blur(12px);
+    }
+
+    .button.primary {
+      background: #f6f1e6;
+      border-color: #f6f1e6;
+      color: #111820;
+    }
+
+    .demo-panel {
+      display: grid;
+      gap: 14px;
+    }
+
+    .terminal {
+      min-width: 0;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: var(--radius);
+      background: rgba(10, 14, 18, .83);
+      box-shadow: 0 24px 90px rgba(0,0,0,.28);
+      overflow: hidden;
+      backdrop-filter: blur(16px);
+    }
+
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 42px;
+      padding: 0 14px;
+      border-bottom: 1px solid rgba(255,255,255,.12);
+      color: #b8c3ce;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .lights {
+      display: inline-flex;
+      gap: 7px;
+    }
+
+    .lights span {
+      display: block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .lights span:nth-child(1) { background: #e45f59; }
+    .lights span:nth-child(2) { background: #e9b54d; }
+    .lights span:nth-child(3) { background: #4fc492; }
+
+    .terminal pre {
+      max-width: 100%;
+      margin: 0;
+      padding: 18px;
+      overflow-x: auto;
+      color: #e7f2ef;
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .proof-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .proof-pill {
+      padding: 14px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.08);
+    }
+
+    .proof-pill strong {
+      display: block;
+      margin-bottom: 3px;
+      color: #fff;
+      font-size: 14px;
+    }
+
+    .proof-pill span {
+      color: #cbd6df;
+      font-size: 12px;
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: rgba(245, 241, 232, .93);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(14px);
+    }
+
+    .nav-inner {
+      width: min(1180px, calc(100% - 32px));
+      min-height: 58px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .nav-inner::-webkit-scrollbar {
+      display: none;
+    }
+
+    .nav a {
+      flex: 0 0 auto;
+      color: #303a44;
+      font-size: 14px;
+      font-weight: 900;
+      text-decoration: none;
+    }
+
+    .nav a:hover {
+      color: var(--green);
+    }
+
+    .section {
+      padding: 82px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section.dark {
+      background: var(--night);
+      color: #f7f6ef;
+      border-color: rgba(255,255,255,.12);
+    }
+
+    .section.alt {
+      background: #e9e2d5;
+    }
+
+    .wrap {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, .76fr) minmax(280px, .48fr);
+      gap: 42px;
+      align-items: end;
+      margin-bottom: 34px;
+    }
+
+    .label {
+      margin: 0 0 10px;
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 950;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .dark .label {
+      color: #64d1c2;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(32px, 4vw, 58px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: 22px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      margin: 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .dark .lead,
+    .dark .muted {
+      color: #c9d3dc;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      min-width: 0;
+      padding: 22px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: 0 12px 42px rgba(16, 20, 24, .06);
+    }
+
+    .dark .card {
+      background: rgba(255,255,255,.07);
+      border-color: rgba(255,255,255,.16);
+      box-shadow: none;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .dark .card p {
+      color: #cfd8e0;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      margin-bottom: 12px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: #e7f2ed;
+      color: #116f60;
+      font-size: 12px;
+      font-weight: 950;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .tag.blue {
+      background: #e6eef8;
+      color: #245f9a;
+    }
+
+    .tag.red {
+      background: #fae8e5;
+      color: #a43c34;
+    }
+
+    .tag.gold {
+      background: #f5ecd8;
+      color: #7a560f;
+    }
+
+    .tag.violet {
+      background: #eee8f7;
+      color: #5d4690;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 68px minmax(0, 1fr) 68px minmax(0, 1fr);
+      gap: 12px;
+      align-items: stretch;
+      margin-top: 30px;
+    }
+
+    .flow-card {
+      min-height: 156px;
+      padding: 20px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.07);
+    }
+
+    .flow-card h3 {
+      color: #fff;
+    }
+
+    .flow-card p {
+      margin: 0;
+      color: #cbd6df;
+    }
+
+    .arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #f7f6ef;
+      font-size: 34px;
+      font-weight: 900;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, .94fr) minmax(0, 1.06fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .readme {
+      min-width: 0;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: #fffdf8;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .readme-head {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      background: #f2ecdf;
+      color: #35404a;
+      font-weight: 950;
+    }
+
+    .readme pre {
+      max-width: 100%;
+      margin: 0;
+      padding: 20px;
+      overflow-x: auto;
+      color: #17202a;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .repo-tree {
+      min-width: 0;
+      max-width: 100%;
+      margin: 0;
+      padding: 20px;
+      overflow-x: auto;
+      border-radius: var(--radius);
+      border: 1px solid #27323d;
+      background: #0b1117;
+      color: #e7f2ef;
+      font-size: 13px;
+      line-height: 1.62;
+    }
+
+    .check {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .check li {
+      position: relative;
+      padding: 16px 16px 16px 44px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: #35404a;
+      font-weight: 700;
+    }
+
+    .check li::before {
+      content: "";
+      position: absolute;
+      left: 17px;
+      top: 21px;
+      width: 12px;
+      height: 7px;
+      border-left: 3px solid var(--green);
+      border-bottom: 3px solid var(--green);
+      transform: rotate(-45deg);
+    }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .metric {
+      padding: 18px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.07);
+    }
+
+    .metric strong {
+      display: block;
+      margin-bottom: 5px;
+      color: #fff;
+      font-size: 30px;
+      line-height: 1;
+    }
+
+    .metric span {
+      color: #cbd6df;
+      font-size: 13px;
+    }
+
+    .names {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .name-chip {
+      padding: 9px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fffdf8;
+      color: #26313b;
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    .footer {
+      padding: 42px 0;
+      background: #0f1419;
+      color: #dbe4ec;
+    }
+
+    .footer .wrap {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .footer .small,
+    .dark .small {
+      color: #b9c4ce;
+    }
+
+    @media (max-width: 980px) {
+      .hero-inner,
+      .section-head,
+      .split {
+        grid-template-columns: 1fr;
+      }
+
+      .grid-3,
+      .metric-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      .arrow {
+        min-height: 40px;
+        transform: rotate(90deg);
+      }
+    }
+
+    @media (max-width: 680px) {
+      .hero-inner,
+      .wrap,
+      .nav-inner {
+        width: min(100% - 24px, 1180px);
+      }
+
+      .section {
+        padding: 58px 0;
+      }
+
+      .grid-2,
+      .grid-3,
+      .proof-strip,
+      .metric-row {
+        grid-template-columns: 1fr;
+      }
+
+      .footer .wrap {
+        display: block;
+      }
+
+      .terminal pre,
+      .readme pre,
+      .repo-tree,
+      .terminal code,
+      .readme code,
+      .repo-tree code {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <canvas id="field" aria-hidden="true"></canvas>
+    <div class="hero-inner">
+      <div>
+        <p class="kicker">Skill for AI agents</p>
+        <h1>Make agents understand your business before they act.</h1>
+        <p class="hero-copy">
+          A portable AI-agent skill that extracts agent-ready domain models from product docs, APIs, companies, markets, and codebases. Use it with Claude Code, Codex, Cursor, custom agent runners, or any capable agent that can follow AGENT_SKILL.md.
+        </p>
+        <div class="hero-actions">
+          <a class="button primary" href="#quickstart">Use it with any agent</a>
+          <a class="button" href="#proof">See proof</a>
+          <a class="button" href="#repo">Package the repo</a>
+        </div>
+      </div>
+
+      <aside class="demo-panel" aria-label="Launch proof panel">
+        <div class="terminal">
+          <div class="terminal-bar">
+            <span>demo</span>
+            <span class="lights"><span></span><span></span><span></span></span>
+          </div>
+          <pre><code>Target: Stripe support ops
+Consumer: MCP agent tools
+Boundary: refunds + disputes
+
+Output:
+  00-scope.md
+  10-upper.yaml
+  20-domain.yaml
+  30-task.yaml
+  40-application.yaml
+  50-mappings.yaml
+  mcp-tools.json
+
+Result:
+  safer tools, mapped objects,
+  explicit preconditions.</code></pre>
+        </div>
+        <div class="proof-strip">
+          <div class="proof-pill"><strong>Stripe</strong><span>agent tool surface</span></div>
+          <div class="proof-pill"><strong>RealWorld</strong><span>codebase retrofit</span></div>
+          <div class="proof-pill"><strong>Markets</strong><span>sparse-domain scan</span></div>
+        </div>
+      </aside>
+    </div>
+  </header>
+
+  <nav class="nav" aria-label="Page sections">
+    <div class="nav-inner">
+      <a href="#problem">Problem</a>
+      <a href="#does">What It Does</a>
+      <a href="#quickstart">Quick Start</a>
+      <a href="#proof">Proof</a>
+      <a href="#edge">Edge</a>
+      <a href="#repo">Repo</a>
+      <a href="#readme">README</a>
+    </div>
+  </nav>
+
+  <main>
+    <section id="problem" class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="label">The pain</p>
+            <h2>Most AI projects skip the business model.</h2>
+          </div>
+          <p class="lead">
+            Agents get tool names. RAG gets chunks. Databases get tables. But the system often lacks a shared map of what the business means, what can happen, and what software objects are allowed to touch it.
+          </p>
+        </div>
+
+        <div class="grid-3">
+          <article class="card">
+            <span class="tag red">Agents</span>
+            <h3>Tools are under-specified</h3>
+            <p>Without task preconditions and effects, agents can call the right-looking tool at the wrong time.</p>
+          </article>
+          <article class="card">
+            <span class="tag gold">RAG</span>
+            <h3>Retrieval is blurry</h3>
+            <p>Chunks know words, not concepts. "What is a refund?" and "how do I process a refund?" get mixed.</p>
+          </article>
+          <article class="card">
+            <span class="tag blue">Schemas</span>
+            <h3>Code hides domain meaning</h3>
+            <p>Tables and API types encode implementation details, but not the business concepts they represent.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="does" class="section dark">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="label">What it does</p>
+            <h2>It turns messy inputs into agent infrastructure.</h2>
+          </div>
+          <p class="lead">
+            The skill gives an agent an operating procedure: mine evidence, build a four-layer ontology, validate the structure, then emit the format your system needs.
+          </p>
+        </div>
+
+        <div class="flow">
+          <div class="flow-card">
+            <h3>Messy input</h3>
+            <p>Docs, APIs, source code, DB schema, job posts, help centers, standards, events, tests, and tool schemas.</p>
+          </div>
+          <div class="arrow">-&gt;</div>
+          <div class="flow-card">
+            <h3>Four-layer map</h3>
+            <p>Upper anchors, domain nouns, task verbs, and app bindings tied together with evidence.</p>
+          </div>
+          <div class="arrow">-&gt;</div>
+          <div class="flow-card">
+            <h3>Useful output</h3>
+            <p>MCP tool schemas, RAG metadata, graph schemas, JSON-LD, TypeScript/Pydantic types, and diagrams.</p>
+          </div>
+        </div>
+
+        <div class="metric-row">
+          <div class="metric"><strong>L0</strong><span>universal anchors</span></div>
+          <div class="metric"><strong>L1</strong><span>domain concepts</span></div>
+          <div class="metric"><strong>L2</strong><span>tasks and effects</span></div>
+          <div class="metric"><strong>L3</strong><span>app bindings</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="quickstart" class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="label">Quick start</p>
+            <h2>One prompt gets any capable agent moving.</h2>
+          </div>
+          <p class="lead">
+            Lead with the consumer. The agent should know whether the output is for agent tools, MCP, RAG, a knowledge graph, DB/API design, or documentation.
+          </p>
+        </div>
+
+        <div class="split">
+          <article class="card">
+            <span class="tag">Prompt</span>
+            <h3>Paste this into any AI agent</h3>
+            <p>
+              Use AGENT_SKILL.md as your workflow. Target: [company, codebase, product, API, docs, or market]. Consumer: [MCP agent tools, RAG, knowledge graph, DB/API schema, or docs]. Boundary: [what is in and out]. Deliver the YAML layers, mappings, validation notes, and the consumer binding.
+            </p>
+          </article>
+          <div class="terminal">
+            <div class="terminal-bar">
+              <span>local commands</span>
+              <span class="lights"><span></span><span></span><span></span></span>
+            </div>
+            <pre><code># Universal agent usage
+Give the agent AGENT_SKILL.md as instructions.
+
+# Optional packaged-skill usage
+unzip ontology-extraction.skill -d ./skills
+cd ./skills/ontology-extraction
+
+python scripts/scaffold.py init \
+  --name my-target \
+  --out ../../my-target-ontology
+
+python scripts/scaffold.py validate ../../my-target-ontology
+python scripts/scaffold.py mappings ../../my-target-ontology</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="proof" class="section alt">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="label">Proof</p>
+            <h2>The evals show three credible use cases.</h2>
+          </div>
+          <p class="lead">
+            These are the examples to put near the top of the GitHub repo. They make the agent skill feel concrete in the first scroll.
+          </p>
+        </div>
+
+        <div class="grid-3">
+          <article class="card">
+            <span class="tag blue">Research mode</span>
+            <h3>Stripe support agent</h3>
+            <p>Extracts Charge, Refund, Dispute, Evidence, Customer, and MerchantAccount, then maps tasks into MCP-friendly support operations.</p>
+          </article>
+          <article class="card">
+            <span class="tag violet">Retrofit mode</span>
+            <h3>RealWorld app</h3>
+            <p>Maps Prisma models and Express routes to Member, Article, Comment, Tag, Follow, and Favorite concepts.</p>
+          </article>
+          <article class="card">
+            <span class="tag gold">Sparse field</span>
+            <h3>Prediction markets</h3>
+            <p>Finds no strong published ontology, then recommends fresh L1 modeling with L3 alignment to Gnosis CTF vocabulary.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="edge" class="section dark">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="label">Why builders care</p>
+            <h2>The edge is safer automation.</h2>
+          </div>
+          <p class="lead">
+            The launch angle is simple: do not let an AI agent act inside a business it does not understand.
+          </p>
+        </div>
+
+        <div class="grid-3">
+          <article class="card">
+            <span class="tag">MCP tools</span>
+            <h3>Better tool contracts</h3>
+            <p>L2 tasks become tools. Preconditions and effects become descriptions the model can reason over before acting.</p>
+          </article>
+          <article class="card">
+            <span class="tag blue">RAG</span>
+            <h3>Better metadata</h3>
+            <p>L1 concepts and L2 tasks become filters, routing labels, and chunk tags that make retrieval less sloppy.</p>
+          </article>
+          <article class="card">
+            <span class="tag gold">Codebase audits</span>
+            <h3>Better schema cleanup</h3>
+            <p>Every L3 object must bind upward. Unmapped fields expose app-only details, missing concepts, or stale schema.</p>
+          </article>
+          <article class="card">
+            <span class="tag violet">Market research</span>
+            <h3>Better reverse engineering</h3>
+            <p>Public docs, APIs, pricing pages, and job posts become a structured map of how a company operates.</p>
+          </article>
+          <article class="card">
+            <span class="tag red">Standards</span>
+            <h3>Better interoperability</h3>
+            <p>The skill reuses schema.org, gist, PROV-O, FIBO, FHIR, GS1, and other vocabularies where they fit.</p>
+          </article>
+          <article class="card">
+            <span class="tag">Teams</span>
+            <h3>Better shared language</h3>
+            <p>Product, engineering, data, docs, and agents all get the same names for the same business objects.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="repo" class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="label">Repo packaging</p>
+            <h2>Ship it as a developer tool, not a document.</h2>
+          </div>
+          <p class="lead">
+            Put the examples and validator close to the top. Make the first minute feel obvious.
+          </p>
+        </div>
+
+        <div class="split">
+          <pre class="repo-tree"><code>agent-ontology-kit/
+  README.md
+  LICENSE
+  AGENT_SKILL.md
+  ontology-extraction.skill
+  ontology-extraction/
+    SKILL.md
+    scripts/
+      scaffold.py
+    references/
+      output-formats.md
+      reuse-catalog.md
+      source-mining.md
+  examples/
+    stripe-support-agent/
+    realworld-express/
+    prediction-markets/
+  docs/
+    guide.html
+    launch.html
+  screenshots/
+    hero.png
+    examples.png</code></pre>
+
+          <ul class="check">
+            <li>Lead with the agent/RAG problem, then explain ontology as the mechanism.</li>
+            <li>Show the file tree output before deep explanation.</li>
+            <li>Include the Stripe and RealWorld examples as proof.</li>
+            <li>Add both paths: universal AI-agent usage and optional packaged-skill usage.</li>
+            <li>Include a validator screenshot or terminal output.</li>
+            <li>Use GitHub topics like ai-agents, mcp, rag, knowledge-graph, ontology, semantic-layer.</li>
+          </ul>
+        </div>
+
+        <div class="names" aria-label="Possible repository names">
+          <span class="name-chip">agent-ontology-kit</span>
+          <span class="name-chip">domain-map-for-agents</span>
+          <span class="name-chip">semantic-agent-maps</span>
+          <span class="name-chip">agent-schema-miner</span>
+          <span class="name-chip">agent-domain-modeler</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="readme" class="section alt">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="label">Paste-ready opener</p>
+            <h2>A README intro that sells the practical value.</h2>
+          </div>
+          <p class="lead">
+            This is the kind of opening that makes the project feel immediately useful instead of academic.
+          </p>
+        </div>
+
+        <div class="readme">
+          <div class="readme-head">README.md opener</div>
+          <pre><code># Agent Ontology Kit
+
+Make AI agents understand a business before they act.
+
+Agent Ontology Kit is a portable skill for AI agents. It extracts
+structured, agent-ready domain models from product docs, APIs,
+companies, markets, and codebases.
+
+Use it from Claude Code, Codex, Cursor, custom agent runners, or any
+capable AI agent through AGENT_SKILL.md. Humans can also run the YAML
+templates and validator script directly.
+
+It produces a four-layer ontology:
+
+- L0 upper anchors: universal categories like Agent, Event, Object
+- L1 domain concepts: the nouns of the business
+- L2 tasks: the verbs, workflows, preconditions, and effects
+- L3 application bindings: DB tables, API types, events, tool schemas,
+  UI objects, and field mappings
+
+Use it to generate:
+
+- safer MCP tool schemas
+- RAG metadata and routing labels
+- knowledge graph schemas
+- DB/API semantic mappings
+- codebase audit notes
+- market/company structure maps
+
+Why this matters:
+
+Most agent projects define tools before defining the world those tools
+operate in. This skill gives the agent a grounded map first.</code></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <div>
+        <strong>Launch page generated from your AI-agent skill bundle</strong>
+        <div class="small">Keep this alongside the explainer guide.</div>
+      </div>
+      <div class="small">/Users/clubpenguin/Documents/OntologyEX/docs/launch.html</div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      const canvas = document.getElementById("field");
+      const ctx = canvas.getContext("2d");
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let width = 0;
+      let height = 0;
+      let nodes = [];
+      const colors = ["#4ed1bb", "#70aee6", "#e2a942", "#ef776f", "#a284d6"];
+
+      function resize() {
+        const ratio = window.devicePixelRatio || 1;
+        width = canvas.offsetWidth;
+        height = canvas.offsetHeight;
+        canvas.width = Math.max(1, Math.floor(width * ratio));
+        canvas.height = Math.max(1, Math.floor(height * ratio));
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        const columns = Math.max(8, Math.min(16, Math.floor(width / 92)));
+        const rows = Math.max(5, Math.min(10, Math.floor(height / 110)));
+        nodes = [];
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < columns; x++) {
+            if (Math.random() > .72) continue;
+            nodes.push({
+              x: (x + .45 + Math.random() * .25) * (width / columns),
+              y: (y + .35 + Math.random() * .35) * (height / rows),
+              vx: (Math.random() - .5) * .22,
+              vy: (Math.random() - .5) * .22,
+              size: 3 + Math.random() * 4,
+              color: colors[(x + y) % colors.length]
+            });
+          }
+        }
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, width, height);
+        for (let i = 0; i < nodes.length; i++) {
+          const a = nodes[i];
+          if (!reduced) {
+            a.x += a.vx;
+            a.y += a.vy;
+            if (a.x < -20) a.x = width + 20;
+            if (a.x > width + 20) a.x = -20;
+            if (a.y < -20) a.y = height + 20;
+            if (a.y > height + 20) a.y = -20;
+          }
+
+          for (let j = i + 1; j < nodes.length; j++) {
+            const b = nodes[j];
+            const dx = a.x - b.x;
+            const dy = a.y - b.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < 170) {
+              ctx.strokeStyle = "rgba(222, 237, 240," + (1 - distance / 170) * .22 + ")";
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(a.x, a.y);
+              ctx.lineTo(b.x, b.y);
+              ctx.stroke();
+            }
+          }
+
+          ctx.fillStyle = a.color;
+          ctx.fillRect(a.x, a.y, a.size, a.size);
+          ctx.fillStyle = "rgba(255,255,255,.12)";
+          ctx.fillRect(a.x + a.size + 4, a.y + 1, 18 + (i % 4) * 7, 2);
+        }
+        if (!reduced) requestAnimationFrame(draw);
+      }
+
+      resize();
+      draw();
+      window.addEventListener("resize", function () {
+        resize();
+        if (reduced) draw();
+      });
+    })();
+  </script>
+</body>
+</html>

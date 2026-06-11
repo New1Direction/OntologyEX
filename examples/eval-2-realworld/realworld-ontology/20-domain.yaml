@@ -1,0 +1,61 @@
+classes:
+  - id: Member
+    definition: "Registered participant of a social publishing platform; may author, comment, favorite, follow."
+    upper: Person
+    synonyms: [User, Profile]
+    source: "src/prisma/schema.prisma (model User); /profiles routes"
+  - id: Article
+    definition: "A published long-form post with title, description, body, and tags."
+    upper: CreativeWork
+    aligns_to: "https://schema.org/Article"
+    alignment: subClassOf
+    source: "src/prisma/schema.prisma (model Article)"
+  - id: Comment
+    definition: "A member's textual response attached to one article."
+    upper: CreativeWork
+    aligns_to: "https://schema.org/Comment"
+    alignment: subClassOf
+    source: "src/prisma/schema.prisma (model Comment)"
+  - id: Tag
+    definition: "A reusable topical label applied to articles."
+    upper: Intangible
+    aligns_to: "https://schema.org/DefinedTerm"
+    alignment: subClassOf
+    source: "src/prisma/schema.prisma (model Tag)"
+relations:
+  - id: authored_by
+    definition: "An article has exactly one authoring member."
+    domain: Article
+    range: Member
+    cardinality: many-to-one
+    source: "schema.prisma relation UserArticles"
+  - id: comments_on
+    definition: "A comment targets one article (cascade-deleted with it)."
+    domain: Comment
+    range: Article
+    cardinality: many-to-one
+    source: "schema.prisma Comment.article onDelete: Cascade"
+  - id: comment_authored_by
+    definition: "A comment has one authoring member."
+    domain: Comment
+    range: Member
+    cardinality: many-to-one
+    source: "schema.prisma Comment.author"
+  - id: tagged_with
+    definition: "Articles carry zero or more tags; tags label many articles."
+    domain: Article
+    range: Tag
+    cardinality: many-to-many
+    source: "schema.prisma Article.tagList Tag[]"
+  - id: favorites
+    definition: "A member bookmarks articles."
+    domain: Member
+    range: Article
+    cardinality: many-to-many
+    source: "schema.prisma User.favorites @relation(UserFavorites)"
+  - id: follows
+    definition: "A member subscribes to another member's output."
+    domain: Member
+    range: Member
+    cardinality: many-to-many
+    source: "schema.prisma self-relation UserFollows"

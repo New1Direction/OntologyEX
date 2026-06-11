@@ -1,0 +1,99 @@
+{
+  "_comment": "Consumer binding emitted from 30-task.yaml per references/output-formats.md. One tool per leaf L2 task. Adyen preconditions (manual-capture state, pre-capture-only cancel, defense deadline, irreversibility) are folded into each description so the agent won't make an illegal call.",
+  "tools": [
+    {
+      "name": "capture_payment",
+      "description": "Capture an authorised payment, fully or partially. Preconditions: payment is authorised and NOT yet captured (merchant account uses manual capture); capture amount <= authorised amount and same currency. Effects: Capture created (received -> success/failed); on a single partial capture the unclaimed remainder is auto-cancelled.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "paymentPspReference": { "type": "string", "description": "Payment (L1) — the authorisation to capture" },
+          "amount_value": { "type": "integer", "description": "MonetaryAmount (L1) in minor units; omit for full capture" },
+          "amount_currency": { "type": "string", "description": "must match the authorisation currency" }
+        },
+        "required": ["paymentPspReference"]
+      }
+    },
+    {
+      "name": "refund_payment",
+      "description": "Refund captured funds to the shopper, fully or partially. Preconditions: payment has been captured; refund amount <= captured-and-not-yet-refunded remainder. Effect: Refund created; funds returned to the shopper.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "paymentPspReference": { "type": "string", "description": "Payment (L1) — the captured payment to refund" },
+          "amount_value": { "type": "integer", "description": "MonetaryAmount (L1) in minor units; omit for full refund" }
+        },
+        "required": ["paymentPspReference"]
+      }
+    },
+    {
+      "name": "cancel_payment",
+      "description": "Cancel (void) an authorised payment BEFORE it is captured. Precondition: payment is authorised and has NOT been captured — after capture you must use refund_payment instead. Effect: authorisation voided; no funds settle.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "paymentPspReference": { "type": "string", "description": "Payment (L1) — the uncaptured authorisation to void" }
+        },
+        "required": ["paymentPspReference"]
+      }
+    },
+    {
+      "name": "retrieve_defense_reasons",
+      "description": "List the defense reason codes applicable to a dispute. Read-only — no funds move. Call this before defend_dispute to obtain a valid defenseReasonCode.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "disputePspReference": { "type": "string", "description": "Dispute (L1)" }
+        },
+        "required": ["disputePspReference"]
+      }
+    },
+    {
+      "name": "supply_defense_document",
+      "description": "Upload an evidence document to contest a dispute. Preconditions: content type is JPG, TIFF, or PDF and within the size limit; dispute is defensible (notification of chargeback received). Effect: document attached to the dispute defense.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "disputePspReference": { "type": "string", "description": "Dispute (L1)" },
+          "defenseDocumentTypeCode": { "type": "string", "description": "DefenseDocument (L1) kind, e.g. DefenseMaterial / TID" },
+          "content": { "type": "string", "description": "base64 document bytes (JPG|TIFF|PDF)" }
+        },
+        "required": ["disputePspReference", "defenseDocumentTypeCode", "content"]
+      }
+    },
+    {
+      "name": "defend_dispute",
+      "description": "Submit a defense for a chargeback under a chosen reason code. Preconditions: dispute has reached NOTIFICATION_OF_CHARGEBACK (defense period open); defenseReasonCode is one of the applicable reasons (call retrieve_defense_reasons first); before the defense deadline. Effect: defense submitted to the issuer for review.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "disputePspReference": { "type": "string", "description": "Dispute (L1)" },
+          "defenseReasonCode": { "type": "string", "description": "DefenseReason (L1) — must be in the applicable set" }
+        },
+        "required": ["disputePspReference", "defenseReasonCode"]
+      }
+    },
+    {
+      "name": "accept_dispute",
+      "description": "Concede a dispute without defending it. Precondition: dispute is open. Effects: funds conceded to the cardholder; IRREVERSIBLE — confirm with a human before calling.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "disputePspReference": { "type": "string", "description": "Dispute (L1)" }
+        },
+        "required": ["disputePspReference"]
+      }
+    },
+    {
+      "name": "monitor_payout",
+      "description": "Check settlement of captured funds to the merchant account. Read-only — no funds move. Reports settled payouts for the account.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "merchantAccount": { "type": "string", "description": "MerchantAccount (L1)" }
+        },
+        "required": ["merchantAccount"]
+      }
+    }
+  ]
+}

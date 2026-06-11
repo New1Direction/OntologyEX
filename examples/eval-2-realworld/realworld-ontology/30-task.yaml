@@ -1,0 +1,49 @@
+tasks:
+  - id: RegisterMember
+    verb_phrase: "create a member account"
+    actor_roles: [Member]
+    inputs: [Member]
+    outputs: [Member]
+    preconditions: ["email and username unique"]
+    effects: ["Member persisted"]
+    source: "POST /users (auth: none)"
+  - id: PublishArticle
+    verb_phrase: "publish a new article"
+    actor_roles: [Member]
+    inputs: [Article]
+    outputs: [Article]
+    preconditions: ["authenticated (auth.required)", "slug unique"]
+    effects: ["Article persisted, authored_by caller"]
+    source: "POST /articles, article.controller.ts"
+  - id: CommentOnArticle
+    verb_phrase: "comment on an article"
+    actor_roles: [Member]
+    inputs: [Article, Comment]
+    outputs: [Comment]
+    preconditions: ["authenticated (auth.required)", "article exists by slug"]
+    effects: ["Comment persisted, comments_on article"]
+    source: "POST /articles/:slug/comments"
+  - id: FavoriteArticle
+    verb_phrase: "favorite an article"
+    actor_roles: [Member]
+    inputs: [Article]
+    outputs: [Article]
+    preconditions: ["authenticated (auth.required)"]
+    effects: ["favorites edge added; favoritesCount visible to readers"]
+    source: "POST /articles/:slug/favorite"
+  - id: FollowMember
+    verb_phrase: "follow another member"
+    actor_roles: [Member]
+    inputs: [Member]
+    outputs: [Member]
+    preconditions: ["authenticated (auth.required)"]
+    effects: ["follows edge added; target's articles enter caller's feed"]
+    source: "POST /profiles/:username/follow"
+  - id: BrowsePersonalFeed
+    verb_phrase: "read articles from followed members"
+    actor_roles: [Member]
+    inputs: [Member]
+    outputs: [Article]
+    preconditions: ["authenticated (auth.required)", "follows at least one member for non-empty result"]
+    effects: ["none (read-only)"]
+    source: "GET /articles/feed"

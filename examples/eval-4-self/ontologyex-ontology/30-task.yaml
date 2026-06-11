@@ -1,0 +1,120 @@
+# L2 — the verbs of the kit's middle-out workflow. Inputs/outputs reference L1 classes.
+# ExtractOntology is the umbrella orchestration task; everything it decomposes_to is a leaf
+# task that becomes one MCP tool (per output-formats.md: tasks with decomposes_to are
+# orchestration, not tools).
+tasks:
+  - id: ExtractOntology
+    verb_phrase: "produce a validated four-layer ontology for a target and bind it to a consumer"
+    actor_roles: [OperatingAgent]
+    inputs: [ExtractionTarget]
+    outputs: [Ontology, ConsumerBinding]
+    preconditions:
+      - "Target, consumer, and boundary are decided"
+    effects:
+      - "A 7-file ontology workspace exists and passes validation"
+      - "Consumer binding(s) emitted"
+    decomposes_to:
+      - ScaffoldWorkspace
+      - ScopeTarget
+      - WriteCompetencyQuestions
+      - MineSources
+      - AnchorUpper
+      - BuildDomainLayer
+      - BuildTaskLayer
+      - ProjectApplicationLayer
+      - ValidateOntology
+      - GenerateMappings
+      - EmitConsumerBinding
+    source: "SKILL.md Workflow; AGENT_SKILL.md Operating Workflow"
+  - id: ScaffoldWorkspace
+    verb_phrase: "create the canonical 7-file ontology workspace"
+    actor_roles: [OperatingAgent]
+    inputs: [ExtractionTarget]
+    outputs: [Ontology]
+    preconditions: ["A target name is given"]
+    effects: ["00–50 files + README written from templates"]
+    source: "scaffold.py init(); README.md Local Scaffold"
+  - id: ScopeTarget
+    verb_phrase: "establish target (research/retrofit), consumer, and boundary"
+    actor_roles: [OperatingAgent]
+    inputs: [ExtractionTarget]
+    outputs: [Ontology]
+    preconditions: ["Consumer is known or chosen — it determines depth and output format"]
+    effects: ["00-scope.md target/consumer/boundary populated"]
+    source: "SKILL.md Step 0 Scope"
+  - id: WriteCompetencyQuestions
+    verb_phrase: "write 5–15 questions per layer the finished ontology must answer"
+    actor_roles: [OperatingAgent]
+    inputs: [ExtractionTarget]
+    outputs: [CompetencyQuestion]
+    preconditions: ["Scope is set"]
+    effects: ["CQs recorded in 00-scope.md; they define done"]
+    source: "SKILL.md Step 1"
+  - id: MineSources
+    verb_phrase: "harvest evidence from the target's artifacts and map each to a layer"
+    actor_roles: [OperatingAgent]
+    inputs: [ExtractionTarget]
+    outputs: [EvidenceSource]
+    preconditions: ["Boundary is set so mining doesn't boil the ocean"]
+    effects: ["Candidate terms collected, each with a source pointer"]
+    source: "references/source-mining.md; SKILL.md Step 2"
+  - id: AnchorUpper
+    verb_phrase: "select an upper ontology and pin 10–25 anchor categories"
+    actor_roles: [OperatingAgent]
+    inputs: [ExtractionTarget]
+    outputs: [UpperOntology]
+    preconditions: ["Do NOT invent L0 — select from a published standard"]
+    effects: ["10-upper.yaml records ontology, version, and anchor IRIs"]
+    source: "references/reuse-catalog.md; SKILL.md Step 3"
+  - id: BuildDomainLayer
+    verb_phrase: "build domain classes and relations from mined evidence"
+    actor_roles: [OperatingAgent]
+    inputs: [EvidenceSource, UpperOntology]
+    outputs: [OntologyClass, Relation]
+    preconditions:
+      - "Synonyms collapsed to one canonical id"
+      - "Every class anchored to an upper category"
+    effects: ["20-domain.yaml populated; class list with no relations rejected as taxonomy"]
+    source: "SKILL.md Step 4"
+  - id: BuildTaskLayer
+    verb_phrase: "define task/workflow activities with IOPE, referencing domain nouns"
+    actor_roles: [OperatingAgent]
+    inputs: [OntologyClass]
+    outputs: [OntologyTask]
+    preconditions: ["Domain classes exist to serve as inputs/outputs/roles"]
+    effects: ["30-task.yaml populated"]
+    source: "SKILL.md Step 5"
+  - id: ProjectApplicationLayer
+    verb_phrase: "bind the system's concrete artifacts to domain classes and tasks"
+    actor_roles: [OperatingAgent]
+    inputs: [OntologyClass, OntologyTask]
+    outputs: [ApplicationConcept]
+    preconditions: ["L1 and L2 exist to bind upward"]
+    effects: ["40-application.yaml populated; unbindable artifacts flagged as dead schema"]
+    source: "SKILL.md Step 6"
+  - id: ValidateOntology
+    verb_phrase: "check structure, answer every competency question, and round-trip real records"
+    actor_roles: [OperatingAgent]
+    inputs: [OntologyClass, Relation, OntologyTask, ApplicationConcept, CompetencyQuestion]
+    outputs: [Ontology]
+    preconditions: ["All four layers populated"]
+    effects:
+      - "Unanchored classes, dangling refs, duplicate ids, orphans reported"
+      - "Nonzero errors → exit 1 (build fails)"
+    source: "scaffold.py validate(); SKILL.md Step 7"
+  - id: GenerateMappings
+    verb_phrase: "regenerate the app→domain→upper mapping table from the layers"
+    actor_roles: [OperatingAgent]
+    inputs: [ApplicationConcept, OntologyClass]
+    outputs: [Mapping]
+    preconditions: ["Application concepts bind to known domain classes"]
+    effects: ["50-mappings.yaml written"]
+    source: "scaffold.py mappings()"
+  - id: EmitConsumerBinding
+    verb_phrase: "emit the consumer-specific output (MCP tools, Turtle, types, Mermaid)"
+    actor_roles: [OperatingAgent]
+    inputs: [OntologyTask, OntologyClass]
+    outputs: [ConsumerBinding]
+    preconditions: ["Validation passes — emit AFTER validation"]
+    effects: ["Binding artifact produced per output-formats.md decision table"]
+    source: "references/output-formats.md; SKILL.md Step deliverables"

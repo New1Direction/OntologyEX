@@ -1,0 +1,25 @@
+source_ontology: gist
+version: "14.0.0"   # pinned from semanticarts.com release page; re-verify IRIs in Protégé (no live fetch at build time)
+# gist is the business/enterprise default per references/reuse-catalog.md. This domain is
+# information-artifact heavy (specs, content, categories), which gist models cleanly.
+anchors:
+  - id: Agent
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Agent"
+    note: "Anything that can act: a person, organization, or software agent"
+  - id: Content
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Content"
+    note: "Information content carried by some medium — the home for most artifacts here"
+  - id: Category
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Category"
+    note: "A way of classifying things; a class or relation type is a kind of category"
+  - id: Specification
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Specification"
+    note: "Content that states criteria something must meet — templates, task definitions"
+  - id: Task
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Task"
+  - id: Event
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Event"
+  - id: Collection
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Collection"
+  - id: Organization
+    iri: "https://w3id.org/semanticarts/ns/ontology/gist/Organization"

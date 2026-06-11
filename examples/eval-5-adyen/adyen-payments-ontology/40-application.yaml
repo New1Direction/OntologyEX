@@ -1,0 +1,132 @@
+system: "adyen-payments-agent"
+# L3 — Adyen-specific artifacts (Checkout API resources, modification endpoints, webhook event
+# codes, derived MCP tools). Each binds an L1 class and is used_by an L2 task. These are the
+# concepts that vanish if you swap Adyen for another processor — contrast with the stable L1.
+concepts:
+  # --- modification endpoints (the write surface) ---
+  - id: api.captures
+    kind: api_type
+    binds: Capture
+    used_by_tasks: [CapturePayment]
+    fields:
+      - name: paymentPspReference
+        maps_to: "captures_payment relation (original authorisation)"
+      - name: amount.value
+        maps_to: "valued_at -> MonetaryAmount (minor units)"
+      - name: amount.currency
+        maps_to: "must equal the authorisation currency"
+    source: "POST /payments/{paymentPspReference}/captures"
+  - id: api.refunds
+    kind: api_type
+    binds: Refund
+    used_by_tasks: [RefundPayment]
+    fields:
+      - name: paymentPspReference
+        maps_to: "refunds_payment relation"
+      - name: amount.value
+        maps_to: "denominated_in -> MonetaryAmount; <= captured remainder"
+    source: "POST /payments/{paymentPspReference}/refunds"
+  - id: api.cancels
+    kind: api_type
+    binds: Cancellation
+    used_by_tasks: [CancelPayment]
+    fields:
+      - name: paymentPspReference
+        maps_to: "cancels_payment relation (only valid pre-capture)"
+    source: "POST /payments/{paymentPspReference}/cancels"
+  - id: api.dispute
+    kind: api_type
+    binds: Dispute
+    used_by_tasks: [DefendDispute, SupplyDefenseDocument, AcceptDispute]
+    fields:
+      - name: status
+        maps_to: "Dispute stage: RFI | NOTIFICATION_OF_CHARGEBACK | CHARGEBACK | ..."
+      - name: defensePeriodEndsAt
+        maps_to: "DefendDispute precondition deadline"
+    source: "docs.adyen.com/risk-management/disputes-api (dispute object)"
+  - id: api.applicableDefenseReasons
+    kind: api_type
+    binds: DefenseReason
+    used_by_tasks: [RetrieveDefenseReasons]
+    source: "POST /retrieveApplicableDefenseReasons"
+  - id: api.supplyDefenseDocument
+    kind: api_type
+    binds: DefenseDocument
+    used_by_tasks: [SupplyDefenseDocument]
+    fields:
+      - name: content
+        maps_to: "DefenseDocument bytes (JPG|TIFF|PDF, size-limited)"
+      - name: defenseDocumentTypeCode
+        maps_to: "kind of evidence"
+    source: "POST /supplyDefenseDocument"
+
+  # --- the cross-cutting identifier (realizes the modification->payment relations) ---
+  - id: field.pspReference
+    kind: api_type
+    binds: Payment
+    used_by_tasks: [CapturePayment, RefundPayment, CancelPayment]
+    fields:
+      - name: originalReference
+        maps_to: "the modification's link back to the authorisation — realizes captures_payment / refunds_payment / cancels_payment"
+    source: "docs.adyen.com (PSP reference; modification originalReference)"
+
+  # --- webhooks (the async truth) ---
+  - id: webhook.AUTHORISATION
+    kind: event
+    binds: Payment
+    used_by_tasks: [CapturePayment]
+    source: "Standard webhook eventCode AUTHORISATION"
+  - id: webhook.CAPTURE
+    kind: event
+    binds: Capture
+    used_by_tasks: [CapturePayment]
+    fields:
+      - name: originalReference
+        maps_to: "captures_payment (authorisation pspReference)"
+      - name: success
+        maps_to: "Capture status success/failed (+ reason on failure)"
+    source: "Standard webhook eventCode CAPTURE"
+  - id: webhook.REFUND
+    kind: event
+    binds: Refund
+    used_by_tasks: [RefundPayment]
+    source: "Standard webhook eventCode REFUND"
+  - id: webhook.CANCELLATION
+    kind: event
+    binds: Cancellation
+    used_by_tasks: [CancelPayment]
+    source: "Standard webhook eventCode CANCELLATION"
+  - id: webhook.NOTIFICATION_OF_CHARGEBACK
+    kind: event
+    binds: Chargeback
+    used_by_tasks: [DefendDispute]
+    source: "Dispute webhook eventCode NOTIFICATION_OF_CHARGEBACK (defense period opens, funds debited)"
+  - id: webhook.REQUEST_FOR_INFORMATION
+    kind: event
+    binds: Dispute
+    used_by_tasks: [SupplyDefenseDocument]
+    source: "Dispute webhook eventCode REQUEST_FOR_INFORMATION (no funds withdrawn yet)"
+
+  # --- emitted agent tools ---
+  - id: tool.capture_payment
+    kind: tool_schema
+    binds: Capture
+    used_by_tasks: [CapturePayment]
+    source: "emitted from L2 per output-formats.md"
+  - id: tool.refund_payment
+    kind: tool_schema
+    binds: Refund
+    used_by_tasks: [RefundPayment]
+    source: "emitted from L2 per output-formats.md"
+  - id: tool.defend_dispute
+    kind: tool_schema
+    binds: Dispute
+    used_by_tasks: [DefendDispute]
+    source: "emitted from L2 per output-formats.md"
+
+  # --- settlement reporting ---
+  - id: report.settlementDetail
+    kind: api_type
+    binds: Payout
+    used_by_tasks: [MonitorPayout]
+    source: "docs.adyen.com (settlement detail report)"

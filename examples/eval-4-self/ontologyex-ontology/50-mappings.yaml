@@ -1,0 +1,65 @@
+mappings:
+- app: scaffold.init
+  domain: Ontology
+  upper: Content
+  evidence: ontology-extraction/scripts/scaffold.py def init()
+- app: scaffold.validate
+  domain: Ontology
+  upper: Content
+  evidence: ontology-extraction/scripts/scaffold.py def validate() (exit 1 on errors)
+- app: scaffold.mappings
+  domain: Mapping
+  upper: Content
+  evidence: ontology-extraction/scripts/scaffold.py def mappings()
+- app: file.00-scope
+  domain: CompetencyQuestion
+  upper: Content
+  evidence: scaffold.py TEMPLATES['00-scope.md']
+- app: file.10-upper
+  domain: UpperOntology
+  upper: Specification
+  evidence: scaffold.py TEMPLATES['10-upper.yaml']
+- app: file.20-domain
+  domain: OntologyClass
+  upper: Category
+  evidence: scaffold.py TEMPLATES['20-domain.yaml']
+- app: file.30-task
+  domain: OntologyTask
+  upper: Specification
+  evidence: scaffold.py TEMPLATES['30-task.yaml']
+- app: file.40-application
+  domain: ApplicationConcept
+  upper: Content
+  evidence: scaffold.py TEMPLATES['40-application.yaml']
+- app: file.50-mappings
+  domain: Mapping
+  upper: Content
+  evidence: scaffold.py mappings() output target
+- app: doc.AGENT_SKILL
+  domain: OntologyTask
+  upper: Specification
+  evidence: AGENT_SKILL.md (portable runtime-agnostic workflow)
+- app: doc.SKILL
+  domain: Ontology
+  upper: Content
+  evidence: ontology-extraction/SKILL.md (frontmatter-triggered skill)
+- app: ref.reuse-catalog
+  domain: UpperOntology
+  upper: Specification
+  evidence: ontology-extraction/references/reuse-catalog.md
+- app: ref.source-mining
+  domain: EvidenceSource
+  upper: Content
+  evidence: ontology-extraction/references/source-mining.md
+- app: ref.output-formats
+  domain: ConsumerBinding
+  upper: Content
+  evidence: ontology-extraction/references/output-formats.md
+- app: example.stripe-ontology
+  domain: Ontology
+  upper: Content
+  evidence: examples/eval-1-stripe/stripe-support-agent-ontology/
+- app: example.mcp-tools-json
+  domain: ConsumerBinding
+  upper: Content
+  evidence: examples/eval-1-stripe/mcp-tools.json (MCP binding emitted from L2)

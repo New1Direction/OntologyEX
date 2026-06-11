@@ -1,0 +1,9 @@
+source_ontology: schema.org
+version: "live vocabulary (fetched terms only)"
+anchors:
+  - id: Person
+    iri: "https://schema.org/Person"
+  - id: CreativeWork
+    iri: "https://schema.org/CreativeWork"
+  - id: Intangible
+    iri: "https://schema.org/Intangible"

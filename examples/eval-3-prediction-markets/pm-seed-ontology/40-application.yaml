@@ -1,0 +1,15 @@
+system: "ctf-aligned-seed"
+concepts:
+  - id: ctf_condition
+    kind: api_type
+    binds: Market
+    used_by_tasks: [ResolveMarket]
+    fields:
+      - name: conditionId
+        maps_to: "keccak(oracle, questionId, outcomeSlotCount)"
+    source: "docs.polymarket.com/trading/ctf"
+  - id: erc1155_position
+    kind: api_type
+    binds: OutcomePosition
+    used_by_tasks: [ResolveMarket]
+    source: "Gnosis CTF / Polymarket CLOB token IDs"

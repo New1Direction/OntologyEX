@@ -1,0 +1,21 @@
+mappings:
+- app: refund_object
+  domain: Refund
+  upper: Transaction
+  evidence: docs.stripe.com/api/refunds/object
+- app: dispute_object
+  domain: Dispute
+  upper: Event
+  evidence: docs.stripe.com/api/disputes/close (response shape)
+- app: charge_object
+  domain: Charge
+  upper: Transaction
+  evidence: docs.stripe.com/api (Charges)
+- app: tool.process_refund
+  domain: Refund
+  upper: Transaction
+  evidence: emitted from L2 per output-formats.md
+- app: tool.submit_dispute_evidence
+  domain: DisputeEvidence
+  upper: Content
+  evidence: emitted from L2 per output-formats.md

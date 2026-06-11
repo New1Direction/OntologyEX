@@ -1,0 +1,1116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ontology Extraction Skill - Plain English Guide</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #11161d;
+      --muted: #596675;
+      --paper: #f7f3ea;
+      --panel: #fffdf8;
+      --line: #d7d0c3;
+      --night: #111820;
+      --teal: #179a89;
+      --blue: #2f72b8;
+      --coral: #df5d4f;
+      --amber: #c98713;
+      --green: #527b35;
+      --shadow: 0 22px 70px rgba(17, 22, 29, .14);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+      letter-spacing: 0;
+    }
+
+    a {
+      color: inherit;
+      text-decoration-thickness: 2px;
+      text-underline-offset: 4px;
+    }
+
+    .hero {
+      position: relative;
+      min-height: 84vh;
+      overflow: hidden;
+      color: #fff;
+      background:
+        linear-gradient(90deg, rgba(17, 24, 32, .98), rgba(17, 24, 32, .88) 54%, rgba(17, 24, 32, .78)),
+        linear-gradient(180deg, #19222c 0%, #10161d 100%);
+      border-bottom: 1px solid rgba(255,255,255,.16);
+    }
+
+    #mesh {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: .72;
+    }
+
+    .hero-inner {
+      position: relative;
+      z-index: 2;
+      width: min(1180px, calc(100% - 40px));
+      min-height: 84vh;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(320px, .72fr);
+      gap: 56px;
+      align-items: center;
+      padding: 56px 0 48px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: fit-content;
+      margin: 0 0 20px;
+      padding: 8px 11px;
+      border: 1px solid rgba(255,255,255,.22);
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      color: #d8efe9;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--teal);
+      box-shadow: 0 0 0 5px rgba(23, 154, 137, .18);
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 860px;
+      font-size: clamp(44px, 8vw, 104px);
+      line-height: .92;
+      letter-spacing: 0;
+    }
+
+    .hero-copy {
+      max-width: 720px;
+      margin: 26px 0 0;
+      color: #dbe4ec;
+      font-size: clamp(18px, 2vw, 22px);
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 34px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 10px 16px;
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 999px;
+      background: rgba(255,255,255,.09);
+      color: #f7fbff;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      backdrop-filter: blur(12px);
+    }
+
+    .pill.primary {
+      background: #f2f7ef;
+      color: #111820;
+      border-color: #f2f7ef;
+    }
+
+    .signal-board {
+      width: 100%;
+      padding: 18px;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.09);
+      box-shadow: 0 24px 90px rgba(0,0,0,.22);
+      backdrop-filter: blur(16px);
+    }
+
+    .signal-board h2 {
+      margin: 0 0 14px;
+      font-size: 15px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: #d9eee8;
+    }
+
+    .mini-stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .mini-layer {
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      gap: 12px;
+      align-items: start;
+      padding: 14px;
+      border-radius: 7px;
+      background: rgba(255,255,255,.11);
+      border: 1px solid rgba(255,255,255,.14);
+    }
+
+    .mini-layer strong {
+      color: #fff;
+    }
+
+    .mini-layer span {
+      display: block;
+      color: #d2dbe5;
+      font-size: 13px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 42px;
+      height: 28px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.14);
+      font-size: 13px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(247, 243, 234, .92);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(14px);
+    }
+
+    .nav-inner {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      overflow-x: auto;
+      min-height: 58px;
+      scrollbar-width: none;
+    }
+
+    .nav-inner::-webkit-scrollbar {
+      display: none;
+    }
+
+    .nav a {
+      flex: 0 0 auto;
+      color: #33404b;
+      font-size: 14px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .nav a:hover {
+      color: var(--teal);
+    }
+
+    main {
+      overflow: hidden;
+    }
+
+    .section {
+      padding: 82px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section.dark {
+      background: var(--night);
+      color: #f7f6ef;
+      border-color: rgba(255,255,255,.12);
+    }
+
+    .section.soft {
+      background: #ebe5d9;
+    }
+
+    .wrap {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, .75fr) minmax(280px, .45fr);
+      gap: 42px;
+      align-items: end;
+      margin-bottom: 34px;
+    }
+
+    .label {
+      margin: 0 0 10px;
+      color: var(--teal);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .dark .label {
+      color: #65d3c5;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(30px, 4vw, 56px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: 22px;
+      line-height: 1.18;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      margin: 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .dark .lead,
+    .dark .muted {
+      color: #c8d2dc;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      min-width: 0;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: 0 12px 42px rgba(17, 22, 29, .06);
+    }
+
+    .dark .card {
+      background: rgba(255,255,255,.07);
+      border-color: rgba(255,255,255,.16);
+      box-shadow: none;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .dark .card p {
+      color: #cfd8e0;
+    }
+
+    .card .topline {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--coral);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .dark .card .topline {
+      color: #ffb2a9;
+    }
+
+    .file-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(150px, 1fr));
+      gap: 10px;
+      margin-top: 28px;
+    }
+
+    .file {
+      padding: 16px;
+      border-radius: 7px;
+      border: 1px solid var(--line);
+      background: #fffaf0;
+    }
+
+    .file strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .file span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .layer-diagram {
+      display: grid;
+      gap: 14px;
+      margin-top: 30px;
+    }
+
+    .layer-row {
+      display: grid;
+      grid-template-columns: 128px minmax(0, 1fr) minmax(200px, .42fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .layer-key {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius);
+      color: #fff;
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .l0 { background: var(--green); }
+    .l1 { background: var(--blue); }
+    .l2 { background: var(--amber); color: #16110a; }
+    .l3 { background: var(--coral); }
+
+    .layer-body,
+    .layer-test {
+      padding: 20px;
+      border-radius: var(--radius);
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+
+    .layer-body p,
+    .layer-test p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .layer-test {
+      background: #f0ecdf;
+    }
+
+    .step-list {
+      counter-reset: step;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 30px;
+    }
+
+    .step {
+      position: relative;
+      padding: 22px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.06);
+    }
+
+    .step::before {
+      counter-increment: step;
+      content: counter(step);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      margin-bottom: 16px;
+      border-radius: 50%;
+      background: #f7f6ef;
+      color: #10161d;
+      font-weight: 900;
+    }
+
+    .step p {
+      margin: 0;
+      color: #cfd8e0;
+      font-size: 14px;
+    }
+
+    pre {
+      margin: 0;
+      padding: 20px;
+      overflow-x: auto;
+      border-radius: var(--radius);
+      border: 1px solid #27323d;
+      background: #0b1117;
+      color: #e7f2ef;
+      font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .example {
+      border-left: 5px solid var(--teal);
+    }
+
+    .advantage-grid .card {
+      min-height: 190px;
+    }
+
+    .score {
+      display: inline-block;
+      margin-bottom: 12px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: #e7f3ef;
+      color: #126e63;
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .dark .score {
+      background: rgba(101, 211, 197, .14);
+      color: #9ce4dc;
+    }
+
+    .checklist {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 26px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .checklist li {
+      padding: 16px 16px 16px 44px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      position: relative;
+      color: #35414e;
+      font-weight: 650;
+    }
+
+    .checklist li::before {
+      content: "";
+      position: absolute;
+      left: 17px;
+      top: 20px;
+      width: 12px;
+      height: 7px;
+      border-left: 3px solid var(--teal);
+      border-bottom: 3px solid var(--teal);
+      transform: rotate(-45deg);
+    }
+
+    .prompt-box {
+      display: grid;
+      gap: 18px;
+      grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+      align-items: stretch;
+    }
+
+    .footer {
+      padding: 42px 0;
+      background: #0f151b;
+      color: #dbe4ec;
+    }
+
+    .footer .wrap {
+      display: flex;
+      justify-content: space-between;
+      gap: 22px;
+      align-items: center;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .dark .small {
+      color: #b8c4cf;
+    }
+
+    @media (max-width: 980px) {
+      .hero-inner,
+      .section-head,
+      .prompt-box {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-inner {
+        gap: 28px;
+      }
+
+      .grid-3,
+      .step-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .file-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .layer-row {
+        grid-template-columns: 96px minmax(0, 1fr);
+      }
+
+      .layer-test {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .hero-inner,
+      .wrap,
+      .nav-inner {
+        width: min(100% - 24px, 1180px);
+      }
+
+      .section {
+        padding: 58px 0;
+      }
+
+      .grid-2,
+      .grid-3,
+      .step-list,
+      .checklist,
+      .file-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .layer-row {
+        grid-template-columns: 1fr;
+      }
+
+      .layer-key {
+        min-height: 72px;
+      }
+
+      .footer .wrap {
+        display: block;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <canvas id="mesh" aria-hidden="true"></canvas>
+    <div class="hero-inner">
+      <div>
+        <p class="eyebrow"><span class="dot"></span> Plain English Guide</p>
+        <h1>Ontology Extraction Skill</h1>
+        <p class="hero-copy">
+          A packaged workflow that turns a messy business, product, market, or codebase into a clean map of its concepts, actions, relationships, and system objects.
+        </p>
+        <div class="hero-actions">
+          <a class="pill primary" href="#what">What it is</a>
+          <a class="pill" href="#quickstart">How to use it</a>
+          <a class="pill" href="#edge">Where the edge is</a>
+        </div>
+      </div>
+
+      <aside class="signal-board" aria-label="Four layer summary">
+        <h2>The shape</h2>
+        <div class="mini-stack">
+          <div class="mini-layer">
+            <span class="badge">L0</span>
+            <div><strong>Upper</strong><span>Universal buckets like Agent, Event, Object, Time.</span></div>
+          </div>
+          <div class="mini-layer">
+            <span class="badge">L1</span>
+            <div><strong>Domain</strong><span>The important nouns in the field: Charge, Article, Dispute.</span></div>
+          </div>
+          <div class="mini-layer">
+            <span class="badge">L2</span>
+            <div><strong>Task</strong><span>The verbs and procedures: ProcessRefund, PublishArticle.</span></div>
+          </div>
+          <div class="mini-layer">
+            <span class="badge">L3</span>
+            <div><strong>Application</strong><span>The tables, APIs, events, tools, and UI objects that implement it.</span></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </header>
+
+  <nav class="nav" aria-label="Guide sections">
+    <div class="nav-inner">
+      <a href="#what">What</a>
+      <a href="#use">When</a>
+      <a href="#works">How</a>
+      <a href="#quickstart">Quick Start</a>
+      <a href="#examples">Examples</a>
+      <a href="#edge">Advantage</a>
+      <a href="#checklist">Checklist</a>
+    </div>
+  </nav>
+
+  <main>
+    <section id="what" class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="label">What you have</p>
+            <h2>It is a map-making kit for AI and software.</h2>
+          </div>
+          <p class="lead">
+            In layman terms, an ontology is just a shared dictionary plus a relationship map. It says what the important things are, how they connect, what actions happen, and where those ideas show up in real software.
+          </p>
+        </div>
+
+        <div class="grid-2">
+          <article class="card">
+            <span class="topline">/Users/clubpenguin/Downloads/ontology-extraction.skill</span>
+            <h3>The skill bundle</h3>
+            <p>
+              This is a zip-style Codex skill package. Inside it are instructions, reference notes, and a helper script called <code>scaffold.py</code>. When used by Codex, it guides the model through building a complete four-layer ontology instead of producing a loose list of terms.
+            </p>
+          </article>
+          <article class="card">
+            <span class="topline">/Users/clubpenguin/Downloads/eval-outputs.zip</span>
+            <h3>The sample outputs</h3>
+            <p>
+              This zip contains example results from running the skill on three targets: a Stripe support agent, a RealWorld Express app, and a prediction-market domain check. These are proof-of-work examples showing what good output looks like.
+            </p>
+          </article>
+        </div>
+
+        <div class="file-grid" aria-label="Deliverable files">
+          <div class="file"><strong>00-scope.md</strong><span>Target, consumer, boundary, questions.</span></div>
+          <div class="file"><strong>10-upper.yaml</strong><span>Universal categories selected from known ontologies.</span></div>
+          <div class="file"><strong>20-domain.yaml</strong><span>Core nouns, definitions, relations.</span></div>
+          <div class="file"><strong>30-task.yaml</strong><span>Core verbs, inputs, outputs, effects.</span></div>
+          <div class="file"><strong>40-application.yaml</strong><span>Tables, APIs, tools, events, UI objects.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="use" class="section soft">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="label">When to use it</p>
+            <h2>Use it when fuzzy knowledge is costing you speed.</h2>
+          </div>
+          <p class="lead">
+            The skill is most useful when a system needs shared meaning: AI tools, search, data models, documentation, workflows, or market research.
+          </p>
+        </div>
+
+        <div class="grid-3">
+          <article class="card">
+            <span class="score">AI agents</span>
+            <h3>Design tool surfaces</h3>
+            <p>Turn tasks into tool schemas with inputs, outputs, preconditions, and effects so agents know what they are allowed to do.</p>
+          </article>
+          <article class="card">
+            <span class="score">RAG</span>
+            <h3>Route retrieval better</h3>
+            <p>Use domain classes and task labels as metadata, so "what is X" and "how do I do X" do not get mixed together.</p>
+          </article>
+          <article class="card">
+            <span class="score">Data</span>
+            <h3>Clean up schemas</h3>
+            <p>Map tables, API types, and events to business concepts. Anything unmapped is a possible gap, duplicate, or dead field.</p>
+          </article>
+          <article class="card">
+            <span class="score">Strategy</span>
+            <h3>Understand a market</h3>
+            <p>Extract the nouns, verbs, actors, and constraints of a business or competitor from docs, APIs, help centers, and job posts.</p>
+          </article>
+          <article class="card">
+            <span class="score">Knowledge graph</span>
+            <h3>Build graph-ready structure</h3>
+            <p>Convert class and relation definitions into RDF, JSON-LD, Neo4j-style graphs, or diagrams.</p>
+          </article>
+          <article class="card">
+            <span class="score">Skip it when</span>
+            <h3>The job is tiny</h3>
+            <p>If you only need a quick list or one throwaway label set, a four-layer ontology is probably more ceremony than value.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="works" class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="label">How it works</p>
+            <h2>It keeps four layers connected.</h2>
+          </div>
+          <p class="lead">
+            The power is not the layers by themselves. The power is the mapping: every app object maps to a domain concept, every domain concept anchors to a universal category, and every task consumes or produces domain concepts.
+          </p>
+        </div>
+
+        <div class="layer-diagram">
+          <div class="layer-row">
+            <div class="layer-key l0">L0</div>
+            <div class="layer-body">
+              <h3>Upper layer</h3>
+              <p>Basic categories that work in any business: Agent, Event, Process, Object, Role, Place, Time, Quantity, Information Artifact.</p>
+            </div>
+            <div class="layer-test">
+              <h3>Test</h3>
+              <p>Would this still make sense in any industry?</p>
+            </div>
+          </div>
+          <div class="layer-row">
+            <div class="layer-key l1">L1</div>
+            <div class="layer-body">
+              <h3>Domain layer</h3>
+              <p>The nouns of the field. In payments: Charge, Refund, Dispute. In publishing: Article, Comment, Tag.</p>
+            </div>
+            <div class="layer-test">
+              <h3>Test</h3>
+              <p>Would a competitor use this same concept?</p>
+            </div>
+          </div>
+          <div class="layer-row">
+            <div class="layer-key l2">L2</div>
+            <div class="layer-body">
+              <h3>Task layer</h3>
+              <p>The verbs and workflows: process a refund, publish an article, follow a member, resolve a market.</p>
+            </div>
+            <div class="layer-test">
+              <h3>Test</h3>
+              <p>Does it describe doing something with clear inputs, outputs, and effects?</p>
+            </div>
+          </div>
+          <div class="layer-row">
+            <div class="layer-key l3">L3</div>
+            <div class="layer-body">
+              <h3>Application layer</h3>
+              <p>The actual system artifacts: DB tables, API objects, tool schemas, events, UI objects, fields, routes.</p>
+            </div>
+            <div class="layer-test">
+              <h3>Test</h3>
+              <p>If the app disappeared, would this term disappear too?</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section dark">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="label">Workflow</p>
+            <h2>The skill works middle-out.</h2>
+          </div>
+          <p class="lead">
+            It does not start with philosophy and it does not drown in app details. It mines the domain first, then attaches tasks and system objects.
+          </p>
+        </div>
+
+        <div class="step-list">
+          <div class="step"><h3>Scope</h3><p>Name the target, the consumer, and what is in or out of bounds.</p></div>
+          <div class="step"><h3>Ask</h3><p>Write competency questions: what must the finished map be able to answer?</p></div>
+          <div class="step"><h3>Mine</h3><p>Pull terms from docs, APIs, schemas, routes, events, tests, job posts, and standards.</p></div>
+          <div class="step"><h3>Anchor</h3><p>Select upper categories from gist, schema.org, BFO/CCO, or another known ontology.</p></div>
+          <div class="step"><h3>Model</h3><p>Define domain classes, relations, task verbs, preconditions, and effects.</p></div>
+          <div class="step"><h3>Bind</h3><p>Map app tables, API types, events, UI objects, and tools back to domain concepts.</p></div>
+          <div class="step"><h3>Validate</h3><p>Run the script to catch duplicates, dangling references, missing anchors, and orphan classes.</p></div>
+          <div class="step"><h3>Emit</h3><p>Generate the binding your consumer needs: MCP tools, JSON-LD, RDF, code types, diagrams, or RAG metadata.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="quickstart" class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="label">Quick start</p>
+            <h2>How to use it locally.</h2>
+          </div>
+          <p class="lead">
+            If Codex imports the skill directly, use it by asking for ontology extraction, domain modeling, semantic layer design, or knowledge graph schema work. If you want to inspect or run the helper manually, unzip it and run the scaffold script.
+          </p>
+        </div>
+
+        <div class="prompt-box">
+          <article class="card example">
+            <h3>Best prompt to Codex</h3>
+            <p>
+              "Use the ontology-extraction skill. Target: [company, codebase, market, or product]. Consumer: [agent tools, RAG, knowledge graph, DB/API, docs]. Boundary: [what is in and out]. Deliver the YAML layers, mappings, validation notes, and the binding format I need."
+            </p>
+          </article>
+          <pre><code># Inspect the skill bundle
+unzip -l /Users/clubpenguin/Downloads/ontology-extraction.skill
+
+# Extract it into this workspace
+mkdir -p ./ontology-skill
+unzip /Users/clubpenguin/Downloads/ontology-extraction.skill -d ./ontology-skill
+
+# Scaffold a new ontology workspace
+cd ./ontology-skill/ontology-extraction
+python scripts/scaffold.py init --name my-target --out ../../my-target-ontology
+
+# After editing the YAML files
+python scripts/scaffold.py validate ../../my-target-ontology
+python scripts/scaffold.py mappings ../../my-target-ontology</code></pre>
+        </div>
+
+        <div style="margin-top:18px">
+          <pre><code># Look at the example outputs from the eval zip
+mkdir -p ./eval-outputs
+unzip /Users/clubpenguin/Downloads/eval-outputs.zip -d ./eval-outputs
+
+# Useful files to read first
+open ./eval-outputs/eval-1-stripe/stripe-support-agent-ontology/00-scope.md
+open ./eval-outputs/eval-2-realworld/realworld-ontology/20-domain.yaml
+open ./eval-outputs/eval-3-prediction-markets/findings.md</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section id="examples" class="section soft">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="label">What your eval zip shows</p>
+            <h2>The examples are three different ways to use the skill.</h2>
+          </div>
+          <p class="lead">
+            They prove the same workflow works for a public company, a codebase, and a sparse emerging domain.
+          </p>
+        </div>
+
+        <div class="grid-3">
+          <article class="card">
+            <span class="topline">eval-1-stripe</span>
+            <h3>Stripe support agent</h3>
+            <p>
+              Research mode. It maps support concepts like Charge, PaymentIntent, Refund, Dispute, Evidence, Customer, and MerchantAccount. The point is to create safer agent tools for payment support workflows.
+            </p>
+          </article>
+          <article class="card">
+            <span class="topline">eval-2-realworld</span>
+            <h3>RealWorld Express app</h3>
+            <p>
+              Retrofit mode. It maps Prisma tables and API routes to Member, Article, Comment, Tag, Follow, and Favorite concepts. It also flags app-only fields like credentials and demo flags.
+            </p>
+          </article>
+          <article class="card">
+            <span class="topline">eval-3-prediction-markets</span>
+            <h3>Prediction markets</h3>
+            <p>
+              Sparse-field mode. It finds that no strong published ontology exists, then recommends authoring L1 fresh while aligning L3 to the Gnosis Conditional Token Framework.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="edge" class="section dark">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="label">How it gives you an edge</p>
+            <h2>It turns vague expertise into reusable leverage.</h2>
+          </div>
+          <p class="lead">
+            The advantage is not "having an ontology" as a trophy. The advantage is that your agents, search, schemas, and people all speak the same controlled language.
+          </p>
+        </div>
+
+        <div class="grid-3 advantage-grid">
+          <article class="card">
+            <span class="score">1. Agent precision</span>
+            <h3>Fewer bad tool calls</h3>
+            <p>Tasks include preconditions and effects. That gives an AI agent guardrails before it mutates data or calls an external API.</p>
+          </article>
+          <article class="card">
+            <span class="score">2. Faster due diligence</span>
+            <h3>See a business clearly</h3>
+            <p>Mining docs, APIs, help centers, pricing pages, and job posts reveals how a company really thinks about its domain.</p>
+          </article>
+          <article class="card">
+            <span class="score">3. Better retrieval</span>
+            <h3>Cleaner RAG filters</h3>
+            <p>Domain classes and task labels become metadata. That means sharper search, fewer irrelevant chunks, and better answer grounding.</p>
+          </article>
+          <article class="card">
+            <span class="score">4. Schema intelligence</span>
+            <h3>Find gaps and dead weight</h3>
+            <p>When an app table or field cannot map to a domain concept, it is either app-only, missing from the model, or a cleanup candidate.</p>
+          </article>
+          <article class="card">
+            <span class="score">5. Interop</span>
+            <h3>Borrow standards</h3>
+            <p>Reusing schema.org, gist, FIBO, FHIR, GS1, PROV-O, or other standards gives you compatibility instead of a private vocabulary nobody else understands.</p>
+          </article>
+          <article class="card">
+            <span class="score">6. Team alignment</span>
+            <h3>Less talking past each other</h3>
+            <p>Product, engineering, data, support, and AI agents get the same definitions, relations, and workflow names.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="checklist" class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="label">Quality checklist</p>
+            <h2>Good output has evidence and mappings.</h2>
+          </div>
+          <p class="lead">
+            If the ontology cannot answer its own competency questions, or if the app layer is not mapped upward, it is not done yet.
+          </p>
+        </div>
+
+        <ul class="checklist">
+          <li>Every domain class has a definition, source, and upper anchor.</li>
+          <li>Every relation has domain, range, cardinality, and evidence.</li>
+          <li>Every task has actors, inputs, outputs, preconditions, effects, and source.</li>
+          <li>Every app concept binds to an L1 domain class.</li>
+          <li>Synonyms are collapsed into one canonical id.</li>
+          <li>Published standards are reused when they fit.</li>
+          <li>The validator passes or the warnings are understood.</li>
+          <li>The final output matches the consumer: MCP, RAG, graph, DB/API, or docs.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section soft">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="label">The simplest mental model</p>
+            <h2>It is a Rosetta Stone for your system.</h2>
+          </div>
+          <p class="lead">
+            It translates between business language, workflow language, and software language. That translation layer is what makes AI tools more reliable, search more focused, and codebases easier to reason about.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <div>
+        <strong>Generated from your local files</strong>
+        <div class="small">ontology-extraction.skill plus eval-outputs.zip</div>
+      </div>
+      <div class="small">Created in /Users/clubpenguin/Documents/OntologyEX</div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      const canvas = document.getElementById("mesh");
+      const ctx = canvas.getContext("2d");
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let width = 0;
+      let height = 0;
+      let points = [];
+      const palette = ["#65d3c5", "#80aee0", "#efb35b", "#ff9288", "#a6c46d"];
+
+      function resize() {
+        const ratio = window.devicePixelRatio || 1;
+        width = canvas.offsetWidth;
+        height = canvas.offsetHeight;
+        canvas.width = Math.max(1, Math.floor(width * ratio));
+        canvas.height = Math.max(1, Math.floor(height * ratio));
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        const count = Math.max(42, Math.min(86, Math.floor(width / 18)));
+        points = Array.from({ length: count }, (_, i) => ({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: (Math.random() - .5) * .32,
+          vy: (Math.random() - .5) * .32,
+          color: palette[i % palette.length],
+          size: 2 + Math.random() * 3
+        }));
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, width, height);
+        ctx.globalAlpha = .95;
+        for (let i = 0; i < points.length; i++) {
+          const a = points[i];
+          if (!reduceMotion) {
+            a.x += a.vx;
+            a.y += a.vy;
+            if (a.x < -20) a.x = width + 20;
+            if (a.x > width + 20) a.x = -20;
+            if (a.y < -20) a.y = height + 20;
+            if (a.y > height + 20) a.y = -20;
+          }
+          for (let j = i + 1; j < points.length; j++) {
+            const b = points[j];
+            const dx = a.x - b.x;
+            const dy = a.y - b.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < 145) {
+              ctx.strokeStyle = "rgba(220, 238, 244," + (1 - distance / 145) * .18 + ")";
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(a.x, a.y);
+              ctx.lineTo(b.x, b.y);
+              ctx.stroke();
+            }
+          }
+          ctx.fillStyle = a.color;
+          ctx.fillRect(a.x, a.y, a.size, a.size);
+        }
+        if (!reduceMotion) requestAnimationFrame(draw);
+      }
+
+      resize();
+      draw();
+      window.addEventListener("resize", resize);
+      if (reduceMotion) window.addEventListener("resize", draw);
+    })();
+  </script>
+</body>
+</html>

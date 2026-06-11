@@ -1,0 +1,90 @@
+# L2 — payments-operations verbs, mined from Adyen modification + dispute endpoints.
+# Each leaf task → one MCP tool; preconditions are the guardrails the agent must respect.
+tasks:
+  - id: CapturePayment
+    verb_phrase: "capture an authorised payment, fully or partially"
+    actor_roles: [PaymentsAgent]
+    inputs: [Payment, MonetaryAmount]
+    outputs: [Capture]
+    preconditions:
+      - "Payment is authorised and not yet captured (merchant account uses manual capture)"
+      - "Capture amount <= authorised amount; currency matches the authorisation"
+    effects:
+      - "Capture created (status received -> success/failed)"
+      - "On a single partial capture, the unclaimed remainder is automatically cancelled"
+    source: "POST /payments/{paymentPspReference}/captures — docs.adyen.com/online-payments/capture"
+  - id: RefundPayment
+    verb_phrase: "refund captured funds to the shopper, fully or partially"
+    actor_roles: [PaymentsAgent]
+    inputs: [Payment, MonetaryAmount]
+    outputs: [Refund]
+    preconditions:
+      - "Payment has been captured"
+      - "Refund amount <= captured-and-not-yet-refunded remainder"
+    effects:
+      - "Refund created; funds returned to the shopper's payment method"
+    source: "POST /payments/{paymentPspReference}/refunds — docs.adyen.com/online-payments/refund"
+  - id: CancelPayment
+    verb_phrase: "cancel (void) an authorised payment before it is captured"
+    actor_roles: [PaymentsAgent]
+    inputs: [Payment]
+    outputs: [Cancellation]
+    preconditions:
+      - "Payment is authorised and has NOT been captured (after capture, use RefundPayment instead)"
+    effects:
+      - "Authorisation voided; no funds settle"
+    source: "POST /payments/{paymentPspReference}/cancels — docs.adyen.com/online-payments/capture"
+  - id: RetrieveDefenseReasons
+    verb_phrase: "list the defense reason codes applicable to a dispute"
+    actor_roles: [PaymentsAgent]
+    inputs: [Dispute]
+    outputs: [DefenseReason]
+    preconditions:
+      - "Dispute exists and is in a defensible stage"
+    effects:
+      - "Read-only: returns the applicable defenseReasonCodes; no funds move"
+    source: "POST /retrieveApplicableDefenseReasons — docs.adyen.com/risk-management/disputes-api"
+  - id: SupplyDefenseDocument
+    verb_phrase: "upload an evidence document to contest a dispute"
+    actor_roles: [PaymentsAgent]
+    inputs: [Dispute, DefenseDocument]
+    outputs: [Dispute]
+    preconditions:
+      - "Document content type is JPG, TIFF, or PDF and within the size limit"
+      - "Dispute is defensible (notification of chargeback received)"
+    effects:
+      - "Document attached to the dispute defense"
+    source: "POST /supplyDefenseDocument — docs.adyen.com/risk-management/disputes-api"
+  - id: DefendDispute
+    verb_phrase: "submit a defense for a chargeback under a chosen reason code"
+    actor_roles: [PaymentsAgent]
+    inputs: [Dispute, DefenseReason]
+    outputs: [Dispute]
+    preconditions:
+      - "Dispute has reached NOTIFICATION_OF_CHARGEBACK (defense period open)"
+      - "defenseReasonCode is one of the applicable reasons (see RetrieveDefenseReasons)"
+      - "Before the defense deadline"
+    effects:
+      - "Defense submitted to the issuer for review"
+    source: "POST /defendDispute — docs.adyen.com/risk-management/disputes-api (sequence: RetrieveDefenseReasons -> SupplyDefenseDocument -> DefendDispute)"
+  - id: AcceptDispute
+    verb_phrase: "concede a dispute without defending it"
+    actor_roles: [PaymentsAgent]
+    inputs: [Dispute]
+    outputs: [Dispute]
+    preconditions:
+      - "Dispute is open"
+    effects:
+      - "Funds conceded to the cardholder"
+      - "IRREVERSIBLE — confirm with a human before calling"
+    source: "POST /acceptDispute — docs.adyen.com/risk-management/disputes-api"
+  - id: MonitorPayout
+    verb_phrase: "check settlement of captured funds to the merchant account"
+    actor_roles: [PaymentsAgent]
+    inputs: [MerchantAccount]
+    outputs: [Payout]
+    preconditions:
+      - "Merchant account exists"
+    effects:
+      - "Read-only: reports settled payouts; no funds move"
+    source: "docs.adyen.com (settlement / payout reporting)"

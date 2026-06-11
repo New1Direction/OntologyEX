@@ -1,0 +1,240 @@
+@prefix :       <https://w3id.org/ontologyex/self#> .
+@prefix gist:   <https://w3id.org/semanticarts/ns/ontology/gist/> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
+@prefix schema: <https://schema.org/> .
+
+# Knowledge-graph binding emitted from 20-domain.yaml + 30-task.yaml per
+# references/output-formats.md (§2). T-Box = L1 classes (subClassOf gist L0 anchors) +
+# relations as owl:ObjectProperty. L2 tasks are individuals of :OntologyTask (OWL 2 punning)
+# so the graph can answer "what are the preconditions/inputs of task X".
+
+<https://w3id.org/ontologyex/self> a owl:Ontology ;
+    rdfs:label "OntologyEX self-ontology (eval-4, retrofit mode)" ;
+    rdfs:comment "The Agent Ontology Kit modeled with itself. Upper anchors imported from gist 14.0.0." ;
+    owl:imports <https://w3id.org/semanticarts/ns/ontology/gist/> .
+
+####################  L1 classes → L0 anchors  ####################
+
+:Ontology a owl:Class ;
+    rdfs:subClassOf gist:Content ;
+    rdfs:label "Ontology" ;
+    skos:definition "A validated, evidence-backed model of a domain organized into the four layers and bound to a consumer." ;
+    skos:altLabel "SemanticLayer", "DomainModel" ;
+    rdfs:isDefinedBy "SKILL.md" .
+
+:OntologyLayer a owl:Class ;
+    rdfs:subClassOf gist:Category ;
+    rdfs:label "OntologyLayer" ;
+    skos:definition "One of the four horizontal strata of an ontology: upper (L0), domain (L1), task (L2), or application (L3)." ;
+    skos:altLabel "Layer", "Tier" ;
+    rdfs:isDefinedBy "SKILL.md four-layer table" .
+
+:UpperOntology a owl:Class ;
+    rdfs:subClassOf gist:Specification ;
+    rdfs:label "UpperOntology" ;
+    skos:definition "A reused, domain-independent set of top-level categories, selected from a published standard and never invented." ;
+    skos:altLabel "TopLevelOntology", "L0Anchor", "Foundation" ;
+    rdfs:isDefinedBy "references/reuse-catalog.md" .
+
+:OntologyClass a owl:Class ;
+    rdfs:subClassOf gist:Category ;
+    rdfs:label "OntologyClass" ;
+    skos:definition "A domain noun with a definition, an upper anchor, and evidence; the canonical concept under which synonyms collapse." ;
+    skos:altLabel "DomainClass", "Concept", "Entity" ;
+    rdfs:isDefinedBy "SKILL.md Step 4" .
+
+:Relation a owl:Class ;
+    rdfs:subClassOf gist:Category ;
+    rdfs:label "Relation" ;
+    skos:definition "A typed link between two ontology classes with domain, range, and cardinality; its presence is what makes an ontology more than a taxonomy." ;
+    skos:altLabel "ObjectProperty", "Edge" ;
+    rdfs:isDefinedBy "SKILL.md modeling rules" .
+
+:OntologyTask a owl:Class ;
+    rdfs:subClassOf gist:Specification ;
+    rdfs:label "OntologyTask" ;
+    skos:definition "A modeled activity in the task layer, specified by actor roles, inputs, outputs, preconditions, and effects (IOPE)." ;
+    skos:altLabel "TaskDefinition", "Activity", "Workflow" ;
+    rdfs:isDefinedBy "SKILL.md Step 5" .
+
+:ApplicationConcept a owl:Class ;
+    rdfs:subClassOf gist:Content ;
+    rdfs:label "ApplicationConcept" ;
+    skos:definition "A concept a specific system actually touches, bound to a concrete artifact (db table, api type, tool schema, event, ui object) and mapped upward." ;
+    skos:altLabel "BoundConcept", "SystemArtifact", "L3Concept" ;
+    rdfs:isDefinedBy "SKILL.md Step 6" .
+
+:Mapping a owl:Class ;
+    rdfs:subClassOf gist:Content ;
+    rdfs:label "Mapping" ;
+    skos:definition "A recorded correspondence from an application concept up to its domain class and that class's upper anchor." ;
+    skos:altLabel "CrosswalkEntry", "Alignment" ;
+    rdfs:isDefinedBy "scaffold.py mappings()" .
+
+:CompetencyQuestion a owl:Class ;
+    rdfs:subClassOf gist:Content ;
+    rdfs:label "CompetencyQuestion" ;
+    skos:definition "A question the finished ontology must answer using only its own terms and relations; the contract that defines done." ;
+    skos:altLabel "CQ", "ValidationQuestion" ;
+    rdfs:isDefinedBy "SKILL.md Step 1" .
+
+:EvidenceSource a owl:Class ;
+    rdfs:subClassOf gist:Content ;
+    rdfs:label "EvidenceSource" ;
+    skos:definition "A provenance pointer to the source material that justifies a class, relation, task, or binding." ;
+    skos:altLabel "Source", "Provenance", "Citation" ;
+    rdfs:isDefinedBy "SKILL.md evidence rule" .
+
+:ConsumerBinding a owl:Class ;
+    rdfs:subClassOf gist:Content ;
+    rdfs:label "ConsumerBinding" ;
+    skos:definition "An emitted output tailored to what will consume the ontology: MCP tool schemas, Turtle/RDF, JSON-LD context, code types, RAG metadata, or a Mermaid diagram." ;
+    skos:altLabel "Binding", "OutputArtifact", "Deliverable" ;
+    rdfs:isDefinedBy "references/output-formats.md" .
+
+:ExtractionTarget a owl:Class ;
+    rdfs:subClassOf gist:Organization ;
+    rdfs:label "ExtractionTarget" ;
+    skos:definition "The bounded subject an ontology is extracted from: a company/market/product/API (research mode) or a project/codebase (retrofit mode)." ;
+    skos:altLabel "Target", "Subject" ;
+    rdfs:comment "A codebase target is really Content — a real run would union Organization|Content." ;
+    rdfs:isDefinedBy "SKILL.md Step 0" .
+
+:OperatingAgent a owl:Class ;
+    rdfs:subClassOf gist:Agent ;
+    rdfs:label "OperatingAgent" ;
+    skos:definition "The actor that performs the extraction workflow: an AI agent (Claude Code, Codex, Cursor, custom runner) or a human running the templates." ;
+    skos:altLabel "OntologyEngineer", "AgentRunner" ;
+    rdfs:isDefinedBy "AGENT_SKILL.md" .
+
+####################  L1 relations → owl:ObjectProperty  ####################
+
+:has_layer a owl:ObjectProperty ;
+    rdfs:domain :Ontology ; rdfs:range :OntologyLayer ;
+    skos:definition "An ontology is composed of its four layers." .
+
+:anchors_to a owl:ObjectProperty ;
+    rdfs:domain :OntologyClass ; rdfs:range :UpperOntology ;
+    skos:definition "Every domain class anchors to exactly one upper category (selected, never invented)." .
+
+:relation_domain a owl:ObjectProperty ;
+    rdfs:domain :Relation ; rdfs:range :OntologyClass ;
+    skos:definition "A relation's domain end is an ontology class." .
+
+:relation_range a owl:ObjectProperty ;
+    rdfs:domain :Relation ; rdfs:range :OntologyClass ;
+    skos:definition "A relation's range end is an ontology class." .
+
+:consumes a owl:ObjectProperty ;
+    rdfs:domain :OntologyTask ; rdfs:range :OntologyClass ;
+    skos:definition "A task consumes domain classes as inputs." .
+
+:produces a owl:ObjectProperty ;
+    rdfs:domain :OntologyTask ; rdfs:range :OntologyClass ;
+    skos:definition "A task produces domain classes as outputs." .
+
+:binds_to a owl:ObjectProperty ;
+    rdfs:domain :ApplicationConcept ; rdfs:range :OntologyClass ;
+    skos:definition "An application concept binds to exactly one domain class (or it is dead schema)." .
+
+:mapping_app a owl:ObjectProperty ;
+    rdfs:domain :Mapping ; rdfs:range :ApplicationConcept ;
+    skos:definition "A mapping entry references the application concept it crosswalks." .
+
+:mapping_domain a owl:ObjectProperty ;
+    rdfs:domain :Mapping ; rdfs:range :OntologyClass ;
+    skos:definition "A mapping entry resolves the application concept up to its domain class." .
+
+:tested_by a owl:ObjectProperty ;
+    rdfs:domain :Ontology ; rdfs:range :CompetencyQuestion ;
+    skos:definition "An ontology is held accountable to its competency questions." .
+
+:cites a owl:ObjectProperty ;
+    rdfs:domain :OntologyClass ; rdfs:range :EvidenceSource ;
+    skos:definition "Every domain class cites the evidence source that justifies it." .
+
+:emitted_as a owl:ObjectProperty ;
+    rdfs:domain :Ontology ; rdfs:range :ConsumerBinding ;
+    skos:definition "A validated ontology is emitted as one or more consumer bindings." .
+
+:models_target a owl:ObjectProperty ;
+    rdfs:domain :Ontology ; rdfs:range :ExtractionTarget ;
+    skos:definition "An ontology is about exactly one bounded extraction target." .
+
+:performed_by a owl:ObjectProperty ;
+    rdfs:domain :OntologyTask ; rdfs:range :OperatingAgent ;
+    skos:definition "A task is performed by the operating agent running the kit." .
+
+####################  L2 task individuals (IOPE; punning on L1 classes)  ####################
+
+:consumesClass a owl:ObjectProperty ; rdfs:domain :OntologyTask ; rdfs:range :OntologyClass .
+:producesClass a owl:ObjectProperty ; rdfs:domain :OntologyTask ; rdfs:range :OntologyClass .
+:decomposesTo  a owl:ObjectProperty ; rdfs:domain :OntologyTask ; rdfs:range :OntologyTask .
+:precondition  a owl:DatatypeProperty ; rdfs:domain :OntologyTask ; rdfs:range rdfs:Literal .
+:effect        a owl:DatatypeProperty ; rdfs:domain :OntologyTask ; rdfs:range rdfs:Literal .
+
+:ExtractOntology a :OntologyTask ;
+    rdfs:label "produce a validated four-layer ontology for a target and bind it to a consumer" ;
+    :consumesClass :ExtractionTarget ;
+    :producesClass :Ontology, :ConsumerBinding ;
+    :decomposesTo :ScaffoldWorkspace, :ScopeTarget, :WriteCompetencyQuestions, :MineSources,
+                  :AnchorUpper, :BuildDomainLayer, :BuildTaskLayer, :ProjectApplicationLayer,
+                  :ValidateOntology, :GenerateMappings, :EmitConsumerBinding .
+
+:ScaffoldWorkspace a :OntologyTask ;
+    rdfs:label "create the canonical 7-file ontology workspace" ;
+    :consumesClass :ExtractionTarget ; :producesClass :Ontology ;
+    :precondition "A target name is given" .
+
+:ScopeTarget a :OntologyTask ;
+    rdfs:label "establish target, consumer, and boundary" ;
+    :consumesClass :ExtractionTarget ; :producesClass :Ontology ;
+    :precondition "Consumer is known — it determines depth and output format" .
+
+:WriteCompetencyQuestions a :OntologyTask ;
+    rdfs:label "write 5-15 questions per layer the finished ontology must answer" ;
+    :consumesClass :ExtractionTarget ; :producesClass :CompetencyQuestion .
+
+:MineSources a :OntologyTask ;
+    rdfs:label "harvest evidence from the target's artifacts and map each to a layer" ;
+    :consumesClass :ExtractionTarget ; :producesClass :EvidenceSource ;
+    :precondition "Boundary is set so mining doesn't boil the ocean" .
+
+:AnchorUpper a :OntologyTask ;
+    rdfs:label "select an upper ontology and pin 10-25 anchor categories" ;
+    :producesClass :UpperOntology ;
+    :precondition "Do NOT invent L0 — select from a published standard" .
+
+:BuildDomainLayer a :OntologyTask ;
+    rdfs:label "build domain classes and relations from mined evidence" ;
+    :consumesClass :EvidenceSource, :UpperOntology ; :producesClass :OntologyClass, :Relation ;
+    :precondition "Synonyms collapsed to one canonical id" , "Every class anchored to an upper category" ;
+    :effect "A class list with no relations is rejected as a taxonomy" .
+
+:BuildTaskLayer a :OntologyTask ;
+    rdfs:label "define task/workflow activities with IOPE, referencing domain nouns" ;
+    :consumesClass :OntologyClass ; :producesClass :OntologyTask .
+
+:ProjectApplicationLayer a :OntologyTask ;
+    rdfs:label "bind the system's concrete artifacts to domain classes and tasks" ;
+    :consumesClass :OntologyClass, :OntologyTask ; :producesClass :ApplicationConcept ;
+    :effect "Unbindable artifacts flagged as dead schema" .
+
+:ValidateOntology a :OntologyTask ;
+    rdfs:label "check structure, answer every competency question, round-trip real records" ;
+    :consumesClass :OntologyClass, :Relation, :OntologyTask, :ApplicationConcept, :CompetencyQuestion ;
+    :producesClass :Ontology ;
+    :precondition "All four layers populated" ;
+    :effect "Nonzero errors → exit 1 (build fails)" .
+
+:GenerateMappings a :OntologyTask ;
+    rdfs:label "regenerate the app→domain→upper mapping table from the layers" ;
+    :consumesClass :ApplicationConcept, :OntologyClass ; :producesClass :Mapping .
+
+:EmitConsumerBinding a :OntologyTask ;
+    rdfs:label "emit the consumer-specific output (MCP tools, Turtle, types, Mermaid)" ;
+    :consumesClass :OntologyTask, :OntologyClass ; :producesClass :ConsumerBinding ;
+    :precondition "Validation passes — emit AFTER validation" .

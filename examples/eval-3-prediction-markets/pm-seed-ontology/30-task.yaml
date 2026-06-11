@@ -1,0 +1,11 @@
+tasks:
+  - id: ResolveMarket
+    verb_phrase: "attest the realized outcome and settle the market"
+    actor_roles: [Oracle]
+    inputs: [Market]
+    outputs: [Resolution]
+    preconditions: ["Question outcome is determinable per the designated resolution source"]
+    effects:
+      - "Winning OutcomePositions become redeemable 1:1 against CollateralStake"
+      - "Losing positions redeem to zero"
+    source: "docs.polymarket.com/trading/ctf; arxiv 2508.03474"

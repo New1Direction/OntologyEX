@@ -1,0 +1,47 @@
+tasks:
+  - id: ProcessRefund
+    verb_phrase: "refund a charge, fully or partially"
+    actor_roles: [SupportAgent]
+    inputs: [Charge, MonetaryAmount]
+    outputs: [Refund]
+    preconditions:
+      - "Charge exists and is not already fully refunded"
+      - "Refund amount <= unrefunded remainder of charge"
+    effects:
+      - "Refund created (status pending -> succeeded/failed)"
+      - "Funds returned to the originally charged card"
+      - "Fully refunded charges can no longer be disputed"
+    source: "POST /v1/refunds — docs.stripe.com/api/refunds; docs.stripe.com/refunds"
+  - id: CancelRefund
+    verb_phrase: "cancel an in-flight refund"
+    actor_roles: [SupportAgent]
+    inputs: [Refund]
+    outputs: [Refund]
+    preconditions:
+      - "Refund status == requires_action (only state permitting cancellation)"
+    effects:
+      - "Refund status -> canceled"
+    source: "docs.stripe.com/api/refunds (Cancel a refund)"
+  - id: SubmitDisputeEvidence
+    verb_phrase: "submit evidence to contest a dispute"
+    actor_roles: [SupportAgent]
+    inputs: [Dispute, DisputeEvidence]
+    outputs: [Dispute]
+    preconditions:
+      - "Dispute status == needs_response"
+      - "Before evidence_details.due_by deadline"
+      - "Combined evidence fields <= 150,000 characters"
+    effects:
+      - "All evidence hash fields submitted for bank review"
+    source: "POST /v1/disputes/:id — docs.stripe.com/api/disputes/update"
+  - id: CloseDispute
+    verb_phrase: "concede a dispute without submitting evidence"
+    actor_roles: [SupportAgent]
+    inputs: [Dispute]
+    outputs: [Dispute]
+    preconditions:
+      - "Dispute status == needs_response"
+    effects:
+      - "Status needs_response -> lost"
+      - "IRREVERSIBLE"
+    source: "POST /v1/disputes/:id/close — docs.stripe.com/api/disputes/close"

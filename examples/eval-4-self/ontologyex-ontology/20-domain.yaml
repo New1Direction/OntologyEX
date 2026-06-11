@@ -1,0 +1,155 @@
+# L1 — the nouns of the field of ontology / knowledge engineering.
+# These survive a "competitor swap": they'd hold for any four-layer ontology-extraction
+# method, not just this kit. Kit-specific artifacts (scaffold.py, the YAML files) live in L3.
+classes:
+  - id: Ontology
+    definition: "A validated, evidence-backed model of a domain organized into the four layers and bound to a consumer."
+    upper: Content
+    synonyms: [SemanticLayer, DomainModel]
+    source: "SKILL.md (\"Produce a four-layer ontology for a target\"); README.md What It Produces"
+  - id: OntologyLayer
+    definition: "One of the four horizontal strata of an ontology: upper (L0), domain (L1), task (L2), or application (L3)."
+    upper: Category
+    synonyms: [Layer, Tier]
+    source: "SKILL.md \"The four layers, operationally\" table"
+  - id: UpperOntology
+    definition: "A reused, domain-independent set of top-level categories, selected from a published standard and never invented."
+    upper: Specification
+    synonyms: [TopLevelOntology, L0Anchor, Foundation]
+    source: "references/reuse-catalog.md \"L0 — Upper ontologies (pick ONE)\"; SKILL.md Step 3"
+  - id: OntologyClass
+    definition: "A domain noun with a definition, an upper anchor, and evidence; the canonical concept under which synonyms collapse."
+    upper: Category
+    synonyms: [DomainClass, Concept, Entity]
+    source: "SKILL.md Step 4; 20-domain.yaml schema in output-formats.md"
+  - id: Relation
+    definition: "A typed link between two ontology classes with domain, range, and cardinality; its presence is what makes an ontology more than a taxonomy."
+    upper: Category
+    synonyms: [ObjectProperty, Edge]
+    source: "SKILL.md \"A class list with no relations is a taxonomy, not an ontology\""
+  - id: OntologyTask
+    definition: "A modeled activity in the task layer, specified by actor roles, inputs, outputs, preconditions, and effects (IOPE)."
+    upper: Specification
+    synonyms: [TaskDefinition, Activity, Workflow]
+    source: "SKILL.md Step 5; OWL-S IOPE pattern via reuse-catalog.md L2"
+  - id: ApplicationConcept
+    definition: "A concept a specific system actually touches, bound to a concrete artifact (db table, api type, tool schema, event, ui object) and mapped upward."
+    upper: Content
+    synonyms: [BoundConcept, SystemArtifact, L3Concept]
+    source: "SKILL.md Step 6; 40-application.yaml schema"
+  - id: Mapping
+    definition: "A recorded correspondence from an application concept up to its domain class and that class's upper anchor — the deliverable that makes the layers one ontology."
+    upper: Content
+    synonyms: [CrosswalkEntry, Alignment]
+    source: "scaffold.py mappings(); SKILL.md \"The mapping table is the deliverable\""
+  - id: CompetencyQuestion
+    definition: "A question the finished ontology must answer using only its own terms and relations; the contract that defines done."
+    upper: Content
+    synonyms: [CQ, ValidationQuestion]
+    source: "SKILL.md Step 1 \"Competency questions (the validation contract)\""
+  - id: EvidenceSource
+    definition: "A provenance pointer to the source material that justifies a class, relation, task, or binding — recorded in every `source` field."
+    upper: Content
+    synonyms: [Source, Provenance, Citation]
+    source: "SKILL.md \"Every extracted term gets a `source` field — evidence or it didn't happen\""
+  - id: ConsumerBinding
+    definition: "An emitted output tailored to what will consume the ontology: MCP tool schemas, Turtle/RDF, JSON-LD context, code types, RAG metadata, or a Mermaid diagram."
+    upper: Content
+    synonyms: [Binding, OutputArtifact, Deliverable]
+    source: "references/output-formats.md \"Consumer bindings\"; SKILL.md Step deliverables"
+  - id: ExtractionTarget
+    definition: "The bounded subject an ontology is extracted from: a company/market/product/API (research mode) or a project/codebase (retrofit mode)."
+    upper: Organization
+    synonyms: [Target, Subject]
+    source: "SKILL.md Step 0 \"Target\"; note: a codebase target is really Content — a real run would union Organization|Content"
+  - id: OperatingAgent
+    definition: "The actor that performs the extraction workflow: an AI agent (Claude Code, Codex, Cursor, custom runner) or a human running the templates."
+    upper: Agent
+    synonyms: [OntologyEngineer, AgentRunner]
+    source: "AGENT_SKILL.md \"It can be used by Claude Code, Codex, Cursor, custom agent runners, or any capable AI agent\""
+
+relations:
+  - id: has_layer
+    definition: "An ontology is composed of its four layers."
+    domain: Ontology
+    range: OntologyLayer
+    cardinality: one-to-many
+    source: "SKILL.md four-layer table"
+  - id: anchors_to
+    definition: "Every domain class anchors to exactly one upper category (selected, never invented)."
+    domain: OntologyClass
+    range: UpperOntology
+    cardinality: many-to-one
+    source: "SKILL.md \"Every L1 class anchors to an L0 category\"; validator enforces `upper` ∈ anchors"
+  - id: relation_domain
+    definition: "A relation's domain end is an ontology class."
+    domain: Relation
+    range: OntologyClass
+    cardinality: many-to-one
+    source: "output-formats.md 20-domain.yaml relations.domain"
+  - id: relation_range
+    definition: "A relation's range end is an ontology class."
+    domain: Relation
+    range: OntologyClass
+    cardinality: many-to-one
+    source: "output-formats.md 20-domain.yaml relations.range"
+  - id: consumes
+    definition: "A task consumes domain classes as inputs (and actor roles)."
+    domain: OntologyTask
+    range: OntologyClass
+    cardinality: many-to-many
+    source: "SKILL.md Step 5; validator: task inputs must be domain classes"
+  - id: produces
+    definition: "A task produces domain classes as outputs."
+    domain: OntologyTask
+    range: OntologyClass
+    cardinality: many-to-many
+    source: "SKILL.md \"Every L2 task must reference L1 inputs and outputs\""
+  - id: binds_to
+    definition: "An application concept binds to exactly one domain class (or it is dead schema)."
+    domain: ApplicationConcept
+    range: OntologyClass
+    cardinality: many-to-one
+    source: "SKILL.md \"Every L3 concept must bind to an L1 class\"; validator binds-check"
+  - id: mapping_app
+    definition: "A mapping entry references the application concept it crosswalks."
+    domain: Mapping
+    range: ApplicationConcept
+    cardinality: one-to-one
+    source: "scaffold.py mappings() emits {app, domain, upper, evidence}"
+  - id: mapping_domain
+    definition: "A mapping entry resolves the application concept up to its domain class."
+    domain: Mapping
+    range: OntologyClass
+    cardinality: many-to-one
+    source: "scaffold.py mappings()"
+  - id: tested_by
+    definition: "An ontology is held accountable to its competency questions."
+    domain: Ontology
+    range: CompetencyQuestion
+    cardinality: many-to-many
+    source: "SKILL.md Step 7 \"Answer every competency question using only ontology terms\""
+  - id: cites
+    definition: "Every domain class cites the evidence source that justifies it."
+    domain: OntologyClass
+    range: EvidenceSource
+    cardinality: many-to-one
+    source: "SKILL.md \"evidence or it didn't happen\"; validator warns on missing source"
+  - id: emitted_as
+    definition: "A validated ontology is emitted as one or more consumer bindings."
+    domain: Ontology
+    range: ConsumerBinding
+    cardinality: one-to-many
+    source: "output-formats.md \"emit AFTER validation passes\""
+  - id: models_target
+    definition: "An ontology is about exactly one bounded extraction target."
+    domain: Ontology
+    range: ExtractionTarget
+    cardinality: many-to-one
+    source: "SKILL.md Step 0 Scope"
+  - id: performed_by
+    definition: "A task is performed by the operating agent running the kit."
+    domain: OntologyTask
+    range: OperatingAgent
+    cardinality: many-to-one
+    source: "AGENT_SKILL.md \"Operating Workflow\""

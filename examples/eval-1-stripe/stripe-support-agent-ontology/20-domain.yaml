@@ -1,0 +1,80 @@
+classes:
+  - id: Charge
+    definition: "A single attempt to move funds from a payer's payment method to a merchant."
+    upper: Transaction
+    source: "docs.stripe.com/api (Core Resources: Charges)"
+  - id: PaymentIntent
+    definition: "A stated intent to collect payment, which one or more charges may realize."
+    upper: Intention
+    source: "docs.stripe.com/api (Core Resources: Payment Intents)"
+  - id: Refund
+    definition: "Return of previously charged funds to the original payment method; may be partial, repeatable until the charge is fully refunded."
+    upper: Transaction
+    source: "docs.stripe.com/api/refunds/object"
+  - id: Dispute
+    definition: "A cardholder's formal challenge to a charge, adjudicated by card networks via evidence."
+    upper: Event
+    source: "docs.stripe.com/api/disputes/object"
+  - id: DisputeEvidence
+    definition: "Structured documentation submitted to rebut a dispute (receipts, communications, policies)."
+    upper: Content
+    source: "docs.stripe.com/api/disputes/update"
+  - id: Customer
+    definition: "Party whose payment method funds a charge."
+    upper: Person
+    source: "docs.stripe.com/api (Core Resources: Customers); note: B2B payers exist — real run would union Person|Organization"
+  - id: MerchantAccount
+    definition: "The account holding a merchant's processed funds and configuration."
+    upper: Account
+    source: "docs.stripe.com/api (Core Resources: Accounts)"
+  - id: SupportAgent
+    definition: "Person authorized to act on refunds and disputes for a merchant."
+    upper: Person
+    source: "support.stripe.com/topics/refunds (dashboard actor)"
+  - id: MonetaryAmount
+    definition: "Quantity of money in a currency's smallest unit."
+    upper: Magnitude
+    source: "docs.stripe.com/api/refunds/object (amount in smallest currency unit)"
+relations:
+  - id: refunds_charge
+    definition: "A refund returns funds against a specific charge (or its payment intent)."
+    domain: Refund
+    range: Charge
+    cardinality: many-to-one
+    source: "docs.stripe.com/api/refunds/object (charge field)"
+  - id: disputes_charge
+    definition: "A dispute challenges a specific charge."
+    domain: Dispute
+    range: Charge
+    cardinality: many-to-one
+    source: "docs.stripe.com/api/disputes/close (response: charge field)"
+  - id: realizes_intent
+    definition: "A charge realizes a payment intent."
+    domain: Charge
+    range: PaymentIntent
+    cardinality: many-to-one
+    source: "docs.stripe.com/api/refunds/object (payment_intent field)"
+  - id: funded_by
+    definition: "A charge is funded by a customer."
+    domain: Charge
+    range: Customer
+    cardinality: many-to-one
+    source: "docs.stripe.com/api (Customers as core resource)"
+  - id: credited_to
+    definition: "A charge's funds are credited to a merchant account."
+    domain: Charge
+    range: MerchantAccount
+    cardinality: many-to-one
+    source: "docs.stripe.com/api (Accounts as core resource)"
+  - id: supports_dispute
+    definition: "Evidence is attached to exactly one dispute."
+    domain: DisputeEvidence
+    range: Dispute
+    cardinality: one-to-one
+    source: "docs.stripe.com/api/disputes/close (evidence hash on dispute)"
+  - id: denominated_in
+    definition: "A refund's amount is a monetary quantity."
+    domain: Refund
+    range: MonetaryAmount
+    cardinality: many-to-one
+    source: "docs.stripe.com/api/refunds/object"

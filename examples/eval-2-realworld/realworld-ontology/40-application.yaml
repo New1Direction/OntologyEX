@@ -1,0 +1,47 @@
+system: "node-express-realworld"
+concepts:
+  - id: users_table
+    kind: db_table
+    binds: Member
+    used_by_tasks: [RegisterMember, FollowMember]
+    fields:
+      - name: username
+        maps_to: "Member identity"
+      - name: password
+        maps_to: "APP-ONLY: credential, no L1 mapping (deliberate)"
+      - name: demo
+        maps_to: "APP-ONLY: seeding flag, no L1 mapping"
+    source: "src/prisma/schema.prisma model User"
+  - id: articles_table
+    kind: db_table
+    binds: Article
+    used_by_tasks: [PublishArticle, BrowsePersonalFeed, FavoriteArticle]
+    fields:
+      - name: slug
+        maps_to: "APP-ONLY: URL identity for Article"
+      - name: tagList
+        maps_to: "tagged_with relation"
+    source: "src/prisma/schema.prisma model Article"
+  - id: comments_table
+    kind: db_table
+    binds: Comment
+    used_by_tasks: [CommentOnArticle]
+    source: "src/prisma/schema.prisma model Comment"
+  - id: tags_table
+    kind: db_table
+    binds: Tag
+    used_by_tasks: [PublishArticle]
+    source: "src/prisma/schema.prisma model Tag"
+  - id: user_follows_join
+    kind: db_table
+    binds: Member
+    used_by_tasks: [FollowMember, BrowsePersonalFeed]
+    fields:
+      - name: (implicit join)
+        maps_to: "follows relation, many-to-many"
+    source: "schema.prisma @relation(UserFollows)"
+  - id: article_api
+    kind: api_type
+    binds: Article
+    used_by_tasks: [PublishArticle, CommentOnArticle, FavoriteArticle]
+    source: "article.controller.ts routes"

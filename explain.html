@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What just happened — the toolkit that described itself (plain English)</title>
+<meta name="description" content="A plain-English walkthrough of running the Agent Ontology Kit on its own codebase: what an ontology is, the four layers explained with everyday analogies, and the three outputs it produced.">
+<style>
+  :root{
+    color-scheme: light;
+    --ink:#101418; --muted:#5b6570; --faint:#8a8576;
+    --paper:#f5f1e8; --panel:#fffdf7; --line:#d8d0c2; --line-soft:#e7e0d2;
+    --night:#101418; --night-soft:#171d23;
+    --l0:#7654b5;  /* upper   */
+    --l1:#13846f;  /* domain  */
+    --l2:#256eb2;  /* task    */
+    --l3:#c28719;  /* app     */
+    --red:#cf4c42;
+    --shadow:0 24px 80px rgba(16,20,24,.14);
+    --shadow-sm:0 8px 24px rgba(16,20,24,.10);
+    --radius:8px;
+    --maxw:980px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} *{animation:none!important; transition:none!important} }
+  body{
+    margin:0; color:var(--ink); background:var(--paper);
+    font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    line-height:1.62; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+  .wrap{width:min(var(--maxw),calc(100% - 40px)); margin-inline:auto}
+  a{color:var(--l2); text-underline-offset:3px}
+
+  /* ---------- masthead ---------- */
+  .masthead{border-bottom:1px solid var(--line); background:var(--panel)}
+  .masthead .wrap{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 20px;
+    width:min(1180px,calc(100% - 40px))}
+  .brand{display:flex; align-items:center; gap:11px; font-weight:800; letter-spacing:-.01em}
+  .brand .dot{width:11px;height:11px;border-radius:50%;
+    background:conic-gradient(var(--l0),var(--l1),var(--l2),var(--l3),var(--l0))}
+  .tagchip{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
+    border:1px solid var(--line); border-radius:999px; padding:6px 11px; background:#fff}
+
+  /* ---------- hero ---------- */
+  .hero{position:relative; background:var(--night); color:#f3f6f4; overflow:hidden;
+    border-bottom:1px solid rgba(255,255,255,.12)}
+  .hero::before{content:""; position:absolute; inset:0;
+    background:
+      radial-gradient(1100px 520px at 78% -8%, rgba(118,84,181,.34), transparent 60%),
+      radial-gradient(820px 460px at 8% 108%, rgba(19,132,111,.30), transparent 60%);
+    pointer-events:none}
+  .hero::after{content:""; position:absolute; inset:0; opacity:.5; mix-blend-mode:overlay; pointer-events:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/></svg>")}
+  .hero .wrap{position:relative; z-index:2; padding:84px 0 76px}
+  .eyebrow{display:inline-flex; gap:9px; align-items:center; font-size:12px; font-weight:800;
+    letter-spacing:.1em; text-transform:uppercase; color:#bfe7de;
+    border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.06);
+    padding:7px 12px; border-radius:999px; backdrop-filter:blur(8px)}
+  .hero h1{font-size:clamp(2.1rem,1.2rem+4.2vw,4rem); line-height:1.04; letter-spacing:-.03em;
+    margin:22px 0 0; font-weight:850; max-width:18ch}
+  .hero h1 em{font-style:normal; background:linear-gradient(105deg,#8f6fe0,#37b59d); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .hero .lede{margin:22px 0 0; font-size:clamp(1.05rem,.98rem+.5vw,1.3rem); color:#cdd5d2; max-width:60ch}
+  .hero .proof{margin-top:34px; display:inline-flex; align-items:center; gap:14px;
+    background:rgba(19,132,111,.16); border:1px solid rgba(78,209,187,.4);
+    border-radius:var(--radius); padding:13px 18px; color:#dff3ee; font-weight:600}
+  .hero .proof b{color:#fff}
+  .check{width:22px;height:22px;flex:none;border-radius:50%;background:#1f9e85;display:grid;place-items:center;
+    color:#fff;font-size:13px;font-weight:900}
+
+  /* ---------- section scaffolding ---------- */
+  section{padding:64px 0}
+  section + section{border-top:1px solid var(--line-soft)}
+  .step{display:inline-block; font-size:12px; font-weight:800; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--faint); margin-bottom:14px}
+  h2{font-size:clamp(1.6rem,1.1rem+2vw,2.5rem); line-height:1.1; letter-spacing:-.02em; margin:0 0 8px; font-weight:820}
+  h3{font-size:1.18rem; letter-spacing:-.01em; margin:0 0 6px}
+  p.big{font-size:1.12rem; color:var(--ink); max-width:64ch}
+  p, li{color:#2a2f35}
+  .muted{color:var(--muted)}
+  .lead-rule{width:54px;height:4px;border-radius:3px;background:var(--ink);margin-bottom:26px}
+
+  .callout{border-left:4px solid var(--l1); background:var(--panel); padding:18px 22px; border-radius:0 var(--radius) var(--radius) 0;
+    box-shadow:var(--shadow-sm); margin:26px 0; max-width:66ch}
+  .callout.q{border-color:var(--l0)}
+
+  /* ---------- the layer stack ---------- */
+  .stack-grid{display:grid; grid-template-columns:1.05fr 1fr; gap:40px; align-items:center}
+  @media(max-width:760px){.stack-grid{grid-template-columns:1fr; gap:28px}}
+  .stack{display:flex; flex-direction:column; gap:12px; perspective:1200px}
+  .slab{position:relative; border-radius:var(--radius); padding:16px 18px; color:#fff;
+    box-shadow:var(--shadow-sm); transition:transform .35s cubic-bezier(.16,1,.3,1);
+    transform:translateZ(0)}
+  .stack:hover .slab{transform:translateX(0)}
+  .slab .lab{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.82}
+  .slab .nm{font-weight:800; font-size:1.05rem; margin-top:2px}
+  .slab .ex{font-size:.86rem; opacity:.92; margin-top:3px}
+  .slab.s0{background:linear-gradient(100deg,#7654b5,#8f6fe0); margin-left:0}
+  .slab.s1{background:linear-gradient(100deg,#13846f,#1aa589); margin-left:18px}
+  .slab.s2{background:linear-gradient(100deg,#256eb2,#3a8bd6); margin-left:36px}
+  .slab.s3{background:linear-gradient(100deg,#c28719,#dba12f); margin-left:54px}
+  @media(hover:hover) and (prefers-reduced-motion:no-preference){
+    .slab.s1{transition-delay:.02s}.slab.s2{transition-delay:.04s}.slab.s3{transition-delay:.06s}
+    .stack:hover .slab.s1{transform:translateX(-10px)}
+    .stack:hover .slab.s2{transform:translateX(-20px)}
+    .stack:hover .slab.s3{transform:translateX(-30px)}
+  }
+  .stack-note{font-size:.9rem;color:var(--muted);margin-top:8px}
+
+  /* ---------- mapping table ---------- */
+  .maptable{width:100%; border-collapse:collapse; margin-top:10px; font-size:.96rem; background:var(--panel);
+    border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .maptable th,.maptable td{text-align:left; padding:13px 15px; border-bottom:1px solid var(--line-soft); vertical-align:top}
+  .maptable thead th{font-size:.74rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); background:#fbf8f0}
+  .maptable tr:last-child td{border-bottom:none}
+  .pill{display:inline-block; font-size:.72rem; font-weight:800; letter-spacing:.04em; padding:3px 9px; border-radius:999px; color:#fff; white-space:nowrap}
+  .p0{background:var(--l0)} .p1{background:var(--l1)} .p2{background:var(--l2)} .p3{background:var(--l3)}
+
+  /* ---------- scoreboard ---------- */
+  .score{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:8px}
+  @media(max-width:720px){.score{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px 16px; box-shadow:var(--shadow-sm)}
+  .stat .n{font-size:2.1rem; font-weight:850; letter-spacing:-.03em; line-height:1}
+  .stat .k{font-size:.84rem; color:var(--muted); margin-top:6px}
+  .stat.s0 .n{color:var(--l0)} .stat.s1 .n{color:var(--l1)} .stat.s2 .n{color:var(--l2)} .stat.s3 .n{color:var(--l3)}
+
+  /* ---------- code peeks ---------- */
+  figure.peek{margin:22px 0; border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow-sm); background:#fff}
+  figure.peek figcaption{display:flex; gap:9px; align-items:center; padding:11px 15px; background:#fbf8f0; border-bottom:1px solid var(--line-soft);
+    font-size:.84rem; color:var(--muted)}
+  figure.peek figcaption .fn{font-family:ui-monospace,Menlo,monospace; color:var(--ink); font-weight:600; font-size:.8rem}
+  figure.peek pre{margin:0; padding:16px 18px; overflow-x:auto; background:var(--night); color:#dfe7e2; font-size:.82rem; line-height:1.6}
+  .c-key{color:#9fd0c6} .c-str{color:#e7c98a} .c-com{color:#7d8a86; font-style:italic} .c-tag{color:#b79be6}
+  .plain{padding:14px 18px; font-size:.92rem; color:#2a2f35; background:var(--panel)}
+  .plain b{color:var(--ink)}
+
+  /* ---------- three languages ---------- */
+  .langs{display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:10px}
+  @media(max-width:820px){.langs{grid-template-columns:1fr}}
+  .lang{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:22px; box-shadow:var(--shadow-sm);
+    position:relative; transition:transform .25s cubic-bezier(.16,1,.3,1), box-shadow .25s}
+  .lang:hover{transform:translateY(-4px); box-shadow:var(--shadow)}
+  .lang .ic{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;color:#fff;font-size:19px;margin-bottom:12px}
+  .lang h3{margin-bottom:8px}
+  .lang p{font-size:.95rem; margin:0 0 6px}
+  .lang .who{font-size:.8rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-top:12px}
+  .lang.a .ic{background:var(--l2)} .lang.b .ic{background:var(--l1)} .lang.c .ic{background:var(--l3)}
+
+  /* ---------- takeaway ---------- */
+  .takeaway{background:var(--night); color:#eef3f1; border-radius:14px; padding:clamp(28px,3vw,48px); box-shadow:var(--shadow);
+    position:relative; overflow:hidden}
+  .takeaway::before{content:""; position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(700px 300px at 92% 0%, rgba(118,84,181,.3), transparent 60%)}
+  .takeaway h2{color:#fff; position:relative}
+  .takeaway p{color:#cdd5d2; position:relative; max-width:62ch; font-size:1.08rem}
+  .takeaway .row{display:flex; gap:14px; flex-wrap:wrap; margin-top:22px; position:relative}
+  .takeaway .row div{flex:1; min-width:200px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14);
+    border-radius:var(--radius); padding:16px}
+  .takeaway .row b{color:#fff}
+
+  /* ---------- glossary ---------- */
+  details.gloss{border:1px solid var(--line); border-radius:var(--radius); background:var(--panel); margin:10px 0; overflow:hidden}
+  details.gloss summary{cursor:pointer; padding:14px 18px; font-weight:700; list-style:none; display:flex; justify-content:space-between; align-items:center}
+  details.gloss summary::-webkit-details-marker{display:none}
+  details.gloss summary::after{content:"+"; color:var(--muted); font-weight:800}
+  details.gloss[open] summary::after{content:"−"}
+  details.gloss .body{padding:0 18px 16px; color:#2a2f35; font-size:.96rem}
+
+  /* ---------- competitor swap (eval-5) ---------- */
+  .meter{display:flex; align-items:center; gap:18px; flex-wrap:wrap; margin:24px 0 6px;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px; box-shadow:var(--shadow-sm)}
+  .meter .big{font-size:clamp(2.4rem,1.6rem+2vw,3.2rem); font-weight:850; letter-spacing:-.04em; color:var(--l1); line-height:.9}
+  .meter .lbl{color:var(--muted); font-size:.95rem; max-width:46ch; flex:1; min-width:200px}
+  .swapbar{display:flex; flex-direction:column; gap:10px; margin:14px 0 6px}
+  .swaprow{display:grid; grid-template-columns:44px minmax(110px,1fr) 1.2fr; align-items:center; gap:14px}
+  .swaprow .track{height:14px; border-radius:7px; background:var(--line-soft); overflow:hidden}
+  .swaprow .fill{height:100%; border-radius:7px}
+  .swaprow .cap{color:var(--muted); font-size:.86rem}
+  @media(max-width:680px){
+    .swaprow{grid-template-columns:44px 1fr}
+    .swaprow .cap{grid-column:1 / -1; margin-top:-4px}
+  }
+
+  footer{padding:40px 0 64px; border-top:1px solid var(--line); color:var(--muted); font-size:.9rem}
+  footer .wrap{display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="brand"><span class="dot" aria-hidden="true"></span>Agent Ontology Kit</div>
+    <span class="tagchip">Plain-English explainer</span>
+  </div>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero" aria-labelledby="title">
+    <div class="wrap">
+      <span class="eyebrow">What just happened</span>
+      <h1 id="title">We asked a toolkit to <em>describe itself</em> — and it didn't trip.</h1>
+      <p class="lede">This page explains, with no jargon, what that toolkit does, the simple idea behind it,
+        and the proof we just produced by pointing it at its own code.</p>
+      <div class="proof">
+        <span class="check" aria-hidden="true">✓</span>
+        <span>It passed its own quality check: <b>0 errors, 0 warnings</b> — verified by running its built-in validator.</span>
+      </div>
+      <div class="proof" style="margin-top:14px">
+        <span class="check" aria-hidden="true">✓</span>
+        <span>Then aimed at two rival payment APIs — <b>8 of 9 core concepts matched</b> across Stripe and Adyen.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHAT IS IT -->
+  <section aria-labelledby="s1">
+    <div class="wrap">
+      <span class="step">Start here</span>
+      <h2 id="s1">What is this thing, really?</h2>
+      <div class="lead-rule"></div>
+      <p class="big">AI agents are good at <em>doing</em> things — sending refunds, booking slots, calling APIs.
+        They're bad at first <em>understanding the business</em> they're acting inside. They'll happily refund an
+        order that was never paid for, because nobody told them that's impossible.</p>
+      <p>The <b>Agent Ontology Kit</b> fixes that. It's a reusable recipe that reads a company, product, or codebase and
+        writes down a clean, structured <b>map of how that world works</b> — the things that exist, the actions you can take,
+        and the rules between them — in a form a machine can actually use <em>before</em> it acts.</p>
+      <div class="callout">
+        <strong>One sentence:</strong> it turns fuzzy "how this business works" knowledge into a precise map,
+        so an AI doesn't have to guess.
+      </div>
+    </div>
+  </section>
+
+  <!-- FOUR LAYERS -->
+  <section aria-labelledby="s2">
+    <div class="wrap">
+      <span class="step">The core idea</span>
+      <h2 id="s2">It sorts everything into four layers</h2>
+      <div class="lead-rule"></div>
+      <p class="big">Imagine describing a <b>coffee shop</b> to a robot. You'd naturally explain it at four levels of zoom —
+        from "universally true of anything" down to "this exact shop's stuff." That's the whole method.</p>
+
+      <div class="stack-grid">
+        <div>
+          <div class="stack" role="img" aria-label="Four stacked layers from universal at top to this-specific-system at bottom. Hover to fan them out.">
+            <div class="slab s0"><div class="lab">L0 · Universal</div><div class="nm">Basic kinds of things</div><div class="ex">a thing, a person, an action, an amount — true of <em>any</em> business on Earth</div></div>
+            <div class="slab s1"><div class="lab">L1 · The trade</div><div class="nm">The nouns of the field</div><div class="ex">Order, Drink, Barista, Receipt — true of <em>every</em> coffee shop</div></div>
+            <div class="slab s2"><div class="lab">L2 · The doings</div><div class="nm">The actions + their rules</div><div class="ex">TakeOrder, MakeDrink, Refund — "can't refund what wasn't paid"</div></div>
+            <div class="slab s3"><div class="lab">L3 · This exact shop</div><div class="nm">The real files &amp; buttons</div><div class="ex">their <code>orders</code> database table, the "new order" button</div></div>
+          </div>
+          <p class="stack-note">↑ Hover the stack to fan it out. Top = most universal, bottom = most specific.</p>
+        </div>
+        <div>
+          <h3>The one rule that makes it powerful</h3>
+          <p>Each layer must <b>connect to the one above it</b>. This shop's <code>orders</code> table (L3) points up to
+            the idea of an "Order" (L1), which points up to a basic "thing" (L0). The actions (L2) say which nouns they
+            use and what must be true first.</p>
+          <p>Because everything links upward, you get one connected map — not four disconnected sticky-note piles.
+            That connection table is the actual prize.</p>
+          <div class="callout q">
+            <strong>Why bother with the top layer?</strong> Because "Order" in a coffee shop and "Charge" at Stripe are
+            secretly the same <em>kind</em> of thing. Anchoring to universal categories lets different systems understand
+            each other for free.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- THE META MOVE -->
+  <section aria-labelledby="s3">
+    <div class="wrap">
+      <span class="step">The interesting twist</span>
+      <h2 id="s3">We pointed the toolkit at <em>itself</em></h2>
+      <div class="lead-rule"></div>
+      <p class="big">Instead of mapping a coffee shop or Stripe, we aimed the kit at its <b>own codebase</b> —
+        like a dictionary that contains the definition of the word "dictionary," or a camera photographing itself in a mirror.</p>
+      <p>So the four layers came out describing <em>the craft of map-making itself</em>:</p>
+
+      <table class="maptable">
+        <thead><tr><th>Layer</th><th>For the coffee shop, this was…</th><th>For the toolkit itself, it became…</th></tr></thead>
+        <tbody>
+          <tr><td><span class="pill p0">L0 Universal</span></td><td>a thing, a person, an amount</td><td>the same universal categories (borrowed from a published standard — never invented)</td></tr>
+          <tr><td><span class="pill p1">L1 Nouns</span></td><td>Order, Drink, Barista</td><td><b>Ontology, Layer, Class, Relation, Task, Evidence</b> — the vocabulary of map-making</td></tr>
+          <tr><td><span class="pill p2">L2 Actions</span></td><td>TakeOrder, Refund</td><td><b>ScopeTarget, MineSources, BuildDomainLayer, Validate, EmitOutput</b> — the workflow steps</td></tr>
+          <tr><td><span class="pill p3">L3 Real files</span></td><td>the <code>orders</code> table</td><td>the actual repo files: <code>scaffold.py</code>, the <code>20-domain.yaml</code> template, the docs</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout">
+        <strong>The satisfying part:</strong> a self-description is a brutal honesty test — if the method were sloppy,
+        describing itself would contradict itself. It didn't. The kit's own validator checked the result and found
+        <b>nothing broken</b>.
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section aria-labelledby="s4">
+    <div class="wrap">
+      <span class="step">The receipts</span>
+      <h2 id="s4">What actually came out</h2>
+      <div class="lead-rule"></div>
+      <div class="score">
+        <div class="stat s0"><div class="n">8</div><div class="k">universal anchors (L0)</div></div>
+        <div class="stat s1"><div class="n">13</div><div class="k">nouns + 14 links (L1)</div></div>
+        <div class="stat s2"><div class="n">12</div><div class="k">workflow actions (L2)</div></div>
+        <div class="stat s3"><div class="n">16</div><div class="k">real file artifacts (L3)</div></div>
+      </div>
+
+      <figure class="peek">
+        <figcaption><span class="fn">20-domain.yaml</span> · one of the 13 nouns, in the kit's own words</figcaption>
+        <pre><span class="c-key">- id:</span> <span class="c-str">Relation</span>
+  <span class="c-key">definition:</span> <span class="c-str">"A typed link between two ontology classes with domain,
+    range, and cardinality; its presence is what makes an
+    ontology more than a taxonomy."</span>
+  <span class="c-key">upper:</span> Category        <span class="c-com"># ↑ anchors to a universal kind</span>
+  <span class="c-key">source:</span> <span class="c-str">"SKILL.md modeling rules"</span>  <span class="c-com"># ← evidence, or it didn't happen</span></pre>
+        <div class="plain"><b>In plain terms:</b> every entry has a one-line definition, points <b>upward</b> to a universal
+          category, and cites <b>where it came from</b>. No unsourced claims allowed — that "source" rule is what keeps the
+          map honest.</div>
+      </figure>
+    </div>
+  </section>
+
+  <!-- THREE LANGUAGES -->
+  <section aria-labelledby="s5">
+    <div class="wrap">
+      <span class="step">The payoff</span>
+      <h2 id="s5">One map, spoken in three languages</h2>
+      <div class="lead-rule"></div>
+      <p class="big">Here's the real point. From that <em>single</em> map, the kit generated three different outputs —
+        each shaped for a different audience. Write the understanding once; everyone gets the version they can read.</p>
+
+      <div class="langs">
+        <article class="lang a">
+          <div class="ic" aria-hidden="true">🤖</div>
+          <h3>A to-do list for an AI</h3>
+          <p>Each workflow step becomes a tool the AI can call — with its <b>safety rules written into the description</b>.</p>
+          <p class="muted" style="font-size:.86rem">e.g. <em>"emit the output — only AFTER the check passes, never before."</em></p>
+          <div class="who">Read by · an AI agent</div>
+        </article>
+        <article class="lang b">
+          <div class="ic" aria-hidden="true">🕸️</div>
+          <h3>A web of facts</h3>
+          <p>The same map as a <b>queryable database</b> of connected facts. We literally asked it questions and it answered.</p>
+          <p class="muted" style="font-size:.86rem">252 facts, machine-checked — a real parser read it with zero errors.</p>
+          <div class="who">Read by · a knowledge graph</div>
+        </article>
+        <article class="lang c">
+          <div class="ic" aria-hidden="true">🗺️</div>
+          <h3>A picture for people</h3>
+          <p>A clean diagram showing the layers stacked and the workflow flowing — so a <b>human</b> can grasp it in a glance.</p>
+          <p class="muted" style="font-size:.86rem">Color-coded by layer, exactly like this page.</p>
+          <div class="who">Read by · humans</div>
+        </article>
+      </div>
+
+      <figure class="peek">
+        <figcaption><span class="fn">the AI's to-do list</span> · one step, with its rule baked in</figcaption>
+        <pre><span class="c-key">"name":</span> <span class="c-str">"emit_consumer_binding"</span>,
+<span class="c-key">"description":</span> <span class="c-str">"Emit the final output (tools, graph, diagram…).
+  PRECONDITION: validation passes — emit AFTER validation, never before."</span></pre>
+        <div class="plain"><b>Why this matters:</b> the AI can't skip a safety step, because the rule travels <em>with</em> the
+          tool. The understanding and the guardrail are the same object.</div>
+      </figure>
+
+      <figure class="peek">
+        <figcaption><span class="fn">the web of facts</span> · we asked it a question, it answered</figcaption>
+        <pre><span class="c-com"># Question: "what does the BuildDomainLayer step produce?"</span>
+<span class="c-tag">SELECT</span> ?c <span class="c-tag">WHERE</span> { :BuildDomainLayer :producesClass ?c }
+
+<span class="c-com"># Answer it gave back:</span>
+  → :OntologyClass
+  → :Relation</pre>
+        <div class="plain"><b>In plain terms:</b> it's not just a document — it's a thing you can <b>interrogate</b>.
+          Ask it how the world fits together and it replies with exact answers.</div>
+      </figure>
+
+      <div class="callout">
+        <strong>And they stay in sync.</strong> Because all three come from the same source map, fixing the map once
+        regenerates all three. No more updating a diagram, a database, and a config file by hand and watching them drift apart.
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPETITOR SWAP (eval-5) -->
+  <section aria-labelledby="s-swap">
+    <div class="wrap">
+      <span class="step">The real test · round two</span>
+      <h2 id="s-swap">But does it work on someone else's business?</h2>
+      <div class="lead-rule"></div>
+      <p class="big">Describing itself is neat — but here's the bolder promise: <b>the middle layer (the nouns of a trade)
+        should come out the same for any company in that trade.</b> Only the bottom layer — one firm's specific files —
+        should differ. So we pointed the kit at two <em>rival</em> payment companies: <b>Stripe</b> and <b>Adyen</b>.</p>
+
+      <div class="callout">
+        <strong>Everyday version:</strong> learning to drive transfers from a Toyota to a Honda — "steering wheel," "brake,"
+        "indicator" mean the same thing; only the dashboard layout changes. If the kit is any good, an AI taught the
+        <em>concepts</em> of payments shouldn't need re-teaching when you switch providers.
+      </div>
+
+      <div class="meter" role="img" aria-label="8 out of 9 core payment concepts matched between Stripe and Adyen">
+        <span class="big">8/9</span>
+        <span class="lbl">core concepts in Stripe had an exact counterpart in Adyen — the shared vocabulary an AI could
+          reuse across both, with zero relearning.</span>
+      </div>
+
+      <table class="maptable">
+        <thead><tr><th>Stripe's word</th><th>Adyen's word</th><th>Same idea?</th></tr></thead>
+        <tbody>
+          <tr><td>Charge</td><td>Payment</td><td>✅ a fund movement</td></tr>
+          <tr><td>Refund</td><td>Refund</td><td>✅ identical</td></tr>
+          <tr><td>Dispute</td><td>Dispute</td><td>✅ identical</td></tr>
+          <tr><td>Dispute Evidence</td><td>Defense Document</td><td>✅ proof to contest a charge</td></tr>
+          <tr><td>Customer</td><td>Customer / Shopper</td><td>✅ the payer</td></tr>
+          <tr><td>Merchant Account</td><td>Merchant Account</td><td>✅ identical</td></tr>
+          <tr><td>Support Agent</td><td>Payments Agent</td><td>✅ the operator</td></tr>
+          <tr><td>Monetary Amount</td><td>Monetary Amount</td><td>✅ identical</td></tr>
+          <tr><td>Payment Intent</td><td><span class="muted">—</span></td><td>⚠️ a Stripe-only framing</td></tr>
+        </tbody>
+      </table>
+
+      <p style="margin-top:18px; max-width:64ch">The single mismatch is genuinely a Stripe-specific idea — an honest result,
+        not a fudged one. And Adyen actually contributed <b>more</b> concepts (it exposes a separate "capture" step and
+        staged chargebacks that Stripe's setup keeps hidden), so the shared map got <em>richer</em>, never contradictory.</p>
+
+      <h3 style="margin-top:32px">The whole idea, in one strip</h3>
+      <p class="muted" style="margin-top:0">Top = universal and identical. Bottom = each company's private plumbing. The
+        further down you go, the less transfers — exactly as the four layers promise.</p>
+      <div class="swapbar" role="img" aria-label="L0 identical, L1 mostly shared, L2 diverges, L3 not shared at all">
+        <div class="swaprow"><span class="pill p0">L0</span><div class="track"><div class="fill" style="width:100%;background:var(--l0)"></div></div><span class="cap"><b>identical</b> — same universal anchors</span></div>
+        <div class="swaprow"><span class="pill p1">L1</span><div class="track"><div class="fill" style="width:89%;background:var(--l1)"></div></div><span class="cap"><b>8 of 9 shared</b> — the trade, not the vendor</span></div>
+        <div class="swaprow"><span class="pill p2">L2</span><div class="track"><div class="fill" style="width:45%;background:var(--l2)"></div></div><span class="cap"><b>diverges</b> — actions follow each API's buttons</span></div>
+        <div class="swaprow"><span class="pill p3">L3</span><div class="track"><div class="fill" style="width:6%;background:var(--l3)"></div></div><span class="cap"><b>0% shared</b> — each firm's files are its own</span></div>
+      </div>
+
+      <div class="callout">
+        <strong>Why this is the result that pays for itself:</strong> build your AI agent once on the shared middle layer, and
+        you can <b>swap payment providers without re-teaching it the business</b>. Only the bottom wiring changes — and the
+        kit regenerates that part for you. Both maps validated clean, and the 8/9 figure was computed from their own files,
+        not asserted by hand.
+      </div>
+    </div>
+  </section>
+
+  <!-- TAKEAWAY -->
+  <section aria-labelledby="s6">
+    <div class="wrap">
+      <div class="takeaway">
+        <h2 id="s6">So why should anyone care?</h2>
+        <p>Because the expensive, error-prone part of building AI tools isn't the code — it's making sure the AI
+          actually <em>understands the rules of the world it's touching</em>. This kit makes that understanding explicit,
+          checkable, and reusable.</p>
+        <div class="row">
+          <div><b>Safer agents.</b> Rules like "you can't refund an unpaid order" become part of the tools, not folklore.</div>
+          <div><b>Less drift.</b> One source of truth feeds the AI, the database, and the docs at once.</div>
+          <div><b>Proven on itself.</b> The method survived describing its own code with zero contradictions.</div>
+          <div><b>Proven across rivals.</b> The domain layer matched 8/9 between two competing payment APIs — Stripe ↔ Adyen.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GLOSSARY -->
+  <section aria-labelledby="s7">
+    <div class="wrap">
+      <span class="step">Jargon, defused</span>
+      <h2 id="s7">If you bumped into a scary word</h2>
+      <div class="lead-rule"></div>
+
+      <details class="gloss"><summary>Ontology</summary><div class="body">A structured map of what exists in some world and how it all connects. Fancier than a list, because it records the <em>relationships</em> and <em>rules</em>, not just the items.</div></details>
+      <details class="gloss"><summary>The four layers (L0–L3)</summary><div class="body">Four levels of zoom: <b>L0</b> universal kinds → <b>L1</b> the nouns of the trade → <b>L2</b> the actions → <b>L3</b> this exact system's files. Each connects to the one above it.</div></details>
+      <details class="gloss"><summary>MCP tools</summary><div class="body">A standard way to hand an AI a set of "buttons it can press," each with a description of what it does and the rules for using it. The kit generates these automatically from the action layer.</div></details>
+      <details class="gloss"><summary>Knowledge graph / Turtle / RDF</summary><div class="body">A way of storing facts as a web of connected dots that a computer can search and reason over. "Turtle" is just the text file format we wrote it in. We confirmed it's valid by loading it into a real database tool.</div></details>
+      <details class="gloss"><summary>Validation / "0 errors"</summary><div class="body">The kit ships a script that checks the map for mistakes — broken links, things that point nowhere, duplicates. Running it on our self-map returned a clean bill of health.</div></details>
+      <details class="gloss"><summary>Retrofit mode</summary><div class="body">Pointing the kit at code you already own (versus researching an outside company). That's the mode we used on the kit's own repository. For Stripe and Adyen we used <em>research mode</em> instead — reading their public docs.</div></details>
+      <details class="gloss"><summary>Competitor swap</summary><div class="body">The kit's promise that the middle "nouns of the trade" layer stays the same when you switch from one company to a rival in the same business — only the company-specific bottom layer changes. We checked it on Stripe vs Adyen: 8 of 9 concepts matched.</div></details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Agent Ontology Kit · self-described, then proven across two rival payment APIs.</span>
+    <span>Outputs: <code>examples/eval-4-self/</code> · <code>examples/eval-5-adyen/</code></span>
+  </div>
+</footer>
+
+</body>
+</html>

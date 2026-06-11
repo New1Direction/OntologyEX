@@ -1,0 +1,47 @@
+{
+  "tools": [
+    {
+      "name": "process_refund",
+      "description": "Refund a charge, fully or partially. Preconditions: charge exists and is not already fully refunded; refund amount <= unrefunded remainder. Effects: Refund created (pending -> succeeded/failed); funds return to the original card; fully refunded charges can no longer be disputed.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "charge_id": {"type": "string", "description": "Charge (L1) — the charge to refund"},
+          "amount": {"type": "integer", "description": "MonetaryAmount (L1) in smallest currency unit; omit for full refund"},
+          "reason": {"type": "string", "enum": ["duplicate", "fraudulent", "requested_by_customer"]}
+        },
+        "required": ["charge_id"]
+      }
+    },
+    {
+      "name": "cancel_refund",
+      "description": "Cancel an in-flight refund. Precondition: refund status is requires_action — the ONLY state permitting cancellation. Effect: status -> canceled.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {"refund_id": {"type": "string", "description": "Refund (L1) to cancel"}},
+        "required": ["refund_id"]
+      }
+    },
+    {
+      "name": "submit_dispute_evidence",
+      "description": "Submit evidence to contest a dispute. Preconditions: dispute status is needs_response; before evidence_details.due_by; combined evidence fields <= 150,000 characters. Effect: ALL evidence hash fields are submitted together for bank review — partial updates submit the whole hash.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "dispute_id": {"type": "string", "description": "Dispute (L1)"},
+          "evidence": {"type": "object", "description": "DisputeEvidence (L1) — receipt, customer_communication, refund_policy, etc."}
+        },
+        "required": ["dispute_id", "evidence"]
+      }
+    },
+    {
+      "name": "close_dispute",
+      "description": "Concede a dispute without submitting evidence. Precondition: status is needs_response. Effect: status -> lost. IRREVERSIBLE — confirm with a human before calling.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {"dispute_id": {"type": "string", "description": "Dispute (L1)"}},
+        "required": ["dispute_id"]
+      }
+    }
+  ]
+}

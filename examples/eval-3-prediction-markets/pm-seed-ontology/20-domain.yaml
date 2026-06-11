@@ -1,0 +1,69 @@
+classes:
+  - id: Market
+    definition: "A tradable question over an exhaustive, mutually exclusive set of outcomes whose prices sum to 1."
+    upper: Agreement
+    source: "arxiv 2508.03474 (exhaustive/mutually-exclusive condition sets)"
+  - id: Outcome
+    definition: "One slot of a market's outcome partition."
+    upper: Content
+    source: "docs.polymarket.com/trading/ctf (outcome slots)"
+  - id: OutcomePosition
+    definition: "A holding entitling redemption of collateral iff its outcome realizes."
+    upper: Content
+    synonyms: [Share, PositionId]
+    aligns_to: "ERC-1155 token per Gnosis CTF"
+    alignment: related
+    source: "docs.polymarket.com/trading/ctf"
+  - id: Trader
+    definition: "Party holding or exchanging outcome positions."
+    upper: Person
+    source: "arxiv 2510.15205; note: bots/orgs trade too — real run unions Person|Organization"
+  - id: Oracle
+    definition: "Designated resolver attesting the realized outcome of a market."
+    upper: Organization
+    source: "docs.polymarket.com/trading/ctf (getConditionId oracle param); arxiv 2508.03474 (resolution source)"
+  - id: Resolution
+    definition: "The oracle's determination of which outcome realized."
+    upper: Event
+    source: "arxiv 2508.03474"
+  - id: CollateralStake
+    definition: "Funds locked backing an outcome-pair, redeemed at resolution."
+    upper: Magnitude
+    source: "docs.polymarket.com/trading/ctf (fully collateralized Yes/No pairs)"
+relations:
+  - id: partitioned_into
+    definition: "A market partitions into two or more outcomes."
+    domain: Market
+    range: Outcome
+    cardinality: one-to-many
+    source: "CTF outcomeSlotCount"
+  - id: position_in
+    definition: "A position references exactly one outcome."
+    domain: OutcomePosition
+    range: Outcome
+    cardinality: many-to-one
+    source: "CTF positionId derivation"
+  - id: held_by
+    definition: "A position is held by a trader."
+    domain: OutcomePosition
+    range: Trader
+    cardinality: many-to-one
+    source: "ERC-1155 balances"
+  - id: collateralized_by
+    definition: "Positions are backed by locked collateral."
+    domain: OutcomePosition
+    range: CollateralStake
+    cardinality: many-to-one
+    source: "CTF collateral lock"
+  - id: resolves
+    definition: "A resolution settles exactly one market."
+    domain: Resolution
+    range: Market
+    cardinality: one-to-one
+    source: "arxiv 2508.03474"
+  - id: attested_by
+    definition: "A resolution is attested by the market's designated oracle."
+    domain: Resolution
+    range: Oracle
+    cardinality: many-to-one
+    source: "CTF oracle param"
