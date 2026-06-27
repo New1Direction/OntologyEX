@@ -22,10 +22,17 @@ anchors:
 
 ### 20-domain.yaml
 ```yaml
+interfaces:
+  - id: Monetary
+    definition: "Carries an amount and currency."
+    properties: [amount, currency]
+    source: "domain design review"
+
 classes:
   - id: Merchant
     definition: "Business entity that accepts payments for goods or services."
     upper: Agent                        # must exist in 10-upper.yaml anchors
+    implements: []                       # optional interface ids such as Addressable or Auditable
     synonyms: [Seller, Vendor]
     aligns_to: "https://schema.org/Organization"
     alignment: subClassOf
@@ -33,6 +40,7 @@ classes:
   - id: Charge
     definition: "A single attempt to move funds from a payer to a merchant."
     upper: Event
+    implements: [Monetary]
     source: "API docs /v1/charges"
 
 relations:

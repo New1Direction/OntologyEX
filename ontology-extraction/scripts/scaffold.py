@@ -2,13 +2,14 @@
 """Scaffold and validate four-layer ontology workspaces.
 
 Usage:
-  python scaffold.py init --name acme [--out ./acme-ontology]
-  python scaffold.py validate <dir>
-  python scaffold.py mappings <dir>     # regenerate 50-mappings.yaml from layers
+  python3 scaffold.py init --name acme [--out ./acme-ontology]
+  python3 scaffold.py validate <dir>
+  python3 scaffold.py mappings <dir>     # regenerate 50-mappings.yaml from layers
 
 Requires: pyyaml  (pip install pyyaml)
 """
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -45,10 +46,16 @@ anchors:
   - id: Event
     iri: "https://w3id.org/semanticarts/ns/ontology/gist/Event"
 """,
-    "20-domain.yaml": """classes:
+    "20-domain.yaml": """interfaces: []
+#  - id: Addressable
+#    definition: "Can be associated with a postal or physical address."
+#    properties: [address]
+#    source: "where this trait came from"
+classes:
   - id: ExampleClass
     definition: "One sentence a competitor's employee would agree with."
     upper: Agent
+    implements: []
     synonyms: []
     source: "where this came from"
 relations: []
@@ -81,13 +88,54 @@ concepts: []
 
 Four-layer ontology. Edit the YAML files, then:
 
-    python scaffold.py validate .
-    python scaffold.py mappings .
+    python3 scaffold.py validate .
+    python3 scaffold.py mappings .
 
 Layer rules: every L3 `binds` an L1 class; every L1 class has an `upper` anchor;
 every L2 task's inputs/outputs are L1 classes.
 """,
 }
+
+VAGUE_CLASS_IDS = {"Asset", "Entity", "Object", "Record", "Item", "Thing", "Data", "Resource"}
+DEPARTMENT_PREFIXES = {
+    "sales", "support", "billing", "finance", "marketing", "ops", "operations",
+    "service", "success", "crm", "erp", "warehouse", "system", "vendor", "internal",
+}
+TECHNICAL_FIELD_PATTERNS = (
+    r"^_", r"^etl_", r"^elt_", r"^dw_", r"^dwh_", r"^tmp_", r"^debug_",
+    r"^batch_", r"^extract_", r"^ingest_", r"^cdc_", r"^load_", r"^row_",
+    r"^record_", r"^source_system", r"^sync_", r"^job_", r"^run_id$",
+)
+PROPERTY_UPDATE_WORDS = {
+    "phone", "email", "address", "name", "status", "note", "tag", "field", "property",
+    "attribute", "metadata", "flag", "description", "owner",
+}
+
+
+def split_identifier(identifier: str):
+    """Split snake/kebab/camel identifiers into lowercase words for lint heuristics."""
+    spaced = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", str(identifier))
+    return [w.lower() for w in re.split(r"[^A-Za-z0-9]+|\s+", spaced) if w]
+
+
+def normalised_business_noun(class_id: str):
+    words = split_identifier(class_id)
+    if len(words) > 1 and words[0] in DEPARTMENT_PREFIXES:
+        words = words[1:]
+    while len(words) > 1 and words[-1] in {"row", "record", "table", "object", "entity", "resource"}:
+        words = words[:-1]
+    return "".join(words)
+
+
+def field_name(field):
+    if isinstance(field, dict):
+        return str(field.get("name") or field.get("id") or "")
+    return str(field or "")
+
+
+def looks_technical_field(name: str):
+    lowered = name.lower()
+    return any(re.search(pattern, lowered) for pattern in TECHNICAL_FIELD_PATTERNS)
 
 
 def load(d: Path, name: str):
@@ -120,6 +168,9 @@ def validate(args):
     app = load(d, "40-application.yaml") or {}
 
     anchors = {a["id"] for a in (upper.get("anchors") or [])}
+    interfaces = domain.get("interfaces") or []
+    interface_ids = [i["id"] for i in interfaces]
+    interface_set = set(interface_ids)
     classes = domain.get("classes") or []
     class_ids = [c["id"] for c in classes]
     class_set = set(class_ids)
@@ -131,6 +182,7 @@ def validate(args):
 
     # duplicate ids per layer
     for label, ids in (("upper anchor", [a["id"] for a in (upper.get("anchors") or [])]),
+                       ("interface", interface_ids),
                        ("domain class", class_ids),
                        ("relation", [r["id"] for r in relations]),
                        ("task", task_ids),
@@ -140,6 +192,16 @@ def validate(args):
             if i in seen:
                 errors.append(f"duplicate {label} id: {i}")
             seen.add(i)
+
+    # interfaces support composition over brittle deep hierarchies
+    for i in interfaces:
+        if not i.get("definition"):
+            warnings.append(f"interface {i['id']} has no definition")
+        if not i.get("source"):
+            warnings.append(f"interface {i['id']} has no source evidence")
+        for ref in i.get("applies_to") or []:
+            if ref not in class_set:
+                errors.append(f"interface {i['id']}: applies_to '{ref}' not a domain class")
 
     # synonym collisions with class ids
     for c in classes:
@@ -157,6 +219,14 @@ def validate(args):
             warnings.append(f"domain class {c['id']} has no definition")
         if not c.get("source"):
             warnings.append(f"domain class {c['id']} has no source evidence")
+        for iface in c.get("implements") or []:
+            if iface not in interface_set:
+                errors.append(f"domain class {c['id']}: implements unknown interface '{iface}'")
+        if c["id"] in VAGUE_CLASS_IDS:
+            warnings.append(
+                f"domain class {c['id']} uses a vague name — confirm it is the real business term, "
+                "otherwise prefer a precise semantic label or an interface"
+            )
 
     # relations resolve
     for r in relations:
@@ -188,6 +258,42 @@ def validate(args):
         for t in c.get("used_by_tasks") or []:
             if t not in task_set:
                 errors.append(f"app concept {c['id']}: used_by_tasks '{t}' not a known task")
+
+        fields = c.get("fields") or []
+        if len(fields) > 30:
+            warnings.append(
+                f"app concept {c['id']} has {len(fields)} fields — inspect for Kitchen Sink/God Object modeling"
+            )
+        technical_fields = [field_name(f) for f in fields if looks_technical_field(field_name(f))]
+        if len(technical_fields) >= 3:
+            warnings.append(
+                f"app concept {c['id']} maps {len(technical_fields)} technical-looking fields "
+                f"({', '.join(technical_fields[:5])}) — keep ETL/source metadata in L3 unless domain-relevant"
+            )
+
+    # Foundry-style anti-pattern heuristics: warnings mean inspect, not necessarily fail.
+    silo_groups = {}
+    for cid in class_ids:
+        core = normalised_business_noun(cid)
+        if core and core != cid.lower():
+            silo_groups.setdefault(core, []).append(cid)
+    for core, ids in sorted(silo_groups.items()):
+        if len(ids) >= 2:
+            warnings.append(
+                f"possible department/system silo for '{core}': {', '.join(ids)} — prefer one L1 class plus L3 bindings"
+            )
+
+    property_update_groups = {}
+    for t in tasks:
+        words = split_identifier(t["id"])
+        if words and words[0] in {"update", "set", "change"} and any(w in PROPERTY_UPDATE_WORDS for w in words[1:]):
+            key = (tuple(t.get("actor_roles") or []), tuple(t.get("inputs") or []), tuple(t.get("outputs") or []))
+            property_update_groups.setdefault(key, []).append(t["id"])
+    for ids in property_update_groups.values():
+        if len(ids) >= 3:
+            warnings.append(
+                f"possible action sprawl: {', '.join(ids)} — consider one business-level update task with clear preconditions"
+            )
 
     # orphans: L1 classes nothing touches
     touched = set()

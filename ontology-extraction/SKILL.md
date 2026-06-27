@@ -18,9 +18,11 @@ Produce a four-layer ontology for a target — a company you don't control (rese
 
 The discipline that makes four layers worth having: **every L3 concept maps to an L1 class, every L1 class anchors to an L0 category, every L2 task consumes/produces L1 classes.** The mapping table is the deliverable that makes everything else usable.
 
+Design rule: **model how the real-world business operates, not how source tables, warehouses, vendors, or departments happen to be shaped.** See `references/design-principles.md` for production ontology principles and anti-patterns.
+
 ## Workflow
 
-Work **middle-out**: anchor L0 early (cheap, it's a selection), extract L1 first (most evidence), L2 second, project L3 last. Never start with top-down philosophy or bottom-up app-detail drowning.
+Work **middle-out**: anchor L0 early (cheap, it's a selection), extract L1 first (most evidence), L2 second, project L3 last. Never start with top-down philosophy or bottom-up app-detail drowning. Treat source tables as evidence, not as the ontology shape.
 
 ### Step 0 — Scope
 Establish three things before extracting anything:
@@ -50,8 +52,9 @@ Record the chosen ontology, version, and the 10–25 anchor classes with IRIs in
 ### Step 4 — Build L1 (domain)
 1. Harvest candidate terms from Step 2 sources; collapse synonyms (one canonical id + `synonyms` list — never both "Doctor" and "Physician" as classes).
 2. Check `references/reuse-catalog.md` for an existing industry ontology (FIBO, FHIR, GS1, SOSA, ESCO…). Reuse classes where they fit; extend where they don't. Reuse beats invention — alignment to a published ontology is free interop.
-3. For each class: `id`, one-sentence `definition`, `upper` anchor, `synonyms`, `source`.
-4. Define **relations** with domain/range and cardinality. A class list with no relations is a taxonomy, not an ontology.
+3. For each class: `id`, one-sentence `definition`, `upper` anchor, `synonyms`, optional `implements`, `source`.
+4. Define reusable `interfaces` for shared traits such as Addressable, Auditable, Monetary, Geospatial, TimeBound, or Versioned. Prefer composition over deep inheritance.
+5. Define **relations** with domain/range and cardinality. A class list with no relations is a taxonomy, not an ontology.
 
 ### Step 5 — Build L2 (task)
 For each activity: `id`, `verb_phrase`, `actor_roles`, `inputs`, `outputs` (all referencing L1 classes), `preconditions`, `effects`, optional `decomposes_to` for sub-tasks, `source`. Mine API verbs (`POST /v1/refunds` ⇒ ProcessRefund), job-posting bullet points ("you will reconcile settlements"), and process documentation. Keep tasks at the granularity the consumer needs — an agent tool surface wants tool-sized tasks; a strategy doc wants value-chain-sized ones.
@@ -60,19 +63,20 @@ For each activity: `id`, `verb_phrase`, `actor_roles`, `inputs`, `outputs` (all 
 Intersect L1 × L2, filtered by the consumer. For each concept the system actually touches: `id`, `kind` (db_table | api_type | tool_schema | event | ui_object), `binds` (L1 class), `used_by_tasks` (L2 ids), field-level `maps_to` where useful. In retrofit mode this layer is mostly *already written* in the codebase — the work is mapping it upward and exposing the gaps (tables that bind to no domain concept are either missing L1 classes or dead schema).
 
 ### Step 7 — Validate
-1. Run the structural validator: `python scripts/scaffold.py validate <dir>` — checks unanchored classes, dangling references, duplicate ids, orphans.
-2. Answer every competency question using only ontology terms. Unanswerable CQ ⇒ missing class, relation, or task.
-3. Round-trip test: take 3 real records or sentences from the sources and express them in the ontology. Anything inexpressible reveals a gap.
+1. Run the structural validator: `python3 scripts/scaffold.py validate <dir>` — checks unanchored classes, dangling references, duplicate ids, orphans, interface references, and lightweight anti-pattern warnings.
+2. Inspect warnings for God Objects, Kitchen Sink schemas, department/system silos, action sprawl, schema overload, and vague misnomers.
+3. Answer every competency question using only ontology terms. Unanswerable CQ ⇒ missing class, relation, or task.
+4. Round-trip test: take 3 real records or sentences from the sources and express them in the ontology. Anything inexpressible reveals a gap.
 
 ## Deliverable structure
 
-Scaffold it: `python scripts/scaffold.py init --name <target> --out <dir>` produces:
+Scaffold it: `python3 scripts/scaffold.py init --name <target> --out <dir>` produces:
 
 ```
 <target>-ontology/
   00-scope.md           # target, consumer, boundary, competency questions
   10-upper.yaml         # chosen upper ontology + anchors
-  20-domain.yaml        # classes + relations
+  20-domain.yaml        # interfaces + classes + relations
   30-task.yaml          # tasks
   40-application.yaml   # bound concepts
   50-mappings.yaml      # app → domain → upper, with evidence (generated/maintained)
@@ -87,6 +91,11 @@ Then emit consumer bindings per `references/output-formats.md`: Turtle/OWL, JSON
 - **Inventing L0**: if a category feels universal, it already exists in BFO/gist/DOLCE. Select, don't author.
 - **Company terms in L1**: "Stripe Connect Account" is L3 (binds to L1 `MerchantAccount`). L1 must survive a competitor swap.
 - **Verbs in L1 / nouns in L2**: "Refund" the object is L1; "ProcessRefund" the activity is L2.
+- **God Object / Kitchen Sink**: one object absorbs unrelated entities, or every source column gets copied into the domain model.
+- **Department/System Silos**: `SalesCustomer`, `SupportCustomer`, and `BillingCustomer` become separate L1 classes instead of L3 bindings to one `Customer`.
+- **Action Sprawl**: many property-level tasks replace one clear business task with preconditions/effects.
+- **Schema Overload**: stable production classes mutate for every use case instead of being extended additively with links, interfaces, optional fields, or L3 bindings.
+- **Deep hierarchy / Misnomer**: abstract towers and vague names (`Asset`, `Entity`, `Object`, `Record`, `Item`) hide the real business semantics. Prefer precise classes plus interfaces.
 - **Boiling the ocean**: scope is whatever the competency questions need. Nothing else.
 - **Skipping the mapping table**: unmapped layers are four disconnected documents, not an ontology.
 - **Synonym sprawl**: one canonical id, everything else in `synonyms`.

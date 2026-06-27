@@ -51,16 +51,16 @@ If the consumer is known, add the matching binding:
 
 ## Operating Workflow
 
-Work middle-out:
+Work middle-out and keep the production ontology rule in mind: **model how the real-world business operates, not how source tables or department systems happen to be shaped.**
 
 1. Scope the target, consumer, and boundary.
 2. Write 5 to 15 competency questions that define what the ontology must answer.
 3. Mine evidence from source material.
 4. Select L0 anchors from existing upper ontologies. Do not invent L0.
-5. Build L1 domain classes and relations.
+5. Build L1 domain classes, relations, and reusable interfaces/traits.
 6. Build L2 task/workflow definitions.
 7. Bind L3 app artifacts to L1 classes and L2 tasks.
-8. Validate references, mappings, duplicates, orphan classes, and evidence.
+8. Validate references, mappings, duplicates, orphan classes, evidence, and anti-pattern warnings.
 9. Emit the consumer-specific binding.
 
 ## Source Mining
@@ -100,6 +100,8 @@ Every extracted class, relation, task, or binding should carry a `source` field.
 - Synonyms belong under one canonical class id.
 - Relations require domain, range, cardinality, definition, and source.
 - A class list with no relations is only a taxonomy, not an ontology.
+- Prefer composition with `interfaces`/`implements` for shared traits such as Addressable, Auditable, Monetary, Geospatial, or TimeBound.
+- Avoid deep abstract hierarchies and vague names (`Asset`, `Entity`, `Object`, `Record`, `Item`) unless the source proves they are precise business terms.
 - The mapping table is mandatory.
 
 ## Default Upper Ontology Choices
@@ -124,13 +126,14 @@ Before final output:
 - Are duplicate ids removed?
 - Are synonyms collapsed?
 - Are unmapped L3 fields explained as app-only, missing L1, or dead schema?
+- Did you inspect warnings for God Object, Kitchen Sink, department/system silos, action sprawl, schema overload, and vague misnomers?
 - Is the final binding appropriate for the consumer?
 
 If the bundled script is available, run:
 
 ```bash
-python scripts/scaffold.py validate <ontology-dir>
-python scripts/scaffold.py mappings <ontology-dir>
+python3 scripts/scaffold.py validate <ontology-dir>
+python3 scripts/scaffold.py mappings <ontology-dir>
 ```
 
 ## Prompt Pattern For Any AI Agent
@@ -143,6 +146,16 @@ Boundary: <what is in and out of scope>
 Deliver: 00-scope.md, 10-upper.yaml, 20-domain.yaml, 30-task.yaml,
 40-application.yaml, 50-mappings.yaml, validation notes, and the consumer binding.
 ```
+
+## Anti-Pattern Guardrails
+
+Read `ontology-extraction/references/design-principles.md` when doing full ontology work. In short:
+
+- **God Object / Kitchen Sink**: do not overload one class or blindly copy every source column.
+- **Department/System Silos**: one real-world entity should have one L1 class; preserve source-specific forms in L3.
+- **Action Sprawl**: group property-level updates into business-level tasks where possible.
+- **Schema Overload**: extend stable production classes additively with links, interfaces, optional fields, or new L3 bindings.
+- **Misnomer / Deep Hierarchy**: use precise semantic labels and shared interfaces rather than brittle inheritance towers.
 
 ## Output Quality Bar
 

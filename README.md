@@ -60,10 +60,10 @@ and emits the output your consumer needs.
 
 ```bash
 cd ontology-extraction
-python scripts/scaffold.py init --name my-target --out ../my-target-ontology
+python3 scripts/scaffold.py init --name my-target --out ../my-target-ontology
 # ...fill in the YAML layers...
-python scripts/scaffold.py validate ../my-target-ontology   # 0 errors = structurally sound
-python scripts/scaffold.py mappings ../my-target-ontology    # regenerate the crosswalk
+python3 scripts/scaffold.py validate ../my-target-ontology   # 0 errors = structurally sound
+python3 scripts/scaffold.py mappings ../my-target-ontology    # regenerate the crosswalk
 ```
 
 The only dependency is `pyyaml` (`pip install pyyaml`). The skill itself needs nothing.
@@ -124,8 +124,13 @@ Your live site: `https://<your-username>.github.io/<repo>/`.
 
 Work **middle-out**: scope → competency questions → mine sources → anchor L0 → build L1 → build L2
 → project L3 → validate → emit the binding. Full method in
-[`ontology-extraction/SKILL.md`](ontology-extraction/SKILL.md); evidence rules and reuse catalog in
-[`ontology-extraction/references/`](ontology-extraction/references/).
+[`ontology-extraction/SKILL.md`](ontology-extraction/SKILL.md); evidence rules, reuse catalog, and
+production design principles in [`ontology-extraction/references/`](ontology-extraction/references/).
+
+The design bias is deliberately domain-driven: model how the real business operates, not a 1:1 copy
+of source tables or departmental systems. The validator now flags common ontology anti-patterns such
+as God Objects, Kitchen Sink schemas, duplicated department/system classes, action sprawl, vague
+misnomers, and over-deep hierarchies that should be replaced with reusable interfaces.
 
 ## 📁 Repo layout
 
@@ -137,14 +142,14 @@ Work **middle-out**: scope → competency questions → mine sources → anchor 
 ├─ ontology-extraction/
 │  ├─ SKILL.md
 │  ├─ scripts/scaffold.py    ← init · validate · mappings
-│  └─ references/            ← source-mining · reuse-catalog · output-formats
+│  └─ references/            ← source-mining · reuse-catalog · design-principles · output-formats
 └─ examples/                 ← 5 worked, validated evals
 ```
 
 ## 🤝 Contributing
 
 PRs welcome — new worked evals (a real company/API/codebase + its validated ontology) are the most
-valuable contribution. Run `scaffold.py validate` before opening a PR.
+valuable contribution. Run `python3 scaffold.py validate` before opening a PR.
 
 ## 📄 License
 
