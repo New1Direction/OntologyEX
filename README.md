@@ -21,9 +21,9 @@ Cursor, custom runners), plus a tiny Python validator.
 
 ## 🤔 The problem
 
-AI agents are great at *doing* things — issuing refunds, booking slots, calling APIs. They're bad
-at *understanding the business* first. An agent will happily refund an order that was never paid,
-because nobody told it that's impossible.
+An agent can know how to call an API without knowing the business rules that govern it.
+For example, it might attempt to refund an unpaid order when that restriction is missing
+from its context. The application must still enforce the restriction at runtime.
 
 This kit makes that understanding **explicit, checkable, and reusable.**
 
@@ -58,15 +58,45 @@ and emits the output your consumer needs.
 
 ## 🛠️ Run the tooling locally (optional)
 
+From a checkout of this repository:
+
 ```bash
-cd ontology-extraction
-python3 scripts/scaffold.py init --name my-target --out ../my-target-ontology
-# ...fill in the YAML layers...
-python3 scripts/scaffold.py validate ../my-target-ontology   # 0 errors = structurally sound
-python3 scripts/scaffold.py mappings ../my-target-ontology    # regenerate the crosswalk
+python3 -m venv .venv
+source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install pyyaml
+
+# Try an included example first; no API keys or transactions.
+python ontology-extraction/scripts/scaffold.py validate examples/eval-1-stripe/stripe-support-agent-ontology
+
+# Create your own workspace, then fill in its layers.
+python ontology-extraction/scripts/scaffold.py init --name my-target --out ./my-target-ontology
+python ontology-extraction/scripts/scaffold.py validate ./my-target-ontology
+python ontology-extraction/scripts/scaffold.py mappings ./my-target-ontology
 ```
 
-The only dependency is `pyyaml` (`pip install pyyaml`). The skill itself needs nothing.
+The only runtime dependency is `pyyaml`. The Markdown skill itself needs no Python installation.
+`init` writes six starter files; `mappings` generates the seventh, `50-mappings.yaml`.
+A scaffold contains placeholders, not a finished ontology.
+
+### What validation does — and does not — guarantee
+
+`validate` requires an existing directory and all four non-empty YAML layer documents:
+`10-upper.yaml`, `20-domain.yaml`, `30-task.yaml`, and `40-application.yaml`.
+It rejects malformed YAML, invalid collection/identifier/reference types, duplicate IDs,
+and broken cross-layer references covered by the validator. Upper anchors and domain classes
+must be non-empty lists. Task and application lists may explicitly be `[]` while scoping a model;
+optional collections must be lists when present (use `[]`, not `null`).
+
+Exit code **0** means these structural checks passed; warnings still require review.
+Exit code **1** means invalid input or structural errors. File-specific diagnostics replace
+tracebacks for unreadable files, invalid YAML, and the checked shape errors.
+
+The validator does **not** verify source truth, answer competency questions, prove business-rule
+correctness, check the completeness of scope/README documents, or check a saved mapping table
+against the layers. Regenerate the mapping table after changing layers and review it.
+MCP example preconditions are **descriptive instructions, not executable guards**.
+Authorization, live-state checks, human approvals, and runtime enforcement belong in the consuming
+application. Structural validation is not a security boundary or a guarantee of safe agent behavior.
 
 ## 📦 What you get
 
@@ -88,11 +118,12 @@ RAG metadata, or a Mermaid diagram.
 
 ## 🧪 Worked examples
 
-Five runs in [`examples/`](examples/), each validated clean by the bundled script:
+Five worked modeling examples in [`examples/`](examples/). CI runs the structural validator on each;
+these examples are not agent-performance benchmarks:
 
 | Eval | Target | Highlight |
 |---|---|---|
-| `eval-1-stripe` | Stripe (research) | API → safe MCP tools with preconditions baked in |
+| `eval-1-stripe` | Stripe (research) | API → MCP tool descriptions with explicit preconditions |
 | `eval-2-realworld` | RealWorld app (retrofit) | map an existing codebase to its domain |
 | `eval-3-prediction-markets` | a market (research) | a sparse / emerging domain |
 | `eval-4-self` | **the kit itself** | it described its own code — **0 errors** |
@@ -102,10 +133,12 @@ The plain-English walkthrough of the last two is in **[explain.html](explain.htm
 
 ## 💡 Why four layers (the payoff)
 
-Because the middle layer belongs to the *trade*, not the *vendor*. We proved it: building the same
-model for **Stripe and Adyen**, **8 of 9 core concepts matched** — only the bottom, vendor-specific
-layer differed (see [`examples/eval-5-adyen/comparison-vs-stripe.md`](examples/eval-5-adyen/comparison-vs-stripe.md)).
-Build your agent once on the shared layer; swap providers without re-teaching it the business.
+The domain layer aims to describe the *trade*, not one vendor. In the supplied
+**Stripe–Adyen comparison**, **8 of 9 Stripe domain concepts map across** using canonical IDs
+and synonyms. Task and application layers differ with the APIs
+(see [`examples/eval-5-adyen/comparison-vs-stripe.md`](examples/eval-5-adyen/comparison-vs-stripe.md)).
+This illustrates reuse in these scoped examples; it does not prove effortless provider switching
+or improved agent performance. Vendor-specific workflows and bindings still need review and tests.
 
 ## 🔌 Use it as a skill
 
@@ -128,9 +161,10 @@ Work **middle-out**: scope → competency questions → mine sources → anchor 
 production design principles in [`ontology-extraction/references/`](ontology-extraction/references/).
 
 The design bias is deliberately domain-driven: model how the real business operates, not a 1:1 copy
-of source tables or departmental systems. The validator now flags common ontology anti-patterns such
-as God Objects, Kitchen Sink schemas, duplicated department/system classes, action sprawl, vague
-misnomers, and over-deep hierarchies that should be replaced with reusable interfaces.
+of source tables or departmental systems. The validator provides heuristic warnings for wide
+application schemas, technical-looking fields, possible department/system silos, action sprawl,
+vague names, and orphan classes. These are review prompts, not proofs of modeling defects.
+Deep-hierarchy review remains part of the manual workflow.
 
 ## 📁 Repo layout
 
@@ -149,7 +183,15 @@ misnomers, and over-deep hierarchies that should be replaced with reusable inter
 ## 🤝 Contributing
 
 PRs welcome — new worked evals (a real company/API/codebase + its validated ontology) are the most
-valuable contribution. Run `python3 scaffold.py validate` before opening a PR.
+valuable contribution. From the repository root, run:
+
+```bash
+python -m unittest discover -s tests -v
+python ontology-extraction/scripts/scaffold.py validate path/to/your-ontology
+```
+
+The validator workflow runs regression tests and all five bundled examples on Python 3.11 and 3.13.
+No model calls, API keys, or paid services are needed for the tests.
 
 ## 📄 License
 
