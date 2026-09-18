@@ -1,198 +1,195 @@
-# 🧭 Agent Ontology Kit
+# OntologyEX — Agent Ontology Kit
 
-**Make AI agents understand a business before they act.**
+**Turn unfamiliar software into a source-linked domain skill for your agent.**
 
-![License: MIT](https://img.shields.io/badge/License-MIT-13846f.svg)
-![Type: AI agent skill](https://img.shields.io/badge/type-AI%20agent%20skill-7654b5.svg)
-![Validator: Python 3](https://img.shields.io/badge/validator-Python%203%20%C2%B7%20pyyaml-256eb2.svg)
-![Build: zero](https://img.shields.io/badge/build-none%20·%20portable%20markdown-c28719.svg)
+Code and documentation → business concepts and rules → portable agent context → reviewable updates.
 
-Agent Ontology Kit is a **portable skill for AI agents**. It reads a company, product, API,
-market, or codebase and writes a clean, structured **map of how that world works** — the things
-that exist, the actions you can take, and the rules between them — in a form an agent can use
-*before* it acts.
+[![Validator](https://github.com/New1Direction/OntologyEX/actions/workflows/validator.yml/badge.svg)](https://github.com/New1Direction/OntologyEX/actions/workflows/validator.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-13846f)](LICENSE)
 
-No framework. No build step. It's markdown you hand to any capable agent (Claude Code, Codex,
-Cursor, custom runners), plus a tiny Python validator.
+OntologyEX is a portable extraction workflow plus a small local compiler. **Your agent does the modeling.** The compiler checks the model's structure and evidence references, then packages it into an inspectable skill with a bounded, offline checker. No new agent framework, hosted service, or model subscription is required by the tooling.
 
-**▶ [Live explainer — in plain English](explain.html) · [Examples](#-worked-examples) · [Quick start](#-quick-start)**
+**[See the example report](https://new1direction.github.io/OntologyEX/docs/payments-demo.html) · [Run the demo](#try-it-without-an-api-key) · [Use your own repository](#use-your-own-repository) · [Contract format](ontology-extraction/references/domain-skill.md)**
 
----
+## See the useful result first
 
-## 🤔 The problem
+The included fictional payments example prepares a domain skill for partial refunds:
 
-An agent can know how to call an API without knowing the business rules that govern it.
-For example, it might attempt to refund an unpaid order when that restriction is missing
-from its context. The application must still enforce the restriction at runtime.
-
-This kit makes that understanding **explicit, checkable, and reusable.**
-
-## 🧱 What it builds: four layers
-
-Imagine describing a **coffee shop** to a robot — from "true of anything" down to "this exact shop."
-
-| Layer | Plain English | Coffee-shop example |
+| Situation | Offline diagnostic | Fixture ledger |
 |---|---|---|
-| **L0 · Upper** | universal kinds of things | a thing, a person, an amount |
-| **L1 · Domain** | the nouns of the trade | Order, Drink, Barista |
-| **L2 · Task** | the actions + their rules | TakeOrder, Refund *("can't refund what wasn't paid")* |
-| **L3 · Application** | this exact system's files | the `orders` table, the "new order" button |
+| Captured 10,000; already refunded 8,000; request 3,000 | `CHECKS_FAIL` — exceeds the remainder | Unchanged |
+| Same payment; request 500 with supplied authorization | `CHECKS_PASS` — modeled conditions pass | Refunded total becomes 8,500 |
+| Ask who can approve an undocumented exception | `NEEDS_REVIEW` — unknown policy | No transition |
+| Policy changes to a 1,000-per-request cap | Old source snapshot is stale; new candidate identifies impacted tasks | New checks reject 2,000; 1,000 still passes |
 
-The discipline that makes it worth doing: **every L3 maps to an L1, every L1 anchors to an L0,
-every L2 names the L1 nouns it touches.** That cross-layer mapping table is the deliverable.
+Amounts are integer minor units in a single-currency teaching fixture. Nothing moves real money.
 
-## 🚀 Quick start
+The demo is **pre-authored**, not evidence that the compiler autonomously extracted a domain. The generic extraction step uses your existing agent. Source hashes prove byte identity, not the truth of a business rule.
 
-Give any capable agent this:
+## Try it without an API key
 
-```text
-Use AGENT_SKILL.md as your workflow.
-Target:   <company, API, product, market, or codebase>
-Consumer: <MCP agent tools | RAG | knowledge graph | DB/API schema | docs>
-Boundary: <what is in and out of scope>
-Deliver:  the YAML layers, the mapping table, validation notes, and the consumer binding.
-```
-
-That's it. The agent scopes the target, mines sources, builds the four layers, validates them,
-and emits the output your consumer needs.
-
-## 🛠️ Run the tooling locally (optional)
-
-From a checkout of this repository:
+From a fresh checkout (Python 3.11 or later):
 
 ```bash
+git clone https://github.com/New1Direction/OntologyEX.git
+cd OntologyEX
 python3 -m venv .venv
-source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
-python -m pip install pyyaml
+source .venv/bin/activate  # PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install 'PyYAML==6.0.3'
+python examples/payments-domain/demo.py
+```
 
-# Try an included example first; no API keys or transactions.
-python ontology-extraction/scripts/scaffold.py validate examples/eval-1-stripe/stripe-support-agent-ontology
+Open `build/payments-demo/v2/payments-domain/report.html` in your browser. It is a standalone local page: no JavaScript, accounts, analytics, or remote assets.
 
-# Create your own workspace, then fill in its layers.
+Expected result: `DEMO_PASSED`, **26/26 deterministic fixture checks** across two policy versions, stale-source rejection, and a change-impact report. These are not LLM performance results. The demo explicitly leaves `agent_comparison: NOT_RUN`, `human_review: PENDING`, and `promotion: NOT_PERFORMED`.
+
+Outputs:
+
+```text
+build/payments-demo/
+  v1/payments-domain/       first immutable candidate skill
+  v2/payments-domain/       candidate after the policy change
+    SKILL.md               portable agent instructions
+    model.json             four layers, rules, evidence, and input schemas
+    report.html            inspect concepts, actions, mappings, and exact evidence
+    references/domain.md   focused domain context
+    references/sources/    selected source snapshots only
+    references/review.md   acceptance checklist; pending human review
+    scripts/check.py       standalone standard-library checker
+    manifest.json          content fingerprints
+  v1/evaluation.json       observed fixture transitions versus authored expectations
+  v2/evaluation.json
+  v1/benchmark/            raw / Markdown / skill evaluation contexts; NOT_RUN
+  v2/benchmark/
+  impact.json              changed sources and contract items; tasks to rerun
+  summary.json
+```
+
+The default demo directory is never overwritten. To rerun, choose a fresh output:
+
+```bash
+python examples/payments-domain/demo.py --out build/payments-demo-next
+```
+
+## Use your own repository
+
+**1. Select the smallest useful source set.** Explicit paths only; no hidden full-repository crawl.
+
+```bash
+python ontology-extraction/scripts/domain_skill.py prepare \
+  --repo /path/to/your-project \
+  --include src/payments.py \
+  --include docs/refunds.md \
+  --name your-domain \
+  --goal 'Prepare my agent to implement partial refunds correctly.' \
+  --out ./workspaces/your-domain-v1
+```
+
+Replace the two example paths with real files in your project. Preparation freezes their bytes, creates the existing four-layer starter files, and writes `EXTRACT.md` plus a contract template. **It does not claim extraction is complete.**
+
+**2. Give your existing agent this task:**
+
+```text
+Read workspaces/your-domain-v1/EXTRACT.md and follow
+ontology-extraction/references/domain-skill.md.
+
+Use only the selected source snapshots to fill the four YAML layers
+and 60-contract.json. Preserve the source snapshot and inventory.
+Link modeled claims to exact evidence. Mark unsupported conditions
+as inferred or unknown, and record disagreements as conflicts.
+
+Do not execute source files, call paid APIs, approve the candidate,
+or claim that a successful build proves semantic correctness.
+```
+
+**3. Compile and inspect a new candidate.**
+
+```bash
+python ontology-extraction/scripts/domain_skill.py build \
+  workspaces/your-domain-v1 \
+  --repo /path/to/your-project \
+  --out ./build/v1/your-domain
+```
+
+The output folder's name must match the skill name. `--repo` checks the selected current files against the frozen snapshot. Omitting it is an explicit snapshot-only build, reported as `live_sources_checked: false`.
+
+After review, point your agent at the generated `SKILL.md`, or copy the **whole directory** into its supported skills directory. The generated checker also runs without PyYAML or this repository. Agent-specific installer/auto-discovery behavior is not claimed as tested.
+
+## Checks are not permissions
+
+From inside a generated skill:
+
+```bash
+python scripts/check.py --task IssueRefund --input /path/to/inputs.json
+```
+
+| Exit | Result | Meaning |
+|---|---|---|
+| 0 | `CHECKS_PASS` | The modeled checks passed for supplied values. **Not permission to execute.** |
+| 2 | `CHECKS_FAIL` | At least one modeled condition failed. |
+| 3 | `NEEDS_REVIEW` | An unknown, conflict, inferred rule, or unsupported condition remains. |
+| 1 | `INVALID_INPUT` | Malformed inputs, unsupported checks, or bundle integrity failure. |
+
+The checker uses a small allowlist of typed comparisons and two-field integer subtraction. It has no `eval`, code generation, network, or tool execution. Authorization flags are **supplied values**, not authenticated facts. The consuming application still owns authorization, current state, atomicity, concurrency, idempotency, and transaction safety.
+
+Before relying on a previously generated skill, check the original sources:
+
+```bash
+python ontology-extraction/scripts/domain_skill.py freshness \
+  workspaces/your-domain-v1 --repo /path/to/your-project
+```
+
+## Preserve corrections, not unverified guesses
+
+Prepare a new workspace when requirements change, have your agent propose the revised model, and build a new candidate. Compare it with the prior version:
+
+```bash
+python ontology-extraction/scripts/domain_skill.py compare \
+  build/v1/your-domain build/v2/your-domain
+```
+
+The report lists changed sources and rules, and conservatively identifies tasks to rerun. It is not a complete semantic impact analysis. **No command promotes, overwrites, or deploys an accepted skill.** Independent tests and human review stay outside the proposing agent's authority.
+
+## What is actually evaluated?
+
+The test suite checks malformed input, provenance mismatches, stale sources, rule references, typed diagnostics, unknowns/conflicts, immutable bundles, portable execution, and the example's ledger outcomes.
+
+The demo also exports three contexts with identical raw sources and task inputs: **raw documentation**, **raw documentation plus a concise Markdown guide**, and **raw documentation plus the generated skill**. No agent runs are fabricated. [The evaluation guide](examples/payments-domain/README.md) explains fresh sessions, comparable budgets, outcome scoring, and limitations of the small public case set.
+
+## Four layers, still underneath
+
+| Layer | Purpose |
+|---|---|
+| L0 — Upper | Select established general categories. |
+| L1 — Domain | Model the business concepts and relationships. |
+| L2 — Task | Model actions, participants, inputs, outputs, and conditions. |
+| L3 — Application | Bind the model to this system's code, types, tools, and other artifacts. |
+
+Every application concept maps to a domain class, every domain class anchors upward, and tasks reference domain concepts. The new compiler reuses the existing validator; it does not replace the method with a second ontology.
+
+The original [portable workflow](AGENT_SKILL.md), [full method](ontology-extraction/SKILL.md), [plain-English explainer](explain.html), and [five worked modeling examples](examples/) remain available. The Stripe–Adyen example matches 8 of 9 Stripe domain concepts using IDs and synonyms. That is a scoped modeling comparison, not proof of effortless vendor switching or better agents.
+
+Legacy tools still work:
+
+```bash
 python ontology-extraction/scripts/scaffold.py init --name my-target --out ./my-target-ontology
 python ontology-extraction/scripts/scaffold.py validate ./my-target-ontology
 python ontology-extraction/scripts/scaffold.py mappings ./my-target-ontology
 ```
 
-The only runtime dependency is `pyyaml`. The Markdown skill itself needs no Python installation.
-`init` writes six starter files; `mappings` generates the seventh, `50-mappings.yaml`.
-A scaffold contains placeholders, not a finished ontology.
+`init` writes six starter files; `mappings` produces the seventh. Placeholders are not a completed model. Legacy validation checks structure, not source truth, saved mapping consistency, or semantic completeness. The **new compiled-skill profile** adds exact local evidence verification, contract checks, and saved mapping consistency when a mapping table is supplied.
 
-### What validation does — and does not — guarantee
-
-`validate` requires an existing directory and all four non-empty YAML layer documents:
-`10-upper.yaml`, `20-domain.yaml`, `30-task.yaml`, and `40-application.yaml`.
-It rejects malformed YAML, invalid collection/identifier/reference types, duplicate IDs,
-and broken cross-layer references covered by the validator. Upper anchors and domain classes
-must be non-empty lists. Task and application lists may explicitly be `[]` while scoping a model;
-optional collections must be lists when present (use `[]`, not `null`).
-
-Exit code **0** means these structural checks passed; warnings still require review.
-Exit code **1** means invalid input or structural errors. File-specific diagnostics replace
-tracebacks for unreadable files, invalid YAML, and the checked shape errors.
-
-The validator does **not** verify source truth, answer competency questions, prove business-rule
-correctness, check the completeness of scope/README documents, or check a saved mapping table
-against the layers. Regenerate the mapping table after changing layers and review it.
-MCP example preconditions are **descriptive instructions, not executable guards**.
-Authorization, live-state checks, human approvals, and runtime enforcement belong in the consuming
-application. Structural validation is not a security boundary or a guarantee of safe agent behavior.
-
-## 📦 What you get
-
-A 7-file workspace plus a consumer-specific binding:
-
-```
-my-target-ontology/
-  00-scope.md          target, consumer, boundary, competency questions
-  10-upper.yaml        L0 — chosen universal anchors (selected, never invented)
-  20-domain.yaml       L1 — the domain nouns + relations
-  30-task.yaml         L2 — the actions, with inputs/outputs/preconditions/effects
-  40-application.yaml  L3 — the concrete system artifacts
-  50-mappings.yaml     the app → domain → upper crosswalk
-  README.md
-```
-
-…then one binding: **MCP tool schemas**, an RDF/Turtle knowledge graph, TypeScript/Pydantic types,
-RAG metadata, or a Mermaid diagram.
-
-## 🧪 Worked examples
-
-Five worked modeling examples in [`examples/`](examples/). CI runs the structural validator on each;
-these examples are not agent-performance benchmarks:
-
-| Eval | Target | Highlight |
-|---|---|---|
-| `eval-1-stripe` | Stripe (research) | API → MCP tool descriptions with explicit preconditions |
-| `eval-2-realworld` | RealWorld app (retrofit) | map an existing codebase to its domain |
-| `eval-3-prediction-markets` | a market (research) | a sparse / emerging domain |
-| `eval-4-self` | **the kit itself** | it described its own code — **0 errors** |
-| `eval-5-adyen` | Adyen (research) | **competitor swap vs Stripe: 8/9 domain concepts matched** ⭐ |
-
-The plain-English walkthrough of the last two is in **[explain.html](explain.html)**.
-
-## 💡 Why four layers (the payoff)
-
-The domain layer aims to describe the *trade*, not one vendor. In the supplied
-**Stripe–Adyen comparison**, **8 of 9 Stripe domain concepts map across** using canonical IDs
-and synonyms. Task and application layers differ with the APIs
-(see [`examples/eval-5-adyen/comparison-vs-stripe.md`](examples/eval-5-adyen/comparison-vs-stripe.md)).
-This illustrates reuse in these scoped examples; it does not prove effortless provider switching
-or improved agent performance. Vendor-specific workflows and bindings still need review and tests.
-
-## 🔌 Use it as a skill
-
-- **Claude Code / Cursor / Codex:** point the agent at `AGENT_SKILL.md`, or drop the
-  `ontology-extraction/` folder into your skills directory (it has a ready `SKILL.md` with trigger
-  frontmatter).
-- **Any runner:** the workflow is plain markdown — no runtime lock-in.
-
-## 🌐 Publish the site (GitHub Pages, zero build)
-
-`index.html` (landing) and `explain.html` (explainer) are self-contained static HTML.
-**Settings → Pages → Deploy from a branch → `main` / `(root)`.**
-Your live site: `https://<your-username>.github.io/<repo>/`.
-
-## 🗺️ How it works
-
-Work **middle-out**: scope → competency questions → mine sources → anchor L0 → build L1 → build L2
-→ project L3 → validate → emit the binding. Full method in
-[`ontology-extraction/SKILL.md`](ontology-extraction/SKILL.md); evidence rules, reuse catalog, and
-production design principles in [`ontology-extraction/references/`](ontology-extraction/references/).
-
-The design bias is deliberately domain-driven: model how the real business operates, not a 1:1 copy
-of source tables or departmental systems. The validator provides heuristic warnings for wide
-application schemas, technical-looking fields, possible department/system silos, action sprawl,
-vague names, and orphan classes. These are review prompts, not proofs of modeling defects.
-Deep-hierarchy review remains part of the manual workflow.
-
-## 📁 Repo layout
-
-```
-.
-├─ README.md
-├─ AGENT_SKILL.md            ← the portable workflow — hand this to any agent
-├─ index.html · explain.html ← zero-build site (deploy to GitHub Pages)
-├─ ontology-extraction/
-│  ├─ SKILL.md
-│  ├─ scripts/scaffold.py    ← init · validate · mappings
-│  └─ references/            ← source-mining · reuse-catalog · design-principles · output-formats
-└─ examples/                 ← 5 worked, validated evals
-```
-
-## 🤝 Contributing
-
-PRs welcome — new worked evals (a real company/API/codebase + its validated ontology) are the most
-valuable contribution. From the repository root, run:
+## Development and contributions
 
 ```bash
 python -m unittest discover -s tests -v
-python ontology-extraction/scripts/scaffold.py validate path/to/your-ontology
+python examples/payments-domain/demo.py --out build/ci-demo
 ```
 
-The validator workflow runs regression tests and all five bundled examples on Python 3.11 and 3.13.
-No model calls, API keys, or paid services are needed for the tests.
+GitHub Actions runs regression tests, all five legacy examples, and the new domain-skill demo on Python 3.11 and 3.13. No paid services or model calls are required.
 
-## 📄 License
+The most useful contributions are a real scoped example, an unsupported business condition, a failing provenance case, or a reproducible agent comparison. Include the sources you are allowed to share and the limits of what the example establishes. Do not upload private source snapshots or credentials.
 
-[MIT](LICENSE) © 2026 New1Direction
+Useful for your agent stack? Star the repository to follow new examples and releases.
+
+[MIT](LICENSE) · Independent project. Not affiliated with Palantir or any payment provider.

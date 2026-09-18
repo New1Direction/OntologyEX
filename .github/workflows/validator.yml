@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -44,3 +47,13 @@ jobs:
                   check=True,
                   timeout=30,
               )
+      - name: Run source-to-skill update demo
+        run: python examples/payments-domain/demo.py --out build/ci-domain-skill
+      - name: Check reproducible public report
+        shell: python
+        run: |
+          from pathlib import Path
+          generated = Path('build/ci-domain-skill/v2/payments-domain/report.html').read_bytes()
+          committed = Path('docs/payments-demo.html').read_bytes()
+          if generated != committed:
+              raise SystemExit('Regenerate docs/payments-demo.html from the v2 demo')
