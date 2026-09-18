@@ -1,0 +1,46 @@
+name: Validator
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.13']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install validator dependency
+        run: python -m pip install 'PyYAML==6.0.3'
+      - name: Run regression tests
+        run: python -m unittest discover -s tests -v
+      - name: Validate every bundled example
+        shell: python
+        run: |
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          examples = sorted(Path('examples').glob('eval-*/*/10-upper.yaml'))
+          if len(examples) < 5:
+              raise SystemExit(f'Expected at least five bundled examples, found {len(examples)}')
+          for upper in examples:
+              print(f'Validating {upper.parent}', flush=True)
+              subprocess.run(
+                  [sys.executable, 'ontology-extraction/scripts/scaffold.py', 'validate', str(upper.parent)],
+                  check=True,
+                  timeout=30,
+              )

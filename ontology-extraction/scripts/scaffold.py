@@ -138,11 +138,88 @@ def looks_technical_field(name: str):
     return any(re.search(pattern, lowered) for pattern in TECHNICAL_FIELD_PATTERNS)
 
 
+LAYER_COLLECTIONS = {
+    "10-upper.yaml": ("anchors",),
+    "20-domain.yaml": ("classes", "interfaces", "relations"),
+    "30-task.yaml": ("tasks",),
+    "40-application.yaml": ("concepts",),
+}
+REFERENCE_LISTS = {
+    "interfaces": ("applies_to",),
+    "classes": ("synonyms", "implements"),
+    "tasks": ("inputs", "outputs", "actor_roles", "decomposes_to"),
+    "concepts": ("used_by_tasks",),
+}
+REFERENCE_FIELDS = {
+    "classes": ("upper",),
+    "relations": ("domain", "range"),
+    "concepts": ("binds",),
+}
+
+
+class WorkspaceError(ValueError):
+    """An actionable input error, rather than an internal validator failure."""
+
+
+def is_identifier(value):
+    return isinstance(value, str) and bool(value.strip())
+
+
+def check_shape(document, name):
+    """Check types before the cross-layer validator indexes or hashes values.
+
+    Extension fields are permitted. Missing definitions and sources remain lint
+    warnings; this is structural validation, not a semantic completeness proof.
+    """
+    collections = LAYER_COLLECTIONS.get(name, ())
+    for index, key in enumerate(collections):
+        if key not in document:
+            if index == 0:
+                raise WorkspaceError(f"{name}: missing required '{key}' list")
+            continue
+        entries = document[key]
+        if not isinstance(entries, list):
+            raise WorkspaceError(f"{name}: '{key}' must be a list (use [] when empty)")
+        if key in ("anchors", "classes") and not entries:
+            raise WorkspaceError(f"{name}: '{key}' must contain at least one entry")
+        for number, entry in enumerate(entries):
+            location = f"{name}: {key}[{number}]"
+            if not isinstance(entry, dict):
+                raise WorkspaceError(f"{location} must be a mapping")
+            if not is_identifier(entry.get("id")):
+                raise WorkspaceError(f"{location}.id must be a non-empty string")
+            for field in REFERENCE_FIELDS.get(key, ()):
+                if field in entry and not is_identifier(entry[field]):
+                    raise WorkspaceError(f"{location}.{field} must be a non-empty string")
+            for field in REFERENCE_LISTS.get(key, ()):
+                if field not in entry:
+                    continue
+                refs = entry[field]
+                if not isinstance(refs, list) or not all(is_identifier(ref) for ref in refs):
+                    raise WorkspaceError(f"{location}.{field} must be a list of non-empty strings")
+            if key == "concepts" and "fields" in entry:
+                fields = entry["fields"]
+                if not isinstance(fields, list) or not all(isinstance(f, (str, dict)) for f in fields):
+                    raise WorkspaceError(f"{location}.fields must be a list of names or mappings")
+
+
 def load(d: Path, name: str):
     p = d / name
-    if not p.exists():
-        return None
-    return yaml.safe_load(p.read_text()) or {}
+    try:
+        text = p.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise WorkspaceError(f"{name}: cannot read required file ({exc})") from exc
+    try:
+        document = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        mark = getattr(exc, "problem_mark", None)
+        location = f":{mark.line + 1}:{mark.column + 1}" if mark else ""
+        problem = getattr(exc, "problem", None) or str(exc)
+        raise WorkspaceError(f"{name}{location}: invalid YAML: {problem}") from exc
+    if not isinstance(document, dict) or not document:
+        raise WorkspaceError(f"{name}: expected a non-empty YAML mapping")
+    check_shape(document, name)
+    return document
 
 
 def init(args):
@@ -162,10 +239,24 @@ def validate(args):
     d = Path(args.dir)
     errors, warnings = [], []
 
-    upper = load(d, "10-upper.yaml") or {}
-    domain = load(d, "20-domain.yaml") or {}
-    task = load(d, "30-task.yaml") or {}
-    app = load(d, "40-application.yaml") or {}
+    if not d.is_dir():
+        raise WorkspaceError(f"{d}: workspace must be an existing directory")
+    layers = {}
+    for name in LAYER_COLLECTIONS:
+        try:
+            layers[name] = load(d, name)
+        except WorkspaceError as exc:
+            errors.append(str(exc))
+    if errors:
+        for error in errors:
+            print(f"ERROR   {error}")
+        print(f"\n{len(errors)} errors, 0 warnings (layer checks not run)")
+        sys.exit(1)
+
+    upper = layers["10-upper.yaml"]
+    domain = layers["20-domain.yaml"]
+    task = layers["30-task.yaml"]
+    app = layers["40-application.yaml"]
 
     anchors = {a["id"] for a in (upper.get("anchors") or [])}
     interfaces = domain.get("interfaces") or []
@@ -349,7 +440,11 @@ def main():
     pm.add_argument("dir")
     pm.set_defaults(fn=mappings)
     args = p.parse_args()
-    args.fn(args)
+    try:
+        args.fn(args)
+    except (WorkspaceError, OSError, UnicodeError) as exc:
+        print(f"ERROR   {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
