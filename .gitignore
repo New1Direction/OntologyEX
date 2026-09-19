@@ -17,3 +17,8 @@ Thumbs.db
 node_modules/
 .next/
 out/
+
+# Local domain source snapshots and generated candidates may contain private code.
+build/
+workspaces/
+.ontologyex-*/
