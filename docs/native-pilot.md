@@ -1,166 +1,206 @@
-# Native-agent pilot: the first genuine onboarding run
+# Native-agent pilot: run it, keep the evidence, grade the actual submission
 
-**Status: NOT_RUN.** The shipped examples are developer-authored replays. This guide is
-for observing the installed skill in an authenticated coding-agent host, then testing a
-separate session's implementation. A script or compiler pass is not a substitute.
+**Status: NOT_RUN.** The shipped examples are developer-authored replays. These operator
+commands remove manual setup/import steps; they do not replace a genuine native-agent run.
+The scripts do not invoke a model, supply a subscription, or authenticate a human reviewer.
 
-Use the current OntologyEX checkout for the operator commands below. Keep the full
-checkout, reference adapters, model recipes, grading code, and recorded results outside
-the agent's accessible project. The code below prepares sources only; it does not author
-a model, build a candidate, or execute the upstream library.
+Keep the operator checkout, transcripts, model recipes, reference adapters and grading
+code inaccessible to the agent. Folder separation is **not** an OS sandbox. For controlled
+comparisons, use isolated environments with no access to other trials or operator files.
 
-## 1. Prepare an untouched source-only project
+## 1. Prepare a source-only project with one command
 
-Python 3.11+ is required. From the OntologyEX repository root:
+From a current OntologyEX checkout, using Python 3.11+:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r examples/cachetools-domain/requirements-case.txt
+
+ONTOLOGYEX="$(pwd -P)"
+PILOT="$HOME/ontologyex-native-pilot-v2"
+python examples/cachetools-domain/pilot.py prepare --out "$PILOT"
+python examples/cachetools-domain/pilot.py status "$PILOT"
+```
+
+On Windows, use equivalent PowerShell path variables and virtual-environment activation.
+Preparation, status, and collection are Python tools. The bounded grader below requires
+Linux or macOS; use a disposable Linux environment for grading on Windows.
+
+Preparation verifies the pinned cachetools source and license fingerprints and copies only
+`TASK.md`, `LICENSE`, `src/cachetools/__init__.py`, and `src/cachetools/keys.py` into `project/`,
+plus the complete installed `.claude/skills/ontology-extraction` tooling. No model recipe,
+reference adapter, grading code, prior model, or test results enter that project.
+
+`operator/` contains the prompts, a source/tool/prompt fingerprint, and a run-record template.
+No session is started and no compiler attempt is consumed. Existing output is never overwritten.
+Use a fresh `--out` for a deliberately new pilot, not to hide a failed attempt. The generated
+root `.gitignore` keeps local experiment material out of accidental commits.
+
+Status checks the selected source files, installed tools, fixed prompt, and any tracked
+onboarding session. It reports `host_binary: NOT_FOUND` or `FOUND` by looking on PATH, without
+executing the binary. **FOUND does not mean signed in, activated, or successful.** Extra global
+host settings, hooks, and files outside the selected inventory are not certified by this check.
+
+## 2. Run the actual installed skill
+
+Check your normal local installation and login; these commands do not start a model session:
+
+```bash
 claude --version
+claude auth status
 ```
 
-Claude Code must be installed and signed in through the operator's normal local login.
-Do not paste credentials into chat, a source file, or an experiment transcript. The
-scripts do not supply a model subscription. A missing host is a blocker, not a failed
-model trial. On Windows, use the corresponding PowerShell virtual-environment activation.
+Do not paste authentication output, credentials, or tokens into a source file or a run record.
+A missing executable/login is an environment blocker, not a failed model trial. The tool does
+not read credentials, change global settings, install hooks, or bypass host approvals.
 
-Create a new directory; existing results are never overwritten:
-
-```bash
-python - <<'PY'
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path('examples/cachetools-domain').resolve()))
-import case
-import domain_skill as ds
-
-files, pin = case.source_files()
-project = Path.home() / 'ontologyex-native-pilot' / 'project'
-ds.write_files(project, files)
-print('Prepared sources only:', project)
-print('Pinned upstream commit:', pin['commit'])
-print('Acknowledged source boundary:', ', '.join(sorted(files)))
-print('Authoring: NOT_RUN; native activation: NOT_RUN')
-PY
-
-python ontology-extraction/scripts/install.py \
-  --project "$HOME/ontologyex-native-pilot/project"
-```
-
-The project initially contains exactly `TASK.md`, `LICENSE`,
-`src/cachetools/__init__.py`, and `src/cachetools/keys.py`, plus the installed
-`.claude/skills/ontology-extraction` tooling after installation. The source helper
-verifies the upstream license and source against the pinned Git blob and SHA-256 hashes.
-It does not call `model_recipe.author`, `run_case`, or the reference adapter.
-
-## 2. Activate the installed skill in a fresh session
-
-Stay in the same terminal so the Python virtual environment remains active:
+Keep the Python virtual environment active, then:
 
 ```bash
-cd "$HOME/ontologyex-native-pilot/project"
+cd "$PILOT/project"
 claude
 ```
 
-Use normal project trust and tool-approval controls. Do not enable bypass-permissions
-flags. Do not use `--bare` for this interactive activation check: bare mode skips normal
-skill discovery. This guide does not change user/global Claude settings, hooks, or memory.
-A clean directory is **not** an OS sandbox; a controlled comparative experiment must also
-restrict access to parent directories, other trials, credentials, and evaluator files.
+Use a fresh session and normal trust/tool approvals. Paste the exact contents of
+`$PILOT/operator/ONBOARDING-PROMPT.txt`. It explicitly invokes `/ontology-extraction`,
+acknowledges the four-file boundary, sets the session to `workspaces/native-onboarding`,
+and asks for a `cachetools-native` domain skill with at most three compiler submissions.
+The prompt stops for review before implementing `adapter.py`.
 
-Paste this request:
+Do not use `--bare` for native skill-discovery testing, resume an earlier conversation,
+set permission-bypass flags, or give the agent access to the study checkout. Record the
+host version, exact model identifier, session ID, times, permissions, declared budget,
+actual usage, and every operator intervention. Unknown token counts or cost stay `null`,
+not zero. A script/tool can bound compiler submissions, not all host model activity.
 
-```text
-/ontology-extraction
+The installed workflow already uses deterministic evidence capture and a bounded repair
+process. Do not hand-edit its contract to make an unassisted run look successful. Preserve
+failures, source drift, and interruptions. Recovery never resets the attempt counter.
 
-Onboard the batch-lookup workflow defined in TASK.md. Build a reusable domain skill
-for implementing that task while preserving the behavior of the pinned library.
+## 3. Collect a private review packet
 
-I acknowledge this exact domain-source boundary:
-TASK.md
-LICENSE
-src/cachetools/__init__.py
-src/cachetools/keys.py
+Return to the **operator checkout**, not the agent project:
 
-Use the installed OntologyEX scripts and references as tooling, not as new domain evidence.
-Use the name cachetools-native and workspaces/native-onboarding as the session path.
-Follow the tracked onboarding workflow: author from these sources, use the evidence
-helper, and make at most three compiler submissions in total. Do not use a model recipe,
-reference implementation, prior chat, or the operator's study checkout.
-
-Do not implement adapter.py yet. Do not execute the selected library during extraction.
-Record unsupported semantics as manual-review rules or explicit unknowns. Do not force
-noninteger time semantics into the integer-only checker. Do not edit the frozen source
-snapshot, source inventory, attempt history, or acceptance criteria to make a build pass.
-
-Export a task-focused handoff to build/native-handoff using the actual modeled task ID.
-Report the session path, candidate path, attempts used, evidence, unresolved questions,
-and actual checks performed. A compiler pass is not semantic approval. Stop for review.
+```bash
+cd "$ONTOLOGYEX"
+python examples/cachetools-domain/pilot.py status "$PILOT"
 ```
 
-Record the host version, exact model identifier, session ID, transcript, start/end times,
-permissions, budget, every intervention, source hashes, and candidate bundle ID. Merely
-seeing the skill in a menu is not an end-to-end success. Verify the transcript shows the
-installed workflow being used and the artifacts match its claimed result.
+Copy `operator/run-template.json` to a new local `operator/run.json` and fill it with actual
+observations. Set `authoring` to `native-agent` only for a real host run, or `developer-replay`
+for a development fixture. Required timestamps include a timezone, for example
+`2026-09-19T10:00:00-07:00`. Preserve unknown usage as `null`; list interventions honestly.
 
-If the operator manually repairs a contract or supplies a missing interpretation, record
-that intervention. Do not label the run unassisted. A revision after a terminal result
-must be explicit and retained, not a reset disguised as a first attempt.
+Export and inspect the host transcript yourself. Collection never searches host history or
+credential directories. Supply only the transcript you explicitly select (UTF-8, at most
+2 MiB); redact secrets before copying or sharing it. Transcript contents are not executed.
 
-## 3. Review, then use the result in another fresh session
+```bash
+python examples/cachetools-domain/pilot.py collect "$PILOT" \
+  --record "$PILOT/operator/run.json" \
+  --transcript /path/to/reviewed-transcript.txt \
+  --out "$PILOT/operator/packet-01"
+```
 
-Review source-to-claim support, conflicts, and unknowns outside the proposing session.
-Keep the candidate unchanged; record the review decision separately. Copy only the
-original source set, the same TASK.md, and the reviewed generated context into a separate,
-clean project. Do not carry the author's conversation, reference implementation, or tests.
+The packet keeps the declared configuration/usage, transcript, original selected sources,
+each available submitted model and result, and the compiled candidate when one exists.
+It also fingerprints the packet and candidate. Failed, interrupted, and source-drift runs
+can be retained; a collected packet is not necessarily a successful onboarding.
 
-Ask the fresh agent to implement `adapter.py:get_many(cache, keys)` from TASK.md using
-that material. Keep its permissions and budget fixed and record the complete attempt,
-including failures. Do not give it the evaluator or the developer's solution.
+`EVIDENCE_COLLECTED_REVIEW_REQUIRED` means submitted bytes and records were collected.
+It **does not** authenticate a transcript, prove that the native host used the skill, or
+certify semantics. Verify the transcript and source-to-claim support separately. The
+operator's reported `native-agent` label alone never becomes a success claim.
 
-Review the submitted Python before execution and grade it in a disposable test environment
-without secrets. The existing `examples/cachetools-domain/acceptance.py` exposes
-`run(get_many, library)`; use it with the submitted adapter and the pinned library,
-not `reference_adapter.get_many`. It has no standalone CLI. Compare actual behavior,
-retain every case result, and do not count an agent's completion message as a pass.
+**Packets are private.** They can contain proprietary source, absolute paths in diagnostics,
+and sensitive transcript text. There is no automatic upload or comprehensive secret scrubber.
+Review/redact deliberately; fingerprints must be regenerated for any edited packet.
 
-These public, developer-authored acceptance tests are not a secret held-out or independently
-audited benchmark. No code-quality or semantic review should be replaced by one test score.
+## 4. Prepare a separate implementation session after review
 
-## 4. Run the small comparison only after the activation path works
+Inspect source-to-claim support, conflicts, unknowns, and unsupported conditions outside the
+proposing session. Record reviewer identity, scope, candidate bundle ID and decision in your
+normal review process. Acknowledging the command below is only permission for this local
+pilot handoff, not authenticated human approval or production authorization.
+
+Use the actual task ID produced by the model; `ReadBatch` is an example:
+
+```bash
+IMPLEMENTATION="$HOME/ontologyex-native-implementation-01"
+python examples/cachetools-domain/pilot.py implementation "$PILOT" \
+  --task ReadBatch --acknowledge-review --out "$IMPLEMENTATION"
+```
+
+The new project contains identical original source bytes, the complete unchanged candidate
+under `domain-skill/`, its bundle ID, and `PROMPT.txt`. It contains no authoring transcript,
+reference adapter, model recipe, or grading tests. It is not automatically installed as a
+host skill. Open a **separate fresh session** in this project and paste `PROMPT.txt`.
+A directory does not enforce session or memory isolation; the operator must configure it.
+
+Ask the agent to implement `adapter.py:get_many(cache, keys)`. Record the complete attempt,
+including failures, without exposing acceptance tests or the reference solution. Do not
+replace the submitted file with our developer reference adapter when reporting outcomes.
+
+## 5. Grade the actual Python submission
+
+Review the submitted code before execution. Run grading in a disposable, externally isolated
+environment with no credentials, not your normal sensitive workspace. The grader executes
+submitted Python, so the acknowledgment below is required.
+
+From the operator checkout:
+
+```bash
+python examples/cachetools-domain/grade_adapter.py \
+  --source-project "$IMPLEMENTATION" \
+  --adapter "$IMPLEMENTATION/adapter.py" \
+  --out "$PILOT/operator/grade-01" \
+  --timeout 15 --acknowledge-code-execution
+```
+
+This command uses the existing 18 public acceptance cases against the actual submitted
+adapter and exact pinned library. It reserves a new result directory, freezes the adapter,
+sources and tests, then runs disposable copies in a child process. When the input is an
+exported implementation project, the result is bound to its verified candidate bundle ID.
+
+The child uses isolated Python without site packages, a minimal environment rather than
+inherited secrets, a wall-clock timeout, capped logs, and POSIX resource limits. **This is
+not an OS sandbox:** it does not disable network or filesystem access, prevent hostile
+subprocess escape, or make a malicious submission safe. Submitted code shares its process
+with the tests and could interfere with them. Public tests are not an adversarial grader.
+
+Inspect `summary.json`, `request.json`, `input/adapter.py`, every case result, and the capped
+logs. Syntax/import errors, missing output, nonzero exits, timeouts, malformed results, and
+changed retained inputs cannot become `TESTS_PASS`. A reservation without a summary means
+the run did not complete; preserve it rather than replaying into the same directory.
+
+CLI exits: **0** for all tests passing, **2** for a completed non-passing evaluation (including
+timeouts), **1** for setup/input errors. Unknown usage stays unknown; the grader does not
+measure model tokens or cost. A behavioral pass does not establish native activation,
+independent authoring, semantic completeness, or improved model performance.
+
+## 6. Compare only after the end-to-end native path works
 
 Freeze the newly agent-authored candidate before downstream trials. Use three independent
-sessions per variant, with identical source information, task, model, permissions, and
-predeclared budgets:
+sessions per variant, with identical source information, task, model, permissions and
+predeclared budgets: raw sources, those sources plus a concise Markdown guide, and those
+sources plus the frozen domain skill. Record preparation cost separately and in the total.
 
-| Variant | Additional context |
-|---|---|
-| Raw | None beyond source and task |
-| Markdown | A concise domain guide |
-| Domain skill | The frozen, newly agent-authored candidate |
+The existing case's exported `trials/domain-skill` is developer-authored. Do not use it to
+claim fresh extraction. Use the native candidate and verify that source bytes match across
+variants. Protect grading/reference files with actual access controls, randomize trial
+order, retain all failures, and do not share sessions/memory between variants.
 
-The existing case's exported `trials/domain-skill` contains a **developer-authored** skill.
-Do not use it to claim fresh extraction. Replace that variant with the native candidate
-and verify all variants still contain identical underlying source bytes. Keep grader and
-solution files inaccessible, not merely in a sibling folder. Randomize trial order; do
-not resume sessions or share memory across variants.
-
-Record all runs and preparation effort, not only the best result. Count legitimate task
-success, behavioral failures, unnecessary refusals, operator work, elapsed time, and total
-preparation-plus-execution usage. Record unknown cost as unknown, never zero. A nine-run
-pilot is a case study, not evidence of universal gains. Equal performance is a valid result.
+Nine runs are a small case study, not evidence of universal gains. Equal performance is a
+valid result. Do not launch another framework before running the prepared experiment.
 
 ## Release gate
 
-Do not turn `NOT_RUN` into `PASS` until a transcript and independently checked artifacts
-exist. Publish the configuration, interventions, failures, and evidence limits with any
-case study. A tagged release or announcement claiming native-host success or performance
-improvement waits for those results; passing offline CI alone does not meet that gate.
+Native activation, fresh authoring, semantic review, and behavioral evaluation are separate
+gates. No command in this patch asserts that all gates passed or publishes a performance
+claim. A tagged release claiming those outcomes waits for reviewed transcripts and results.
 
-Official host documentation (reviewed 2026-09-18):
-
-- [Skills and explicit invocation](https://code.claude.com/docs/en/skills)
-- [Programmatic usage and bare-mode behavior](https://code.claude.com/docs/en/headless)
-- [Authentication](https://code.claude.com/docs/en/authentication)
+Official documentation checked for the host instructions:
+[CLI and authentication status](https://code.claude.com/docs/en/cli-reference),
+[skills and explicit invocation](https://code.claude.com/docs/en/skills),
+[programmatic usage](https://code.claude.com/docs/en/headless).
