@@ -1,0 +1,23 @@
+{
+  "repository": "https://github.com/tkem/cachetools",
+  "tag": "v7.1.4",
+  "commit": "48284d73d0a8834c9c50f8d41bb99e6f93b2dfed",
+  "license": "MIT",
+  "files": {
+    "src/cachetools/__init__.py": {
+      "distribution_path": "cachetools/__init__.py",
+      "git_blob": "1b299c544519583cbcd765a01d58c75ad8802062",
+      "sha256": "fadf75eeab248d737ee23903efd5363e117719b47c434d7fd02a2f166a955b3c"
+    },
+    "src/cachetools/keys.py": {
+      "distribution_path": "cachetools/keys.py",
+      "git_blob": "82bdc5f10d841d70569691fc39d010ccb0212107",
+      "sha256": "9550bd6914744c2fc6fd211dfb83cdae2d6206b1a1bfcf052d017cb23b39b49e"
+    },
+    "LICENSE": {
+      "distribution_path": "cachetools-7.1.4.dist-info/licenses/LICENSE",
+      "git_blob": "f980a19c78c25959f922b8cc93854d91a89e686f",
+      "sha256": "28c000b52b0ee27138a68ef778227e4057046e86b65f62f1cacb99b0cc49e0d2"
+    }
+  }
+}
