@@ -2,194 +2,168 @@
 
 **Turn unfamiliar software into a source-linked domain skill for your agent.**
 
-Code and documentation → business concepts and rules → portable agent context → reviewable updates.
+Choose a workflow. Acknowledge the sources. Let your existing agent model the domain.
+Get a portable skill, exact evidence, explicit unknowns, and a handoff for the next task.
 
 [![Validator](https://github.com/New1Direction/OntologyEX/actions/workflows/validator.yml/badge.svg)](https://github.com/New1Direction/OntologyEX/actions/workflows/validator.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-13846f)](LICENSE)
 
-OntologyEX is a portable extraction workflow plus a small local compiler. **Your agent does the modeling.** The compiler checks the model's structure and evidence references, then packages it into an inspectable skill with a bounded, offline checker. No new agent framework, hosted service, or model subscription is required by the tooling.
+**[Guided onboarding](ontology-extraction/references/guided-onboarding.md) · [Real-source case](examples/cachetools-domain/README.md) · [Payments report](https://new1direction.github.io/OntologyEX/docs/payments-demo.html) · [Contract](ontology-extraction/references/domain-skill.md)**
 
-**[See the example report](https://new1direction.github.io/OntologyEX/docs/payments-demo.html) · [Run the demo](#try-it-without-an-api-key) · [Use your own repository](#use-your-own-repository) · [Contract format](ontology-extraction/references/domain-skill.md)**
+## Onboard your repository from one request
 
-## See the useful result first
-
-The included fictional payments example prepares a domain skill for partial refunds:
-
-| Situation | Offline diagnostic | Fixture ledger |
-|---|---|---|
-| Captured 10,000; already refunded 8,000; request 3,000 | `CHECKS_FAIL` — exceeds the remainder | Unchanged |
-| Same payment; request 500 with supplied authorization | `CHECKS_PASS` — modeled conditions pass | Refunded total becomes 8,500 |
-| Ask who can approve an undocumented exception | `NEEDS_REVIEW` — unknown policy | No transition |
-| Policy changes to a 1,000-per-request cap | Old source snapshot is stale; new candidate identifies impacted tasks | New checks reject 2,000; 1,000 still passes |
-
-Amounts are integer minor units in a single-currency teaching fixture. Nothing moves real money.
-
-The demo is **pre-authored**, not evidence that the compiler autonomously extracted a domain. The generic extraction step uses your existing agent. Source hashes prove byte identity, not the truth of a business rule.
-
-## Try it without an API key
-
-From a fresh checkout (Python 3.11 or later):
+Python 3.11+ is needed for the local tools. From an OntologyEX checkout:
 
 ```bash
-git clone https://github.com/New1Direction/OntologyEX.git
-cd OntologyEX
 python3 -m venv .venv
 source .venv/bin/activate  # PowerShell: .venv\Scripts\Activate.ps1
 python -m pip install 'PyYAML==6.0.3'
+python ontology-extraction/scripts/install.py --project /path/to/your-project
+```
+
+The installer copies the complete package into the project's
+`.claude/skills/ontology-extraction` directory. It refuses overwrites, changes no global
+settings, and pre-approves no tools. Make the Python environment available to your coding agent.
+
+Then in Claude Code:
+
+```text
+/ontology-extraction Onboard the reservation and cancellation workflow in this repository.
+Propose the smallest useful source set. After I acknowledge it, build a reusable domain
+skill for modifying that workflow. Show the rules, implementation locations, evidence,
+and anything the sources leave unclear.
+```
+
+Replace the example workflow with your own. The agent coordinates source selection,
+authoring, evidence collection, bounded compilation, and review. It does **not** automatically
+execute your project or deploy the generated skill.
+
+**Compatibility:** the Claude Code project layout and installed-script workflow are smoke-tested.
+Native host activation and fresh-model quality comparisons remain separate, unrun checks.
+Other runners can read `ontology-extraction/SKILL.md` directly; no agent framework is required.
+
+## What is different from a summary?
+
+| Output | Use |
+|---|---|
+| Business concepts and actions | Explain the system in domain terms, not just file names. |
+| Source-linked rules and implementation bindings | Locate the code and inspect the evidence for a claim. |
+| Explicit unknowns and conflicts | Expose unanswered questions instead of inventing permission. |
+| Portable domain skill and task handoff | Carry the reviewed context into a separate agent session. |
+| Source freshness and version comparison | Identify drift and the tasks that need review again. |
+
+**Your agent does the interpretation.** The tools handle exact copying, fingerprints,
+structural checks, and packaging. Source hashes establish byte identity, not semantic truth.
+
+## Try a real-source case without an API key
+
+```bash
+python -m pip install -r examples/cachetools-domain/requirements-case.txt
+python examples/cachetools-domain/case.py
+```
+
+The case verifies installed `cachetools` source bytes against a pinned upstream commit,
+uses the evidence helper to compile a domain skill, exports a task-focused handoff, and runs
+**18 behavioral acceptance checks** against a developer-written batch-lookup adapter.
+
+It covers expiration at the exact boundary, fractional and datetime clocks, falsy values,
+ordered misses, recency, no TTL refresh, and error propagation. These behaviors are exercised
+against the actual pinned library, not inferred from a successful ontology check.
+
+Open the report under:
+
+```text
+build/cachetools-case/session/attempts/01/candidate/cachetools-domain/report.html
+```
+
+The model and adapter are **developer-authored replay artifacts**, not proof of automatic
+extraction or superior agent performance. Raw-source, Markdown, and domain-skill trial inputs
+are exported separately; fresh-agent comparisons are explicitly `NOT_RUN`.
+See the [case protocol and limitations](examples/cachetools-domain/README.md).
+
+The earlier fictional payments/update demo remains available:
+
+```bash
 python examples/payments-domain/demo.py
 ```
 
-Open `build/payments-demo/v2/payments-domain/report.html` in your browser. It is a standalone local page: no JavaScript, accounts, analytics, or remote assets.
+Expected result: 26/26 deterministic fixture checks across two policy versions, detection of
+stale sources, and a reviewable change report. No real money moves. Use a fresh `--out` directory
+to rerun either example; existing outputs are never overwritten.
 
-Expected result: `DEMO_PASSED`, **26/26 deterministic fixture checks** across two policy versions, stale-source rejection, and a change-impact report. These are not LLM performance results. The demo explicitly leaves `agent_comparison: NOT_RUN`, `human_review: PENDING`, and `promotion: NOT_PERFORMED`.
+## Bounded authoring, not endless retries
 
-Outputs:
-
-```text
-build/payments-demo/
-  v1/payments-domain/       first immutable candidate skill
-  v2/payments-domain/       candidate after the policy change
-    SKILL.md               portable agent instructions
-    model.json             four layers, rules, evidence, and input schemas
-    report.html            inspect concepts, actions, mappings, and exact evidence
-    references/domain.md   focused domain context
-    references/sources/    selected source snapshots only
-    references/review.md   acceptance checklist; pending human review
-    scripts/check.py       standalone standard-library checker
-    manifest.json          content fingerprints
-  v1/evaluation.json       observed fixture transitions versus authored expectations
-  v2/evaluation.json
-  v1/benchmark/            raw / Markdown / skill evaluation contexts; NOT_RUN
-  v2/benchmark/
-  impact.json              changed sources and contract items; tasks to rerun
-  summary.json
-```
-
-The default demo directory is never overwritten. To rerun, choose a fresh output:
+The guided driver records one initial submission and at most two correction attempts.
+Each attempt freezes the submitted files and records diagnostics. Process interruptions
+consume a slot; recovery requires acknowledgment that the earlier process is not running.
 
 ```bash
-python examples/payments-domain/demo.py --out build/payments-demo-next
+python ontology-extraction/scripts/onboard.py status /path/to/session
+python ontology-extraction/scripts/onboard.py attempt /path/to/session
+python ontology-extraction/scripts/onboard.py handoff /path/to/session \
+  --task TASK_ID --out /path/to/new-handoff
 ```
 
-## Use your own repository
+A candidate can be structurally valid and still need semantic review. Unknowns, conflicts,
+inferred rules, and unsupported conditions must not be removed simply to obtain a pass.
+The limit bounds submissions to the driver, not arbitrary host-agent tokens or off-tool actions.
+No command approves, promotes, or deploys a candidate.
 
-**1. Select the smallest useful source set.** Explicit paths only; no hidden full-repository crawl.
+## Evidence without manually copying hashes
 
 ```bash
-python ontology-extraction/scripts/domain_skill.py prepare \
-  --repo /path/to/your-project \
-  --include src/payments.py \
-  --include docs/refunds.md \
-  --name your-domain \
-  --goal 'Prepare my agent to implement partial refunds correctly.' \
-  --out ./workspaces/your-domain-v1
+python ontology-extraction/scripts/evidence.py add /path/to/session/workspace \
+  --path docs/policy.md --start 12 --end 16 --id E-policy --kind requirement
 ```
 
-Replace the two example paths with real files in your project. Preparation freezes their bytes, creates the existing four-layer starter files, and writes `EXTRACT.md` plus a contract template. **It does not claim extraction is complete.**
+The helper copies an exact source span and digest into the authoring contract. `show` displays
+numbered source lines; `record` emits JSON without changing the contract. Existing evidence IDs
+cannot be silently repointed. Someone must still review whether the span supports the claim.
 
-**2. Give your existing agent this task:**
+## Existing compiler and four-layer method
 
-```text
-Read workspaces/your-domain-v1/EXTRACT.md and follow
-ontology-extraction/references/domain-skill.md.
+The original method remains intact in [METHOD.md](ontology-extraction/METHOD.md):
+upper anchors → domain nouns/relations → task actions/conditions → application bindings.
+Use the [portable entry point](AGENT_SKILL.md) for either guided skills or ontology-only outputs.
 
-Use only the selected source snapshots to fill the four YAML layers
-and 60-contract.json. Preserve the source snapshot and inventory.
-Link modeled claims to exact evidence. Mark unsupported conditions
-as inferred or unknown, and record disagreements as conflicts.
-
-Do not execute source files, call paid APIs, approve the candidate,
-or claim that a successful build proves semantic correctness.
-```
-
-**3. Compile and inspect a new candidate.**
+`domain_skill.py` still provides `prepare`, `build`, `verify`, `freshness`, and `compare`.
+The [contract reference](ontology-extraction/references/domain-skill.md) documents direct use.
+The five original modeling examples remain under `examples/eval-*`; they are not agent benchmarks.
 
 ```bash
-python ontology-extraction/scripts/domain_skill.py build \
-  workspaces/your-domain-v1 \
-  --repo /path/to/your-project \
-  --out ./build/v1/your-domain
+python ontology-extraction/scripts/scaffold.py validate examples/eval-1-stripe/stripe-support-agent-ontology
+python ontology-extraction/scripts/domain_skill.py freshness WORKSPACE --repo ORIGINAL_REPO
+python ontology-extraction/scripts/domain_skill.py compare OLD_SKILL NEW_SKILL
 ```
-
-The output folder's name must match the skill name. `--repo` checks the selected current files against the frozen snapshot. Omitting it is an explicit snapshot-only build, reported as `live_sources_checked: false`.
-
-After review, point your agent at the generated `SKILL.md`, or copy the **whole directory** into its supported skills directory. The generated checker also runs without PyYAML or this repository. Agent-specific installer/auto-discovery behavior is not claimed as tested.
 
 ## Checks are not permissions
 
-From inside a generated skill:
+Generated checkers use bounded typed comparisons, not arbitrary code or model calls.
+`CHECKS_PASS` only describes modeled conditions on supplied inputs. Unknown/manual conditions
+produce `NEEDS_REVIEW`; failed conditions produce `CHECKS_FAIL`. Every result leaves
+`execution_authorized: false`. The consuming application owns authenticated authorization,
+current state, concurrency, atomicity, idempotency, and integration safety.
+
+Source text is untrusted data. Secret-name filtering is not an exhaustive secret scanner.
+Fingerprints are not signatures; session files and trial folders are not an OS security sandbox.
+Keep private snapshots out of commits and use proper isolation for untrusted execution.
+
+## Contributing and verification
 
 ```bash
-python scripts/check.py --task IssueRefund --input /path/to/inputs.json
-```
-
-| Exit | Result | Meaning |
-|---|---|---|
-| 0 | `CHECKS_PASS` | The modeled checks passed for supplied values. **Not permission to execute.** |
-| 2 | `CHECKS_FAIL` | At least one modeled condition failed. |
-| 3 | `NEEDS_REVIEW` | An unknown, conflict, inferred rule, or unsupported condition remains. |
-| 1 | `INVALID_INPUT` | Malformed inputs, unsupported checks, or bundle integrity failure. |
-
-The checker uses a small allowlist of typed comparisons and two-field integer subtraction. It has no `eval`, code generation, network, or tool execution. Authorization flags are **supplied values**, not authenticated facts. The consuming application still owns authorization, current state, atomicity, concurrency, idempotency, and transaction safety.
-
-Before relying on a previously generated skill, check the original sources:
-
-```bash
-python ontology-extraction/scripts/domain_skill.py freshness \
-  workspaces/your-domain-v1 --repo /path/to/your-project
-```
-
-## Preserve corrections, not unverified guesses
-
-Prepare a new workspace when requirements change, have your agent propose the revised model, and build a new candidate. Compare it with the prior version:
-
-```bash
-python ontology-extraction/scripts/domain_skill.py compare \
-  build/v1/your-domain build/v2/your-domain
-```
-
-The report lists changed sources and rules, and conservatively identifies tasks to rerun. It is not a complete semantic impact analysis. **No command promotes, overwrites, or deploys an accepted skill.** Independent tests and human review stay outside the proposing agent's authority.
-
-## What is actually evaluated?
-
-The test suite checks malformed input, provenance mismatches, stale sources, rule references, typed diagnostics, unknowns/conflicts, immutable bundles, portable execution, and the example's ledger outcomes.
-
-The demo also exports three contexts with identical raw sources and task inputs: **raw documentation**, **raw documentation plus a concise Markdown guide**, and **raw documentation plus the generated skill**. No agent runs are fabricated. [The evaluation guide](examples/payments-domain/README.md) explains fresh sessions, comparable budgets, outcome scoring, and limitations of the small public case set.
-
-## Four layers, still underneath
-
-| Layer | Purpose |
-|---|---|
-| L0 — Upper | Select established general categories. |
-| L1 — Domain | Model the business concepts and relationships. |
-| L2 — Task | Model actions, participants, inputs, outputs, and conditions. |
-| L3 — Application | Bind the model to this system's code, types, tools, and other artifacts. |
-
-Every application concept maps to a domain class, every domain class anchors upward, and tasks reference domain concepts. The new compiler reuses the existing validator; it does not replace the method with a second ontology.
-
-The original [portable workflow](AGENT_SKILL.md), [full method](ontology-extraction/SKILL.md), [plain-English explainer](explain.html), and [five worked modeling examples](examples/) remain available. The Stripe–Adyen example matches 8 of 9 Stripe domain concepts using IDs and synonyms. That is a scoped modeling comparison, not proof of effortless vendor switching or better agents.
-
-Legacy tools still work:
-
-```bash
-python ontology-extraction/scripts/scaffold.py init --name my-target --out ./my-target-ontology
-python ontology-extraction/scripts/scaffold.py validate ./my-target-ontology
-python ontology-extraction/scripts/scaffold.py mappings ./my-target-ontology
-```
-
-`init` writes six starter files; `mappings` produces the seventh. Placeholders are not a completed model. Legacy validation checks structure, not source truth, saved mapping consistency, or semantic completeness. The **new compiled-skill profile** adds exact local evidence verification, contract checks, and saved mapping consistency when a mapping table is supplied.
-
-## Development and contributions
-
-```bash
+python -m pip install -r examples/cachetools-domain/requirements-case.txt
 python -m unittest discover -s tests -v
-python examples/payments-domain/demo.py --out build/ci-demo
 ```
 
-GitHub Actions runs regression tests, all five legacy examples, and the new domain-skill demo on Python 3.11 and 3.13. No paid services or model calls are required.
+CI runs the suite on Python 3.11 and 3.13, validates the original examples, exercises the payments
+update demo and report reproducibility, and runs the pinned-source onboarding case. The installed
+package is exercised from an unrelated working directory. No API keys or model calls are needed.
+A useful contribution is a scoped real-source example, a failing behavioral case, or a documented
+fresh-agent run with comparable baselines. Do not treat compiler success as proof of model quality.
 
-The most useful contributions are a real scoped example, an unsupported business condition, a failing provenance case, or a reproducible agent comparison. Include the sources you are allowed to share and the limits of what the example establishes. Do not upload private source snapshots or credentials.
+Useful for your agent stack? Star the repo to follow worked examples and releases.
 
-Useful for your agent stack? Star the repository to follow new examples and releases.
+## License
 
-[MIT](LICENSE) · Independent project. Not affiliated with Palantir or any payment provider.
+[MIT](LICENSE) © 2026 New1Direction. The optional cachetools case preserves upstream MIT attribution
+and verifies the upstream files against the pinned commit listed in its provenance manifest.

@@ -26,8 +26,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install validator dependency
-        run: python -m pip install 'PyYAML==6.0.3'
+      - name: Install test and case dependencies
+        run: python -m pip install -r examples/cachetools-domain/requirements-case.txt
       - name: Run regression tests
         run: python -m unittest discover -s tests -v
       - name: Validate every bundled example
@@ -57,3 +57,5 @@ jobs:
           committed = Path('docs/payments-demo.html').read_bytes()
           if generated != committed:
               raise SystemExit('Regenerate docs/payments-demo.html from the v2 demo')
+      - name: Run guided real-source onboarding case
+        run: python examples/cachetools-domain/case.py --out build/ci-cachetools-case
