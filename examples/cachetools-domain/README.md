@@ -90,3 +90,19 @@ Never automatically install or promote a candidate because an acceptance test pa
 - https://github.com/tkem/cachetools/blob/48284d73d0a8834c9c50f8d41bb99e6f93b2dfed/LICENSE
 
 Selected upstream source and its license accompany every generated source snapshot and trial.
+
+## Operator CLI for a genuine run
+
+Use `pilot.py prepare --out NEW_DIR` rather than replaying `case.py` when testing real
+agent authoring. `pilot.py status` verifies selected sources/tools without invoking a
+model. After a real run, `pilot.py collect` retains the explicitly supplied transcript,
+configuration, failures and candidate in a private fingerprinted packet.
+
+After semantic review, `pilot.py implementation` exports only the original sources and
+unchanged candidate to a fresh project. `grade_adapter.py` grades the **submitted**
+adapter against the 18 existing cases, with explicit execution acknowledgment, timeouts
+and retained input snapshots. Use a disposable OS-isolated environment; the script is
+not an adversarial sandbox. See the complete [native pilot runbook](../../docs/native-pilot.md).
+
+These commands remove setup and grading friction; they are not a native-agent benchmark
+result. The reference adapter remains only a developer fixture.

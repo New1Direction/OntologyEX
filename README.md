@@ -91,6 +91,28 @@ Expected result: 26/26 deterministic fixture checks across two policy versions, 
 stale sources, and a reviewable change report. No real money moves. Use a fresh `--out` directory
 to rerun either example; existing outputs are never overwritten.
 
+## Run a genuine native-agent pilot
+
+The operator workflow is now command-driven. From this checkout:
+
+```bash
+python -m pip install -r examples/cachetools-domain/requirements-case.txt
+python examples/cachetools-domain/pilot.py prepare --out "$HOME/ontologyex-native-pilot-v2"
+python examples/cachetools-domain/pilot.py status "$HOME/ontologyex-native-pilot-v2"
+```
+
+Open the generated `project/` in a fresh, signed-in Claude Code session and paste
+`operator/ONBOARDING-PROMPT.txt`. The project contains only pinned sources and installed
+extraction tooling, not a prebuilt model, reference solution, or grading tests. The
+scripts never start a model or copy credentials. A detected host binary is not an
+authentication or activation check.
+
+The [native pilot runbook](docs/native-pilot.md) covers private run capture, a separate
+implementation project after review, and explicit grading of the submitted adapter
+using the existing acceptance cases. The grader requires reviewed code, an acknowledgment
+flag, and a disposable environment; its bounded child process is **not an OS sandbox**.
+Native-agent comparisons remain `NOT_RUN` until actual reviewed results exist.
+
 ## Bounded authoring, not endless retries
 
 The guided driver records one initial submission and at most two correction attempts.

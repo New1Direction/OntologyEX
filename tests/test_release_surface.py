@@ -74,8 +74,9 @@ class ReleaseSurfaceTests(unittest.TestCase):
         self.assertIn('Checks are not permissions.', self.text)
         protocol = (ROOT / 'docs/native-pilot.md').read_text(encoding='utf-8')
         self.assertIn('**Status: NOT_RUN.**', protocol)
-        self.assertIn('case.source_files()', protocol)
-        self.assertIn('It has no standalone CLI.', protocol)
+        self.assertIn('pilot.py prepare --out', protocol)
+        self.assertIn('grade_adapter.py', protocol)
+        self.assertIn('--acknowledge-code-execution', protocol)
 
     def test_source_only_native_pilot_installation(self):
         # Run the documented source preparation and installer from a separate directory.
