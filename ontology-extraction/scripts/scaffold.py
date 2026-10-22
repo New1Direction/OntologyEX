@@ -211,6 +211,9 @@ def reject_duplicate_keys(loader, node):
     mapping = {}
     for key_node, value_node in node.value:
         key = loader.construct_object(key_node)
+        if type(key) is not str:
+            raise yaml.constructor.ConstructorError(
+                None, None, "YAML mapping keys must be strings", key_node.start_mark)
         if key in mapping:
             raise yaml.constructor.ConstructorError(
                 None, None, f"duplicate YAML key: {key}", key_node.start_mark)
