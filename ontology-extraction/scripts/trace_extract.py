@@ -104,6 +104,8 @@ def project(source: bytes) -> dict:
     spans = parse(source)
     file_hash = sha(source)
     nodes, edges, evidence = {}, {}, {}
+    goal_ids = sorted({e["root_goal_id"] for e in spans if "root_goal_id" in e})
+    timestamps = sorted({e["timestamp"] for e in spans if "timestamp" in e})
     objects, actions, observed_links = {}, {}, {}
     def node(kind: str, label: str) -> str:
         # Raw entity IDs are NEVER stored. All labels are allowlisted vocabulary.
@@ -158,6 +160,8 @@ def project(source: bytes) -> dict:
     return {
         "schema_version": 1, "status": "DRAFT_NOT_APPROVED",
         "source_sha256": file_hash, "span_count": len(spans),
+        "root_goal_ids": goal_ids, "observed_timestamp_range":
+            {"first": timestamps[0], "last": timestamps[-1]} if timestamps else None,
         "source_independence_verified": False, "execution_authorized": False,
         "ontology_draft": {
             "object_types": [{"id": k, "evidence": v, "review": "REQUIRED"} for k, v in sorted(objects.items())],
