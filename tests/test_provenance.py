@@ -31,7 +31,7 @@ class ProvenanceGroupingTests(unittest.TestCase):
 
     def test_stress_matrix_and_behavioral_parity(self):
         with tempfile.TemporaryDirectory() as tmp:
-            result = stress.run(Path(tmp) / "result")
+            result = stress.run(Path(tmp).resolve() / "result")
             self.assertEqual(result["paired_variants"], 60)
             self.assertEqual(result["diagnostic_comparisons_passed"], 180)
             self.assertEqual(result["distinct_origin_controls"], 20)
@@ -40,7 +40,7 @@ class ProvenanceGroupingTests(unittest.TestCase):
 
     def test_stress_output_does_not_overwrite(self):
         with tempfile.TemporaryDirectory() as tmp, self.assertRaises(pc.DomainError):
-            stress.run(Path(tmp))
+            stress.run(Path(tmp).resolve())
 
     def test_copies_share_one_declared_atom(self):
         result = pv.analyze(self.model, self.attrs)
@@ -225,7 +225,7 @@ class ProvenanceIntegrationTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.root = Path(self.tmp.name)
+        self.root = Path(self.tmp.name).resolve()
         self.source = ROOT / "examples/payments-domain/source"
         self.workspace = self.root / "workspace"
         ds.prepare(self.source, ["requirements.md", "payments.py"], self.workspace, self.demo.NAME, self.demo.GOAL)

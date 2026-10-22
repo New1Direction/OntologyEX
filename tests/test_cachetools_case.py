@@ -19,7 +19,7 @@ class CachetoolsCaseTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.temp = tempfile.TemporaryDirectory()
-        cls.out = Path(cls.temp.name) / 'case'
+        cls.out = Path(cls.temp.name).resolve() / 'case'
         cls.summary = case.run_case(cls.out)
 
     @classmethod

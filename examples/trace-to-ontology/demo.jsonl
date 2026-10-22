@@ -1,0 +1,3 @@
+{"schema_version":1,"trace_id":"run-demo","span_id":"agent1","kind":"agent","agent":"deploy-agent","operation":"plan_deploy","status":"ok","root_goal_id":"goal-deploy"}
+{"schema_version":1,"trace_id":"run-demo","span_id":"migrate1","parent_span_id":"agent1","kind":"tool","agent":"deploy-agent","tool":"database.migrate","entity_type":"Database","operation":"migrate","effect":"updated","status":"ok","root_goal_id":"goal-deploy"}
+{"schema_version":1,"trace_id":"run-demo","span_id":"deploy1","parent_span_id":"agent1","kind":"tool","agent":"deploy-agent","tool":"release.deploy","entity_type":"Deployment","operation":"deploy","effect":"created","status":"ok","root_goal_id":"goal-deploy"}

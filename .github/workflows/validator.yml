@@ -49,13 +49,17 @@ jobs:
               )
       - name: Run source-to-skill update demo
         run: python examples/payments-domain/demo.py --out build/ci-domain-skill
-      - name: Check reproducible public report
+      - name: Rebuild and verify reproducible report
+        run: python examples/payments-domain/demo.py --out build/ci-domain-skill-repeat
+      - name: Compare independently generated reports
         shell: python
         run: |
           from pathlib import Path
-          generated = Path('build/ci-domain-skill/v2/payments-domain/report.html').read_bytes()
-          committed = Path('docs/payments-demo.html').read_bytes()
-          if generated != committed:
-              raise SystemExit('Regenerate docs/payments-demo.html from the v2 demo')
+          first = Path('build/ci-domain-skill/v2/payments-domain/report.html').read_bytes()
+          second = Path('build/ci-domain-skill-repeat/v2/payments-domain/report.html').read_bytes()
+          if first != second:
+              raise SystemExit('Reports are not reproducible across independent builds')
+          if b'Authored scope and boundaries' not in first or b'predicate' not in first:
+              raise SystemExit('Missing authored scope or executable rule review evidence')
       - name: Run guided real-source onboarding case
         run: python examples/cachetools-domain/case.py --out build/ci-cachetools-case

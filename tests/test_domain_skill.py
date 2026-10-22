@@ -33,7 +33,7 @@ class DomainSkillTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.seed = tempfile.TemporaryDirectory()
-        cls.seed_root = Path(cls.seed.name)
+        cls.seed_root = Path(cls.seed.name).resolve()
         cls.source = ROOT / "examples/payments-domain/source"
         cls.seed_workspace = cls.seed_root / "workspace"
         ds.prepare(cls.source, ["requirements.md", "payments.py"], cls.seed_workspace, demo.NAME, demo.GOAL)
@@ -49,7 +49,7 @@ class DomainSkillTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.root = Path(self.tmp.name)
+        self.root = Path(self.tmp.name).resolve()
         self.workspace = self.root / "workspace"
         shutil.copytree(self.seed_workspace, self.workspace)
         self.out = self.root / demo.NAME

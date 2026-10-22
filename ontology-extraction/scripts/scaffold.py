@@ -203,6 +203,28 @@ def check_shape(document, name):
                     raise WorkspaceError(f"{location}.fields must be a list of names or mappings")
 
 
+class UniqueKeysLoader(yaml.SafeLoader):
+    """Reject duplicate entries instead of silently replacing them."""
+
+
+def reject_duplicate_keys(loader, node):
+    mapping = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node)
+        if type(key) is not str:
+            raise yaml.constructor.ConstructorError(
+                None, None, "YAML mapping keys must be strings", key_node.start_mark)
+        if key in mapping:
+            raise yaml.constructor.ConstructorError(
+                None, None, f"duplicate YAML key: {key}", key_node.start_mark)
+        mapping[key] = loader.construct_object(value_node)
+    return mapping
+
+
+UniqueKeysLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, reject_duplicate_keys)
+
+
 def load(d: Path, name: str):
     p = d / name
     try:
@@ -210,7 +232,7 @@ def load(d: Path, name: str):
     except (OSError, UnicodeError) as exc:
         raise WorkspaceError(f"{name}: cannot read required file ({exc})") from exc
     try:
-        document = yaml.safe_load(text)
+        document = yaml.load(text, Loader=UniqueKeysLoader)
     except yaml.YAMLError as exc:
         mark = getattr(exc, "problem_mark", None)
         location = f":{mark.line + 1}:{mark.column + 1}" if mark else ""
