@@ -170,7 +170,7 @@ def load_model(workspace: Path, repo: Path | None = None) -> tuple[dict, dict]:
     records, sources = load_sources(workspace, repo)
     scope = safe_file(workspace, "00-scope.md", MAX_FILE).decode("utf-8")
     require(bool(scope.strip()), "00-scope.md must not be empty")
-    layers = {name: yaml_document(safe_file(workspace, name), name) for name in LAYERS]
+    layers = {name: yaml_document(safe_file(workspace, name), name) for name in LAYERS}
     captured = io.StringIO()
     with contextlib.redirect_stdout(captured):
         try:
