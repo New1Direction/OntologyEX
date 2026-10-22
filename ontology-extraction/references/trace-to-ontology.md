@@ -51,6 +51,13 @@ Allowed kinds: agent, tool, action, decision, observation.
 Allowed status: ok, error, unknown.
 Allowed effects: created, updated, deleted, read, none, unknown.
 
+Timestamps, when present, must use `YYYY-MM-DDTHH:MM:SS[.fraction](Z|±HH:MM)`
+with a valid calendar date and 1–9 fractional digits. This RFC3339 subset requires
+uppercase `T`/`Z` and a known timezone: timezone-free values, `-00:00`, leap seconds,
+invalid offsets, and dates that overflow years 1–9999 when converted to UTC are
+rejected. Timestamp ranges are ordered chronologically and emitted in UTC with
+`Z`; fractional precision is preserved and trailing fractional zeros are removed.
+
 Example:
 
 ```json
@@ -63,7 +70,9 @@ are prohibited. Unknown fields fail closed. The accepted identifiers are a restr
 ASCII vocabulary; normalization and secret classification must occur **before** this tool.
 
 The file is bounded to 1 MiB and 512 spans (4 KiB per line), with unique span IDs per
-trace and validated parent references. All output is deterministic from exact bytes.
+trace and validated, acyclic parent references within each trace. All output is
+deterministic from exact bytes. Timestamp normalization does not change the input
+bytes used for file or line hashes.
 The file and line SHA-256 hashes are evidence **identity**, not verification of who
 produced the trace. The graph uses opaque hashes for span and entity instance IDs.
 Hashes are pseudonyms, **not** guaranteed anonymization against dictionary attacks:
@@ -131,3 +140,8 @@ Only deterministic extraction of explicit normalized metadata and regression tes
 is implemented here. Native-agent trace parsing, AI-based ontology discovery,
 security enforcement for actual business systems, persistent temporal graph queries,
 operator review UI, and live write-back are future milestones.
+
+Native-agent improvement benchmark status: **NOT_RUN**. Passing tooling tests or the
+developer-authored cachetools reference case does not demonstrate improved agent
+task success, lower cost, or better ontology extraction. Those claims require a
+separate held-out comparison against agent baselines.

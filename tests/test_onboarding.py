@@ -26,7 +26,7 @@ spec.loader.exec_module(installer)
 class OnboardingTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.repo = self.root / 'repo with spaces'
         self.repo.mkdir()
         (self.repo / 'policy.md').write_text('Amounts must be positive.\nUnknown exception policy.\n', encoding='utf-8')

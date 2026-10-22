@@ -18,7 +18,7 @@ class ScopeAndPortableFreshnessTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp = tempfile.TemporaryDirectory()
-        cls.base = Path(cls.tmp.name)
+        cls.base = Path(cls.tmp.name).resolve()
         cls.demo = cls.base / "payments"
         completed = subprocess.run(
             [sys.executable, str(ROOT / "examples/payments-domain/demo.py"),
@@ -89,14 +89,14 @@ class ScopeAndPortableFreshnessTests(unittest.TestCase):
 
     def test_old_validator_rejects_duplicate_keys(self):
         with tempfile.TemporaryDirectory() as root:
-            folder = Path(root)
+            folder = Path(root).resolve()
             (folder / "20-domain.yaml").write_text("classes: []\nclasses: []\n")
             with self.assertRaisesRegex(scaffold.WorkspaceError, "duplicate"):
                 scaffold.load(folder, "20-domain.yaml")
 
     def test_rejected_output_parent_is_not_created(self):
         with tempfile.TemporaryDirectory() as root:
-            r = Path(root)
+            r = Path(root).resolve()
             external = r / "external"
             external.mkdir()
             (r / "alias").symlink_to(external, target_is_directory=True)

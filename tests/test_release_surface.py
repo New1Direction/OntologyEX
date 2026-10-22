@@ -92,7 +92,7 @@ ds.write_files(Path(sys.argv[2]), files)
 print(ds.canonical({'paths': sorted(files), 'upstream_commit': pin['commit']}).decode())
 '''
         with tempfile.TemporaryDirectory() as temp:
-            project = Path(temp) / 'fresh project'
+            project = Path(temp).resolve() / 'fresh project'
             env = {**os.environ, 'PYTHONDONTWRITEBYTECODE': '1'}
             result = subprocess.run([sys.executable, '-B', '-c', code, str(ROOT), str(project)],
                                     cwd=temp, env=env, capture_output=True, text=True, timeout=20)

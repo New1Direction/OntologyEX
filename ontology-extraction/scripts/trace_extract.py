@@ -13,6 +13,7 @@ import json
 import re
 import shutil
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 MAX_SOURCE_BYTES = 1048576
@@ -29,6 +30,9 @@ EFFECTS = {"created", "updated", "deleted", "read", "none", "unknown"}
 # No whitespace, query strings, credentials, email addresses, or unconstrained free text.
 SAFE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:/-]{0,95}\Z")
 ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,95}\Z")
+TIMESTAMP = re.compile(
+    r"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})"
+    r"(?:\.([0-9]{1,9}))?(Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])\Z")
 
 
 class TraceError(ValueError):
@@ -57,6 +61,20 @@ def no_duplicates(items):
     return result
 
 
+def utc_timestamp(value: str, number: int) -> str:
+    match = TIMESTAMP.fullmatch(value)
+    require(match is not None, f"line {number}: invalid timestamp")
+    seconds, fraction, offset = match.groups()
+    require(offset != "-00:00", f"line {number}: timestamp requires a known UTC offset")
+    try:
+        utc = datetime.fromisoformat(seconds + offset.replace("Z", "+00:00")).astimezone(timezone.utc)
+    except (ValueError, OverflowError) as exc:
+        raise TraceError(f"line {number}: invalid timestamp") from exc
+    # Keep up to nanosecond precision without datetime's microsecond truncation.
+    fraction = (fraction or "").rstrip("0")
+    return utc.replace(tzinfo=None).isoformat() + ("." + fraction if fraction else "") + "Z"
+
+
 def parse(source: bytes) -> list[dict]:
     require(0 < len(source) <= MAX_SOURCE_BYTES, "trace input must be 1 byte–1 MiB")
     lines = source.splitlines()
@@ -79,6 +97,9 @@ def parse(source: bytes) -> list[dict]:
                 continue
             require(type(value) is str and 0 < len(value) <= MAX_VALUE,
                     f"line {number}: invalid {field}")
+            if field == "timestamp":
+                entry[field] = utc_timestamp(value, number)
+                continue
             require((ID if field in {"trace_id", "span_id", "parent_span_id", "root_goal_id"} else SAFE).fullmatch(value) is not None,
                     f"line {number}: unsafe identifier {field}")
         require(entry["kind"] in KINDS and entry["status"] in STATUSES,
@@ -97,6 +118,16 @@ def parse(source: bytes) -> list[dict]:
         if "parent_span_id" in e:
             require((e["trace_id"], e["parent_span_id"]) in seen,
                     "dangling parent span: " + e["span_id"])
+    parents = {(e["trace_id"], e["span_id"]): (e["trace_id"], e["parent_span_id"])
+               for e in spans if "parent_span_id" in e}
+    completed = set()
+    for key in parents:
+        path = set()
+        while key in parents and key not in completed:
+            require(key not in path, "parent cycle: " + key[1])
+            path.add(key)
+            key = parents[key]
+        completed.update(path)
     return spans
 
 
@@ -105,7 +136,8 @@ def project(source: bytes) -> dict:
     file_hash = sha(source)
     nodes, edges, evidence = {}, {}, {}
     goal_ids = sorted({e["root_goal_id"] for e in spans if "root_goal_id" in e})
-    timestamps = sorted({e["timestamp"] for e in spans if "timestamp" in e})
+    # Without the terminal Z, a whole second sorts before its fractional instants.
+    timestamps = sorted({e["timestamp"] for e in spans if "timestamp" in e}, key=lambda t: t[:-1])
     objects, actions, observed_links = {}, {}, {}
     def node(kind: str, label: str) -> str:
         # Raw entity IDs are NEVER stored. All labels are allowlisted vocabulary.
