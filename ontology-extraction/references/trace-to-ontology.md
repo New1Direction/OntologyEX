@@ -16,6 +16,31 @@ python -m unittest tests/test_trace_extract.py -v
 Inspect `build/trace-draft/ontology-draft.json`. No mutation, network calls, model calls,
 tool execution, or automatic promotion occurs. The output directory must not exist.
 
+## OpenTelemetry GenAI span adapter
+
+This version also accepts **locally exported OTLP/JSON** via a strict normalization
+step. Only `gen_ai.operation.name`, `gen_ai.agent.name`,
+`gen_ai.tool.name`, `ontologyex.root_goal_id`, and
+`ontologyex.entity_type` can influence the normalized output.
+Unrecognized attributes—including prompt, completion, tool arguments, output,
+environment variables, and raw span names—are ignored, not persisted.
+The first-party ontology-specific attributes are optional; standard GenAI
+agent and tool spans need no special instrumentation to contribute a candidate.
+
+```bash
+python ontology-extraction/scripts/otlp_normalize.py local-otlp-export.json \
+  --out build/genai-spans.jsonl
+python ontology-extraction/scripts/trace_extract.py build/genai-spans.jsonl \
+  --out build/genai-ontology-draft
+```
+
+Only a bounded OTLP/JSON `resourceSpans → scopeSpans → spans` structure is
+supported. Partial traces with missing parent spans retain the observed spans
+without creating nonexistent parents. This is not an OpenTelemetry collector
+or complete spec implementation; instrumenters and exporters must minimize
+sensitive data before writing the local raw export. **Do not upload raw production
+traces.**
+
 ## Input: normalized JSONL, not arbitrary chat logs
 
 One JSON object per line, **schema_version=1**. Required fields are
@@ -63,7 +88,7 @@ candidates. Trace drafts are **not silently merged** into `60-contract.json`.
 
 ## Next steps: from trace extraction to operational ontology
 
-1. **Adapters and boundaries:** normalize OpenTelemetry GenAI spans and consented
+1. **Adapters and boundaries:** normalize consented
    Claude Code/Codex transcripts into this allowlist. Provide a local review/redaction
    step before ingestion. Keep raw traces locally and encrypt/scope storage.
 2. **Typed candidate graph:** stable entity identities, event time, temporal link
@@ -94,7 +119,7 @@ candidates. Trace drafts are **not silently merged** into `60-contract.json`.
 - [OpenLineage](https://github.com/OpenLineage/OpenLineage): run/job/dataset lineage
   and extensible facets. A possible downstream format for cross-system lineage.
 - [OpenTelemetry GenAI conventions](https://opentelemetry.io/docs/specs/semconv/):
-  observability standard family; directly ingesting arbitrary OTLP is **not** shipped.
+  observability standard family; the bounded GenAI OTLP/JSON adapter is shipped, but arbitrary OTLP and complete semantic-convention support are not.
 
 The distinctive aim for OntologyEX is the **evidence → modeled operational decision →
 governed action → observed outcome → ontology revision** cycle, rather than graph
