@@ -48,7 +48,7 @@ Read NEXT.md and workspace/EXTRACT.md. Paths in METHOD.md are relative to SKILL_
 ## Author with source evidence
 
 Edit only the scoped authoring files: `00-scope.md`, `10-upper.yaml`, `20-domain.yaml`,
-`30-task.yaml`, `40-application.yaml`, optional `50-mappings.yaml`, `60-contract.json`,
+`30-task.yaml`, `40-application.yaml`, optional `50-mappings.yaml`, `60-contract.json`, optional `70-provenance.json`,
 and `README.md`. The compiler's contract format remains v1.
 
 Do not change the name, goal, or root_goal_id, or modify sources/, sources.json, session.json,
@@ -144,3 +144,13 @@ in an isolated environment. Never give them the full study/evaluator checkout du
 Agent Skills format: https://agentskills.io/specification
 Claude Code project skills: https://code.claude.com/docs/en/skills
 Checked 2026-09-18. Documentation compatibility is not a claimed live host test.
+
+## Evidence lineage without false corroboration
+
+Use [provenance.md](provenance.md) for optional hash-bound origin and dependency-group
+attributions in `70-provenance.json`. This sidecar is an authoring file preserved in
+tracked attempts. Do not infer independent support from different paths, hashes, or
+repeated quotations. Origin assignments remain declarations; missing lineage stays
+unknown. Every original citation and recorded conflict survives compaction. New
+candidates include a provenance audit and task-focused handoffs include the relevant
+slice. This is review metadata, not a new business-policy guard or semantic detector.

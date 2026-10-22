@@ -11,8 +11,8 @@ from policy_check import DomainError, canonical, digest, require, safe_file
 PACKAGE = (
     "SKILL.md", "METHOD.md", "LICENSE",
     "scripts/install.py", "scripts/onboard.py", "scripts/evidence.py",
-    "scripts/domain_skill.py", "scripts/policy_check.py", "scripts/scaffold.py",
-    "references/guided-onboarding.md", "references/domain-skill.md",
+    "scripts/domain_skill.py", "scripts/policy_check.py", "scripts/scaffold.py", "scripts/provenance.py",
+    "references/guided-onboarding.md", "references/domain-skill.md", "references/provenance.md",
     "references/design-principles.md", "references/source-mining.md",
     "references/reuse-catalog.md", "references/output-formats.md",
 )

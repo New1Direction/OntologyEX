@@ -41,6 +41,12 @@ mix public-web research with a frozen, local-only onboarding session.
    source spans, and `evidence.py add ...` to insert exact evidence into the contract.
    Select the relevant lines; let code copy the quote and hash. This verifies bytes,
    not whether a quotation actually supports your interpretation.
+   Inspect [evidence provenance](references/provenance.md). When selected source history
+   supports a shared origin, use `provenance.py attribute` to record the origin and
+   dependency group; do not invent independence from separate files or repeated wording.
+   Leave uncertain lineage unknown. Inspect every distinct origin and recorded conflict;
+   grouping never authorizes dropping evidence. The optional `70-provenance.json` is an
+   authoring file included in tracked submissions.
 5. **Submit.** Run `python "$SKILL_ROOT/scripts/onboard.py" attempt SESSION` exactly once.
    Read its structured diagnostics. Only `REPAIR_REQUIRED` permits another correction.
    Do not call the untracked compiler to bypass the session's budget. Never change
