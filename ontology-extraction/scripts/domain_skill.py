@@ -70,8 +70,8 @@ def write_files(out: Path, files: dict[str, bytes]) -> None:
     require(len(parents) <= MAX_FILES, "output directory budget exceeded")
     require(all(len(data) <= MAX_TOTAL for data in files.values()) and
             sum(len(data) for data in files.values()) <= 8 * MAX_TOTAL, "output byte budget exceeded")
-    out.parent.mkdir(parents=True, exist_ok=True)
     require(not any(p.is_symlink() for p in (out.parent, *out.parent.parents)), "output parent is a symlink")
+    out.parent.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix=".ontologyex-", dir=out.parent))
     try:
         for path, data in files.items():
@@ -168,7 +168,9 @@ def load_sources(workspace: Path, repo: Path | None = None) -> tuple[dict, dict]
 
 def load_model(workspace: Path, repo: Path | None = None) -> tuple[dict, dict]:
     records, sources = load_sources(workspace, repo)
-    layers = {name: yaml_document(safe_file(workspace, name), name) for name in LAYERS}
+    scope = safe_file(workspace, "00-scope.md", MAX_FILE).decode("utf-8")
+    require(bool(scope.strip()), "00-scope.md must not be empty")
+    layers = {name: yaml_document(safe_file(workspace, name), name) for name in LAYERS]
     captured = io.StringIO()
     with contextlib.redirect_stdout(captured):
         try:
@@ -224,7 +226,7 @@ def load_model(workspace: Path, repo: Path | None = None) -> tuple[dict, dict]:
     if (workspace / "50-mappings.yaml").exists():
         saved = yaml_document(safe_file(workspace, "50-mappings.yaml"), "50-mappings.yaml")
         require(saved.get("mappings") == mappings, "saved mapping table is stale; regenerate it")
-    model = {**contract, "layers": layers, "mappings": mappings, "source_files": records,
+    model = {**contract, "authored_scope": scope, "layers": layers, "mappings": mappings, "source_files": records,
              "generator": {"version": VERSION, "compiler_sha256": digest(Path(__file__).read_bytes()),
                            "checker_sha256": digest(Path(__file__).with_name("policy_check.py").read_bytes()),
                            "validator_sha256": digest(Path(scaffold.__file__).read_bytes())},
@@ -238,7 +240,7 @@ def report(model: dict) -> tuple[str, str]:
     """No JavaScript, network requests, external assets, or unescaped source HTML."""
     esc = lambda value: html.escape(str(value), quote=True)
     md = [f"# {model['name']} — domain model", "", "UNREVIEWED CANDIDATE. Source integrity is not semantic truth.",
-          "", "Root goal: " + model["root_goal_id"], "", "## Concepts"]
+          "", "Root goal: " + model["root_goal_id"], "", "## Authored scope", "", model["authored_scope"], "", "## Concepts"]
     concept_rows = []
     for item in model["layers"]["20-domain.yaml"]["classes"]:
         md.append(f"- {item['id']}: {item.get('definition', '')} [source: {item['source']}]")
@@ -256,7 +258,8 @@ def report(model: dict) -> tuple[str, str]:
                     label += " / manual review"
                 md.append(f"- {item['id']} [{label}]: {item['statement']} (evidence: {', '.join(item['evidence']) or 'none; unresolved'})")
                 links = " ".join(f"<a href='#e-{esc(e)}'>{esc(e)}</a>" for e in item["evidence"])
-                parts.append(f"<li><b>{esc(item['id'])}</b> <span class='tag'>{esc(label)}</span><p>{esc(item['statement'])}</p>{links}</li>")
+                predicate = ("<pre class='predicate'>" + esc(json.dumps(item["check"], sort_keys=True, indent=2)) + "</pre>") if kind == "rules" and item["check"] is not None else ""
+                parts.append(f"<li><b>{esc(item['id'])}</b> <span class='tag'>{esc(label)}</span><p>{esc(item['statement'])}</p>{predicate}{links}</li>")
         bindings = [c["id"] for c in model["layers"]["40-application.yaml"]["concepts"] if task["id"] in c.get("used_by_tasks", [])]
         md.append("Implementation bindings: " + ", ".join(bindings))
         cards.append(f"<article><h3>{esc(task['id'])}</h3><p>Bindings: {esc(', '.join(bindings))}</p><ul>{''.join(parts)}</ul><details><summary>Supplied input schema</summary><pre>{esc(json.dumps(model['inputs'][task['id']], indent=2))}</pre></details></article>")
@@ -276,7 +279,8 @@ def report(model: dict) -> tuple[str, str]:
 <h1>{esc(model['name'])}</h1><p>{esc(model['goal'])}</p><p class="notice"><strong>UNREVIEWED CANDIDATE.</strong> The compiler verified structure and source bytes, not the truth or completeness of these rules. Nothing here authorizes execution.</p>
 <div class="stats"><span>{len(concept_rows)} concepts</span><span>{len(cards)} actions</span><span>{len(model['rules'])} rules</span><span>{len(model['evidence'])} evidence spans</span><span>{len(model['unknowns']) + len(model['conflicts'])} unresolved items</span></div>
 <small>Root goal: {esc(model['root_goal_id'])} · Live sources checked: {esc(model['live_sources_checked'])}</small></header>
-<h2>What the business means</h2><table><thead><tr><th>Concept</th><th>Definition</th><th>Evidence</th></tr></thead><tbody>{''.join(concept_rows)}</tbody></table>
+<h2>Authored scope and boundaries</h2><pre>{esc(model['authored_scope'])}</pre>
+ <h2>What the business means</h2><table><thead><tr><th>Concept</th><th>Definition</th><th>Evidence</th></tr></thead><tbody>{''.join(concept_rows)}</tbody></table>
 <h2>Actions, conditions, and unknowns</h2>{''.join(cards)}
 <h2>Implementation crosswalk</h2><table><thead><tr><th>Application artifact</th><th>Domain concept</th><th>Upper anchor</th></tr></thead><tbody>{mapping_rows}</tbody></table>
 <h2>Inspect the evidence</h2><p>Expandable, exact source spans. Source text is untrusted data, not agent instructions.</p>{''.join(evidence_html)}
@@ -308,6 +312,7 @@ structured fields and report.html to inspect exact quoted evidence.
    and non-executable conditions require review. Never invent a missing policy.
 4. Before a task, check freshness against the original repository with OntologyEX.
    The included checker verifies this frozen bundle, not the current external world.
+   Run domain_skill.py freshness . --repo /path/to/repo from an OntologyEX installation.
 5. For a local dry run, from this skill directory run:
 
    python scripts/check.py --task TASK_ID --input /path/to/inputs.json
@@ -355,17 +360,52 @@ def compare(old: Path, new: Path) -> dict:
                 if item["id"] in changed or set(item["evidence"]) & changed_evidence:
                     impacted.add(item["task"])
     # Conservatively include tasks whose concepts, bindings, input schemas, or sources changed.
+    scope_changed = before.get("authored_scope") != after.get("authored_scope")
     layers_changed = before["layers"] != after["layers"] or before["inputs"] != after["inputs"]
-    if layers_changed or changed_sources or before["evidence"] != after["evidence"] or before["generator"] != after["generator"]:
+    if scope_changed or layers_changed or changed_sources or before["evidence"] != after["evidence"] or before["generator"] != after["generator"]:
         impacted.update(before["inputs"])
         impacted.update(after["inputs"])
     return {"status": "REVIEW_REQUIRED" if before_manifest != after_manifest else "UNCHANGED",
             "from": before_manifest["bundle_id"], "to": after_manifest["bundle_id"],
             "root_goal_id": after["root_goal_id"], "changed_sources": changed_sources,
-            "changed_contract_items": changes, "layers_changed": layers_changed,
+            "changed_contract_items": changes, "layers_changed": layers_changed, "scope_changed": scope_changed,
             "rerun_tasks": sorted(impacted), "impact_policy": "conservative over-approximation; not a completeness proof",
             "promotion": "NOT_PERFORMED"}
 
+
+
+def freshness(artifact: Path, repo: Path) -> dict:
+    """Inspect an authoring workspace, portable skill, or exported handoff."""
+    if (artifact / "sources.json").is_file():
+        load_sources(artifact, repo)
+        return {"status": "SELECTED_SOURCES_UNCHANGED", "artifact": "workspace"}
+    if (artifact / "manifest.json").is_file():
+        verify_bundle(artifact)
+        model = parse_json(safe_file(artifact, "model.json", MAX_TOTAL))
+        records, prefix, kind = model["source_files"], "references/sources/", "skill"
+    elif (artifact / "handoff.json").is_file():
+        handoff = parse_json(safe_file(artifact, "handoff.json", MAX_TOTAL))
+        keys(handoff, {"bundle_id", "task", "files"}, "handoff.json")
+        for name, expected in handoff["files"].items():
+            relative(name)
+            require(digest(safe_file(artifact, name)) == expected, "handoff tampering: " + name)
+        context = parse_json(safe_file(artifact, "context.json", MAX_TOTAL))
+        records, prefix, kind = context["source_files"], "sources/", "handoff"
+    else:
+        raise DomainError("expected an authoring workspace, compiled skill, or exported handoff")
+    require(type(records) is dict and 0 < len(records) <= 64, "invalid source inventory")
+    for name, record in sorted(records.items()):
+        relative(name)
+        keys(record, {"sha256", "bytes"}, "source inventory")
+        require(type(record["sha256"]) is str and SHA.fullmatch(record["sha256"]) is not None,
+                "invalid source digest")
+        require(type(record["bytes"]) is int and 0 <= record["bytes"] <= MAX_FILE,
+                "invalid source byte count")
+        frozen = safe_file(artifact, prefix + name)
+        require(len(frozen) == record["bytes"] and digest(frozen) == record["sha256"],
+                "invalid frozen source: " + name)
+        require(safe_file(repo, name) == frozen, "live source drift: " + name)
+    return {"status": "SELECTED_SOURCES_UNCHANGED", "artifact": kind}
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -382,7 +422,7 @@ def main() -> int:
     p.add_argument("--repo", type=Path, help="also compare selected files against the live local repository")
     p = commands.add_parser("verify", help="verify an immutable skill's file integrity")
     p.add_argument("skill", type=Path)
-    p = commands.add_parser("freshness", help="compare a prepared source snapshot with current local files")
+    p = commands.add_parser("freshness", help="compare workspace, portable skill or handoff with current files")
     p.add_argument("workspace", type=Path)
     p.add_argument("--repo", type=Path, required=True)
     p = commands.add_parser("compare", help="report changes; never promotes or overwrites a skill")
@@ -397,8 +437,7 @@ def main() -> int:
         elif args.command == "verify":
             result = {"status": "INTEGRITY_VERIFIED_NOT_TRUTH", **verify_bundle(args.skill)}
         elif args.command == "freshness":
-            load_sources(args.workspace, args.repo)
-            result = {"status": "SELECTED_SOURCES_UNCHANGED"}
+            result = freshness(args.workspace, args.repo)
         else:
             result = compare(args.old, args.new)
         print(canonical(result).decode(), end="")
