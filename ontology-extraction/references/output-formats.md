@@ -112,7 +112,7 @@ Each task with concrete inputs/outputs becomes a tool. Mechanical translation:
   }
 }
 ```
-Rules: task `verb_phrase` + preconditions + effects → description (the LLM reads this — preconditions in the description prevent bad calls); inputs → required params typed via the L3 field mappings; one tool per leaf task (tasks with `decomposes_to` become orchestration, not tools).
+Rules: task `verb_phrase` + preconditions + effects → description (the LLM reads this — preconditions in the description describe preconditions, but cannot prevent invalid calls without runtime enforcement); inputs → required params typed via the L3 field mappings; one tool per leaf task (tasks with `decomposes_to` become orchestration, not tools).
 
 ### 2. Knowledge graph
 - **RDF**: emit Turtle (below). Node = L1 class instance, edge = relation, `rdf:type` chains to L0 IRIs.
