@@ -63,6 +63,7 @@ def start(repo: Path, includes: list[str], out: Path, name: str, goal: str,
     repo = local_root(repo)
     out = out.absolute()
     require(not out.exists() and not out.is_symlink(), "session output already exists; resume with status/attempt")
+    require(not any(p.is_symlink() for p in (out.parent, *out.parent.parents)), "session parent is a symlink")
     out.parent.mkdir(parents=True, exist_ok=True)
     local_root(out.parent)
     with tempfile.TemporaryDirectory(prefix=".onboard-", dir=out.parent) as temporary:
@@ -265,7 +266,8 @@ def handoff(session: Path, task: str, out: Path) -> dict:
     refs.update(c["source"] for c in [activity, *bindings, *classes, *relations])
     evidence = [e for e in model["evidence"] if e["id"] in refs]
     context = {"schema_version": 1, "root_goal_id": model["root_goal_id"], "candidate_bundle_id": manifest["bundle_id"],
-               "goal": model["goal"], "task": activity, "input_schema": model["inputs"][task],
+               "goal": model["goal"], "authored_scope": model.get("authored_scope", ""),
+                "source_files": model["source_files"], "task": activity, "input_schema": model["inputs"][task],
                "classes": classes, "relations": relations, "bindings": bindings, "evidence": evidence, **items,
                "scope": "Task-focused view; not proof of complete dependencies. All selected source files accompany it.",
                "semantic_review": "PENDING", "execution_authorized": False, "agent_benchmark": "NOT_RUN"}
@@ -276,7 +278,7 @@ def handoff(session: Path, task: str, out: Path) -> dict:
         "Do not assume earlier chat history. Establish that each relevant interpretation is supported.\n"
         "Use implementation bindings to locate the code. Distinguish observed implementation from intended requirements.\n"
         "Preserve explicit unknowns/conflicts and unsupported checks; never invent a missing rule.\n"
-        "The source boundary and goal remain fixed. Ask before using additional files or executing code.\n"
+        "The authored scope is in context.json. Respect its exclusions. The source boundary and goal remain fixed. Ask before using additional files or executing code.\n"
         "The operator must provide the separate development task and approve any execution in an isolated checkout.\n"
         "Keep test answers and evaluation criteria outside the author's workspace. Do not modify the evaluator.\n"
         "No model run, semantic approval, benchmark success, or production authorization is recorded by this export.\n"
