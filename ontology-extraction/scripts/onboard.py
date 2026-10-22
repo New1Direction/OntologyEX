@@ -14,13 +14,14 @@ import tempfile
 
 import domain_skill as ds
 import scaffold
+import provenance
 from policy_check import (DomainError, MAX_TOTAL, canonical, digest, keys,
                           parse_json, require, safe_file, verify_bundle)
 
 VERSION = "0.3.0"
 MAX_ATTEMPTS = 3
-AUTHOR_FILES = ("00-scope.md", *ds.LAYERS, "50-mappings.yaml", "60-contract.json", "README.md")
-TOOLS = ("onboard.py", "evidence.py", "domain_skill.py", "policy_check.py", "scaffold.py")
+AUTHOR_FILES = ("00-scope.md", *ds.LAYERS, "50-mappings.yaml", "60-contract.json", provenance.SIDECAR, "README.md")
+TOOLS = ("onboard.py", "evidence.py", "domain_skill.py", "policy_check.py", "scaffold.py", "provenance.py")
 TERMINAL = {"CANDIDATE_READY_FOR_REVIEW", "BUDGET_EXHAUSTED", "STOPPED_SOURCE_DRIFT", "STOPPED_IDENTITY_CHANGED"}
 RESULT_STATES = TERMINAL | {"REPAIR_REQUIRED", "INTERRUPTED"}
 META_KEYS = {"schema_version", "session_id", "identity", "repo", "source_manifest_sha256",
@@ -82,7 +83,7 @@ def start(repo: Path, includes: list[str], out: Path, name: str, goal: str,
             "# Onboarding session\n\nStatus: AWAITING_AUTHORING. No extraction has run.\n\n"
             "Read your installed ontology-extraction SKILL.md and references/guided-onboarding.md.\n"
             "Author only workspace/00-scope.md, the four layers, optional mappings,\n"
-            "60-contract.json, and README.md. The goal and root_goal_id are fixed.\n"
+            "60-contract.json, optional 70-provenance.json, and README.md. The goal and root_goal_id are fixed.\n"
             "Use evidence.py add to copy evidence spans; do not type hashes or quotations.\n"
             "Source snapshots, sources.json, session.json, and attempts/ are not authoring files.\n"
             "Run onboard.py attempt on this session, not an untracked build/retry loop.\n"
@@ -208,7 +209,7 @@ def attempt(session: Path) -> dict:
             files.update({f"sources/{p}": b for p, b in sources.items()})
             for path in AUTHOR_FILES:
                 if (workspace / path).exists() or (workspace / path).is_symlink():
-                    files[path] = safe_file(workspace, path, MAX_TOTAL if path == "60-contract.json" else ds.MAX_FILE)
+                    files[path] = safe_file(workspace, path, MAX_TOTAL if path in ("60-contract.json", provenance.SIDECAR) else ds.MAX_FILE)
             ds.write_files(target / "input", files)
             hashes = {p: digest(b) for p, b in sorted(files.items())}
             stage = "identity"
@@ -269,6 +270,7 @@ def handoff(session: Path, task: str, out: Path) -> dict:
                "goal": model["goal"], "authored_scope": model.get("authored_scope", ""),
                 "source_files": model["source_files"], "task": activity, "input_schema": model["inputs"][task],
                "classes": classes, "relations": relations, "bindings": bindings, "evidence": evidence, **items,
+               "provenance": provenance.task_view(model["provenance"], task, refs),
                "scope": "Task-focused view; not proof of complete dependencies. All selected source files accompany it.",
                "semantic_review": "PENDING", "execution_authorized": False, "agent_benchmark": "NOT_RUN"}
     files = {"context.json": canonical(context), "HANDOFF.md": (
@@ -278,6 +280,7 @@ def handoff(session: Path, task: str, out: Path) -> dict:
         "Do not assume earlier chat history. Establish that each relevant interpretation is supported.\n"
         "Use implementation bindings to locate the code. Distinguish observed implementation from intended requirements.\n"
         "Preserve explicit unknowns/conflicts and unsupported checks; never invent a missing rule.\n"
+        "Inspect provenance in context.json. Repeated paths are not votes. Declared origins are not verified independence.\n"
         "The authored scope is in context.json. Respect its exclusions. The source boundary and goal remain fixed. Ask before using additional files or executing code.\n"
         "The operator must provide the separate development task and approve any execution in an isolated checkout.\n"
         "Keep test answers and evaluation criteria outside the author's workspace. Do not modify the evaluator.\n"
