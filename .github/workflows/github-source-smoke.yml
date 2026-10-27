@@ -44,6 +44,12 @@ jobs:
           assert x['runtime_health']=='UNKNOWN'
           assert x['execution_authorized'] is False
           assert all(e['git_blob_sha'] for e in x['source_evidence'])
+          assert x['ci_source_status']=='GITHUB_ACTIONS_RESPONSE_RECEIVED'
+          assert x['ci_evidence'] and all(
+              c['head_sha']==x['source']['commit_sha'] and
+              c['scope']=='CI_ONLY_NOT_PRODUCTION_HEALTH'
+              for c in x['ci_evidence'])
+          print('CI evidence for pinned commit:',len(x['ci_evidence']),'workflow runs')
           print('repo.ing source discovery validated:',
                 len(x['nodes']), 'nodes,',len(x['edges']), 'edges,',
                 x['coverage']['candidate_manifests'],'manifests; production health UNKNOWN')
