@@ -44,6 +44,11 @@ can be sensitive even without secrets or raw code.
   are compared against its Git blob SHA-1 plus a SHA-256 source fingerprint.
 - Source-dependent edges are declarations only. A Compose depends_on edge
   does not prove a live network call, deployed relationship, or downstream outage.
+- Separately requested GitHub Actions results are matched to the same pinned
+  HEAD commit and existing workflow manifest nodes. An eligible CI run carries
+  its job conclusion, update time and run ID in a CI-only evidence field.
+  **CI success never changes a service's production health to healthy.**
+  GitHub Actions read denial remains a visible CI_STATUS_UNAVAILABLE gap.
 - The inventory explicitly states what was not assessed, including database
   schema internals, cloud deployments, actual runtime health, users and money flows.
 - A failed refresh after an earlier success keeps the last graph with a
@@ -56,10 +61,11 @@ consent. The local env-token prototype alone does not provide tenant isolation.
 
 ## Continuous updates without filling a laptop
 
-The local server checks GitHub at a bounded interval (default five minutes,
-range 60-3600 seconds), not every browser poll. The UI reuses the last
-source-pinned graph; the backend caches it in memory and fetches refreshed
-revisions only when needed. The active process must remain running.
+The local server uses an independent polling thread at a bounded interval
+(default five minutes, range 60-3600 seconds), not every browser poll. The
+UI reads the last pinned graph held in backend memory. The worker keeps
+fetching revisions while the browser is closed, provided the backend process
+remains running. There is no durable queue yet; a restart loses the cache.
 
 **True unattended cloud monitoring is NOT shipped.** Its next phase needs
 hosted workers, a durable event queue, GitHub webhooks and reconciliation
@@ -86,8 +92,9 @@ while the user's browser and laptop are switched off.
 
 All nodes remain UNKNOWN unless separately configured, fresh telemetry
 observations exist. GitHub repository access alone **never** marks a service
-healthy or failed. A report from GitHub Actions could establish CI-run status,
-but it would not establish production database or API health.
+healthy or failed. GitHub Actions run results are displayed as a separately
+labeled **CI-only** signal when available. A successful CI run does not
+establish production database or API health.
 
 Use existing control_room.py --observations for a local sample, but treat
 these source-reported rows as unauthenticated. A future observability connector
