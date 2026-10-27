@@ -161,12 +161,28 @@ class ControlRoomTests(unittest.TestCase):
         with self.assertRaises(room.RoomError):
             room.read_observations(link)
 
+    def test_percentage_metric_rejects_over_100(self):
+        file = self.root / "bad.jsonl"
+        file.write_text(json.dumps(self.record(metrics={"error_rate_pct": 101})))
+        with self.assertRaises(room.RoomError):
+            room.read_observations(file)
+
+    def test_huge_integer_is_refused_without_overflow(self):
+        file = self.root / "bad.jsonl"
+        file.write_text(json.dumps(self.record(metrics={"queue_lag_seconds": 10**300})))
+        with self.assertRaises(room.RoomError):
+            room.read_observations(file)
+
     def test_threshold_file_allowlist(self):
         file = self.root / "thresholds.json"
         file.write_text(json.dumps({"schema_version": 1,
                                    "warning_above": {"db_pool_utilization_pct": 80}}))
         self.assertEqual(room.read_thresholds(file), {"db_pool_utilization_pct": 80})
         file.write_text(json.dumps({"schema_version": 1, "warning_above": {"password": 1}}))
+        with self.assertRaises(room.RoomError):
+            room.read_thresholds(file)
+        file.write_text(json.dumps({"schema_version": 1,
+                                   "warning_above": {"db_pool_utilization_pct": 120}}))
         with self.assertRaises(room.RoomError):
             room.read_thresholds(file)
 
