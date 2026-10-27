@@ -21,8 +21,10 @@ source execution, build commands, local indexer or large customer file transfer.
 
 For selected private repositories, provide a fine-grained *read-only* GitHub
 token as the **ONTOLOGYEX_GITHUB_TOKEN** environment variable on the server
-(repository Contents: read). Do not paste tokens into URL parameters, browser
-forms, logs or files. GitHub Actions CI reads are not yet requested.
+(repository Contents: read; optionally Actions: read for CI results).
+Do not paste tokens into URL parameters, browser forms, logs or files.
+Denied Actions access produces an explicit unknown CI-status gap and never
+blocks the source-backed graph.
 
     ONTOLOGYEX_GITHUB_TOKEN=... python ontology-extraction/scripts/control_room.py \
       --github your-org/your-repository --github-refresh-seconds 300
