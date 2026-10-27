@@ -69,6 +69,9 @@ def serialize(graph: dict) -> str:
                                   "CROSS_SCOPE_DECLARATION_VIEW") and
             graph.get("execution_authorized") is False,
             "not an unapproved OntologyEX graph")
+    unresolved = graph.get("unresolved")
+    require(type(unresolved) is list and not unresolved,
+            "unresolved graph references: inspect graph_view JSON before RDF export")
     nodes = graph.get("nodes")
     edges = graph.get("edges")
     require(type(nodes) is list and type(edges) is list and
