@@ -48,6 +48,17 @@ class GitHubFixture:
         self.maps[base + "/git/commits/" + self.commit] = {"tree": {"sha": self.tree_sha}}
         self.maps[base + "/git/trees/" + self.tree_sha + "?recursive=1"] = {
             "sha": self.tree_sha, "truncated": False, "tree": self.tree}
+        self.maps[base + "/actions/runs?head_sha=" + self.commit + "&per_page=100"] = {
+            "workflow_runs": [{
+                "id": 112233, "path": ".github/workflows/test.yml",
+                "head_sha": self.commit, "status": "completed",
+                "conclusion": "success", "updated_at": "2026-10-27T18:00:00Z",
+            }, {
+                "id": 112232, "path": ".github/workflows/test.yml",
+                "head_sha": "f" * 40, "status": "completed",
+                "conclusion": "failure", "updated_at": "2026-10-27T19:00:00Z",
+            }]
+        }
         self.requested = []
 
     def fetch(self, path):
@@ -71,6 +82,12 @@ class GitHubDiscoveryTests(unittest.TestCase):
         self.assertEqual(topology["coverage"]["github_file_blobs_pinned"], 3)
         self.assertEqual(topology["coverage"]["candidate_manifests"], 3)
         self.assertEqual(topology["coverage"]["files_with_evidence"], 3)
+        self.assertEqual(topology["ci_source_status"], "GITHUB_ACTIONS_RESPONSE_RECEIVED")
+        self.assertEqual(len(topology["ci_evidence"]), 1)
+        self.assertEqual(topology["ci_evidence"][0]["conclusion"], "success")
+        self.assertEqual(topology["ci_evidence"][0]["head_sha"], self.fixture.commit)
+        self.assertEqual(topology["ci_evidence"][0]["scope"],
+                         "CI_ONLY_NOT_PRODUCTION_HEALTH")
         self.assertEqual(topology["coverage"]["github_tree_entries_seen"], 5)
         self.assertEqual(topology["coverage"]["not_assessed"][-1], "production_runtime")
         ids = [n["id"] for n in topology["nodes"]]
@@ -149,6 +166,25 @@ class GitHubDiscoveryTests(unittest.TestCase):
             self.assertEqual(e["origin"], "GITHUB_COMMIT_PINNED_BLOB")
             self.assertEqual(len(e["sha256"]), 64)
             self.assertEqual(len(e["git_blob_sha"]), 40)
+
+    def test_ci_endpoint_denied_keeps_topology_unknown(self):
+        key = f"/repos/{self.fixture.repo}/actions/runs?head_sha={self.fixture.commit}&per_page=100"
+        del self.fixture.maps[key]
+        # Represent a denied CI permission without pretending production is down.
+        original_fetch = self.fixture.fetch
+
+        def denied(path):
+            if "/actions/runs?" in path:
+                raise gh.GitHubDiscoveryError("GitHub HTTP 403; access or quota issue")
+            return original_fetch(path)
+
+        self.fixture.fetch = denied
+        result = self.scan()
+        self.assertEqual(result["ci_source_status"], "UNAVAILABLE")
+        self.assertEqual(result["ci_evidence"], [])
+        self.assertEqual(result["gaps"][-1]["reason"], "CI_STATUS_UNAVAILABLE")
+        state = control_room.build_state(result, [], {})
+        self.assertTrue(all(n["status"] == "unknown" for n in state["nodes"]))
 
     def test_tree_truncation_refused(self):
         key = f"/repos/{self.fixture.repo}/git/trees/{self.fixture.tree_sha}?recursive=1"
