@@ -87,6 +87,35 @@ class GitHubDiscoveryTests(unittest.TestCase):
         self.assertTrue(all(x["status"] == "unknown" for x in state["nodes"]))
         self.assertEqual(state["runtime_discovery"], "NOT_IMPLEMENTED")
 
+    def test_remote_inventory_refresh_is_atomic_and_failure_is_visible(self):
+        first = gh.discover_github(self.fixture.repo, self.fixture)
+        calls = [first, gh.GitHubDiscoveryError("simulated source outage"), first]
+
+        def scan():
+            result = calls.pop(0)
+            if isinstance(result, Exception):
+                raise result
+            return result
+
+        inventory = control_room.RemoteInventory(scan)
+        with self.assertRaises(control_room.RoomError):
+            inventory.snapshot()
+        self.assertTrue(inventory.refresh())
+        good, timestamp, failed = inventory.snapshot()
+        self.assertIs(good, first)
+        self.assertFalse(failed)
+        self.assertIsNotNone(timestamp)
+        self.assertFalse(inventory.refresh())
+        stale, old_time, failed = inventory.snapshot()
+        self.assertIs(stale, first)
+        self.assertEqual(timestamp, old_time)
+        self.assertTrue(failed)
+        self.assertTrue(inventory.refresh())
+        new, latest_time, failed = inventory.snapshot()
+        self.assertIs(new, first)
+        self.assertFalse(failed)
+        self.assertGreaterEqual(latest_time, old_time)
+
     def test_repeated_commits_yield_deterministic_graph(self):
         a = self.scan()
         b = self.scan()
