@@ -5,7 +5,7 @@ All evidence is author-declared, not independently authenticated by this tool.
 Offline/read-only, standard library only. Never executes workflows or permissions.
 """
 import argparse
-import html
+import os
 import json
 import re
 from pathlib import Path
@@ -73,11 +73,11 @@ def validate(p):
                 check(type(steps) is list and 1<=len(steps)<=20,'journey steps 1..20 required')
                 for step in steps: objects.append((f'journeys.{item["id"]}.step',step))
             objects.append((field,item))
-    seen=set(); all_ids=set()
+    seen=set()
     for field,item in objects:
         uid=f'{field}:{item["id"]}'
         check(uid not in seen,f'duplicate {uid}')
-        seen.add(uid);all_ids.add(uid)
+        seen.add(uid)
         evs=item.get('evidence',[])
         check(type(evs) is list and len(evs)<=16,'invalid evidence refs')
         kind=item.get('basis','operator_declared')
@@ -120,13 +120,16 @@ def compile_blueprints(projects, inventory=None):
     for p in checked:
         base={**p,'summary':summarize(p)}
         base['evidence']=[{**ev,'url':evidence_url(ev)} for ev in p['evidence']]
+        scoped_nodes = {n['id'] for n in (inventory or {}).get('nodes',[])
+                        if n.get('project') == p['id'] and type(n.get('id')) is str}
         base['inventory']={
           'available':p['id'] in inventory_projects,
-          'node_count':sum(n.get('project')==p['id'] for n in (inventory or {}).get('nodes',[])),
-          'links_count':sum((n.get('project')==p['id']) for n in (inventory or {}).get('nodes',[])),
+          'node_count':len(scoped_nodes),
+          'links_count':sum(1 for edge in (inventory or {}).get('edges',[])
+                             if edge.get('source') in scoped_nodes or edge.get('target') in scoped_nodes),
         }
         output.append(base)
-    return {'schema_version':1,'kind':'BUSINESS_XRAY_DECLARED_BLUEPRINT','trust':'REVIEWED_SOURCES_NOT_LIVE_OPERATIONS',
+    return {'schema_version':1,'kind':'BUSINESS_XRAY_DECLARED_BLUEPRINT','trust':'AUTHOR_DECLARED_SOURCE_LINKS_NOT_INDEPENDENTLY_VERIFIED',
             'execution_authorized':False,'generated_for':'LOCAL_INSPECTION',
             'projects':output,'totals':{
                 'projects':len(output),
@@ -154,12 +157,26 @@ def main():
     projects=[read(f) for f in args.blueprints]
     inv=read(args.inventory) if args.inventory else None
     result=compile_blueprints(projects,inv)
-    output=Path(args.out)
-    check(not output.exists(),'refuse overwrite of existing output')
-    output.write_text(render_html(result,args.template),encoding='utf-8')
+    outputs = [(Path(args.out), render_html(result,args.template))]
     if args.json_out:
-        jo=Path(args.json_out);check(not jo.exists(),'refuse JSON overwrite')
-        jo.write_text(json.dumps(result,indent=2,ensure_ascii=False)+'\n',encoding='utf-8')
+        outputs.append((Path(args.json_out), json.dumps(result,indent=2,ensure_ascii=False)+'\n'))
+    resolved = [path.absolute() for path, _ in outputs]
+    check(len(set(resolved)) == len(resolved), 'HTML and JSON output paths must differ')
+    for path, _ in outputs:
+        check(not path.exists() and not path.is_symlink(), f'refuse overwrite of existing output: {path}')
+        check(path.parent.is_dir() and not path.parent.is_symlink(), f'output directory unavailable or symlinked: {path.parent}')
+    written = []
+    try:
+        for path, contents in outputs:
+            flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_NOFOLLOW', 0)
+            fd = os.open(path, flags, 0o600)
+            written.append(path)
+            with os.fdopen(fd, 'w', encoding='utf-8') as writer:
+                writer.write(contents)
+    except BaseException:
+        for path in written:
+            path.unlink(missing_ok=True)
+        raise
     print(json.dumps(result['totals'],sort_keys=True))
 
 if __name__=='__main__':
