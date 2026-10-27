@@ -269,6 +269,138 @@ def read_github_ci(client, api: str, topology: dict) -> list[dict]:
     return [results[key] for key in sorted(results)]
 
 
+# Source recognition only; neither JavaScript nor SQL is executed.
+# A pgTable match is a *candidate declaration*, NOT a verified database table.
+PG_TABLE = re.compile(
+    r"""(?m)^[ \t]*(?:export[ \t]+)?(?:const|let)[ \t]+[A-Za-z_$][\w$]*[ \t]*=[ \t]*pgTable[ \t]*\([ \t]*(['"])([a-z][a-z0-9_]{0,79})\1"""
+)
+MAX_API_ROUTE_PATHS = 256
+MAX_SCHEMA_TABLE_CANDIDATES = 256
+
+
+def enriched_code_surfaces(client, api: str, mapped: dict,
+                           entries: list[dict], commit: str, repo_id: int):
+    """Extend the graph from a pinned Git tree, retaining evidence boundaries."""
+    root = mapped["project"]
+    node_ids = {n["id"] for n in mapped["nodes"]}
+    evidence_ids = {e["id"] for e in mapped["source_evidence"]}
+    selected_routes = []
+    schema = None
+    for entry in entries:
+        if entry.get("type") != "blob" or entry.get("mode") != "100644":
+            continue
+        path = entry.get("path")
+        if not isinstance(path, str) or not path.startswith("app/api/"):
+            if path == "src/db/schema.mjs":
+                schema = entry
+            continue
+        if (path.rsplit("/", 1)[-1] in ("route.js", "route.ts", "route.mjs",
+                                        "route.jsx", "route.tsx") and
+                eligible_tree_path(path) is False and
+                len(path) <= 512 and
+                all(part not in ("", ".", "..") for part in path.split("/")) and
+                "\\" not in path and "\x00" not in path):
+            selected_routes.append(entry)
+    require(len(selected_routes) <= MAX_API_ROUTE_PATHS,
+            "too many route paths for bounded graph; scope repository")
+    selected_routes.sort(key=lambda entry: entry["path"])
+
+    def link_node(path, kind, label, source_kind, fingerprint, blob_sha,
+                  authenticity, origin, *, source_line=None):
+        node_id = f"discovery:{kind}:gh{repo_id}/{quote(path, safe='/-._~')}"
+        if kind == "declared_db_table":
+            node_id += ":" + quote(label, safe="-._~")
+        require(node_id not in node_ids and len(node_id) <= 1024,
+                "duplicate/oversized discovered node identity")
+        sha = oid(blob_sha)
+        require(len(sha) == 40, "unsupported non-SHA1 Git object")
+        evidence_id = hashlib.sha256(
+            (str(repo_id) + "\0" + commit + "\0" + path + "\0" +
+             fingerprint + "\0" + kind).encode("utf-8")).hexdigest()
+        require(evidence_id not in evidence_ids, "evidence identity collision")
+        evidence_ids.add(evidence_id)
+        node_ids.add(node_id)
+        evidence = {
+            "id": evidence_id, "path": path, "sha256": fingerprint,
+            "source_kind": source_kind, "authenticity": authenticity,
+            "origin": origin, "repository_id": repo_id,
+            "commit_sha": commit, "git_blob_sha": sha,
+        }
+        mapped["source_evidence"].append(evidence)
+        node = {"id": node_id, "kind": kind, "label": label,
+                "state": ("SOURCE_SYNTAX_CANDIDATE" if kind == "declared_db_table"
+                          else "DECLARED_ONLY"), "evidence_id": evidence_id}
+        if source_line is not None:
+            node["source_line"] = source_line
+        mapped["nodes"].append(node)
+        mapped["edges"].append({
+            "source": root, "target": node_id, "relation": "DECLARES",
+            "evidence_id": evidence_id,
+            "state": ("SOURCE_SYNTAX_CANDIDATE" if kind == "declared_db_table"
+                      else "GITHUB_TREE_DECLARATION"),
+        })
+
+    for entry in selected_routes:
+        sha = oid(entry.get("sha"))
+        require(len(sha) == 40, "unsupported route Git blob identity")
+        path = entry["path"]
+        # sha256 here fingerprints tree *metadata*, NOT unread source bytes.
+        fingerprint = hashlib.sha256(
+            (commit + "\0" + path + "\0" + sha).encode("utf-8")).hexdigest()
+        display = "/" + path[len("app/"):].rsplit("/", 1)[0]
+        link_node(path, "api_route", display,
+                  "GITHUB_TREE_ENTRY_METADATA", fingerprint, sha,
+                  "TREE_PATH_ONLY_SOURCE_BYTES_NOT_READ",
+                  "GITHUB_REPOSITORY_TREE_ENTRY")
+
+    tables = []
+    if schema is not None:
+        path = "src/db/schema.mjs"
+        size = schema.get("size")
+        if type(size) is int and 0 <= size <= MAX_FILE_BYTES:
+            try:
+                raw = read_blob(client, api, oid(schema.get("sha")), size)
+                text = raw.decode("utf-8")
+                for match in PG_TABLE.finditer(text):
+                    name = match.group(2)
+                    line = text.count("\n", 0, match.start()) + 1
+                    tables.append((name, line))
+                require(len(tables) <= MAX_SCHEMA_TABLE_CANDIDATES,
+                        "too many table candidates for bounded graph")
+                seen = set()
+                for name, line in tables:
+                    require(name not in seen, "duplicate pgTable candidate")
+                    seen.add(name)
+                    link_node(path, "declared_db_table", name,
+                              "CODE_SYNTAX_EXTRACTED", hashlib.sha256(raw).hexdigest(),
+                              schema["sha"], "GIT_BLOB_VERIFIED_SYNTAX_UNREVIEWED",
+                              "GITHUB_COMMIT_PINNED_BLOB", source_line=line)
+            except (GitHubDiscoveryError, UnicodeError, ValueError, TypeError) as exc:
+                # Do not output a partial or misleading table inventory.
+                mapped["gaps"].append({"source": path,
+                                       "reason": "SCHEMA_SYMBOL_SCAN_UNAVAILABLE"})
+                for node in list(mapped["nodes"]):
+                    if node.get("kind") == "declared_db_table" and
+                       node.get("id", "").startswith(f"discovery:declared_db_table:gh{repo_id}/"):
+                        mapped["nodes"].remove(node)
+                        mapped["edges"] = [e for e in mapped["edges"] if e["target"] != node["id"]]
+                        mapped["source_evidence"] = [
+                            e for e in mapped["source_evidence"]
+                            if e["id"] != node["evidence_id"]]
+                tables = []
+        else:
+            mapped["gaps"].append({
+                "source": path, "reason": "SCHEMA_FILE_EXCEEDS_SOURCE_BUDGET"})
+    mapped["nodes"].sort(key=lambda n: n["id"])
+    mapped["edges"].sort(key=lambda e: (e["source"], e["target"], e["relation"]))
+    mapped["source_evidence"].sort(key=lambda e: e["id"])
+    mapped["coverage"]["api_route_paths_found"] = len(selected_routes)
+    mapped["coverage"]["db_schema_candidates_found"] = len(tables)
+    mapped["coverage"]["api_route_source_files_read"] = 0
+    mapped["coverage"]["schema_source_files_read"] = 1 if schema is not None and tables else 0
+    mapped["coverage"]["metadata_only_route_entries"] = len(selected_routes)
+
+
 def discover_github(repository: str, client: GitHubClient) -> dict:
     owner, repo = parse_repository(repository)
     full_name = owner + "/" + repo
@@ -334,6 +466,7 @@ def discover_github(repository: str, client: GitHubClient) -> dict:
         mapped["gaps"].append({
             "source": "github_actions", "reason": "CI_STATUS_UNAVAILABLE"
         })
+    enriched_code_surfaces(client, api, mapped, entries, commit, repo_id)
     # Non-selected huge manifests and absent provider scopes remain unknown.
     mapped["coverage"]["excluded_large_or_unreadable_manifest_count"] = sum(
         item.get("type") == "blob" and eligible_tree_path(item.get("path")) and
