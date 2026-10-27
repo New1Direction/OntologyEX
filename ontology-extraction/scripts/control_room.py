@@ -19,6 +19,7 @@ import re
 import stat
 
 import discover_repo
+import github_discovery
 
 MAX_OBSERVATION_BYTES = 1024 * 1024
 MAX_OBSERVATIONS = 4096
@@ -307,7 +308,7 @@ cursor:pointer;padding:9px 14px;font:inherit}button:hover{background:#244956}
 @media(max-width:850px){main{grid-template-columns:1fr}aside{max-height:none}#map{max-height:70vh}}
 </style></head>
 <body><header><div><small>ONTOLOGYEX // LOCAL OBSERVABILITY</small>
-<h1>BUSINESS CONTROL ROOM</h1></div><div><div id="mode" class="muted">Connecting to local source...</div><small id="updated"></small></div></header>
+<h1>BUSINESS CONTROL ROOM</h1></div><div><button id="map-business" type="button">Map My Business</button><div id="mode" class="muted">Connecting to local source...</div><small id="updated"></small></div></header>
 <main><section id="map" aria-label="Declared component topology"><svg id="svg" role="img" aria-label="Interactive dependency diagram"></svg></section>
 <aside><section><h2>System integrity</h2><div id="counts"></div></section>
 <section><h2>Selected component</h2><div id="details">Select a node to inspect its source and status.</div></section>
@@ -392,14 +393,27 @@ async function refresh(){
  const s=await res.json();draw(s)}catch(err){text("mode","DATA UNAVAILABLE · LAST VIEW IS STALE");
  text("updated","Latest fetch failed");}
 }
-refresh();setInterval(refresh,5000);
+let mapStarted=false;
+document.getElementById("map-business").addEventListener("click",()=>{
+ mapStarted=true;refresh();
+});
+setInterval(()=>{if(mapStarted)refresh()},5000);
 </script></body></html>"""
 
 
-def serve(repo: Path, observations: Path | None, thresholds: Path | None,
-          port: int) -> None:
+def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
+          port: int, github: str | None = None, github_refresh_seconds: int = 300,
+          github_client=None) -> None:
     check(0 <= port <= 65535, "invalid port")
     rules = read_thresholds(thresholds)
+    check(60 <= github_refresh_seconds <= 3600, "invalid GitHub refresh interval")
+    check((repo is None) != (github is None), "configure exactly one source")
+    if github:
+        github_discovery.parse_repository(github)
+        client = github_client or github_discovery.GitHubClient(
+            token=os.environ.get("ONTOLOGYEX_GITHUB_TOKEN"))
+    else:
+        client = None
     # Discovery is read-only and can change while serving. Limit update cadence.
     state_cache: dict = {}
     cache_lock = RLock()
@@ -408,12 +422,29 @@ def serve(repo: Path, observations: Path | None, thresholds: Path | None,
         current = datetime.now(timezone.utc)
         with cache_lock:
             key = state_cache.get("time")
-            if key is None or (current - key).total_seconds() > 15:
-                topology = discover_repo.discover(repo)
-                state_cache["topology"] = topology
-                state_cache["time"] = current
+            interval = github_refresh_seconds if github else 15
+            if key is None or (current - key).total_seconds() > interval:
+                try:
+                    topology = (github_discovery.discover_github(github, client)
+                                if github else discover_repo.discover(repo))
+                except (github_discovery.GitHubDiscoveryError, OSError,
+                        discover_repo.DiscoveryError):
+                    if "topology" not in state_cache:
+                        raise
+                    state_cache["refresh_error"] = True
+                else:
+                    state_cache["topology"] = topology
+                    state_cache["time"] = current
+                    state_cache["refresh_error"] = False
             topology = state_cache["topology"]
-        return build_state(topology, read_observations(observations), rules, current)
+            refresh_error = state_cache.get("refresh_error", False)
+        result = build_state(topology, read_observations(observations), rules, current)
+        result["discovery_source"] = topology.get("source", {"provider": "local"})
+        result["discovery_freshness"] = (
+            "STALE_LAST_KNOWN" if refresh_error else "AS_OF_LATEST_SUCCESSFUL_SCAN")
+        if refresh_error:
+            result["gaps"].append({"source": "github", "reason": "GITHUB_REFRESH_UNAVAILABLE"})
+        return result
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -431,7 +462,8 @@ def serve(repo: Path, observations: Path | None, thresholds: Path | None,
                 try:
                     value = snapshot()
                     payload, code = json.dumps(value, sort_keys=True).encode(), 200
-                except (RoomError, discover_repo.DiscoveryError, OSError, ValueError) as exc:
+                except (RoomError, discover_repo.DiscoveryError, github_discovery.GitHubDiscoveryError,
+                        OSError, ValueError) as exc:
                     payload = json.dumps({"status": "ERROR", "reason": type(exc).__name__}).encode()
                     code = 503
                 mime = "application/json; charset=utf-8"
@@ -463,23 +495,36 @@ def serve(repo: Path, observations: Path | None, thresholds: Path | None,
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", type=Path, required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--repo", type=Path, help="existing local repository")
+    source.add_argument("--github", help="GitHub owner/name; optional token via env")
+    parser.add_argument("--github-refresh-seconds", type=int, default=300)
     parser.add_argument("--observations", type=Path, default=None)
     parser.add_argument("--thresholds", type=Path, default=None)
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--state-only", action="store_true")
     args = parser.parse_args()
     try:
-        check(args.repo.is_dir() and not args.repo.is_symlink(), "invalid repository root")
+        if args.repo is not None:
+            check(args.repo.is_dir() and not args.repo.is_symlink(),
+                  "invalid repository root")
+        if args.github is not None:
+            github_discovery.parse_repository(args.github)
         if args.state_only:
-            result = build_state(discover_repo.discover(args.repo),
-                                 read_observations(args.observations),
+            topology = (github_discovery.discover_github(
+                args.github, github_discovery.GitHubClient(
+                    token=os.environ.get("ONTOLOGYEX_GITHUB_TOKEN")))
+                        if args.github else discover_repo.discover(args.repo))
+            result = build_state(topology, read_observations(args.observations),
                                  read_thresholds(args.thresholds))
+            result["discovery_source"] = topology.get("source", {"provider": "local"})
             print(json.dumps(result, sort_keys=True, separators=(",", ":")))
         else:
-            serve(args.repo, args.observations, args.thresholds, args.port)
+            serve(args.repo, args.observations, args.thresholds, args.port,
+                  github=args.github, github_refresh_seconds=args.github_refresh_seconds)
         return 0
-    except (OSError, RoomError, discover_repo.DiscoveryError, ValueError, TypeError,
+    except (OSError, RoomError, discover_repo.DiscoveryError,
+            github_discovery.GitHubDiscoveryError, ValueError, TypeError,
             RecursionError) as exc:
         print(json.dumps({"status": "ERROR", "reason": str(exc)}))
         return 1
