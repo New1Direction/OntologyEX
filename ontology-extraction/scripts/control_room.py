@@ -11,6 +11,7 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import RLock
 import json
 import math
 import re
@@ -71,6 +72,18 @@ def timestamp(value: str) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
+def valid_local_host(host: str, origin: str | None, port: int) -> bool:
+    """Refuse non-loopback Host/Origin headers, including DNS rebinding hosts."""
+    if type(host) is not str or port < 1 or port > 65535:
+        return False
+    allowed = {f"127.0.0.1:{port}", f"localhost:{port}"}
+    if host.lower() not in allowed:
+        return False
+    if origin is not None and origin.lower() not in {f"http://{entry}" for entry in allowed}:
+        return False
+    return True
+
+
 def read_observations(path: Path | None) -> list[dict]:
     if path is None:
         return []
@@ -87,7 +100,9 @@ def read_observations(path: Path | None) -> list[dict]:
         check(type(row["schema_version"]) is int and row["schema_version"] == 1, "unknown observation schema")
         check(type(row["component_id"]) is str and IDENT_RE.fullmatch(row["component_id"]) is not None,
               "invalid component ID")
-        check(row["status"] in STATUS and row["source"] in SOURCES, "invalid status/source")
+        check(type(row["status"]) is str and row["status"] in STATUS and
+              type(row["source"]) is str and row["source"] in SOURCES,
+              "invalid status/source")
         check(type(row["expires_after_seconds"]) is int and
               1 <= row["expires_after_seconds"] <= MAX_AGE, "invalid freshness TTL")
         metrics = row["metrics"]
@@ -139,12 +154,20 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
             gaps.append({"source": component_id, "reason": "FUTURE_OBSERVATION_IGNORED"})
             continue
         grouped[component_id].append(record)
-    for records in grouped.values():
-        records.sort(key=lambda r: r["observed_at"])
+    conflicts = set()
+    for component_id, records in grouped.items():
+        # Never let JSONL line order decide health when two sources disagree
+        # about a component at the exact same timestamp.
+        records.sort(key=lambda r: (r["observed_at"], r["source"], r["status"]))
+        newest_time = records[-1]["observed_at"]
+        newest = [r for r in records if r["observed_at"] == newest_time]
+        if len({json.dumps(r, sort_keys=True) for r in newest}) > 1:
+            conflicts.add(component_id)
+            gaps.append({"source": component_id,
+                         "reason": "CONFLICTING_SAME_TIMESTAMP_OBSERVATIONS"})
 
     nodes = []
     failed = set()
-    warnings = set()
     for node in graph_nodes:
         values = grouped.get(node["id"], [])
         latest = values[-1] if values else None
@@ -152,7 +175,9 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
         leading = []
         if latest is not None:
             age = (now - timestamp(latest["observed_at"])).total_seconds()
-            if age > latest["expires_after_seconds"]:
+            if node["id"] in conflicts:
+                state = "unknown"
+            elif age > latest["expires_after_seconds"]:
                 state = "stale"
             else:
                 state = latest["status"]
@@ -174,12 +199,11 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
                     state = "warning"
         if state == "error":
             failed.add(node["id"])
-        elif state == "warning":
-            warnings.add(node["id"])
-        nodes.append({
+         nodes.append({
             "id": node["id"], "kind": node["kind"], "label": node["label"],
             "status": state,
-            "source_status": latest["status"] if latest else None,
+            "source_status": ("conflict" if node["id"] in conflicts else
+                              latest["status"] if latest else None),
             "observed_at": latest["observed_at"] if latest else None,
             "expires_after_seconds": latest["expires_after_seconds"] if latest else None,
             "observation_source": latest["source"] if latest else None,
@@ -363,17 +387,29 @@ def serve(repo: Path, observations: Path | None, thresholds: Path | None,
     rules = read_thresholds(thresholds)
     # Discovery is read-only and can change while serving. Limit update cadence.
     state_cache: dict = {}
+    cache_lock = RLock()
 
     def snapshot() -> dict:
         current = datetime.now(timezone.utc)
-        key = state_cache.get("time")
-        if key is None or (current - key).total_seconds() > 15:
-            state_cache["topology"] = discover_repo.discover(repo)
-            state_cache["time"] = current
-        return build_state(state_cache["topology"], read_observations(observations), rules, current)
+        with cache_lock:
+            key = state_cache.get("time")
+            if key is None or (current - key).total_seconds() > 15:
+                topology = discover_repo.discover(repo)
+                state_cache["topology"] = topology
+                state_cache["time"] = current
+            topology = state_cache["topology"]
+        return build_state(topology, read_observations(observations), rules, current)
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
+            host_headers = self.headers.get_all("Host", [])
+            if (len(host_headers) != 1 or not valid_local_host(
+                    host_headers[0], self.headers.get("Origin"), self.server.server_port)):
+                self.send_response(403)
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
             if self.path == "/":
                 payload, mime, code = PAGE.encode("utf-8"), "text/html; charset=utf-8", 200
             elif self.path == "/api/state":
@@ -390,6 +426,9 @@ def serve(repo: Path, observations: Path | None, thresholds: Path | None,
             self.send_header("Content-Type", mime)
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "DENY")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Cross-Origin-Resource-Policy", "same-origin")
             self.send_header("Content-Security-Policy",
                              "default-src 'none'; connect-src 'self'; style-src 'unsafe-inline'; "
                              "script-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'")
