@@ -11,7 +11,7 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from threading import RLock
+from threading import Event, RLock, Thread
 import json
 import math
 import os
@@ -401,6 +401,41 @@ setInterval(()=>{if(mapStarted)refresh()},5000);
 </script></body></html>"""
 
 
+class RemoteInventory:
+    """Atomically hold the last successful source-pinned inventory.
+
+    Polling is driven by the server worker, never by a browser request.
+    A refresh failure is visible; it never silently changes last-known bytes.
+    """
+    def __init__(self, scan):
+        self._scan = scan
+        self._lock = RLock()
+        self._latest = None
+        self._last_success = None
+        self._failed = False
+
+    def refresh(self):
+        try:
+            value = self._scan()
+        except (github_discovery.GitHubDiscoveryError,
+                discover_repo.DiscoveryError, OSError, ValueError, TypeError,
+                KeyError, RecursionError):
+            with self._lock:
+                self._failed = True
+            return False
+        with self._lock:
+            self._latest = value
+            self._last_success = datetime.now(timezone.utc)
+            self._failed = False
+        return True
+
+    def snapshot(self):
+        with self._lock:
+            if self._latest is None:
+                raise RoomError("source inventory not ready")
+            return self._latest, self._last_success, self._failed
+
+
 def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
           port: int, github: str | None = None, github_refresh_seconds: int = 300,
           github_client=None) -> None:
@@ -414,34 +449,35 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             token=os.environ.get("ONTOLOGYEX_GITHUB_TOKEN"))
     else:
         client = None
-    # Discovery is read-only and can change while serving. Limit update cadence.
     state_cache: dict = {}
     cache_lock = RLock()
+    remote = RemoteInventory(lambda: github_discovery.discover_github(github, client)) if github else None
+    stop_worker = Event()
+    worker = None
+
+    if remote is not None:
+        def refresh_loop():
+            while not stop_worker.is_set():
+                remote.refresh()
+                stop_worker.wait(github_refresh_seconds)
+        worker = Thread(target=refresh_loop, name="ontologyex-github-readonly", daemon=True)
+        worker.start()
 
     def snapshot() -> dict:
         current = datetime.now(timezone.utc)
-        with cache_lock:
-            last_attempt = state_cache.get("last_attempt")
-            interval = github_refresh_seconds if github else 15
-            if last_attempt is None or (current - last_attempt).total_seconds() > interval:
-                state_cache["last_attempt"] = current  # also throttle failed fetches
-                try:
-                    topology = (github_discovery.discover_github(github, client)
-                                if github else discover_repo.discover(repo))
-                except (github_discovery.GitHubDiscoveryError, OSError,
-                        discover_repo.DiscoveryError):
-                    state_cache["refresh_error"] = True
-                    if "topology" not in state_cache:
-                        raise
-                else:
+        if remote is not None:
+            topology, last_success, refresh_error = remote.snapshot()
+        else:
+            with cache_lock:
+                last_attempt = state_cache.get("last_attempt")
+                if last_attempt is None or (current - last_attempt).total_seconds() > 15:
+                    state_cache["last_attempt"] = current
+                    topology = discover_repo.discover(repo)
                     state_cache["topology"] = topology
                     state_cache["last_success"] = current
-                    state_cache["refresh_error"] = False
-            if "topology" not in state_cache:
-                raise RoomError("no successful source inventory")
-            topology = state_cache["topology"]
-            refresh_error = state_cache.get("refresh_error", False)
-            last_success = state_cache.get("last_success")
+                topology = state_cache["topology"]
+                last_success = state_cache["last_success"]
+                refresh_error = False
         result = build_state(topology, read_observations(observations), rules, current)
         result["discovery_source"] = topology.get("source", {"provider": "local"})
         result["discovery_freshness"] = (
@@ -494,10 +530,15 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             return  # No user-supplied paths or request logs persisted.
 
     # No POST, no write operations and no external listener.
-    with ThreadingHTTPServer(("127.0.0.1", port), Handler) as server:
-        print(f"OntologyEX local control room: http://127.0.0.1:{server.server_port}",
-              flush=True)
-        server.serve_forever()
+    try:
+        with ThreadingHTTPServer(("127.0.0.1", port), Handler) as server:
+            print(f"OntologyEX local control room: http://127.0.0.1:{server.server_port}",
+                  flush=True)
+            server.serve_forever()
+    finally:
+        stop_worker.set()
+        if worker is not None:
+            worker.join(timeout=2)
 
 
 def main():
