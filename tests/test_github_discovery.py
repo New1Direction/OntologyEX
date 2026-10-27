@@ -135,7 +135,8 @@ class GitHubDiscoveryTests(unittest.TestCase):
 
     def test_duplicate_paths_refused(self):
         key = f"/repos/{self.fixture.repo}/git/trees/{self.fixture.tree_sha}?recursive=1"
-        self.fixture.maps[key]["tree"].append(copy.deepcopy(self.fixture.tree[0]))
+        selected = next(row for row in self.fixture.tree if row["path"] == "compose.yml")
+        self.fixture.maps[key]["tree"].append(copy.deepcopy(selected))
         with self.assertRaisesRegex(gh.GitHubDiscoveryError, "duplicate"):
             self.scan()
 
@@ -147,10 +148,13 @@ class GitHubDiscoveryTests(unittest.TestCase):
 
     def test_slug_validation_before_any_request(self):
         for bad in ("https://github.com/testorg/product", "../escape", "A/B/C",
-                    "example.com/private", "owner/%2e%2e", "a/.", "a/..", "a/.git/secret"):
+                    "owner/%2e%2e", "a/.", "a/..", "a/.git/secret"):
             with self.subTest(bad=bad), self.assertRaises(gh.GitHubDiscoveryError):
                 gh.discover_github(bad, self.fixture)
         self.assertEqual(self.fixture.requested, [])
+        # Dots may appear in GitHub owner names; they never select a network host.
+        self.assertEqual(gh.parse_repository("example.com/private"),
+                         ("example.com", "private"))
 
     def test_manifest_count_budget(self):
         tree_key = f"/repos/{self.fixture.repo}/git/trees/{self.fixture.tree_sha}?recursive=1"
