@@ -316,7 +316,7 @@ def enriched_code_surfaces(client, api: str, mapped: dict,
         require(len(sha) == 40, "unsupported non-SHA1 Git object")
         evidence_id = hashlib.sha256(
             (str(repo_id) + "\0" + commit + "\0" + path + "\0" +
-             fingerprint + "\0" + kind).encode("utf-8")).hexdigest()
+             fingerprint + "\0" + kind + "\0" + label).encode("utf-8")).hexdigest()
         require(evidence_id not in evidence_ids, "evidence identity collision")
         evidence_ids.add(evidence_id)
         node_ids.add(node_id)
