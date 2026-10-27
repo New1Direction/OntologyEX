@@ -102,6 +102,12 @@ class GitHubDiscoveryTests(unittest.TestCase):
         state = control_room.build_state(topology, [], {})
         self.assertEqual(state["coverage"]["observed_nodes"], 0)
         self.assertTrue(all(x["status"] == "unknown" for x in state["nodes"]))
+        workflow_nodes = [n for n in state["nodes"] if n["kind"] == "workflow"]
+        self.assertEqual(len(workflow_nodes), 1)
+        self.assertEqual(workflow_nodes[0]["ci_run"]["conclusion"], "success")
+        self.assertEqual(workflow_nodes[0]["status"], "unknown")
+        self.assertEqual(state["ci_evidence_semantics"],
+                         "GITHUB_ACTIONS_RUN_AT_PINNED_COMMIT_NOT_PRODUCTION_HEALTH")
         self.assertEqual(state["runtime_discovery"], "NOT_IMPLEMENTED")
 
     def test_remote_inventory_refresh_is_atomic_and_failure_is_visible(self):
