@@ -38,10 +38,21 @@ def encode(graph: dict) -> tuple[bytes, int, str, str]:
             graph.get("kind") == "UNREVIEWED_BUSINESS_DISCOVERY_PREVIEW" and
             graph.get("runtime_health") == "UNKNOWN" and
             graph.get("execution_authorized") is False, "invalid source preview")
+    require(set(graph) == {
+        "schema_version", "kind", "status", "project", "nodes", "edges",
+        "source_evidence", "unresolved", "gaps", "coverage",
+        "inferred_business_relationships", "runtime_health", "human_review",
+        "execution_authorized", "source", "ci_evidence", "ci_source_status",
+    }, "unrecognized graph fields; refuse to persist arbitrary data")
+    require(type(graph["schema_version"]) is int and graph["schema_version"] == 1,
+            "unsupported snapshot schema version")
     src = graph.get("source")
-    require(type(src) is dict and src.get("provider") == "github" and
+    require(type(src) is dict and set(src) == {
+        "provider", "repository_id", "full_name", "commit_sha", "tree_sha",
+        "integrity", "credential_authorization",
+    } and src.get("provider") == "github" and
             src.get("integrity") == "COMMIT_PINNED_BLOBS_VALIDATED",
-            "expected commit-pinned GitHub data")
+            "expected commit-pinned GitHub data, no credential fields")
     repo_id, repo_name, commit = src.get("repository_id"), src.get("full_name"), src.get("commit_sha")
     require(type(repo_id) is int and 0 < repo_id < 2**63,
             "invalid repository ID")
@@ -54,21 +65,59 @@ def encode(graph: dict) -> tuple[bytes, int, str, str]:
     require(type(nodes) is list and type(edges) is list and type(evidence) is list and
             len(nodes) <= 4096 and len(edges) <= 16384 and len(evidence) <= 128,
             "invalid or excessive graph collection")
+    require(type(graph["coverage"]) is dict and
+            set(graph["coverage"]) == {
+                "files_seen", "candidate_manifests", "files_with_evidence",
+                "bytes_read", "symlinks_skipped", "not_assessed",
+                "github_tree_entries_seen", "github_file_blobs_pinned",
+                "excluded_large_or_unreadable_manifest_count",
+            } and type(graph["gaps"]) is list and len(graph["gaps"]) <= 256 and
+            type(graph["unresolved"]) is list and len(graph["unresolved"]) <= 256 and
+            type(graph["ci_evidence"]) is list and len(graph["ci_evidence"]) <= 100,
+            "invalid inventory coverage structure")
+    require(graph["ci_source_status"] in
+            ("GITHUB_ACTIONS_RESPONSE_RECEIVED", "UNAVAILABLE"),
+            "invalid CI status")
+    for gap in graph["gaps"]:
+        require(type(gap) is dict and set(gap) in
+                ({"source", "reason"}, {"source", "reason", "error_type"}),
+                "invalid gap fields")
+    for record in graph["ci_evidence"]:
+        require(type(record) is dict and set(record) == {
+            "workflow_node_id", "source", "head_sha", "status",
+            "conclusion", "updated_at", "run_id", "scope",
+        } and record.get("scope") == "CI_ONLY_NOT_PRODUCTION_HEALTH"
+                and record.get("head_sha") == commit,
+                "CI metadata cannot be treated as runtime health")
     node_ids, evidence_ids = set(), set()
     for n in nodes:
-        require(type(n) is dict and type(n.get("id")) is str and
+        require(type(n) is dict and set(n) in
+                ({"id", "kind", "label", "state"},
+                 {"id", "kind", "label", "evidence_id", "state"}) and
+                n.get("state") == "DECLARED_ONLY" and
+                type(n.get("label")) is str and len(n["label"]) <= 220 and
+                type(n.get("id")) is str and
                 n["id"].startswith("discovery:") and len(n["id"]) <= 1024 and
                 n["id"] not in node_ids, "invalid or duplicate graph node")
         node_ids.add(n["id"])
     for e in evidence:
-        require(type(e) is dict and type(e.get("id")) is str and
+        require(type(e) is dict and set(e) == {
+            "id", "path", "sha256", "source_kind", "authenticity", "origin",
+            "repository_id", "commit_sha", "git_blob_sha",
+        } and e.get("repository_id") == repo_id and
+                e.get("commit_sha") == commit and
+                e.get("origin") == "GITHUB_COMMIT_PINNED_BLOB" and
+                type(e.get("id")) is str and
                 SHA256.fullmatch(e["id"]) and e["id"] not in evidence_ids and
                 type(e.get("sha256")) is str and SHA256.fullmatch(e["sha256"]) and
                 type(e.get("git_blob_sha")) is str and ID.fullmatch(e["git_blob_sha"]),
                 "invalid evidence integrity metadata")
         evidence_ids.add(e["id"])
     for e in edges:
-        require(type(e) is dict and e.get("source") in node_ids and
+        require(type(e) is dict and set(e) == {
+            "source", "target", "relation", "evidence_id", "state",
+        } and e.get("state") == "MANIFEST_DECLARATION" and
+                e.get("source") in node_ids and
                 e.get("target") in node_ids and e.get("evidence_id") in evidence_ids,
                 "graph contains dangling dependency")
     for n in nodes:
