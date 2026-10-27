@@ -219,6 +219,56 @@ def scoped(topology: dict, repo_id: int, full_name: str,
     return mapped
 
 
+def read_github_ci(client, api: str, topology: dict) -> list[dict]:
+    """Optional workflow-run facts at the *same* commit, never service health."""
+    commit_sha = topology["source"]["commit_sha"]
+    reply = client.fetch(api + "/actions/runs?head_sha=" + commit_sha + "&per_page=100")
+    rows = reply.get("workflow_runs")
+    require(type(rows) is list and len(rows) <= 100, "invalid Actions run collection")
+    paths = {
+        evidence["id"]: evidence["path"]
+        for evidence in topology["source_evidence"]
+    }
+    workflows = {
+        paths[node["evidence_id"]]: node["id"]
+        for node in topology["nodes"]
+        if node["kind"] == "workflow" and node.get("evidence_id") in paths
+    }
+    results = {}
+    for row in rows:
+        if not isinstance(row, dict) or row.get("head_sha") != commit_sha:
+            continue
+        path = row.get("path")
+        if type(path) is not str or path not in workflows:
+            continue
+        status = row.get("status")
+        conclusion = row.get("conclusion")
+        updated = row.get("updated_at")
+        run_id = row.get("id")
+        if (status not in ("completed", "queued", "in_progress", "pending", "waiting", "requested")
+                or (conclusion is not None and conclusion not in
+                    ("success", "failure", "timed_out", "cancelled",
+                     "neutral", "skipped", "action_required"))
+                or type(run_id) is not int or run_id <= 0 or
+                type(updated) is not str or not
+                re.fullmatch(r"20[0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", updated)):
+            continue
+        entry = {
+            "workflow_node_id": workflows[path],
+            "source": "GITHUB_ACTIONS",
+            "head_sha": commit_sha,
+            "status": status,
+            "conclusion": conclusion if status == "completed" else None,
+            "updated_at": updated,
+            "run_id": run_id,
+            "scope": "CI_ONLY_NOT_PRODUCTION_HEALTH",
+        }
+        previous = results.get(path)
+        if previous is None or (updated, run_id) > (previous["updated_at"], previous["run_id"]):
+            results[path] = entry
+    return [results[key] for key in sorted(results)]
+
+
 def discover_github(repository: str, client: GitHubClient) -> dict:
     owner, repo = parse_repository(repository)
     full_name = owner + "/" + repo
@@ -275,6 +325,15 @@ def discover_github(repository: str, client: GitHubClient) -> dict:
         snapshot = discover_repo.discover(root)
     mapped = scoped(snapshot, repo_id, info["full_name"], commit, tree_sha,
                     len(entries), blobs)
+    try:
+        mapped["ci_evidence"] = read_github_ci(client, api, mapped)
+        mapped["ci_source_status"] = "GITHUB_ACTIONS_RESPONSE_RECEIVED"
+    except (GitHubDiscoveryError, OSError, ValueError, TypeError):
+        mapped["ci_evidence"] = []
+        mapped["ci_source_status"] = "UNAVAILABLE"
+        mapped["gaps"].append({
+            "source": "github_actions", "reason": "CI_STATUS_UNAVAILABLE"
+        })
     # Non-selected huge manifests and absent provider scopes remain unknown.
     mapped["coverage"]["excluded_large_or_unreadable_manifest_count"] = sum(
         item.get("type") == "blob" and eligible_tree_path(item.get("path")) and
