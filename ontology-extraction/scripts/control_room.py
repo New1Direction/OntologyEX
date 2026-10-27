@@ -421,27 +421,34 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
     def snapshot() -> dict:
         current = datetime.now(timezone.utc)
         with cache_lock:
-            key = state_cache.get("time")
+            last_attempt = state_cache.get("last_attempt")
             interval = github_refresh_seconds if github else 15
-            if key is None or (current - key).total_seconds() > interval:
+            if last_attempt is None or (current - last_attempt).total_seconds() > interval:
+                state_cache["last_attempt"] = current  # also throttle failed fetches
                 try:
                     topology = (github_discovery.discover_github(github, client)
                                 if github else discover_repo.discover(repo))
                 except (github_discovery.GitHubDiscoveryError, OSError,
                         discover_repo.DiscoveryError):
+                    state_cache["refresh_error"] = True
                     if "topology" not in state_cache:
                         raise
-                    state_cache["refresh_error"] = True
                 else:
                     state_cache["topology"] = topology
-                    state_cache["time"] = current
+                    state_cache["last_success"] = current
                     state_cache["refresh_error"] = False
+            if "topology" not in state_cache:
+                raise RoomError("no successful source inventory")
             topology = state_cache["topology"]
             refresh_error = state_cache.get("refresh_error", False)
+            last_success = state_cache.get("last_success")
         result = build_state(topology, read_observations(observations), rules, current)
         result["discovery_source"] = topology.get("source", {"provider": "local"})
         result["discovery_freshness"] = (
             "STALE_LAST_KNOWN" if refresh_error else "AS_OF_LATEST_SUCCESSFUL_SCAN")
+        result["discovery_scanned_at"] = (
+            last_success.isoformat().replace("+00:00", "Z")
+            if last_success is not None else None)
         if refresh_error:
             result["gaps"].append({"source": "github", "reason": "GITHUB_REFRESH_UNAVAILABLE"})
         return result
