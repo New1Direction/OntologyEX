@@ -20,6 +20,7 @@ import stat
 
 import discover_repo
 import github_discovery
+import snapshot_store
 
 MAX_OBSERVATION_BYTES = 1024 * 1024
 MAX_OBSERVATIONS = 4096
@@ -337,7 +338,8 @@ const text=(id,value)=>document.getElementById(id).textContent=String(value);
 let selected=null,state=null;
 function group(n){if(n.kind==="project")return 0;if(n.kind==="declared_service")return 2;if(n.kind==="workflow")return 1;return 1}
 function draw(s){
- state=s;text("mode",s.mode);text("updated","As of "+s.generated_at);
+ state=s;text("mode",s.mode+" / "+(s.discovery_freshness||"SOURCE_UNKNOWN"));
+ text("updated","As of "+s.generated_at);
  const count=s.coverage.node_status_counts;
  const counts=document.getElementById("counts");counts.replaceChildren();
  for(const k of ["ok","warning","error","stale","unknown"]){let b=document.createElement("span");b.className="chip "+k;
@@ -423,12 +425,20 @@ class RemoteInventory:
     Polling is driven by the server worker, never by a browser request.
     A refresh failure is visible; it never silently changes last-known bytes.
     """
-    def __init__(self, scan):
+    def __init__(self, scan, store=None, repository=None):
         self._scan = scan
+        self._store = store
         self._lock = RLock()
         self._latest = None
         self._last_success = None
         self._failed = False
+        if store is not None:
+            check(type(repository) is str and repository, "snapshot source required")
+            restored = store.load(repository)
+            if restored is not None:
+                self._latest, self._last_success = restored
+                # Old durable data is NOT live. It stays stale until a fresh read.
+                self._failed = True
 
     def refresh(self):
         try:
@@ -439,9 +449,17 @@ class RemoteInventory:
             with self._lock:
                 self._failed = True
             return False
+        moment = datetime.now(timezone.utc)
+        try:
+            if self._store is not None:
+                self._store.save(value, moment)
+        except (snapshot_store.SnapshotError, OSError, ValueError, TypeError):
+            with self._lock:
+                self._failed = True
+            return False
         with self._lock:
             self._latest = value
-            self._last_success = datetime.now(timezone.utc)
+            self._last_success = moment
             self._failed = False
         return True
 
@@ -454,7 +472,7 @@ class RemoteInventory:
 
 def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
           port: int, github: str | None = None, github_refresh_seconds: int = 300,
-          github_client=None) -> None:
+          github_client=None, snapshot_dir: Path | None = None) -> None:
     check(0 <= port <= 65535, "invalid port")
     rules = read_thresholds(thresholds)
     check(60 <= github_refresh_seconds <= 3600, "invalid GitHub refresh interval")
@@ -465,9 +483,14 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             token=os.environ.get("ONTOLOGYEX_GITHUB_TOKEN"))
     else:
         client = None
+    if snapshot_dir is not None:
+        check(github is not None, "snapshot persistence requires --github")
+    store = snapshot_store.SnapshotStore(snapshot_dir) if snapshot_dir is not None else None
     state_cache: dict = {}
     cache_lock = RLock()
-    remote = RemoteInventory(lambda: github_discovery.discover_github(github, client)) if github else None
+    remote = (RemoteInventory(lambda: github_discovery.discover_github(github, client),
+                              store=store, repository=github)
+              if github else None)
     stop_worker = Event()
     worker = None
 
@@ -501,6 +524,9 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         result["discovery_scanned_at"] = (
             last_success.isoformat().replace("+00:00", "Z")
             if last_success is not None else None)
+        result["snapshot_history"] = store.history(github) if store is not None else []
+        result["durability"] = ("PRIVATE_LOCAL_SQLITE_NOT_BACKUP"
+                                if store is not None else "MEMORY_ONLY")
         if refresh_error:
             result["gaps"].append({"source": "github", "reason": "GITHUB_REFRESH_UNAVAILABLE"})
         return result
@@ -563,6 +589,8 @@ def main():
     source.add_argument("--repo", type=Path, help="existing local repository")
     source.add_argument("--github", help="GitHub owner/name; optional token via env")
     parser.add_argument("--github-refresh-seconds", type=int, default=300)
+    parser.add_argument("--snapshot-dir", type=Path,
+                        help="opt-in private server-side snapshot directory (0700)")
     parser.add_argument("--observations", type=Path, default=None)
     parser.add_argument("--thresholds", type=Path, default=None)
     parser.add_argument("--port", type=int, default=8765)
@@ -574,6 +602,8 @@ def main():
                   "invalid repository root")
         if args.github is not None:
             github_discovery.parse_repository(args.github)
+        check(args.snapshot_dir is None or (args.github is not None and not args.state_only),
+              "snapshot persistence is for a running --github server only")
         if args.state_only:
             topology = (github_discovery.discover_github(
                 args.github, github_discovery.GitHubClient(
@@ -585,11 +615,12 @@ def main():
             print(json.dumps(result, sort_keys=True, separators=(",", ":")))
         else:
             serve(args.repo, args.observations, args.thresholds, args.port,
-                  github=args.github, github_refresh_seconds=args.github_refresh_seconds)
+                  github=args.github, github_refresh_seconds=args.github_refresh_seconds,
+                  snapshot_dir=args.snapshot_dir)
         return 0
     except (OSError, RoomError, discover_repo.DiscoveryError,
-            github_discovery.GitHubDiscoveryError, ValueError, TypeError,
-            RecursionError) as exc:
+            github_discovery.GitHubDiscoveryError, snapshot_store.SnapshotError,
+            ValueError, TypeError, RecursionError) as exc:
         print(json.dumps({"status": "ERROR", "reason": str(exc)}))
         return 1
 
