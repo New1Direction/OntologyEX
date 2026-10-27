@@ -177,6 +177,37 @@ class ControlRoomTests(unittest.TestCase):
         self.assertIn("UNATTESTED", room.PAGE) if "UNATTESTED" in room.PAGE else None
         self.assertNotIn("fetch('https://", room.PAGE)
 
+    def test_loopback_host_and_origin_only(self):
+        self.assertTrue(room.valid_local_host("127.0.0.1:8765", None, 8765))
+        self.assertTrue(room.valid_local_host("localhost:8765",
+                                               "http://localhost:8765", 8765))
+        self.assertFalse(room.valid_local_host("evil.example:8765", None, 8765))
+        self.assertFalse(room.valid_local_host("127.0.0.1:1234", None, 8765))
+        self.assertFalse(room.valid_local_host("127.0.0.1:8765",
+                                                "https://attacker.example", 8765))
+        self.assertFalse(room.valid_local_host("127.0.0.1:8765", "null", 8765))
+        self.assertFalse(room.valid_local_host("127.0.0.1:8765", None, 0))
+
+    def test_same_timestamp_conflict_fails_closed(self):
+        ok = self.record(status="ok")
+        error = self.record(status="error")
+        a = self.state([ok, error])
+        b = self.state([error, ok])
+        self.assertEqual(a, b)
+        self.assertEqual(self.node(a, self.db)["status"], "unknown")
+        self.assertEqual(self.node(a, self.db)["source_status"], "conflict")
+        self.assertEqual(self.node(a, self.api)["potentially_impacted_by"], [])
+        self.assertIn("CONFLICTING_SAME_TIMESTAMP_OBSERVATIONS",
+                      [gap["reason"] for gap in a["gaps"]])
+
+    def test_invalid_observation_status_type_rejected(self):
+        file = self.root / "bad.jsonl"
+        row = self.record()
+        row["status"] = []
+        file.write_text(json.dumps(row))
+        with self.assertRaises(room.RoomError):
+            room.read_observations(file)
+
     def test_timezones_and_non_rfc3339_fail_closed(self):
         with self.assertRaises(room.RoomError):
             room.timestamp("2026-10-27T16:00:00")
