@@ -380,8 +380,9 @@ def enriched_code_surfaces(client, api: str, mapped: dict,
                 mapped["gaps"].append({"source": path,
                                        "reason": "SCHEMA_SYMBOL_SCAN_UNAVAILABLE"})
                 for node in list(mapped["nodes"]):
-                    if node.get("kind") == "declared_db_table" and
-                       node.get("id", "").startswith(f"discovery:declared_db_table:gh{repo_id}/"):
+                    if (node.get("kind") == "declared_db_table" and
+                            node.get("id", "").startswith(
+                                f"discovery:declared_db_table:gh{repo_id}/")):
                         mapped["nodes"].remove(node)
                         mapped["edges"] = [e for e in mapped["edges"] if e["target"] != node["id"]]
                         mapped["source_evidence"] = [
