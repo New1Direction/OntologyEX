@@ -159,12 +159,12 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
                 if len(values) >= 2:
                     prior = values[-2]
                     prior_age = (now - timestamp(prior["observed_at"])).total_seconds()
-                    if prior_age <= prior["expires_after_seconds"] and
-                       prior["source"] == latest["source"]:
+                    if (prior_age <= prior["expires_after_seconds"] and
+                            prior["source"] == latest["source"]):
                         for metric, threshold in sorted(thresholds.items()):
-                            if metric in prior["metrics"] and metric in latest["metrics"] and
-                               prior["metrics"][metric] > threshold and
-                               latest["metrics"][metric] > threshold:
+                            if (metric in prior["metrics"] and metric in latest["metrics"] and
+                                    prior["metrics"][metric] > threshold and
+                                    latest["metrics"][metric] > threshold):
                                 leading.append({
                                     "metric": metric, "threshold": threshold,
                                     "current": latest["metrics"][metric],
