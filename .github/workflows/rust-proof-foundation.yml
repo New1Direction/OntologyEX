@@ -42,3 +42,4 @@ jobs:
           lake-package-directory: proofs/lean
           build: true
           leanchecker: true
+          leanchecker-args: OntologyEXProofs
