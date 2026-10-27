@@ -330,7 +330,7 @@ mod tests {
                     label: id.into(), evidence_id: format!("E-{id}"),
                 })
                 .collect(),
-            edges: [
+            edges: vec![
                 Edge { from: "web".into(), to: "api".into(), kind: EdgeKind::DependsOn,
                        evidence_id: "E-1".into() },
                 Edge { from: "api".into(), to: "db".into(), kind: EdgeKind::DependsOn,
