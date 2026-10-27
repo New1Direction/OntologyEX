@@ -54,5 +54,30 @@ jobs:
                 len(x['nodes']), 'nodes,',len(x['edges']), 'edges,',
                 x['coverage']['candidate_manifests'],'manifests; production health UNKNOWN')
           PY
+      - name: Recover pinned repo.ing graph from private server-side SQLite
+        run: |
+          python - "$RUNNER_TEMP/repoing-discovery.json" "$RUNNER_TEMP" <<'PY'
+          import json, pathlib, sys, tempfile
+          sys.path.insert(0, "ontology-extraction/scripts")
+          import snapshot_store, control_room, github_discovery
+          graph=json.loads(pathlib.Path(sys.argv[1]).read_text())
+          with tempfile.TemporaryDirectory(prefix="ontologyex-cache-",dir=sys.argv[2]) as root:
+              store=snapshot_store.SnapshotStore(pathlib.Path(root)/"private")
+              commit=graph["source"]["commit_sha"]
+              store.save(graph)
+              restored, scanned=store.load("New1Direction/repo.ing")
+              assert restored==graph and restored["source"]["commit_sha"]==commit
+              def unavailable():
+                  raise github_discovery.GitHubDiscoveryError("simulated offline")
+              reader=control_room.RemoteInventory(
+                  unavailable,store=store,repository="New1Direction/repo.ing")
+              old,at,stale=reader.snapshot()
+              assert stale and at==scanned and old==graph
+              assert not reader.refresh()
+              state=control_room.build_state(old,[],{})
+              assert all(n["status"]=="unknown" for n in state["nodes"])
+              assert len(store.history("New1Direction/repo.ing"))==1
+              print("repo.ing durable recovery: valid graph, stale cache, UNKNOWN health")
+          PY
       - name: No persistent artifact upload
         run: rm -f "$RUNNER_TEMP/repoing-discovery.json"
