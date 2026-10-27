@@ -253,8 +253,16 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
                     queue.append((dependent, depth + 1))
                 elif dependent != source:
                     impact[dependent].add(source)
+    ci_by_node = {
+        record["workflow_node_id"]: record
+        for record in topology.get("ci_evidence", [])
+        if type(record) is dict and type(record.get("workflow_node_id")) is str
+           and record.get("scope") == "CI_ONLY_NOT_PRODUCTION_HEALTH"
+    }
     for node in nodes:
         node["potentially_impacted_by"] = sorted(impact.get(node["id"], set()))
+        node["ci_run"] = (ci_by_node.get(node["id"])
+                          if node["kind"] == "workflow" else None)
 
     counts = {value: sum(n["status"] == value for n in nodes)
               for value in ("ok", "warning", "error", "stale", "unknown")}
@@ -276,6 +284,7 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
         "impact_semantics": "DECLARED_DEPENDENCIES_POTENTIAL_IMPACT_NOT_CAUSAL_PROOF",
         "leading_indicator_semantics": "USER_CONFIGURED_THRESHOLD_NOT_OUTAGE_PREDICTION",
         "runtime_discovery": "NOT_IMPLEMENTED",
+        "ci_evidence_semantics": "GITHUB_ACTIONS_RUN_AT_PINNED_COMMIT_NOT_PRODUCTION_HEALTH",
         "execution_authorized": False,
     }
 
@@ -367,6 +376,9 @@ function draw(s){
  n.status.toUpperCase()+" · "+n.kind.replaceAll("_"," ")));
  if(n.potentially_impacted_by.length)g.append(el("text",{x:p.x+nodeW-8,y:p.y+14,
  "text-anchor":"end",fill:"#eebc63","font-size":10},"RISK"));
+ if(n.ci_run)g.append(el("text",{x:p.x+nodeW-8,y:p.y+42,
+ "text-anchor":"end",fill:n.ci_run.conclusion==="success"?"#49c4a4":"#eebc63",
+ "font-size":10},"CI "+(n.ci_run.conclusion||n.ci_run.status).toUpperCase()));
  g.addEventListener("click",()=>pick(n.id));g.addEventListener("keydown",ev=>{if(ev.key==="Enter")pick(n.id)});
  svg.append(g)}
  const target=s.nodes.find(n=>n.id===selected);if(target)detail(target,s);
@@ -383,6 +395,10 @@ function detail(n,s){
  "","DECLARED CONNECTIONS: "+relevant.length,
  ...relevant.slice(0,20).map(e=>e.relation+" : "+(e.source===n.id?e.target:e.source)),
  "","POTENTIALLY IMPACTED BY: "+(n.potentially_impacted_by.join(", ")||"none"),
+ "","GITHUB CI (NOT PRODUCTION HEALTH): "+(n.ci_run
+   ? (n.ci_run.status+" / "+(n.ci_run.conclusion||"no result")) : "unavailable"),
+ "CI RUN ID: "+(n.ci_run?.run_id||"none"),
+ "CI UPDATED: "+(n.ci_run?.updated_at||"unknown"),
  "","SOURCE FILE: "+(ev?.path||"not captured"),
  "EVIDENCE HASH: "+(ev?.sha256||"unknown"),
  "","No causal root cause is asserted."];
