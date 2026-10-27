@@ -27,11 +27,49 @@ class BusinessBlueprintTests(unittest.TestCase):
         self.assertEqual(result["totals"]["projects"], 3)
         self.assertGreater(result["totals"]["journeys"], 5)
         self.assertGreater(result["totals"]["steps"], 20)
-        self.assertEqual(result["trust"], "REVIEWED_SOURCES_NOT_LIVE_OPERATIONS")
+        self.assertEqual(result["trust"], "AUTHOR_DECLARED_SOURCE_LINKS_NOT_INDEPENDENTLY_VERIFIED")
         self.assertFalse(result["execution_authorized"])
         self.assertTrue(all(
             e["url"].startswith("https://github.com/") and "/blob/" in e["url"]
             for p in result["projects"] for e in p["evidence"]))
+
+    def test_inventory_link_count_is_not_node_count(self):
+        p = load("repoing.json")
+        inventory = {"projects": [{"id": p["id"]}],
+                     "nodes": [{"id": "project", "project": p["id"]},
+                               {"id": "worker", "project": p["id"]}],
+                     "edges": [{"source": "project", "target": "worker"},
+                               {"source": "worker", "target": "tech:solana"}]}
+        result = business.compile_blueprints([p], inventory)
+        stats = result["projects"][0]["inventory"]
+        self.assertEqual(stats["node_count"], 2)
+        self.assertEqual(stats["links_count"], 2)
+        self.assertTrue(stats["available"])
+
+    def test_private_output_and_atomic_preflight(self):
+        import os
+        import stat
+        with tempfile.TemporaryDirectory() as folder:
+            template = ROOT / "business/business_xray_template.html"
+            one = Path(folder) / "one.html"
+            two = Path(folder) / "two.json"
+            # Do not rely on command-line execution; test the same safe
+            # creation semantics by running the real CLI in a subprocess.
+            import subprocess
+            import sys
+            cmd = [sys.executable, str(MODULE), str(EXAMPLES / "repoing.json"),
+                   "--template", str(template), "--out", str(one),
+                   "--json-out", str(two)]
+            run = subprocess.run(cmd, capture_output=True, text=True)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertEqual(stat.S_IMODE(os.stat(one).st_mode), 0o600)
+            self.assertEqual(stat.S_IMODE(os.stat(two).st_mode), 0o600)
+            self.assertIn("BUSINESS_XRAY_DECLARED_BLUEPRINT", two.read_text())
+            # Existing output must not be overwritten by another invocation.
+            before = one.read_bytes()
+            again = subprocess.run(cmd, capture_output=True, text=True)
+            self.assertNotEqual(again.returncode, 0)
+            self.assertEqual(one.read_bytes(), before)
 
     def test_repo_business_questions_have_distinct_uncertainty(self):
         p = load("repoing.json")
