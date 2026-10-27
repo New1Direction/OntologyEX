@@ -84,12 +84,13 @@ class RDFInteropTests(unittest.TestCase):
         with self.assertRaises(DomainError):
             rdf.serialize(graph)
 
-    def test_unresolved_target_not_serialized(self):
+    def test_unresolved_target_refuses_incomplete_export(self):
         graph = example()
         graph["unresolved"].append({
             "source": "goal-1:domain_class:Service", "relation": "DEPENDS_ON",
             "missing_target": "goal-1:domain_class:Database"})
-        self.assertNotIn("Database", rdf.serialize(graph))
+        with self.assertRaises(DomainError):
+            rdf.serialize(graph)
 
     def test_never_grants_execution(self):
         graph = example()
