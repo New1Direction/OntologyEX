@@ -25,6 +25,7 @@ MAX_OBSERVATIONS = 4096
 MAX_THRESHOLDS_BYTES = 16384
 METRICS = frozenset({"queue_lag_seconds", "db_pool_utilization_pct",
                      "error_rate_pct", "p95_latency_ms", "job_lag_seconds"})
+PERCENT_METRICS = frozenset({"db_pool_utilization_pct", "error_rate_pct"})
 STATUS = frozenset({"ok", "warning", "error"})
 SOURCES = frozenset({"otel", "health_probe", "manual_export", "synthetic"})
 MAX_AGE = 86400
@@ -118,9 +119,11 @@ def read_observations(path: Path | None) -> list[dict]:
         metrics = row["metrics"]
         check(type(metrics) is dict and len(metrics) <= len(METRICS) and
               set(metrics).issubset(METRICS), "invalid metric names")
-        for value in metrics.values():
-            check(type(value) in (float, int) and math.isfinite(value) and 0 <= value <= 1e9,
+        for metric, value in metrics.items():
+            check(type(value) in (float, int) and 0 <= value <= 1e9 and math.isfinite(value),
                   "invalid metric value")
+            if metric in PERCENT_METRICS:
+                check(value <= 100, "percentage metric exceeds 100")
         row["observed_at"] = timestamp(row["observed_at"]).isoformat().replace("+00:00", "Z")
         result.append(row)
     return result
@@ -136,9 +139,11 @@ def read_thresholds(path: Path | None) -> dict:
           "unknown threshold schema")
     rules = data["warning_above"]
     check(type(rules) is dict and set(rules).issubset(METRICS), "invalid threshold names")
-    for threshold in rules.values():
-        check(type(threshold) in (float, int) and math.isfinite(threshold) and
-              0 <= threshold <= 1e9, "invalid numeric threshold")
+    for metric, threshold in rules.items():
+        check(type(threshold) in (float, int) and 0 <= threshold <= 1e9 and
+              math.isfinite(threshold), "invalid numeric threshold")
+        if metric in PERCENT_METRICS:
+            check(threshold <= 100, "percentage threshold exceeds 100")
     return rules
 
 
