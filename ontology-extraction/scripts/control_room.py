@@ -323,6 +323,7 @@ cursor:pointer;padding:9px 14px;font:inherit}button:hover{background:#244956}
 <aside><section><h2>System integrity</h2><div id="counts"></div></section>
 <section><h2>Selected component</h2><div id="details">Select a node to inspect its source and status.</div></section>
 <section><h2>Coverage and blind spots</h2><div id="coverage" class="muted"></div></section>
+<section><h2>Saved source revisions</h2><div id="versions" class="muted"></div></section>
 <section><h2>Operational boundary</h2>
 <p class="muted">A declared dependency is not proof of a live network call. Source-reported status is not independently authenticated.
 Warnings require explicit observations or configured thresholds. Impact shows possible dependents, not confirmed outages.
@@ -351,6 +352,15 @@ function draw(s){
  "Unresolved links: "+s.unresolved.length,"Discovery gaps: "+s.gaps.length,
  "Not assessed: "+s.coverage.not_assessed.join(", ")];
  for(const l of lines){const p=document.createElement("p");p.textContent=l;cov.append(p)}
+ const versions=document.getElementById("versions");versions.replaceChildren();
+ const saved=Array.isArray(s.snapshot_history)?s.snapshot_history:[];
+ if(!saved.length){const p=document.createElement("p");p.textContent="No server-side revisions stored.";versions.append(p)}
+ for(const item of saved.slice(0,8)){
+   const p=document.createElement("p");
+   p.textContent=(item.is_current?"CURRENT · ":"")+
+     String(item.commit_sha||"unknown").slice(0,12)+" · "+String(item.scanned_at||"unknown");
+   versions.append(p)
+ }
  const svg=document.getElementById("svg");svg.replaceChildren();
  const cols=[[],[],[]];for(const n of s.nodes)cols[group(n)].push(n);
  for(const col of cols)col.sort((a,b)=>a.label.localeCompare(b.label));
