@@ -46,6 +46,21 @@ class StrictLoader(yaml.SafeLoader):
     pass
 
 
+# PyYAML's YAML 1.1 boolean resolver treats GitHub Actions "on" as True.
+# Use the conservative YAML 1.2 true/false spelling here. Do not modify
+# SafeLoader globally (the rest of OntologyEX depends on its behavior).
+StrictLoader.yaml_implicit_resolvers = {
+    key: [(tag, expression) for tag, expression in rules
+          if tag != "tag:yaml.org,2002:bool"]
+    for key, rules in yaml.SafeLoader.yaml_implicit_resolvers.items()
+}
+StrictLoader.add_implicit_resolver(
+    "tag:yaml.org,2002:bool",
+    re.compile(r"^(?:true|True|TRUE|false|False|FALSE)$"),
+    list("tTfF"),
+)
+
+
 def mapping(loader, node):
     result = {}
     for key_node, value_node in node.value:
