@@ -14,7 +14,9 @@ from pathlib import Path
 from threading import RLock
 import json
 import math
+import os
 import re
+import stat
 
 import discover_repo
 
@@ -53,9 +55,17 @@ def parse_json(raw: bytes):
 
 
 def safe_read(path: Path, max_bytes: int) -> bytes:
-    check(not path.is_symlink() and path.is_file(), "missing or symlinked input")
-    check(path.stat().st_size <= max_bytes, "input exceeds file budget")
-    data = path.read_bytes()
+    """Read a bounded regular file without following a final-component symlink."""
+    check(not path.is_symlink(), "symlinked input refused")
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    flags |= getattr(os, "O_NONBLOCK", 0)
+    descriptor = os.open(path, flags)
+    with os.fdopen(descriptor, "rb") as stream:
+        metadata = os.fstat(stream.fileno())
+        check(stat.S_ISREG(metadata.st_mode), "expected a regular file")
+        check(metadata.st_size <= max_bytes, "input exceeds file budget")
+        data = stream.read(max_bytes + 1)
     check(len(data) <= max_bytes, "input exceeds file budget")
     return data
 
