@@ -128,8 +128,10 @@ class GitHubDiscoveryTests(unittest.TestCase):
             self.scan()
 
     def test_tampered_blob_refused(self):
-        k = next(k for k in self.fixture.maps if "/git/blobs/" in k)
-        self.fixture.maps[k]["content"] = base64.b64encode(b"tampered").decode()
+        selected = next(row for row in self.fixture.tree if row["path"] == "compose.yml")
+        k = f"/repos/{self.fixture.repo}/git/blobs/{selected['sha']}"
+        original_size = self.fixture.maps[k]["size"]
+        self.fixture.maps[k]["content"] = base64.b64encode(b"x" * original_size).decode()
         with self.assertRaisesRegex(gh.GitHubDiscoveryError, "source bytes"):
             self.scan()
 
