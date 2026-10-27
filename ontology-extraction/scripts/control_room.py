@@ -199,7 +199,7 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
                     state = "warning"
         if state == "error":
             failed.add(node["id"])
-         nodes.append({
+        nodes.append({
             "id": node["id"], "kind": node["kind"], "label": node["label"],
             "status": state,
             "source_status": ("conflict" if node["id"] in conflicts else
