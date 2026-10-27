@@ -63,7 +63,7 @@ def encode(graph: dict) -> tuple[bytes, int, str, str]:
     require(type(commit) is str and ID.fullmatch(commit), "invalid commit SHA")
     nodes, edges, evidence = graph.get("nodes"), graph.get("edges"), graph.get("source_evidence")
     require(type(nodes) is list and type(edges) is list and type(evidence) is list and
-            len(nodes) <= 4096 and len(edges) <= 16384 and len(evidence) <= 128,
+            len(nodes) <= 4096 and len(edges) <= 16384 and len(evidence) <= 4096,
             "invalid or excessive graph collection")
     require(type(graph["coverage"]) is dict and
             set(graph["coverage"]) == {
@@ -71,6 +71,9 @@ def encode(graph: dict) -> tuple[bytes, int, str, str]:
                 "bytes_read", "symlinks_skipped", "not_assessed",
                 "github_tree_entries_seen", "github_file_blobs_pinned",
                 "excluded_large_or_unreadable_manifest_count",
+                "api_route_paths_found", "db_schema_candidates_found",
+                "api_route_source_files_read", "schema_source_files_read",
+                "metadata_only_route_entries",
             } and type(graph["gaps"]) is list and len(graph["gaps"]) <= 256 and
             type(graph["unresolved"]) is list and len(graph["unresolved"]) <= 256 and
             type(graph["ci_evidence"]) is list and len(graph["ci_evidence"]) <= 100,
@@ -93,8 +96,12 @@ def encode(graph: dict) -> tuple[bytes, int, str, str]:
     for n in nodes:
         require(type(n) is dict and set(n) in
                 ({"id", "kind", "label", "state"},
-                 {"id", "kind", "label", "evidence_id", "state"}) and
-                n.get("state") == "DECLARED_ONLY" and
+                 {"id", "kind", "label", "evidence_id", "state"},
+                 {"id", "kind", "label", "evidence_id", "state", "source_line"}) and
+                n.get("state") in ("DECLARED_ONLY", "SOURCE_SYNTAX_CANDIDATE") and
+                (n.get("state") != "SOURCE_SYNTAX_CANDIDATE"
+                 or (n.get("kind") == "declared_db_table" and
+                     type(n.get("source_line")) is int and n["source_line"] > 0)) and
                 type(n.get("label")) is str and len(n["label"]) <= 220 and
                 type(n.get("id")) is str and
                 n["id"].startswith("discovery:") and len(n["id"]) <= 1024 and
@@ -106,7 +113,11 @@ def encode(graph: dict) -> tuple[bytes, int, str, str]:
             "repository_id", "commit_sha", "git_blob_sha",
         } and e.get("repository_id") == repo_id and
                 e.get("commit_sha") == commit and
-                e.get("origin") == "GITHUB_COMMIT_PINNED_BLOB" and
+                ((e.get("origin") == "GITHUB_COMMIT_PINNED_BLOB" and
+                  e.get("source_kind") != "GITHUB_TREE_ENTRY_METADATA")
+                 or (e.get("origin") == "GITHUB_REPOSITORY_TREE_ENTRY" and
+                     e.get("source_kind") == "GITHUB_TREE_ENTRY_METADATA" and
+                     e.get("authenticity") == "TREE_PATH_ONLY_SOURCE_BYTES_NOT_READ")) and
                 type(e.get("id")) is str and
                 SHA256.fullmatch(e["id"]) and e["id"] not in evidence_ids and
                 type(e.get("sha256")) is str and SHA256.fullmatch(e["sha256"]) and
@@ -116,7 +127,9 @@ def encode(graph: dict) -> tuple[bytes, int, str, str]:
     for e in edges:
         require(type(e) is dict and set(e) == {
             "source", "target", "relation", "evidence_id", "state",
-        } and e.get("state") == "MANIFEST_DECLARATION" and
+        } and e.get("state") in ("MANIFEST_DECLARATION",
+                                 "GITHUB_TREE_DECLARATION",
+                                 "SOURCE_SYNTAX_CANDIDATE") and
                 e.get("source") in node_ids and
                 e.get("target") in node_ids and e.get("evidence_id") in evidence_ids,
                 "graph contains dangling dependency")
