@@ -99,7 +99,7 @@ pub struct NodeProjection {
     pub potentially_impacted_by: Vec<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Projection {
     pub schema_version: u32,
     pub root_goal_id: String,
@@ -288,8 +288,8 @@ pub fn project(
                             node.potentially_impacted_by.push(broken.to_owned());
                         }
                     }
-                    if seen.insert(child) {
-                        queue.push_back((child, depth + 1));
+                    if seen.insert(*child) {
+                        queue.push_back((*child, depth + 1));
                     }
                 }
             }
