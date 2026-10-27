@@ -45,8 +45,9 @@ No original source quotation, full file content, agent transcript, secret, or
 tool argument is output. Source paths and graph labels can nonetheless reveal
 private architecture; keep the file local and access-controlled.
 
-Unresolved references in graph_view.py are **not** RDF assertions. Inspect
-the full graph JSON for them before interpreting any reasoner output.
+If graph_view.py finds unresolved references, RDF export **fails closed**
+instead of silently emitting an incomplete subset. Inspect the complete
+graph JSON, resolve the missing bindings and rebuild before exporting.
 
 ## What a successful check means
 
