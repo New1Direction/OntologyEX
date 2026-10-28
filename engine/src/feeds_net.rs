@@ -5,8 +5,8 @@
 //! Outbound requests go only to allowlisted hosts, never through a proxy, and
 //! never follow redirects (a redirect is an answer, not a new target).
 
-use crate::feeds::{self, classify, decode_request, observation, stamp, Config, Probe, Prometheus, PromTarget,
-                   Res, Row, SpanWindow, Thresholds, MAX_BODY, MAX_OTLP_BODY};
+use crate::feeds::{self, classify, decode_request, observation, stamp, CallTotals, Config, Probe, Prometheus,
+                   PromTarget, Res, Row, SpanWindow, Thresholds, MAX_BODY, MAX_OTLP_BODY};
 use crate::pyjson;
 use chrono::Utc;
 use serde_json::{json, Map, Value};
@@ -171,12 +171,18 @@ pub struct Runner {
     pub listening: Option<String>,
     started: Instant,
     getter: Box<Getter>,
+    call_totals: CallTotals,
+    calls_seen: BTreeMap<(String, String), (u64, u64)>,
 }
 
 impl Runner {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config) -> Res<Self> {
         let window = config.otlp.as_ref().map(|o| Arc::new(Mutex::new(SpanWindow::new(o))));
-        Runner { config, status: Status::default(), window, listening: None, started: Instant::now(), getter: Box::new(fetch) }
+        // Calls counted before a restart stay; an unreadable file is refused, not overwritten.
+        let calls_path = config.calls_path();
+        let call_totals = if window.is_some() && calls_path.exists() { feeds::read_calls(&calls_path)? } else { CallTotals::new() };
+        Ok(Runner { config, status: Status::default(), window, listening: None, started: Instant::now(), getter: Box::new(fetch),
+                    call_totals, calls_seen: BTreeMap::new() })
     }
 
     fn monotonic(&self) -> f64 {
@@ -232,16 +238,25 @@ impl Runner {
 
     pub fn emit_otlp(&mut self) -> Res<usize> {
         let Some(window) = self.window.clone() else { return Ok(0) };
-        let (rows, accepted, unmapped) = {
+        let (rows, accepted, unmapped, calls) = {
             let mut w = window.lock().map_err(|_| "span window poisoned")?;
-            (w.observations(self.monotonic(), Utc::now()), w.accepted, w.unmapped.clone())
+            (w.observations(self.monotonic(), Utc::now()), w.accepted, w.unmapped.clone(), w.call_counts())
         };
         let written = feeds::store_add(&self.config.output, self.config.keep, rows)?;
         self.status.record("otlp".into(), json!({"last_run": stamp(Utc::now()), "ok": true,
                                                  "detail": format!("{accepted} server spans accepted"),
                                                  "unmapped_services": unmapped}));
+        self.write_calls(&calls)?;
         self.write_status()?;
         Ok(written)
+    }
+
+    fn write_calls(&mut self, current: &[(String, String, u64, u64)]) -> Res<()> {
+        let moment = Utc::now();
+        feeds::merge_calls(&mut self.call_totals, &mut self.calls_seen, current, moment);
+        let services = &self.config.otlp.as_ref().ok_or("no otlp configuration")?.services;
+        let document = feeds::calls_document(&self.call_totals, services, moment);
+        feeds::atomic_write(&self.config.calls_path(), pyjson::dumps(&document, Some(2), true).as_bytes(), ".feed-calls-", false)
     }
 
     pub fn write_status(&self) -> Res<()> {

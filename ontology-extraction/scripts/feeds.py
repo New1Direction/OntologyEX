@@ -8,7 +8,10 @@ still makes no network calls.
 
 - OTLP/HTTP receiver: apps or an OpenTelemetry Collector export traces here
   (protobuf or JSON, optional gzip, optional bearer token). Server spans become
-  per-service error rate and p95 latency over a sliding window.
+  per-service error rate and p95 latency over a sliding window. A client span in one
+  service and the server span it caused in another (same trace, parent ID) count as
+  one observed call between them, kept in a calls file beside the observations: what
+  the traces show, never a confirmed dependency.
 - Prometheus: operator-written instant queries for up, error rate, and latency.
 - HTTP probes: GET allowlisted health URLs; no redirects are followed.
 
@@ -18,7 +21,7 @@ proof of health, and nothing here repairs or changes a system.
 from __future__ import annotations
 
 import argparse
-from collections import deque
+from collections import OrderedDict, deque
 from datetime import datetime, timezone
 import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -49,6 +52,14 @@ MAX_SPANS_PER_SERVICE = 100_000
 KEEP_PER_COMPONENT = 8
 SERVER_KIND = 2
 ERROR_CODE = 2
+CALLER_KINDS = (3, 4)            # CLIENT, PRODUCER
+CALLEE_KINDS = (2, 5)            # SERVER, CONSUMER
+MAX_PENDING_CALLS = 100_000      # unmatched span halves per side, each kept one window
+MAX_CALL_PAIRS = 1024
+MAX_CALLS_BYTES = 1024 * 1024
+MAX_COUNT = 2 ** 63 - 1
+CALLS_KIND = "ONTOLOGYEX_OBSERVED_CALLS"
+STAMP = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z")
 METRIC_RULES = ("error_rate_pct", "p95_latency_ms", "probe_latency_ms")
 IDENT = re.compile(r"^discovery:[a-z_]+:[A-Za-z0-9_.~/%:-]{1,600}$")
 SERVICE = re.compile(r"^[A-Za-z0-9_.:/@-]{1,200}$")
@@ -481,8 +492,15 @@ def _sub(fields, number):
     return [v for f, w, v in fields if f == number and w == 2]
 
 
-def spans_from_protobuf(body: bytes) -> list[tuple[str, int, int, float]]:
-    """ExportTraceServiceRequest -> (service.name, kind, status code, duration ms)."""
+def _proto_id(fields, number: int, size: int) -> str:
+    """A trace or span ID as lowercase hex; empty when absent, all zero, or the wrong size."""
+    raw = next(iter(_sub(fields, number)), b"")
+    return raw.hex() if len(raw) == size and any(raw) else ""
+
+
+def spans_from_protobuf(body: bytes) -> list[tuple]:
+    """ExportTraceServiceRequest -> (service.name, kind, status code, duration ms,
+    trace ID, span ID, parent span ID)."""
     out = []
     for resource_spans in _sub(proto_fields(body), 1):
         rs = proto_fields(resource_spans)
@@ -504,7 +522,8 @@ def spans_from_protobuf(body: bytes) -> list[tuple[str, int, int, float]]:
                 code = 0
                 for status in _sub(sf, 15):
                     code = next((v for f, w, v in proto_fields(status) if f == 3 and w == 0), 0)
-                out.append((service, kind, code, max(0, end - start) / 1e6))
+                out.append((service, kind, code, max(0, end - start) / 1e6,
+                            _proto_id(sf, 1, 16), _proto_id(sf, 2, 8), _proto_id(sf, 4, 8)))
     return out
 
 
@@ -538,7 +557,14 @@ def _nanos(value) -> int:
     return value
 
 
-def spans_from_json(body: bytes) -> list[tuple[str, int, int, float]]:
+def _json_id(span: dict, key: str, size: int) -> str:
+    """OTLP/JSON IDs are hex strings; empty when absent, all zero, or the wrong size."""
+    text = _fields(span, key, str, "")
+    valid = re.fullmatch(f"[0-9A-Fa-f]{{{2 * size}}}", text) and text.strip("0")
+    return text.lower() if valid else ""
+
+
+def spans_from_json(body: bytes) -> list[tuple]:
     """OTLP/JSON (lowerCamelCase, 64-bit integers as strings)."""
     data = json_document(body, "OTLP")
     out = []
@@ -553,7 +579,8 @@ def spans_from_json(body: bytes) -> list[tuple[str, int, int, float]]:
                 code = _enum(_fields(_fields(span, "status", dict, {}), "code", (str, int), 0), _CODES)
                 start = _nanos(span.get("startTimeUnixNano", 0))
                 end = _nanos(span.get("endTimeUnixNano", 0))
-                out.append((service, kind, code, max(0, end - start) / 1e6))
+                out.append((service, kind, code, max(0, end - start) / 1e6, _json_id(span, "traceId", 16),
+                            _json_id(span, "spanId", 8), _json_id(span, "parentSpanId", 8)))
     return out
 
 
@@ -569,7 +596,8 @@ def p95(values: list[float]) -> float:
 
 
 class SpanWindow:
-    """Server spans per service over a sliding window, timed by arrival (not span clocks)."""
+    """Server spans per service over a sliding window, timed by arrival (not span clocks),
+    and calls between services from client and server spans that pair up."""
 
     def __init__(self, otlp: dict):
         self.services = otlp["services"]
@@ -581,12 +609,34 @@ class SpanWindow:
         self.spans: dict[str, deque] = {}
         self.unmapped: dict[str, int] = {}
         self.accepted = 0
+        # Unmatched halves of calls, oldest first: (trace, span ID) of client spans and
+        # (trace, parent ID) of server spans. Each waits one window for its other half.
+        self.callers: OrderedDict[tuple[str, str], tuple[float, str]] = OrderedDict()
+        self.callees: OrderedDict[tuple[str, str], tuple[float, str, bool]] = OrderedDict()
+        self.calls: dict[tuple[str, str], list[int]] = {}
+        self.calls_dropped = 0
         self.lock = Lock()
 
-    def ingest(self, spans: list[tuple[str, int, int, float]], arrived: float) -> int:
+    def ingest(self, spans: list[tuple], arrived: float) -> int:
         count = 0
         with self.lock:
-            for service, kind, code, duration in spans:
+            for pending in (self.callers, self.callees):
+                while pending and next(iter(pending.values()))[0] < arrived - self.window:
+                    pending.popitem(last=False)
+            for service, kind, code, duration, trace, span_id, parent in spans:
+                failed = code == ERROR_CODE
+                if trace and span_id and kind in CALLER_KINDS:
+                    callee = self.callees.pop((trace, span_id), None)
+                    if callee is not None:
+                        self._pair(service, callee[1], callee[2])
+                    elif (trace, span_id) not in self.callers:
+                        self._wait(self.callers, (trace, span_id), (arrived, service))
+                elif trace and parent and kind in CALLEE_KINDS:
+                    caller = self.callers.pop((trace, parent), None)
+                    if caller is not None:
+                        self._pair(caller[1], service, failed)
+                    elif (trace, parent) not in self.callees:
+                        self._wait(self.callees, (trace, parent), (arrived, service, failed))
                 if kind != SERVER_KIND:
                     continue
                 if service not in self.services:
@@ -594,10 +644,34 @@ class SpanWindow:
                         self.unmapped[service] = self.unmapped.get(service, 0) + 1
                     continue
                 queue = self.spans.setdefault(service, deque(maxlen=MAX_SPANS_PER_SERVICE))
-                queue.append((arrived, code == ERROR_CODE, duration))
+                queue.append((arrived, failed, duration))
                 count += 1
             self.accepted += count
         return count
+
+    def _wait(self, pending: OrderedDict, key: tuple[str, str], half: tuple) -> None:
+        if len(pending) >= MAX_PENDING_CALLS:
+            self.calls_dropped += 1
+        else:
+            pending[key] = half
+
+    def _pair(self, caller: str, callee: str, failed: bool) -> None:
+        """One observed call. Calls within one service, or from an unnamed one, are not edges."""
+        if caller == callee or not (SERVICE.fullmatch(caller) and SERVICE.fullmatch(callee)):
+            return
+        row = self.calls.get((caller, callee))
+        if row is None:
+            if len(self.calls) >= MAX_CALL_PAIRS:
+                self.calls_dropped += 1
+                return
+            row = self.calls[(caller, callee)] = [0, 0]
+        row[0] += 1
+        row[1] += failed
+
+    def call_counts(self) -> list[tuple[str, str, int, int]]:
+        """(caller, callee, calls, errors) since start, sorted."""
+        with self.lock:
+            return [(a, b, n, e) for (a, b), (n, e) in sorted(self.calls.items())]
 
     def observations(self, arrived: float, moment: datetime | None = None) -> list[dict]:
         rows = []
@@ -614,6 +688,70 @@ class SpanWindow:
                                         classify(metrics, self.warning, self.error), "otel",
                                         self.emit, metrics, moment or now_utc()))
         return rows
+
+
+# ---------------------------------------------------------------- observed calls file
+
+def read_calls(path: Path) -> list[dict]:
+    """The rows of a calls file, checked strictly. The file is telemetry, not a decision."""
+    document = json_document(control_room.safe_read(path, MAX_CALLS_BYTES), "calls file",
+                             pairs=control_room.no_duplicates)
+    check(type(document) is dict and set(document) == {"schema_version", "kind", "generated_at",
+                                                        "calls", "semantics"}, "calls file: unexpected fields")
+    check(document["schema_version"] == 1 and type(document["schema_version"]) is int
+          and document["kind"] == CALLS_KIND, "unsupported calls file")
+    check(type(document["generated_at"]) is str and STAMP.fullmatch(document["generated_at"]) is not None,
+          "calls file: invalid generated_at")
+    rows = document["calls"]
+    check(type(rows) is list and len(rows) <= MAX_CALL_PAIRS, "calls file: too many rows")
+    seen = set()
+    for row in rows:
+        check(type(row) is dict and set(row) == {"caller_service", "callee_service", "caller", "callee",
+                                                 "calls", "errors", "first_seen", "last_seen"},
+              "calls file: unexpected row fields")
+        a, b = row["caller_service"], row["callee_service"]
+        check(type(a) is str and type(b) is str and SERVICE.fullmatch(a) is not None
+              and SERVICE.fullmatch(b) is not None and a != b and (a, b) not in seen,
+              "calls file: invalid or repeated service pair")
+        seen.add((a, b))
+        for key in ("caller", "callee"):
+            check(row[key] is None or (type(row[key]) is str and IDENT.fullmatch(row[key]) is not None),
+                  "calls file: invalid component")
+        n, e = row["calls"], row["errors"]
+        check(type(n) is int and type(e) is int and 0 < n <= MAX_COUNT and 0 <= e <= n,
+              "calls file: invalid counts")
+        check(all(type(row[k]) is str and STAMP.fullmatch(row[k]) is not None for k in ("first_seen", "last_seen"))
+              and row["first_seen"] <= row["last_seen"], "calls file: invalid times")
+    return rows
+
+
+def merge_calls(totals: dict, seen: dict, current: list, moment: datetime) -> None:
+    """Add what the window counted since the last merge to the running totals, in place.
+
+    `totals` maps (caller, callee) to {"calls", "errors", "first_seen", "last_seen"};
+    `seen` maps it to the window's (calls, errors) at the last merge.
+    """
+    now = stamp(moment)
+    for caller, callee, calls, errors in current:
+        before = seen.get((caller, callee), (0, 0))
+        seen[(caller, callee)] = (calls, errors)
+        if calls <= before[0]:
+            continue
+        row = totals.get((caller, callee))
+        if row is None:
+            if len(totals) >= MAX_CALL_PAIRS:
+                continue
+            row = totals[(caller, callee)] = {"calls": 0, "errors": 0, "first_seen": now, "last_seen": now}
+        row["calls"] = min(MAX_COUNT, row["calls"] + calls - before[0])
+        row["errors"] = min(row["calls"], row["errors"] + max(0, errors - before[1]))
+        row["last_seen"] = now
+
+
+def calls_document(totals: dict, services: dict, moment: datetime) -> dict:
+    return {"schema_version": 1, "kind": CALLS_KIND, "generated_at": stamp(moment),
+            "calls": [{"caller_service": a, "callee_service": b, "caller": services.get(a),
+                       "callee": services.get(b), **row} for (a, b), row in sorted(totals.items())],
+            "semantics": "OBSERVED_IN_TRACES_NOT_CONFIRMED_DEPENDENCIES"}
 
 
 def decode_request(body: bytes, content_type: str, content_encoding: str) -> tuple[int, list]:
@@ -683,8 +821,14 @@ class FeedRunner:
         self.getter = getter
         self.store = ObservationStore(output_path(config), config.get("keep_per_component", KEEP_PER_COMPONENT))
         self.status_path = output_path(config).with_suffix(".status.json")
+        self.calls_path = output_path(config).with_suffix(".calls.json")
         self.status: dict[str, dict] = {}
         self.window = SpanWindow(config["otlp"]) if "otlp" in config else None
+        # Calls counted before a restart stay; an unreadable file is refused, not overwritten.
+        self.call_totals = ({(r["caller_service"], r["callee_service"]): {
+            k: r[k] for k in ("calls", "errors", "first_seen", "last_seen")} for r in read_calls(self.calls_path)}
+            if self.window and self.calls_path.exists() else {})
+        self.calls_seen: dict = {}
         self.stop = Event()
         self.server = None
 
@@ -718,8 +862,18 @@ class FeedRunner:
             self.status["otlp"] = {"last_run": stamp(now_utc()), "ok": True,
                                    "detail": f"{self.window.accepted} server spans accepted",
                                    "unmapped_services": dict(sorted(self.window.unmapped.items()))}
+            self.write_calls()
         self.write_status()
         return written
+
+    def write_calls(self) -> None:
+        moment = now_utc()
+        merge_calls(self.call_totals, self.calls_seen, self.window.call_counts(), moment)
+        document = calls_document(self.call_totals, self.config["otlp"]["services"], moment)
+        with tempfile.NamedTemporaryFile("w", dir=self.calls_path.parent, prefix=".feed-calls-",
+                                         delete=False, encoding="utf-8") as handle:
+            json.dump(document, handle, sort_keys=True, indent=2)
+        Path(handle.name).replace(self.calls_path)
 
     def write_status(self) -> None:
         self.status_path.parent.mkdir(parents=True, exist_ok=True)
