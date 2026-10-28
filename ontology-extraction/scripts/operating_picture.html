@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>OntologyEX / Operating Picture</title>
+<meta name="ontologyex-write-token" content=""/>
 <style>
 :root{color-scheme:dark;--bg:#060b12;--panel:#0b131d;--panel2:#0f1a26;--line:#1d2c3b;--line2:#2a3d50;
 --text:#dbe7f0;--muted:#7f93a6;--faint:#4d6176;--accent:#4cc3d9;
@@ -45,6 +46,14 @@ aside{border-right:1px solid var(--line)}#inspector{border-left:1px solid var(--
 .row .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .row .sub{color:var(--muted);font-size:11px}
 .dot{width:9px;height:9px;border-radius:50%;flex:none}
+.sug{padding:9px 10px;border-radius:7px;margin-bottom:6px;border:1px dashed var(--line2);background:var(--bg)}
+.sug .t{display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:600;overflow-wrap:anywhere}
+.sug .sig{color:var(--muted);font-size:11.5px;margin-top:4px}
+.sug .act{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line2);background:var(--panel2);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px}
+.btn:hover{border-color:var(--accent)}.btn.yes{border-color:#2f7d62;color:#7ff0b4}.btn.no{color:var(--muted)}
+.btn:disabled{opacity:.5;cursor:default}
+#who{width:100%;margin-bottom:8px;background:var(--panel);border:1px solid var(--line2);border-radius:6px;color:var(--text);padding:6px 8px;font:inherit;font-size:12px}
 .attn{display:block;padding:9px 10px;border-radius:7px;margin-bottom:6px;border:1px solid var(--line);border-left-width:3px;background:var(--bg);cursor:pointer;width:100%;text-align:left}
 .attn:hover{background:var(--panel2)}
 .attn .t{display:flex;justify-content:space-between;gap:8px;font-weight:600}
@@ -101,6 +110,7 @@ footer{padding:8px 18px;border-top:1px solid var(--line);color:var(--faint);font
 <main>
  <aside aria-label="Explorer">
   <div class="sec"><h2>Needs attention <em id="attn-count"></em></h2><div id="attention"></div></div>
+  <div class="sec" id="sug-sec"><h2>Suggested links <em id="sug-count"></em></h2><div id="suggestions"></div></div>
   <div class="sec"><h2>Actions <em id="n-actions"></em></h2><div id="list-actions" role="listbox" aria-label="Business actions"></div></div>
   <div class="sec"><h2>Objects <em id="n-objects"></em></h2><div id="list-objects" role="listbox" aria-label="Business objects"></div></div>
   <div class="sec"><h2>Linked systems <em id="n-systems"></em></h2><div id="list-systems" role="listbox" aria-label="Linked systems"></div></div>
@@ -115,7 +125,7 @@ footer{padding:8px 18px;border-top:1px solid var(--line);color:var(--faint);font
  </section>
  <section id="inspector" aria-label="Inspector" aria-live="polite"></section>
 </main>
-<footer><span>READ ONLY</span><span>LOOPBACK ONLY</span><span>HEALTH = SOURCE-REPORTED STATUS OF LINKED SYSTEMS, NOT ACTION OUTCOMES</span><span>LINKS ARE OPERATOR DECLARATIONS</span><span>NOTHING HERE IS APPROVED OR EXECUTED</span></footer>
+<footer><span id="mode">READ ONLY</span><span>LOOPBACK ONLY</span><span>HEALTH = SOURCE-REPORTED STATUS OF LINKED SYSTEMS, NOT ACTION OUTCOMES</span><span>LINKS ARE OPERATOR DECLARATIONS</span><span>NOTHING HERE IS APPROVED OR EXECUTED</span></footer>
 <script>
 "use strict";
 const NS="http://www.w3.org/2000/svg";
@@ -271,6 +281,7 @@ function inspector(){const box=$("inspector");box.replaceChildren();
   const objChips=(ids,role)=>ids.map(id=>{const k=`${it.skill}:object:${id}`;const o=IDX.get(k);return o?chipFor(k,`${role} ${id}`,o.item.health):h("span",{class:"chip static",text:id})});
   box.append(section("Objects",undefined,h("div",{class:"chips"},...objChips(it.inputs,"in"),...objChips(it.outputs,"out"),...objChips(it.actor_roles,"by"))));
   if(it.effects.length)box.append(section("Effects (descriptive, not executed)",undefined,...it.effects.map(e=>h("p",{style:"margin:0 0 6px",text:e}))));
+  {const sg=suggestionsFor(it.bindings.map(b=>it.skill+"\u0000"+b.id));if(sg.length)box.append(section("Suggested links",sg.length,...sg.map(suggestionCard)))}
   box.append(section("Code bindings",it.bindings.length,...it.bindings.map(b=>h("div",{class:"rule"},h("div",{class:"flags"},
    h("span",{class:"mono",text:b.id}),h("span",{class:"muted",style:"font-size:11px",text:b.kind||""})),evidenceList(b.evidence)))));
   box.append(section("Source",undefined,evidenceList(it.evidence)));
@@ -283,6 +294,7 @@ function inspector(){const box=$("inspector");box.replaceChildren();
    return h("div",{class:"rule"},h("div",{class:"flags"},h("span",{class:"mono",text:r.direction==="out"?`${it.id} → ${r.id} → ${r.other}`:`${r.other} → ${r.id} → ${it.id}`}),
     r.cardinality?h("span",{class:"muted",style:"font-size:11px",text:r.cardinality}):null,o?chipFor(k,r.other,o.item.health):null),r.definition?h("p",{class:"muted",text:r.definition}):null)})));
   box.append(section("Implemented by",it.systems.length,systemRows(it.systems)));
+  {const sg=suggestionsFor(it.bindings.map(b=>it.skill+"\u0000"+b));if(sg.length)box.append(section("Suggested links",sg.length,...sg.map(suggestionCard)))}
   box.append(section("Source",undefined,evidenceList(it.evidence)));
  } else {
   const kv=h("dl",{class:"kv"});const add=(k,v)=>{kv.append(h("dt",{text:k}),h("dd",{text:v}))};
@@ -308,7 +320,39 @@ function overview(box){
   h("div",{class:"legend",style:"margin-top:8px"},h("span",{text:"◇ action"}),h("span",{text:"○ object"}),h("span",{text:"□ system"}),h("span",{text:"G0 cited → G4 observed in use"}))));
  box.append(section("Boundaries",undefined,h("p",{class:"muted",style:"margin:0",text:"Links from code to systems are operator declarations. Status is source-reported and unattested. A declared dependency shows possible impact, not a confirmed outage. Nothing here approves or runs an action."})));
 }
-function render(){IDX=index();if(selected&&!IDX.has(selected))selected=null;kpis();lists();graph();inspector()}
+const TOKEN=(document.querySelector('meta[name="ontologyex-write-token"]')||{}).content||"";
+let who="";try{who=localStorage.getItem("ontologyex-decider")||""}catch(_){}
+const STRENGTH_HEX={STRONG:"#7ff0b4",MODERATE:"#8cd0ff",WEAK:"#8fa3b6"};
+function suggestionsFor(bindingIds){const all=(data&&data.link_suggestions)?data.link_suggestions.suggestions:[];
+ return bindingIds?all.filter(x=>bindingIds.includes(x.skill+"\u0000"+x.binding)):all}
+async function decideLink(s,decision,btns,status){
+ if(!who.trim()){status.textContent="Enter your name above first.";return}
+ btns.forEach(b=>b.disabled=true);status.textContent=decision==="confirm"?"Confirming…":"Rejecting…";
+ try{const r=await fetch("/api/links/decision",{method:"POST",headers:{"Content-Type":"application/json","X-OntologyEX-Token":TOKEN},
+   body:JSON.stringify({id:s.id,decision,by:who.trim().slice(0,120),note:""})});
+  const d=await r.json();if(!r.ok)throw new Error(d.status||String(r.status));status.textContent=d.status==="UNCHANGED"?"Already decided.":"Saved.";await load()}
+ catch(err){status.textContent="Not saved: "+err.message;btns.forEach(b=>b.disabled=false)}}
+function suggestionCard(s){const status=h("div",{class:"sig"});
+ const card=h("div",{class:"sug"},h("div",{class:"t"},h("span",{text:`${s.binding} → ${s.component_label}`}),
+   h("span",{class:"sev",style:`color:${STRENGTH_HEX[s.strength]};background:${STRENGTH_HEX[s.strength]}1f`,text:s.strength})),
+  ...s.signals.map(g=>h("div",{class:"sig",text:`${g.signal.replace(/_/g," ").toLowerCase()}: ${g.detail}`})));
+ if(TOKEN&&data.link_decisions==="ENABLED_LOCAL_TOKEN"){const yes=h("button",{class:"btn yes",type:"button",text:"Confirm link"}),no=h("button",{class:"btn no",type:"button",text:"Reject"});
+  yes.addEventListener("click",()=>decideLink(s,"confirm",[yes,no],status));no.addEventListener("click",()=>decideLink(s,"reject",[yes,no],status));
+  card.append(h("div",{class:"act"},yes,no),status)}
+ else if(s.confirm_command){const copy=h("button",{class:"btn",type:"button",text:"Copy confirm command"});
+  copy.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(s.confirm_command);status.textContent="Copied. Replace YOUR_NAME and run it."}catch(_){status.textContent=s.confirm_command}});
+  card.append(h("div",{class:"act"},copy),status)}
+ else card.append(h("div",{class:"sig",text:"Confirm with link_suggest.py confirm --id "+s.id}));
+ return card}
+function suggestionsPanel(){const box=$("suggestions");box.replaceChildren();const all=suggestionsFor(null);
+ $("sug-count").textContent=String(all.length);$("sug-sec").style.display=data&&data.status==="READY"?"block":"none";
+ if(!data)return;
+ if(TOKEN&&data.link_decisions==="ENABLED_LOCAL_TOKEN"){const inp=h("input",{id:"who",type:"text",maxlength:120,placeholder:"Your name (recorded with each decision)",value:who});
+  inp.addEventListener("input",e=>{who=e.target.value;try{localStorage.setItem("ontologyex-decider",who)}catch(_){}});box.append(inp)}
+ if(!all.length)box.append(h("p",{class:"muted",text:"No suggestions. Every binding is linked, rejected, or has no matching name or path."}));
+ for(const s of all.slice(0,30))box.append(suggestionCard(s));
+ const hidden=data.link_suggestions.rejected_not_shown;if(hidden)box.append(h("p",{class:"muted",style:"font-size:11px",text:`${hidden} rejected suggestion(s) hidden.`}))}
+function render(){if(data)$("mode").textContent=data.link_decisions==="ENABLED_LOCAL_TOKEN"?"READ ONLY EXCEPT LINK DECISIONS":"READ ONLY";IDX=index();if(selected&&!IDX.has(selected))selected=null;kpis();lists();suggestionsPanel();graph();inspector()}
 async function load(){const mine=++epoch;
  try{const r=await fetch("/api/business",{cache:"no-store"});if(!r.ok)throw new Error(String(r.status));const d=await r.json();
   if(mine!==epoch)return;data=d;$("pulse").className="pulse";$("asof").textContent="As of "+new Date(d.generated_at).toLocaleTimeString()+" · refresh 5s";render()}

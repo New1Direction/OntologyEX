@@ -11,15 +11,19 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from threading import Event, RLock, Thread
+from threading import Event, Lock, RLock, Thread
+import hmac
 import json
 import math
 import os
 import re
+import secrets
+import shlex
 import stat
 
 import business_view
 import discover_repo
+import link_suggest
 import github_discovery
 import snapshot_store
 import graph_view_api
@@ -824,15 +828,44 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
           port: int, github: str | None = None, github_refresh_seconds: int = 300,
           github_client=None, snapshot_dir: Path | None = None,
           view_engine: str = "python", skills: list[Path] | None = None,
-          links: Path | None = None, events: Path | None = None) -> None:
+          links: Path | None = None, events: Path | None = None,
+          allow_link_decisions: bool = False) -> None:
     check(0 <= port <= 65535, "invalid port")
     check(view_engine in ("python", "rust"), "unsupported graph view backend")
     native_view = native_view_bridge.NativeView() if view_engine == "rust" else None
     rules = read_thresholds(thresholds)
     skills = list(skills or [])
     # Fail at startup on a tampered skill or malformed links; re-verified per request.
-    business_view.read_links(links)
+    if links is not None and links.exists():
+        business_view.read_link_document(links)
     check(len(skills) <= business_view.MAX_SKILLS, "too many skills")
+    check(not allow_link_decisions or (links is not None and skills),
+          "link decisions need --links and at least one --skill")
+    # Per-process secret for the opt-in write route; served only inside /business.
+    write_token = secrets.token_urlsafe(32) if allow_link_decisions else None
+    decision_lock = Lock()
+    if repo is not None:
+        base_command = ["python", "ontology-extraction/scripts/link_suggest.py", "{decision}",
+                        "--repo", str(repo), *[x for path in skills for x in ("--skill", str(path))],
+                        "--links", str(links) if links is not None else "LINKS.json"]
+    else:
+        base_command = None
+
+    def business(full: dict) -> dict:
+        link_rows, rejected = ((business_view.read_link_document(links)
+                                if links is not None and links.exists() else ([], [])))
+        result = business_view.project(skills, full, link_rows, events)
+        suggestions = link_suggest.suggest(skills, full, link_rows, rejected)
+        for row in suggestions["suggestions"]:
+            row["confirm_command"] = (" ".join(shlex.quote(part) for part in [
+                *[x.format(decision="confirm") for x in base_command],
+                "--id", row["id"], "--by", "YOUR_NAME"]) if base_command else None)
+        result["link_suggestions"] = suggestions
+        result["link_decisions"] = ("ENABLED_LOCAL_TOKEN" if write_token else
+                                    "READ_ONLY_USE_CLI")
+        result["discovery_freshness"] = full["discovery_freshness"]
+        result["discovery_scanned_at"] = full["discovery_scanned_at"]
+        return result
     check(60 <= github_refresh_seconds <= 3600, "invalid GitHub refresh interval")
     check((repo is None) != (github is None), "configure exactly one source")
     if github:
@@ -906,18 +939,17 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             elif route.path == "/" and not route.query:
                 payload, mime, code = PAGE.encode("utf-8"), "text/html; charset=utf-8", 200
             elif route.path == "/business" and not route.query:
-                payload = (Path(__file__).resolve().parent / "operating_picture.html").read_bytes()
-                mime, code = "text/html; charset=utf-8", 200
+                page = (Path(__file__).resolve().parent / "operating_picture.html").read_text(encoding="utf-8")
+                page = page.replace('<meta name="ontologyex-write-token" content=""/>',
+                                    f'<meta name="ontologyex-write-token" content="{write_token}"/>'
+                                    if write_token else '<meta name="ontologyex-write-token" content=""/>')
+                payload, mime, code = page.encode("utf-8"), "text/html; charset=utf-8", 200
             elif route.path == "/api/business":
                 mime = "application/json; charset=utf-8"
                 try:
                     if route.query:
                         raise graph_view_api.ViewError("business view takes no parameters")
-                    full = snapshot()
-                    result = business_view.project(skills, full, business_view.read_links(links), events)
-                    result["discovery_freshness"] = full["discovery_freshness"]
-                    result["discovery_scanned_at"] = full["discovery_scanned_at"]
-                    payload, code = json.dumps(result, sort_keys=True).encode(), 200
+                    payload, code = json.dumps(business(snapshot()), sort_keys=True).encode(), 200
                 except graph_view_api.ViewError:
                     payload, code = b'{"status":"INVALID_QUERY"}', 400
                 except (RoomError, DomainError, discover_repo.DiscoveryError,
@@ -993,10 +1025,57 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             self.end_headers()
             self.wfile.write(payload)
 
+        def do_POST(self):
+            """The one write route: an explicit link decision, only when opted in."""
+            host_headers = self.headers.get_all("Host", [])
+            origin = self.headers.get("Origin")
+            route = urlsplit(self.path)
+            if (len(host_headers) != 1 or origin is None or not valid_local_host(
+                    host_headers[0], origin, self.server.server_port)):
+                code, body = 403, {"status": "FORBIDDEN"}
+            elif route.path != "/api/links/decision" or route.query:
+                code, body = 404, {"status": "NOT_FOUND"}
+            elif write_token is None:
+                code, body = 403, {"status": "LINK_DECISIONS_DISABLED"}
+            elif not hmac.compare_digest(self.headers.get("X-OntologyEX-Token", ""), write_token):
+                code, body = 403, {"status": "INVALID_TOKEN"}
+            elif self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
+                code, body = 415, {"status": "JSON_REQUIRED"}
+            else:
+                try:
+                    length = int(self.headers.get("Content-Length", "-1"))
+                    if not 0 < length <= 4096:
+                        raise ValueError("invalid body length")
+                    request = json.loads(self.rfile.read(length),
+                                         object_pairs_hook=no_duplicates)
+                    if type(request) is not dict or set(request) != {"id", "decision", "by", "note"}:
+                        raise ValueError("expected id, decision, by and note")
+                    with decision_lock:
+                        current = business(snapshot())["link_suggestions"]["suggestions"]
+                        match = [x for x in current if x["id"] == request["id"]]
+                        if len(match) != 1:
+                            raise ValueError("no current suggestion has that ID")
+                        match[0].pop("confirm_command", None)
+                        body = link_suggest.decide(links, match[0], request["decision"],
+                                                   request["by"], request["note"])
+                    code = 200
+                except (ValueError, TypeError, KeyError, UnicodeError, RoomError, DomainError):
+                    code, body = 400, {"status": "INVALID_DECISION"}
+                except OSError:
+                    code, body = 503, {"status": "SOURCE_UNAVAILABLE"}
+            payload = json.dumps(body, sort_keys=True).encode()
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
         def log_message(self, *args):
             return  # No user-supplied paths or request logs persisted.
 
-    # No POST, no write operations and no external listener.
+    # No external listener. The only write is the opt-in link decision above.
     try:
         with ThreadingHTTPServer(("127.0.0.1", port), Handler) as server:
             print(f"OntologyEX local control room: http://127.0.0.1:{server.server_port}",
@@ -1028,6 +1107,8 @@ def main():
                         help="operator-declared binding-to-component links (JSON)")
     parser.add_argument("--events", type=Path, default=None,
                         help="evidence grade events file (see evidence_grade.py)")
+    parser.add_argument("--allow-link-decisions", action="store_true",
+                        help="let the local business page confirm or reject link suggestions")
     args = parser.parse_args()
     try:
         if args.repo is not None:
@@ -1046,14 +1127,18 @@ def main():
                                  read_thresholds(args.thresholds))
             result["discovery_source"] = topology.get("source", {"provider": "local"})
             if args.skill:
-                result["business"] = business_view.project(
-                    args.skill, result, business_view.read_links(args.links), args.events)
+                link_rows, rejected = (business_view.read_link_document(args.links)
+                                       if args.links is not None else ([], []))
+                result["business"] = business_view.project(args.skill, result, link_rows, args.events)
+                result["business"]["link_suggestions"] = link_suggest.suggest(
+                    args.skill, result, link_rows, rejected)
             print(json.dumps(result, sort_keys=True, separators=(",", ":")))
         else:
             serve(args.repo, args.observations, args.thresholds, args.port,
                   github=args.github, github_refresh_seconds=args.github_refresh_seconds,
                   snapshot_dir=args.snapshot_dir, view_engine=args.view_engine,
-                  skills=args.skill, links=args.links, events=args.events)
+                  skills=args.skill, links=args.links, events=args.events,
+                  allow_link_decisions=args.allow_link_decisions)
         return 0
     except (OSError, RoomError, discover_repo.DiscoveryError,
             github_discovery.GitHubDiscoveryError, snapshot_store.SnapshotError,

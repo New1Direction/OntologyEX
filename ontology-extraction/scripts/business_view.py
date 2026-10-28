@@ -23,19 +23,9 @@ LINK_KIND = "ONTOLOGYEX_SYSTEM_LINKS"
 HEALTH = ("AT_RISK", "POSSIBLY_IMPACTED", "DEGRADED", "STALE", "UNKNOWN", "UNLINKED", "REPORTED_OK")
 
 
-def read_links(path: Path | None) -> list[dict]:
-    """Operator-declared binding -> component links. Unknown targets become gaps, not edges."""
-    if path is None:
-        return []
-    require(path.is_file() and not path.is_symlink(), "links path must be a regular file")
-    document = parse_json(safe_file(path.parent, path.name, MAX_TOTAL))
-    keys(document, {"schema_version", "kind", "links"}, "links document")
-    require(document["schema_version"] == 1 and document["kind"] == LINK_KIND,
-            "unsupported links document")
-    links = document["links"]
-    require(type(links) is list and len(links) <= MAX_LINKS, "invalid links list")
-    seen = set()
-    for link in links:
+def _link_rows(rows: object, seen: set) -> list[dict]:
+    require(type(rows) is list and len(rows) <= MAX_LINKS, "invalid links list")
+    for link in rows:
         keys(link, {"skill", "binding", "component", "declared_by", "note"}, "link")
         require(type(link["skill"]) is str and 0 < len(link["skill"]) <= 64, "invalid link skill")
         require(type(link["binding"]) is str and ID.fullmatch(link["binding"]) is not None,
@@ -46,9 +36,28 @@ def read_links(path: Path | None) -> list[dict]:
                 "links need a declaring person or team")
         require(type(link["note"]) is str and len(link["note"]) <= 500, "invalid link note")
         key = (link["skill"], link["binding"], link["component"])
-        require(key not in seen, "duplicate link")
+        require(key not in seen, "duplicate link or a link that is also rejected")
         seen.add(key)
-    return links
+    return rows
+
+
+def read_link_document(path: Path) -> tuple[list[dict], list[dict]]:
+    """Confirmed links and rejected suggestions. A pair is never both."""
+    require(path.is_file() and not path.is_symlink(), "links path must be a regular file")
+    document = parse_json(safe_file(path.parent, path.name, MAX_TOTAL))
+    require(type(document) is dict and set(document) in (
+        {"schema_version", "kind", "links"}, {"schema_version", "kind", "links", "rejected"}),
+        "links document: unexpected fields")
+    require(document["schema_version"] == 1 and document["kind"] == LINK_KIND,
+            "unsupported links document")
+    seen: set = set()
+    links = _link_rows(document["links"], seen)
+    return links, _link_rows(document.get("rejected", []), seen)
+
+
+def read_links(path: Path | None) -> list[dict]:
+    """Operator-declared binding -> component links. Unknown targets become gaps, not edges."""
+    return [] if path is None else read_link_document(path)[0]
 
 
 def rollup(systems: list[dict]) -> tuple[str, str]:

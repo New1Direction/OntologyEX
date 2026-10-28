@@ -192,10 +192,13 @@ class BusinessHttpTests(unittest.TestCase):
                 with self.assertRaises(urllib.error.HTTPError) as bad:
                     urllib.request.urlopen(base + "/api/business?x=1", timeout=2)
                 self.assertEqual(bad.exception.code, 400)
-                request = urllib.request.Request(base + "/api/business", method="POST")
-                with self.assertRaises(urllib.error.HTTPError) as post:
-                    urllib.request.urlopen(request, timeout=2)
-                self.assertEqual(post.exception.code, 501)
+                # No Origin: refused. Same origin: the read route has no write handler.
+                for headers, expected in (({}, 403), ({"Origin": base}, 404)):
+                    request = urllib.request.Request(base + "/api/business", method="POST",
+                                                     data=b"{}", headers=headers)
+                    with self.assertRaises(urllib.error.HTTPError) as post:
+                        urllib.request.urlopen(request, timeout=2)
+                    self.assertEqual(post.exception.code, expected)
             finally:
                 process.terminate()
                 process.wait(timeout=5)

@@ -53,6 +53,51 @@ samples, and synthetic grade events. No real system is observed.
    Repeat `--skill` for more domains (up to 16, with distinct names).
    `--github owner/name` works in place of `--repo`.
 
+## Suggested links (auto-linking with confirmation)
+
+Writing links by hand is the slow part, so the control room suggests them.
+`link_suggest.py` compares each code binding with each discovered service,
+module, route, and table, and explains every suggestion with its signals:
+
+| Signal | Strength | Example |
+|---|---|---|
+| `SAME_SOURCE_FILE` | STRONG | The binding's evidence file is the module's source file (`payments.py` and `src/payments.py`). Never used for services, whose source is the manifest. |
+| `PATH_NAMES_COMPONENT` | MODERATE | A folder or file name in the binding's path is the component's name (`services/payments/refund.py` and `payments`). |
+| `SYSTEM_NAMES_COMPONENT` | MODERATE | The skill's application `system` names the component (`fictional-payments` and `payments`). |
+| `SHARED_NAME` | WEAK | The binding and the component share a word. |
+
+Strength is ordinal, not a probability. At most five suggestions per binding are
+shown, strongest first. Pairs that are already linked or were rejected are not
+suggested again.
+
+**A suggestion is never a link.** Only a person's decision changes the links file:
+
+```bash
+python ontology-extraction/scripts/link_suggest.py suggest --repo REPO --skill SKILL --links links.json
+python ontology-extraction/scripts/link_suggest.py confirm --repo REPO --skill SKILL --links links.json \
+  --id SUGGESTION_ID --by your-name
+python ontology-extraction/scripts/link_suggest.py reject  --repo REPO --skill SKILL --links links.json \
+  --id SUGGESTION_ID --by your-name --note "Payment lives in ledger"
+```
+
+A confirm appends to `links`; a reject appends to `rejected`. Writes are atomic,
+append-only, and idempotent, and a pair can never be both confirmed and rejected.
+`--by` is recorded, not verified.
+
+In the page, **Suggested links** lists each suggestion with its signals. By default
+the server stays read-only and each card has a **Copy confirm command** button.
+Start the control room with `--allow-link-decisions` (and `--links`) to get
+**Confirm link** and **Reject** buttons. That enables exactly one write route,
+`POST /api/links/decision`, which requires:
+
+- a same-origin loopback `Origin` header (requests without one are refused),
+- the per-process token that is embedded only in the `/business` page,
+- a JSON body of exactly `id`, `decision`, `by`, and `note`, at most 4 KB,
+- an `id` that matches a suggestion in the current state.
+
+`python examples/operating-picture/demo.py --serve --start-unlinked` starts the
+demo with no links so you can confirm the suggestions yourself.
+
 ## How health is derived
 
 An action's health is the most urgent condition among the systems linked to
@@ -97,14 +142,15 @@ python ontology-extraction/scripts/control_room.py --repo REPO --skill SKILL \
   --links links.json --state-only
 ```
 
-includes the same projection under `business`.
+includes the same projection under `business`, with `link_suggestions`.
 
 ## Boundaries
 
 - Skills are hash-verified on every request; a changed bundle is refused.
 - Evidence quotes are shown as text (at most 600 characters each), never as HTML.
-- Same loopback-only, GET-only server, CSP, and Host/Origin checks as the
-  system map. No credentials, writes, network calls, or remediation.
+- Same loopback-only server, CSP, and Host/Origin checks as the system map.
+  The only write is the opt-in link decision above. No credentials, network
+  calls, or remediation.
 - Labels, paths, rules, and quotes can reveal private policy and architecture.
 
 ## Tests

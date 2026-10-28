@@ -52,7 +52,7 @@ LINKS = (("payments.apply_refund", "payments", "Refund code is deployed in the p
          ("payments.Payment", "api", "The public API returns Payment records."))
 
 
-def build(out: Path, now: datetime | None = None) -> dict:
+def build(out: Path, now: datetime | None = None, unlinked: bool = False) -> dict:
     require(not out.exists(), "demo output already exists; choose a fresh directory")
     now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     repo = out / "business"
@@ -81,7 +81,7 @@ def build(out: Path, now: datetime | None = None) -> dict:
     ds.build(workspace, skill, domain)
 
     links = out / "links.json"
-    links.write_bytes(canonical({"schema_version": 1, "kind": "ONTOLOGYEX_SYSTEM_LINKS", "links": [
+    links.write_bytes(canonical({"schema_version": 1, "kind": "ONTOLOGYEX_SYSTEM_LINKS", "links": [] if unlinked else [
         {"skill": payments.NAME, "binding": binding, "component": SERVICE + service,
          "declared_by": "demo (synthetic)", "note": note} for binding, service, note in LINKS]}))
     stamp = now.isoformat().replace("+00:00", "Z")
@@ -109,9 +109,11 @@ def main() -> int:
     parser.add_argument("--out", type=Path, default=ROOT / "build/operating-picture")
     parser.add_argument("--serve", action="store_true", help="start the local control room")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--start-unlinked", action="store_true",
+                        help="start with no links and confirm suggested ones in the page")
     args = parser.parse_args()
     try:
-        result = build(args.out)
+        result = build(args.out, unlinked=args.start_unlinked)
     except (DomainError, OSError, ValueError) as exc:
         print(canonical({"status": "ERROR", "error": str(exc)}).decode(), end="")
         return 1
@@ -121,7 +123,7 @@ def main() -> int:
         print(f"Open http://127.0.0.1:{args.port}/business", flush=True)
         control_room.serve(Path(result["repo"]), Path(result["observations"]), None, args.port,
                            skills=[Path(result["skill"])], links=Path(result["links"]),
-                           events=Path(result["events"]))
+                           events=Path(result["events"]), allow_link_decisions=True)
     return 0
 
 
