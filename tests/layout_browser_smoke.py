@@ -156,7 +156,7 @@ def main():
             assert "ERROR" in driver.find_element("id","incident-list").text
             driver.find_element("css selector",'#svg g[role="button"]').click()
             WebDriverWait(driver,10).until(lambda d:
-                "discovery:service:compose.yml:test_service_399" in
+                "TEST_SERVICE_399" in
                 d.find_element("id","details").text)
             assert "SOURCE FILE: compose.yml" in driver.find_element("id","details").text
             print("CHROME 405-node repo; bounded paging, search, on-demand evidence verified",flush=True)
