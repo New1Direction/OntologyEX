@@ -13,6 +13,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from datetime import datetime, timezone
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -38,13 +39,21 @@ def main():
         repo.mkdir()
         (repo / "compose.yml").write_text(
             "services:\n  web:\n    depends_on: [api]\n  api:\n    depends_on: [db]\n  db: {}\n" +
-            "".join(f"  test_service_{i:03d}: {{}}\n" for i in range(120)),
+            "".join(f"  test_service_{i:03d}: {{}}\n" for i in range(400)),
             encoding="utf8",
         )
         (repo / "package.json").write_text('{"name":"smoke"}', encoding="utf8")
+        observations = root / "health.jsonl"
+        observations.write_text(json.dumps({
+            "schema_version":1,
+            "component_id":"discovery:service:compose.yml:test_service_399",
+            "observed_at":datetime.now(timezone.utc).isoformat().replace("+00:00","Z"),
+            "status":"error", "source":"synthetic",
+            "expires_after_seconds":86400,"metrics":{}
+        })+"\n",encoding="utf-8")
         port = available_port()
         cmd = [sys.executable, str(SCRIPT), "--repo", str(repo),
-               "--port", str(port)]
+               "--observations",str(observations),"--port", str(port)]
         process = subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.DEVNULL,
                                    stderr=subprocess.PIPE, text=True)
         driver = None
