@@ -142,6 +142,18 @@ The helper copies an exact source span and digest into the authoring contract. `
 numbered source lines; `record` emits JSON without changing the contract. Existing evidence IDs
 cannot be silently repointed. Someone must still review whether the span supports the claim.
 
+## Business operating picture
+
+```bash
+python examples/operating-picture/demo.py --serve   # then open http://127.0.0.1:8765/business
+```
+
+One screen joins domain skills to the system map: which business actions are at
+risk and why, which objects depend on a failing system, open review questions,
+and how far each rule's evidence was checked. Health is the source-reported status
+of operator-linked systems, not proof that an action works. The demo data is
+synthetic. See [operating picture](docs/operating-picture.md).
+
 ## Grades, wording, and queries
 
 - **Evidence grades:** `evidence_grade.py` reports an ordinal G0–G4 grade per rule from

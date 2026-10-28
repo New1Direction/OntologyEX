@@ -6,6 +6,10 @@ on:
       - 'ontology-extraction/scripts/control_room.py'
       - 'tests/layout_engine.test.cjs'
       - 'tests/layout_browser_smoke.py'
+      - 'tests/business_browser_smoke.py'
+      - 'ontology-extraction/scripts/business_view.py'
+      - 'ontology-extraction/scripts/operating_picture.html'
+      - 'examples/operating-picture/**'
       - 'scripts/layout_benchmark.cjs'
       - '.github/workflows/layout-engine.yml'
   push:
@@ -39,3 +43,5 @@ jobs:
         run: python -m pip install 'PyYAML==6.0.3' 'selenium==4.35.0'
       - name: Run actual headless Chrome mobile/tablet/desktop constraints
         run: python tests/layout_browser_smoke.py
+      - name: Business operating picture in headless Chrome
+        run: python tests/business_browser_smoke.py

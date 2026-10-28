@@ -18,12 +18,14 @@ import os
 import re
 import stat
 
+import business_view
 import discover_repo
 import github_discovery
 import snapshot_store
 import graph_view_api
 import incident_view
 import native_view_bridge
+from policy_check import DomainError
 from urllib.parse import parse_qs, urlsplit
 
 MAX_OBSERVATION_BYTES = 1024 * 1024
@@ -304,6 +306,7 @@ background:#071018;color:#d5e9eb}*{box-sizing:border-box}body{margin:0;backgroun
 min-height:100vh}header{padding:20px 24px;border-bottom:1px solid #254452;display:flex;align-items:center;
 justify-content:space-between;gap:20px}h1{font-size:19px;letter-spacing:.12em;margin:0}small,.muted{color:#839fab}
 header small{display:block;letter-spacing:.11em;margin-bottom:6px;color:#50b5af}
+#business-view{display:inline-block;margin-top:6px;font-size:12px;color:#7fd6d2}
 main#workspace{position:relative;display:flex;flex-direction:column;gap:12px;padding:12px;
 width:100%;min-height:520px;overflow:visible}
 #workspace>section{position:relative;min-width:0;min-height:120px;box-sizing:border-box;overflow:auto;
@@ -344,7 +347,7 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 @media(prefers-reduced-motion:reduce){#workspace>section{transition:none!important}}
 </style></head>
 <body><header><div><small>ONTOLOGYEX // LOCAL OBSERVABILITY</small>
-<h1>BUSINESS CONTROL ROOM</h1></div><div><select id="lens" aria-label="Graph lens">
+<h1>BUSINESS CONTROL ROOM</h1><a id="business-view" href="/business">Business operating picture →</a></div><div><select id="lens" aria-label="Graph lens">
 <option value="all">ALL SYSTEMS</option><option value="api">API ROUTES</option>
 <option value="database">DATABASE</option><option value="services">SERVICES</option>
 </select> <input id="graph-search" type="search" aria-label="Find graph node" maxlength="90" placeholder="Find node…"/>
@@ -820,11 +823,16 @@ class RemoteInventory:
 def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
           port: int, github: str | None = None, github_refresh_seconds: int = 300,
           github_client=None, snapshot_dir: Path | None = None,
-          view_engine: str = "python") -> None:
+          view_engine: str = "python", skills: list[Path] | None = None,
+          links: Path | None = None, events: Path | None = None) -> None:
     check(0 <= port <= 65535, "invalid port")
     check(view_engine in ("python", "rust"), "unsupported graph view backend")
     native_view = native_view_bridge.NativeView() if view_engine == "rust" else None
     rules = read_thresholds(thresholds)
+    skills = list(skills or [])
+    # Fail at startup on a tampered skill or malformed links; re-verified per request.
+    business_view.read_links(links)
+    check(len(skills) <= business_view.MAX_SKILLS, "too many skills")
     check(60 <= github_refresh_seconds <= 3600, "invalid GitHub refresh interval")
     check((repo is None) != (github is None), "configure exactly one source")
     if github:
@@ -897,6 +905,24 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 payload, mime, code = b"Request rejected", "text/plain", 414
             elif route.path == "/" and not route.query:
                 payload, mime, code = PAGE.encode("utf-8"), "text/html; charset=utf-8", 200
+            elif route.path == "/business" and not route.query:
+                payload = (Path(__file__).resolve().parent / "operating_picture.html").read_bytes()
+                mime, code = "text/html; charset=utf-8", 200
+            elif route.path == "/api/business":
+                mime = "application/json; charset=utf-8"
+                try:
+                    if route.query:
+                        raise graph_view_api.ViewError("business view takes no parameters")
+                    full = snapshot()
+                    result = business_view.project(skills, full, business_view.read_links(links), events)
+                    result["discovery_freshness"] = full["discovery_freshness"]
+                    result["discovery_scanned_at"] = full["discovery_scanned_at"]
+                    payload, code = json.dumps(result, sort_keys=True).encode(), 200
+                except graph_view_api.ViewError:
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, DomainError, discover_repo.DiscoveryError,
+                        github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
             elif route.path == "/static/layout_engine.js" and not route.query:
                 payload = (Path(__file__).resolve().parent / "layout_engine.js").read_bytes()
                 mime, code = "application/javascript; charset=utf-8", 200
@@ -996,6 +1022,12 @@ def main():
     parser.add_argument("--state-only", action="store_true")
     parser.add_argument("--view-engine", choices=("python", "rust"), default="python",
                         help="read-only projection backend; rust requires compiled ontologyex-view")
+    parser.add_argument("--skill", type=Path, action="append", default=[],
+                        help="compiled domain skill for the business view; repeat for more")
+    parser.add_argument("--links", type=Path, default=None,
+                        help="operator-declared binding-to-component links (JSON)")
+    parser.add_argument("--events", type=Path, default=None,
+                        help="evidence grade events file (see evidence_grade.py)")
     args = parser.parse_args()
     try:
         if args.repo is not None:
@@ -1013,15 +1045,19 @@ def main():
             result = build_state(topology, read_observations(args.observations),
                                  read_thresholds(args.thresholds))
             result["discovery_source"] = topology.get("source", {"provider": "local"})
+            if args.skill:
+                result["business"] = business_view.project(
+                    args.skill, result, business_view.read_links(args.links), args.events)
             print(json.dumps(result, sort_keys=True, separators=(",", ":")))
         else:
             serve(args.repo, args.observations, args.thresholds, args.port,
                   github=args.github, github_refresh_seconds=args.github_refresh_seconds,
-                  snapshot_dir=args.snapshot_dir, view_engine=args.view_engine)
+                  snapshot_dir=args.snapshot_dir, view_engine=args.view_engine,
+                  skills=args.skill, links=args.links, events=args.events)
         return 0
     except (OSError, RoomError, discover_repo.DiscoveryError,
             github_discovery.GitHubDiscoveryError, snapshot_store.SnapshotError,
-            native_view_bridge.NativeViewError, ValueError, TypeError,
+            native_view_bridge.NativeViewError, DomainError, ValueError, TypeError,
             RecursionError) as exc:
         print(json.dumps({"status": "ERROR", "reason": str(exc)}))
         return 1
