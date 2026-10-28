@@ -5,6 +5,7 @@
 //! No network, execution, writing, or credentials are used by this library.
 
 pub mod view;
+pub mod incident;
 
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
