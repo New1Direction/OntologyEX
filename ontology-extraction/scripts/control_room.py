@@ -417,7 +417,7 @@ function applyLayout(s){
        geometryPassed:plan.constraints.ok,renderedDOMPassed:result.ok,
        violations:result.violations,rects:plan.rects};
      document.getElementById("layout-report").textContent=JSON.stringify(report,null,2);
-   });
+   },280);
  }catch(e){
    lastLayout=null;
    root.style.cssText="display:flex;flex-direction:column;gap:12px;height:auto;padding:12px";
