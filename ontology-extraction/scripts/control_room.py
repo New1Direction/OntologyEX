@@ -573,22 +573,20 @@ function detail(n,s){
  "No causal root cause is asserted."];
  text("details",lines.join("\n"));
 }
-async function loadPage(updateSummary=false){
+async function loadPage(){
  const seq=++requestEpoch;
  try{
    const lens=document.getElementById("lens").value;
    const q=document.getElementById("graph-search").value.slice(0,90);
    const url="/api/view?lens="+encodeURIComponent(lens)+
      "&q="+encodeURIComponent(q)+"&offset="+graphOffset;
-   const [summaryResponse,pageResponse]=await Promise.all([
-     updateSummary||!lastSummary?fetch("/api/state",{cache:"no-store"}):Promise.resolve(null),
-     fetch(url,{cache:"no-store"})]);
-   if((summaryResponse&&!summaryResponse.ok)||!pageResponse.ok)throw Error("source unavailable");
-   const [summaryData,pageData]=await Promise.all([
-     summaryResponse?summaryResponse.json():Promise.resolve(lastSummary),pageResponse.json()]);
+   const response=await fetch(url,{cache:"no-store"});
+   if(!response.ok)throw Error("source unavailable");
+   const pageData=await response.json();
    if(seq!==requestEpoch)return;
-   if(pageData.kind!=="BOUNDED_GRAPH_PAGE"||summaryData.kind!=="LOCAL_CONTROL_ROOM_SUMMARY")
-     throw Error("invalid graph data");
+   const summaryData=pageData.summary;
+   if(pageData.kind!=="BOUNDED_GRAPH_PAGE" || !summaryData ||
+      summaryData.kind!=="LOCAL_CONTROL_ROOM_SUMMARY")throw Error("invalid data");
    lastSummary=summaryData;lastPage=pageData;
    draw({...summaryData,...pageData});
    if(selected)pick(selected);
@@ -598,10 +596,10 @@ async function loadPage(updateSummary=false){
    text("updated","Latest fetch failed; prior view may be stale");
  }
 }
-function refresh(){return loadPage(true)}
+function refresh(){return loadPage()}
 let mapStarted=false;
-document.getElementById("lens").addEventListener("change",()=>{graphOffset=0;loadPage()});
-document.getElementById("graph-search").addEventListener("input",()=>{graphOffset=0;loadPage()});
+document.getElementById("lens").addEventListener("change",()=>{graphOffset=0;if(mapStarted)loadPage()});
+document.getElementById("graph-search").addEventListener("input",()=>{graphOffset=0;if(mapStarted)loadPage()});
 document.getElementById("graph-prev").addEventListener("click",()=>{
  graphOffset=Math.max(0,graphOffset-90);loadPage();
 });
