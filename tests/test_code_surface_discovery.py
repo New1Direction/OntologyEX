@@ -40,12 +40,22 @@ class CodeSurfaceTests(unittest.TestCase):
                 "size": len(raw), "sha": sha,
             })
             mock.maps[base + "/git/blobs/" + sha] = response
-        for path in ("app/lib/server.mjs", "src/claim.mjs"):
-            sha, _ = fixtures.blob(path.encode("utf-8"))
+        module_contents = {
+            "app/lib/server.mjs": (
+                b"import { createDatabasePool } from '../../src/database-pool.mjs'\n"
+            ),
+            "src/claim.mjs": (
+                b"import { users, orders } from './db/schema.mjs'\n"
+            ),
+            "src/database-pool.mjs": b"export function createDatabasePool() {}\n",
+        }
+        for path, raw in module_contents.items():
+            sha, response = fixtures.blob(raw)
             mock.tree.append({
                 "path": path, "type": "blob", "mode": "100644",
-                "size": len(path), "sha": sha,
+                "size": len(raw), "sha": sha,
             })
+            mock.maps[base + "/git/blobs/" + sha] = response
         schema = (b"import { pgTable } from 'drizzle-orm/pg-core'\n"
                   b"export const users = pgTable('users', {})\n"
                   b"export const orders = pgTable(\"orders\", {})\n"
@@ -72,11 +82,24 @@ class CodeSurfaceTests(unittest.TestCase):
         self.assertEqual(graph["coverage"]["import_route_files_inspected"], 2)
         self.assertEqual(graph["coverage"]["import_relationships_found"], 2)
         self.assertEqual(graph["coverage"]["import_modules_found"], 2)
+        self.assertEqual(graph["coverage"]["second_hop_modules_read"], 2)
+        self.assertEqual(graph["coverage"]["second_hop_import_edges"], 2)
+        self.assertEqual(graph["coverage"]["second_hop_schema_table_declarations"], 2)
+        self.assertEqual(len([e for e in graph["edges"]
+                              if e["relation"] == "DECLARES_TABLE_CANDIDATE"]), 2)
+        self.assertTrue(any(
+            e["relation"] == "STATIC_IMPORTS" and
+            "src/claim.mjs" in e["source"] and
+            "src/db/schema.mjs" in e["target"]
+            for e in graph["edges"]))
+        self.assertTrue(any(n["label"] == "src/db/schema.mjs"
+                            for n in graph["nodes"] if n["kind"] == "source_module"))
         imported = [e for e in graph["edges"] if e["relation"] == "STATIC_IMPORTS"]
         self.assertEqual({e["source_line"] for e in imported}, {1})
         self.assertEqual({n["label"] for n in graph["nodes"]
                           if n["kind"] == "source_module"},
-                         {"src/claim.mjs", "app/lib/server.mjs"})
+                         {"src/claim.mjs", "app/lib/server.mjs",
+                          "src/db/schema.mjs", "src/database-pool.mjs"})
         self.assertTrue(all(e["state"] == "SOURCE_SYNTAX_CANDIDATE"
                             for e in imported))
         self.assertEqual(graph["runtime_health"], "UNKNOWN")
@@ -128,6 +151,56 @@ class CodeSurfaceTests(unittest.TestCase):
         self.assertEqual(len(table_edges), 2)
         self.assertFalse(any(e["relation"] == "DEPENDS_ON"
                              for e in table_edges))
+
+    def test_corrupted_module_does_not_fabricate_schema_dependency(self):
+        mock = self.fixture()
+        entry = next(x for x in mock.tree if x["path"] == "src/claim.mjs")
+        key = f"/repos/{mock.repo}/git/blobs/{entry['sha']}"
+        mock.maps[key]["content"] = "not-base64!"
+        graph = gh.discover_github(mock.repo, mock)
+        self.assertIn("SECOND_HOP_SOURCE_UNAVAILABLE",
+                      [g["reason"] for g in graph["gaps"]])
+        self.assertFalse(any(e["relation"] == "DECLARES_TABLE_CANDIDATE"
+                             for e in graph["edges"]))
+        self.assertEqual(graph["coverage"]["second_hop_modules_read"], 1)
+        self.assertEqual(graph["runtime_health"], "UNKNOWN")
+
+    def test_unresolved_module_import_does_not_create_a_target(self):
+        mock = self.fixture()
+        entry = next(x for x in mock.tree if x["path"] == "src/claim.mjs")
+        raw = b"import { missing } from './db/not-present.mjs'\n"
+        sha, response = fixtures.blob(raw)
+        entry["sha"], entry["size"] = sha, len(raw)
+        mock.maps[f"/repos/{mock.repo}/git/blobs/{sha}"] = response
+        graph = gh.discover_github(mock.repo, mock)
+        self.assertIn("STATIC_IMPORT_UNRESOLVED",
+                      [u["relation"] for u in graph["unresolved"]])
+        self.assertFalse(any("not-present.mjs" in n["id"] for n in graph["nodes"]))
+        self.assertEqual(graph["coverage"]["second_hop_unresolved_imports"], 1)
+
+    def test_no_implicit_table_usage_from_schema_declaration(self):
+        graph = gh.discover_github(self.fixture().repo, self.fixture())
+        self.assertFalse(any(e["relation"] in ("USES_TABLE", "QUERIES_TABLE",
+                                               "RUNTIME_CALL", "DATABASE_CALL")
+                             for e in graph["edges"]))
+        for e in graph["edges"]:
+            if e["relation"] == "DECLARES_TABLE_CANDIDATE":
+                self.assertIn("src/db/schema.mjs", e["source"])
+                self.assertEqual(e["state"], "SOURCE_SYNTAX_CANDIDATE")
+                self.assertIsInstance(e["source_line"], int)
+
+    def test_bounded_module_reads_show_partial_coverage(self):
+        from unittest.mock import patch
+        import code_imports
+        mock = self.fixture()
+        with patch.object(code_imports, "MAX_MODULE_BYTES", 0):
+            graph = gh.discover_github(mock.repo, mock)
+        self.assertEqual(graph["coverage"]["second_hop_modules_read"], 0)
+        self.assertEqual(graph["coverage"]["second_hop_modules_not_read"], 2)
+        self.assertFalse(any(e["relation"] == "DECLARES_TABLE_CANDIDATE"
+                             for e in graph["edges"]))
+        self.assertIn("SECOND_HOP_MODULE_UNSUPPORTED",
+                      [g["reason"] for g in graph["gaps"]])
 
     def test_bad_schema_not_executed_and_not_health(self):
         mock = self.fixture()
