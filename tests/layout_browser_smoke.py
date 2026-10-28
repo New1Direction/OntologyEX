@@ -140,6 +140,17 @@ def main():
             assert "Showing 1 of 1" in found, found
             print("CHROME dense graph 400 entities, prioritized incident and search verified",
                   flush=True)
+            driver.find_element("id", "graph-focus").click()
+            assert driver.find_element("id", "graph-focus").get_attribute("aria-pressed") == "true"
+            driver.execute_cdp_cmd("Emulation.setEmulatedMedia", {
+                "features": [{"name": "prefers-reduced-motion", "value": "reduce"}]})
+            transition = driver.execute_script(
+                "return getComputedStyle(document.getElementById('map')).transitionDuration")
+            assert all(float(v.replace("s", "")) == 0 for v in transition.split(",")), transition
+            driver.refresh()
+            assert driver.find_element("id", "graph-focus").get_attribute("aria-pressed") == "true"
+            print("CHROME graph preference persisted, reduced-motion disables transitions",
+                  flush=True)
         finally:
             if driver is not None:
                 driver.quit()
