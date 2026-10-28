@@ -7,6 +7,23 @@ and UNKNOWN runtime health. This is not a tenant auth boundary or a SaaS API.
 from __future__ import annotations
 
 import re
+import json
+import os
+
+def _native_query(command, full, *args):
+    """Explicit opt-in only. Missing native binaries fail closed, not silently."""
+    mode = os.environ.get("ONTOLOGYEX_VIEW_BACKEND", "python")
+    if mode == "python":
+        return None
+    if mode != "rust":
+        raise RuntimeError("unsupported graph view backend")
+    try:
+        import ontologyex_native
+    except ImportError as exc:
+        raise RuntimeError("requested Rust graph view backend unavailable") from exc
+    raw = json.dumps(full, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    method = getattr(ontologyex_native, command)
+    return json.loads(method(raw, *args))
 
 MAX_PAGE = 90
 MAX_QUERY = 90
@@ -66,6 +83,9 @@ def in_lens(node, lens):
 
 def summary(full):
     """Control-room bootstrap without complete topology or source inventory."""
+    native = _native_query("summary_json", full)
+    if native is not None:
+        return native
     nodes = full["nodes"]
     active = [n for n in nodes if n.get("status") in ("error", "warning") or
               n.get("potentially_impacted_by")]
@@ -101,6 +121,10 @@ def summary(full):
 
 def page(full, *, lens="all", query="", offset=0, selected=None):
     """Return only visible searchable nodes, internal edges and cited evidence."""
+    if selected is None:
+        native = _native_query("page_json", full, lens, query, offset)
+        if native is not None:
+            return native
     lens = valid_lens(lens)
     q = valid_query(query)
     require(type(offset) is int and 0 <= offset <= MAX_OFFSET, "invalid offset")
@@ -140,6 +164,9 @@ def page(full, *, lens="all", query="", offset=0, selected=None):
 
 
 def node_detail(full, node_id):
+    native = _native_query("node_json", full, node_id)
+    if native is not None:
+        return native
     require(type(node_id) is str and 0 < len(node_id) <= 1024,
             "invalid detail identity")
     node = next((n for n in full["nodes"] if n["id"] == node_id), None)
@@ -186,6 +213,9 @@ def neighborhood(full, node_id, *, depth=1):
     because walking an edge in reverse is not a causal dependency. Navigation
     is not a blast-radius calculation or confirmation of runtime behavior.
     """
+    native = _native_query("neighborhood_json", full, node_id, depth)
+    if native is not None:
+        return native
     require(type(node_id) is str and 0 < len(node_id) <= 1024,
             "invalid neighborhood node identity")
     require(type(depth) is int and 1 <= depth <= MAX_NEIGHBORHOOD_DEPTH,
