@@ -186,6 +186,21 @@ class ControlRoomTests(unittest.TestCase):
         with self.assertRaises(room.RoomError):
             room.read_thresholds(file)
 
+    def test_mathematical_solver_is_loaded_on_the_real_control_room(self):
+        self.assertIn('id="workspace"', room.PAGE)
+        self.assertIn('id="incidents"', room.PAGE)
+        self.assertIn('id="map-business"', room.PAGE)
+        self.assertIn('id="lens"', room.PAGE)
+        self.assertIn('id="graph-search"', room.PAGE)
+        self.assertIn('id="graph-focus"', room.PAGE)
+        self.assertIn('id="layout-debug"', room.PAGE)
+        self.assertIn('OntologyLayout.optimize(', room.PAGE)
+        self.assertIn('OntologyLayout.verifyDOM(', room.PAGE)
+        self.assertIn('prefers-reduced-motion:reduce', room.PAGE)
+        self.assertIn('matches.slice(0,90)', room.PAGE)
+        self.assertNotIn('grid-template-columns:minmax(0,1fr) 325px', room.PAGE)
+        self.assertTrue((ROOT / "ontology-extraction/scripts/layout_engine.js").is_file())
+
     def test_html_is_local_read_only_not_fake_live(self):
         self.assertIn("127.0.0.1", room.serve.__code__.co_consts.__repr__())
         self.assertIn("READ ONLY", room.PAGE)
