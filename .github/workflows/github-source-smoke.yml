@@ -124,7 +124,8 @@ jobs:
           assert first['total_matches']==len(full['nodes'])
           assert all(n['status']=='unknown' for n in first['nodes'])
           total=len(json.dumps(full,sort_keys=True,separators=(',',':')).encode())
-          delivered=len(json.dumps(summary,sort_keys=True,separators=(',',':')).encode())+len(json.dumps(first,sort_keys=True,separators=(',',':')).encode())
+          assert first['summary']==summary
+          delivered=len(json.dumps(first,sort_keys=True,separators=(',',':')).encode())
           assert delivered < total*0.65,(delivered,total)
           match=graph_view_api.page(full,lens='api',query='/api/claim')
           assert match['total_matches']>=1
@@ -132,7 +133,7 @@ jobs:
           detail=graph_view_api.node_detail(full,target['id'])
           assert detail['node']['id']==target['id']
           assert len(detail['edges'])<=40
-          print('repo.ing bounded browser payload:',total,'full bytes,',delivered,'summary+first-page bytes; reduction',round(100*(1-delivered/total),2),'percent')
+          print('repo.ing bounded browser payload:',total,'full bytes,',delivered,'atomic summary+first-page bytes; reduction',round(100*(1-delivered/total),2),'percent')
           PY
       - name: No persistent artifact upload
         run: rm -f "$RUNNER_TEMP/repoing-discovery.json"
