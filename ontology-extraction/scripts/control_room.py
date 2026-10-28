@@ -322,6 +322,8 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 #graph-search{width:min(180px,42vw);border-radius:6px;background:#0f2530;border:1px solid #386372;color:#d5e9eb;padding:8px}
 #lens{border-radius:6px;background:#0f2530;color:#d5e9eb;border:1px solid #386372;padding:7px}
 #graph-coverage{font-size:11px;color:#a9c7ce;margin:0;padding:6px}
+#graph-share{accent-color:#50b5af;max-width:115px}
+#versions-panel[data-collapsed="true"] #versions{display:none}
 #incidents ul{padding-left:19px;margin:0;font-size:12px;line-height:1.6}
 #layout-debug{margin:0 14px 16px;padding:8px 12px;font-size:11px;border:1px solid #345264;border-radius:7px;max-width:800px}
 #layout-report{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto}
@@ -332,6 +334,8 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 <option value="all">ALL SYSTEMS</option><option value="api">API ROUTES</option>
 <option value="database">DATABASE</option><option value="services">SERVICES</option>
 </select> <input id="graph-search" type="search" aria-label="Find graph node" placeholder="Find node…"/>
+<label for="graph-share" title="Resize the graph area">Graph size</label>
+<input id="graph-share" type="range" min="48" max="76" value="63" aria-label="Graph area width"/>
 <button id="graph-focus" type="button" aria-pressed="false">Focus graph</button> <button id="map-business" type="button">Map My Business</button><div id="mode" class="muted">Connecting to local source...</div><small id="updated"></small></div></header>
 <main id="workspace" aria-label="Adaptive business workspace">
 <section id="map" aria-label="Declared component topology"><p id="graph-coverage" aria-live="polite"></p><svg id="svg" role="img" aria-label="Interactive dependency diagram"></svg></section>
@@ -339,7 +343,9 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 <section id="integrity" class="priority-critical"><h2>System integrity</h2><div id="counts"></div></section>
 <section id="details-panel"><h2>Selected component</h2><div id="details">Select a node to inspect its source and status.</div></section>
 <section id="coverage-panel"><h2>Coverage and blind spots</h2><div id="coverage" class="muted"></div></section>
-<section id="versions-panel"><h2>Saved source revisions</h2><div id="versions" class="muted"></div></section>
+<section id="versions-panel" data-collapsed="false"><h2>Saved source revisions</h2>
+<button id="toggle-versions" type="button" aria-expanded="true" aria-controls="versions">Collapse revisions</button>
+<div id="versions" class="muted"></div></section>
 <section id="boundary-panel"><h2>Operational boundary</h2>
 <p class="muted">A declared dependency is not proof of a live network call. Source-reported status is not independently authenticated.
 Warnings require explicit observations or configured thresholds. Impact shows possible dependents, not confirmed outages.
@@ -354,16 +360,25 @@ const color={ok:"#49c4a4",warning:"#eebc63",error:"#f47f7a",stale:"#b79ff2",unkn
 const el=(tag,attrs={},txt)=>{const n=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v));
  if(txt!==undefined)n.textContent=String(txt);return n};
 const text=(id,value)=>document.getElementById(id).textContent=String(value);
-let selected=null,state=null,focusGraph=false,lastLayout=null;
-try{focusGraph=localStorage.getItem("ontologyex-focus-graph")==="1"}catch(_){}
+let selected=null,state=null,focusGraph=false,lastLayout=null,graphShare=0.63,versionsCollapsed=false;
+try{
+ focusGraph=localStorage.getItem("ontologyex-focus-graph")==="1";
+ const saved=Number(localStorage.getItem("ontologyex-graph-share"));
+ if(Number.isFinite(saved)&&saved>=0.48&&saved<=0.76)graphShare=saved;
+ versionsCollapsed=localStorage.getItem("ontologyex-versions-collapsed")==="1";
+}catch(_){}
 document.getElementById("graph-focus").setAttribute("aria-pressed",String(focusGraph));
+document.getElementById("graph-share").value=String(Math.round(graphShare*100));
+document.getElementById("versions-panel").dataset.collapsed=String(versionsCollapsed);
+document.getElementById("toggle-versions").setAttribute("aria-expanded",String(!versionsCollapsed));
+document.getElementById("toggle-versions").textContent=versionsCollapsed?"Expand revisions":"Collapse revisions";
 const PANEL_SPECS=[
  {id:"map",minWidth:240,minHeight:310,preferredHeight:540,priority:78},
  {id:"incidents",minWidth:200,minHeight:116,preferredHeight:145,priority:98,critical:true},
  {id:"integrity",minWidth:200,minHeight:82,preferredHeight:92,priority:96,critical:true},
  {id:"details-panel",minWidth:200,minHeight:180,preferredHeight:235,priority:85},
  {id:"coverage-panel",minWidth:200,minHeight:142,preferredHeight:180,priority:62},
- {id:"versions-panel",minWidth:200,minHeight:95,preferredHeight:108,priority:35},
+ {id:"versions-panel",minWidth:200,minHeight:60,preferredHeight:108,priority:35},
  {id:"boundary-panel",minWidth:200,minHeight:104,preferredHeight:124,priority:32}
 ];
 function renderIncidents(s){
@@ -394,12 +409,14 @@ function applyLayout(s){
  const width=Math.max(280,root.clientWidth),header=document.querySelector("header");
  const height=Math.max(260,window.innerHeight-header.getBoundingClientRect().height-60);
  const urgent=s.nodes.filter(n=>n.status==="error"||n.status==="warning"||n.potentially_impacted_by?.length).length;
- const dims=PANEL_SPECS.map(p=>({...p,items:p.id==="incidents"?urgent:
+ const dims=PANEL_SPECS.map(p=>({...p,collapsed:p.id==="versions-panel"&&versionsCollapsed,
+   items:p.id==="incidents"?urgent:
    p.id==="details-panel"?(selected?22:3):
    p.id==="coverage-panel"?(s.gaps.length+s.unresolved.length):
    p.id==="versions-panel"?(s.snapshot_history?.length||0):0}));
  try{
-   const plan=OntologyLayout.optimize({width,height,panels:dims,density:s.nodes.length,focusGraph});
+   const plan=OntologyLayout.optimize({width,height,panels:dims,density:s.nodes.length,focusGraph,
+     mapShare:graphShare});
    root.style.display="block";root.style.height=plan.contentHeight+"px";
    for(const [id,r] of Object.entries(plan.rects)){
      const el=document.getElementById(id);
@@ -546,6 +563,26 @@ async function refresh(){
 let mapStarted=false;
 document.getElementById("lens").addEventListener("change",()=>{if(state)draw(state)});
 document.getElementById("graph-search").addEventListener("input",()=>{if(state)draw(state)});
+document.getElementById("graph-share").addEventListener("input",()=>{
+ const value=Number(document.getElementById("graph-share").value)/100;
+ if(!Number.isFinite(value)||value<0.48||value>0.76)return;
+ graphShare=value;focusGraph=false;
+ document.getElementById("graph-focus").setAttribute("aria-pressed","false");
+ try{
+   localStorage.setItem("ontologyex-graph-share",String(graphShare));
+   localStorage.setItem("ontologyex-focus-graph","0");
+ }catch(_){}
+ if(state)draw(state);
+});
+document.getElementById("toggle-versions").addEventListener("click",()=>{
+ versionsCollapsed=!versionsCollapsed;
+ const panel=document.getElementById("versions-panel");
+ panel.dataset.collapsed=String(versionsCollapsed);
+ document.getElementById("toggle-versions").setAttribute("aria-expanded",String(!versionsCollapsed));
+ document.getElementById("toggle-versions").textContent=versionsCollapsed?"Expand revisions":"Collapse revisions";
+ try{localStorage.setItem("ontologyex-versions-collapsed",versionsCollapsed?"1":"0")}catch(_){}
+ if(state)draw(state);
+});
 document.getElementById("graph-focus").addEventListener("click",()=>{
  focusGraph=!focusGraph;
  document.getElementById("graph-focus").setAttribute("aria-pressed",String(focusGraph));
