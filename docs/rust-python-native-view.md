@@ -44,10 +44,24 @@ fail-closed invalid inputs and runs the actual Chrome control-room
 acceptance with native mode enabled.
 
 Tests verify behavior rather than assuming Rust always yields a speedup.
-The current adapter serializes the complete in-memory state into JSON
-for each native call, so marshaling overhead may outweigh acceleration
-at small graph sizes. **Do not turn on by default until benchmarks of
-realistic long-running workloads show a material benefit.**
+The initial CI measurements on a 405-node source graph **found a significant
+regression** when each request serializes the entire Python graph:
+on Python 3.11 the median page call was 0.2651ms in Python vs 4.4616ms
+through uncached Rust; one-hop/two-hop neighborhood was 0.2827ms
+vs 3.8386ms. The numbers include conversion and the native call; neither
+proves one language is intrinsically faster.
+
+To address this, the extension also exposes an immutable **GraphIndex**:
+construct it once from JSON, then call cached native summary/page/neighborhood
+and node detail methods without reserializing the input graph. CI measures
+both the initial index construction cost and subsequent call latency.
+An index is a frozen snapshot; it MUST be rebuilt whenever observations,
+source topology or evaluation time change. This PR does not yet attach
+that cache to the Python HTTP server, because invalidation requires
+an explicit source-state revision contract.
+
+**Do not switch Rust on by default** until parity, cache invalidation,
+live request benchmarks and memory limits are demonstrated.
 
 ## Safety
 
