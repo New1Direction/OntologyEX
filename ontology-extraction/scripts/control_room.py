@@ -327,8 +327,12 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 #graph-search{width:min(180px,42vw);border-radius:6px;background:#0f2530;border:1px solid #386372;color:#d5e9eb;padding:8px}
 #lens{border-radius:6px;background:#0f2530;color:#d5e9eb;border:1px solid #386372;padding:7px}
 #graph-coverage{font-size:11px;color:#a9c7ce;margin:0;padding:6px}
+#graph-legend{font-size:10px;color:#8ea9b3;padding:1px 8px}
 #graph-pager{display:flex;gap:8px;padding:2px 8px}
 #graph-pager button:disabled{opacity:.42;cursor:default}
+#graph-scope{font-size:11px;color:#8fa9b5;min-height:17px;padding:0 8px}
+#graph-depth{border-radius:6px;background:#0f2530;color:#d5e9eb;border:1px solid #386372;padding:7px}
+#graph-pager button:focus-visible,#graph-depth:focus-visible{outline:2px solid #50b5af}
 #graph-share{accent-color:#50b5af;max-width:115px}
 #versions-panel[data-collapsed="true"] #versions{display:none}
 #incidents ul{padding-left:19px;margin:0;font-size:12px;line-height:1.6}
@@ -345,7 +349,15 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 <input id="graph-share" type="range" min="48" max="76" value="63" aria-label="Graph area width"/>
 <button id="graph-focus" type="button" aria-pressed="false">Focus graph</button> <button id="map-business" type="button">Map My Business</button><div id="mode" class="muted">Connecting to local source...</div><small id="updated"></small></div></header>
 <main id="workspace" aria-label="Adaptive business workspace">
-<section id="map" aria-label="Declared component topology"><p id="graph-coverage" aria-live="polite"></p><div id="graph-pager"><button id="graph-prev" type="button" disabled>Previous</button> <button id="graph-next" type="button" disabled>Next</button></div><svg id="svg" role="img" aria-label="Interactive dependency diagram"></svg></section>
+<section id="map" aria-label="Declared component topology"><p id="graph-coverage" aria-live="polite"></p><div id="graph-legend" aria-label="Graph edge legend">
+<span>Amber arrows: declared dependency. Teal dashed arrows: other source relationships. Direction is source → target, not runtime causation.</span></div>
+<div id="graph-pager">
+<button id="graph-back" type="button" disabled>Back to list</button>
+<label for="graph-depth">Hops</label>
+<select id="graph-depth" aria-label="Neighborhood depth"><option value="1">1 hop</option><option value="2">2 hops</option></select>
+<button id="graph-prev" type="button" disabled>Previous</button>
+<button id="graph-next" type="button" disabled>Next</button>
+</div><p id="graph-scope" aria-live="polite">Select a node to explore its connected neighbors.</p><svg id="svg" role="img" aria-label="Interactive dependency diagram"></svg></section>
 <section id="incidents" class="priority-critical"><h2>Incidents and risks</h2><ul id="incident-list"></ul></section>
 <section id="integrity" class="priority-critical"><h2>System integrity</h2><div id="counts"></div></section>
 <section id="details-panel"><h2>Selected component</h2><div id="details">Select a node to inspect its source and status.</div></section>
@@ -368,7 +380,8 @@ const el=(tag,attrs={},txt)=>{const n=document.createElementNS(NS,tag);for(const
  if(txt!==undefined)n.textContent=String(txt);return n};
 const text=(id,value)=>document.getElementById(id).textContent=String(value);
 let selected=null,state=null,focusGraph=false,lastLayout=null,graphShare=0.63,versionsCollapsed=false;
-let graphOffset=0,requestEpoch=0,lastSummary=null,lastPage=null;
+let graphOffset=0,requestEpoch=0,lastSummary=null,lastPage=null,neighborhoodRoot=null;
+let detailEpoch=0;
 try{
  focusGraph=localStorage.getItem("ontologyex-focus-graph")==="1";
  const saved=Number(localStorage.getItem("ontologyex-graph-share"));
@@ -490,8 +503,22 @@ function draw(s){
  applyLayout(s);
  const svg=document.getElementById("svg");svg.replaceChildren();
  const visible=s.nodes.slice(0,90);
+ const neighborhoodMode=s.kind==="BOUNDED_GRAPH_NEIGHBORHOOD";
  const matchesCount=s.total_matches??visible.length;
- text("graph-coverage","Showing "+visible.length+" of "+matchesCount+" matching nodes ("+
+ document.getElementById("graph-back").disabled=!neighborhoodMode;
+ document.getElementById("graph-prev").hidden=neighborhoodMode;
+ document.getElementById("graph-next").hidden=neighborhoodMode;
+ text("graph-scope",neighborhoodMode?
+    "Connected source graph · "+s.requested_depth+" hop(s) · "+s.direct_incoming_edges+
+    " incoming / "+s.direct_outgoing_edges+" outgoing at selected node · "+
+    (s.is_complete_within_depth?"complete within modeled depth":"partial/bounded")+
+    " · static declarations are NOT runtime execution":
+    "Paged source inventory · click a node to explore incoming and outgoing relationships.");
+ text("graph-coverage",neighborhoodMode?
+    "Neighborhood: "+visible.length+" nodes, "+s.edges.length+" edges, "+
+    s.truncated_node_candidates+" neighbor candidates excluded, "+
+    s.edges_omitted+" internal edges omitted. No causal or runtime claims.":
+    "Showing "+visible.length+" of "+matchesCount+" matching nodes ("+
     s.total_nodes+" total), offset "+(s.offset||0)+". "+
     (s.edges_omitted?"Edges omitted: "+s.edges_omitted+". ":"")+
     "Search and page through source-backed results.");
@@ -509,12 +536,28 @@ function draw(s){
  for(let i=0;i<3;i++){svg.append(el("text",{x:starts[i],y:45,fill:"#679baa","font-size":12,"letter-spacing":3},
  ["BUSINESS","WORKFLOWS / SOURCES","SERVICES / DATA"][i]));
  cols[i].forEach((n,j)=>pos[n.id]={x:starts[i],y:75+j*rowH})}
+ // Arrowheads show the stored source -> target direction, even though
+ // neighborhood navigation can traverse an edge from either endpoint.
+ const defs=el("defs");
+ for(const [id,fill] of [["dependency-arrow","#e5b66f"],["source-arrow","#2e8297"]]){
+   const marker=el("marker",{id,viewBox:"0 0 10 10",refX:9,refY:5,
+     markerWidth:6,markerHeight:6,orient:"auto",markerUnits:"strokeWidth"});
+   marker.append(el("path",{d:"M 0 0 L 10 5 L 0 10 z",fill}));
+   defs.append(marker);
+ }
+ svg.append(defs);
  for(const e of s.edges){const a=pos[e.source],b=pos[e.target];if(!a||!b)continue;
  const x1=a.x+nodeW,y1=a.y+nodeH/2,x2=b.x,y2=b.y+nodeH/2;
  const d="M"+x1+","+y1+" C"+(x1+38)+","+y1+" "+(x2-38)+","+y2+" "+x2+","+y2;
- svg.append(el("path",{d,stroke:e.relation==="DEPENDS_ON"?"#e5b66f":"#2e8297",
+ const path=el("path",{d,stroke:e.relation==="DEPENDS_ON"?"#e5b66f":"#2e8297",
  "stroke-opacity":.65,"stroke-width":e.relation==="DEPENDS_ON"?2:1.35,
- "stroke-dasharray":e.relation==="DEPENDS_ON"?"":"5 6",fill:"none"}))}
+ "stroke-dasharray":e.relation==="DEPENDS_ON"?"":"5 6",
+ "marker-end":e.relation==="DEPENDS_ON"?"url(#dependency-arrow)":"url(#source-arrow)",
+ fill:"none"});
+ path.append(el("title",{},e.relation+" · "+e.source+" → "+e.target+
+   (e.source_line?" · source line "+e.source_line:"")+
+   " · source relationship, not observed runtime execution"));
+ svg.append(path)}
  for(const n of visible){const p=pos[n.id],g=el("g",{role:"button",tabindex:0,
  "aria-label":n.label+" "+n.status,style:"cursor:pointer"});
  const active=selected===n.id,stroke=active?"#d6f6ef":color[n.status];
@@ -528,6 +571,9 @@ function draw(s){
  n.status.toUpperCase()+" · "+n.kind.replaceAll("_"," ")));
  if(n.potentially_impacted_by.length)g.append(el("text",{x:p.x+nodeW-8,y:p.y+14,
  "text-anchor":"end",fill:"#eebc63","font-size":10},"RISK"));
+ if(neighborhoodMode&&n.id===s.center_id)g.append(el("text",{
+  x:p.x+nodeW-8,y:p.y+14,"text-anchor":"end",fill:"#50d7cc","font-size":10
+ },"CENTER"));
  if(n.ci_run)g.append(el("text",{x:p.x+nodeW-8,y:p.y+42,
  "text-anchor":"end",fill:n.ci_run.conclusion==="success"?"#49c4a4":"#eebc63",
  "font-size":10},"CI "+(n.ci_run.conclusion||n.ci_run.status).toUpperCase()));
@@ -535,16 +581,44 @@ function draw(s){
  svg.append(g)}
  // Node detail is fetched separately, never inferred from a partial page.
 }
-async function pick(id){
- selected=id;
- if(state)draw(state);
+async function loadNodeDetail(id){
+ const seq=++detailEpoch;
  try{
    const res=await fetch("/api/node?id="+encodeURIComponent(id),{cache:"no-store"});
    if(!res.ok)throw Error("detail unavailable");
    const data=await res.json();
-   if(selected!==id)return;
+   if(seq!==detailEpoch||selected!==id)return;
    detail(data.node,data);
- }catch(_){text("details","Selected node detail unavailable. Current health cannot be inferred.")}
+ }catch(_){
+   if(seq===detailEpoch&&selected===id)
+     text("details","Selected node detail unavailable. Current health cannot be inferred.");
+ }
+}
+async function loadNeighborhood(id){
+ const seq=++requestEpoch;
+ const hops=document.getElementById("graph-depth").value;
+ try{
+   const response=await fetch("/api/neighborhood?id="+encodeURIComponent(id)+
+     "&depth="+encodeURIComponent(hops),{cache:"no-store"});
+   if(!response.ok)throw Error("neighborhood unavailable");
+   const graph=await response.json();
+   if(seq!==requestEpoch||neighborhoodRoot!==id)return;
+   if(graph.kind!=="BOUNDED_GRAPH_NEIGHBORHOOD"||
+      graph.summary?.kind!=="LOCAL_CONTROL_ROOM_SUMMARY"||
+      graph.center_id!==id)throw Error("invalid neighborhood response");
+   lastSummary=graph.summary;
+   draw({...graph.summary,...graph});
+ }catch(_){
+   if(seq!==requestEpoch||neighborhoodRoot!==id)return;
+   text("mode","NEIGHBORHOOD UNAVAILABLE · LAST VIEW MAY BE STALE");
+   text("graph-scope","Could not verify connected source neighbors. Return to list or retry.");
+ }
+}
+function pick(id){
+ selected=id;neighborhoodRoot=id;
+ if(state)draw(state);
+ loadNodeDetail(id);
+ return loadNeighborhood(id);
 }
 function detail(n,s){
  const ev=s.source_evidence.find(e=>e.id===n.evidence_id);
@@ -589,17 +663,25 @@ async function loadPage(){
       summaryData.kind!=="LOCAL_CONTROL_ROOM_SUMMARY")throw Error("invalid data");
    lastSummary=summaryData;lastPage=pageData;
    draw({...summaryData,...pageData});
-   if(selected)pick(selected);
+   if(selected)loadNodeDetail(selected);
  }catch(_){
    if(seq!==requestEpoch)return;
    text("mode","DATA UNAVAILABLE · LAST VIEW IS STALE");
    text("updated","Latest fetch failed; prior view may be stale");
  }
 }
-function refresh(){return loadPage()}
+function refresh(){return neighborhoodRoot?loadNeighborhood(neighborhoodRoot):loadPage()}
 let mapStarted=false;
-document.getElementById("lens").addEventListener("change",()=>{graphOffset=0;if(mapStarted)loadPage()});
-document.getElementById("graph-search").addEventListener("input",()=>{graphOffset=0;if(mapStarted)loadPage()});
+function returnToList(){
+ neighborhoodRoot=null;graphOffset=0;
+ if(mapStarted)return loadPage();
+}
+document.getElementById("graph-back").addEventListener("click",returnToList);
+document.getElementById("graph-depth").addEventListener("change",()=>{
+ if(mapStarted&&neighborhoodRoot)loadNeighborhood(neighborhoodRoot);
+});
+document.getElementById("lens").addEventListener("change",()=>{graphOffset=0;neighborhoodRoot=null;if(mapStarted)loadPage()});
+document.getElementById("graph-search").addEventListener("input",()=>{graphOffset=0;neighborhoodRoot=null;if(mapStarted)loadPage()});
 document.getElementById("graph-prev").addEventListener("click",()=>{
  graphOffset=Math.max(0,graphOffset-90);loadPage();
 });
@@ -775,7 +857,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             elif route.path == "/static/layout_engine.js" and not route.query:
                 payload = (Path(__file__).resolve().parent / "layout_engine.js").read_bytes()
                 mime, code = "application/javascript; charset=utf-8", 200
-            elif route.path in ("/api/state", "/api/view", "/api/node"):
+            elif route.path in ("/api/state", "/api/view", "/api/node", "/api/neighborhood"):
                 mime = "application/json; charset=utf-8"
                 try:
                     params = parse_qs(route.query, strict_parsing=True, keep_blank_values=True,
@@ -794,6 +876,12 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                             full, lens=params.get("lens", ["all"])[0],
                             query=params.get("q", [""])[0],
                             offset=graph_view_api.parse_offset(params.get("offset", ["0"])[0]))
+                    elif route.path == "/api/neighborhood":
+                        if set(params) != {"id", "depth"}:
+                            raise graph_view_api.ViewError("neighborhood requires id and depth")
+                        result = graph_view_api.neighborhood(
+                            full, params["id"][0],
+                            depth=graph_view_api.valid_depth(params["depth"][0]))
                     else:
                         if set(params) != {"id"}:
                             raise graph_view_api.ViewError("node requires an exact id")
