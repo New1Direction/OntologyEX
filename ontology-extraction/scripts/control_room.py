@@ -350,7 +350,7 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 <button id="graph-focus" type="button" aria-pressed="false">Focus graph</button> <button id="map-business" type="button">Map My Business</button><div id="mode" class="muted">Connecting to local source...</div><small id="updated"></small></div></header>
 <main id="workspace" aria-label="Adaptive business workspace">
 <section id="map" aria-label="Declared component topology"><p id="graph-coverage" aria-live="polite"></p><div id="graph-legend" aria-label="Graph edge legend">
-<text>Amber arrows: declared dependency. Teal dashed arrows: other source relationships. Direction is source → target, not runtime causation.</text></div>
+<span>Amber arrows: declared dependency. Teal dashed arrows: other source relationships. Direction is source → target, not runtime causation.</span></div>
 <div id="graph-pager">
 <button id="graph-back" type="button" disabled>Back to list</button>
 <label for="graph-depth">Hops</label>
