@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'ontology-extraction/scripts/github_discovery.py'
+      - 'ontology-extraction/scripts/graph_view_api.py'
+      - 'tests/test_graph_view_api.py'
       - 'ontology-extraction/scripts/code_imports.py'
       - 'ontology-extraction/scripts/snapshot_store.py'
       - 'tests/test_code_surface_discovery.py'
@@ -104,6 +106,34 @@ jobs:
               assert all(n["status"]=="unknown" for n in state["nodes"])
               assert len(store.history("New1Direction/repo.ing"))==1
               print("repo.ing durable recovery: valid graph, stale cache, UNKNOWN health")
+          PY
+      - name: Verify bounded browser payload against actual repo.ing graph
+        run: |
+          python - "$RUNNER_TEMP/repoing-discovery.json" <<'PY'
+          import json,sys
+          sys.path.insert(0,'ontology-extraction/scripts')
+          import graph_view_api,control_room
+          graph=json.load(open(sys.argv[1]))
+          full=control_room.build_state(graph,[],{})
+          summary=graph_view_api.summary(full)
+          first=graph_view_api.page(full,lens='all',offset=0)
+          assert len(full['nodes'])>=200
+          assert summary['total_nodes']==len(full['nodes'])
+          assert 'nodes' not in summary and 'edges' not in summary and 'source_evidence' not in summary
+          assert len(first['nodes'])==90 and first['next_offset']==90
+          assert first['total_matches']==len(full['nodes'])
+          assert all(n['status']=='unknown' for n in first['nodes'])
+          total=len(json.dumps(full,sort_keys=True,separators=(',',':')).encode())
+          assert first['summary']==summary
+          delivered=len(json.dumps(first,sort_keys=True,separators=(',',':')).encode())
+          assert delivered < total*0.65,(delivered,total)
+          match=graph_view_api.page(full,lens='api',query='/api/claim')
+          assert match['total_matches']>=1
+          target=match['nodes'][0]
+          detail=graph_view_api.node_detail(full,target['id'])
+          assert detail['node']['id']==target['id']
+          assert len(detail['edges'])<=40
+          print('repo.ing bounded browser payload:',total,'full bytes,',delivered,'atomic summary+first-page bytes; reduction',round(100*(1-delivered/total),2),'percent')
           PY
       - name: No persistent artifact upload
         run: rm -f "$RUNNER_TEMP/repoing-discovery.json"
