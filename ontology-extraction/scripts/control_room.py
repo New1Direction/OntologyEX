@@ -489,19 +489,15 @@ function draw(s){
  }
  applyLayout(s);
  const svg=document.getElementById("svg");svg.replaceChildren();
- const lens=document.getElementById("lens").value;
- const relevant=s.nodes.filter(n=>n.kind==="project"||lens==="all"||
-   (lens==="api"&&(n.kind==="api_route"||n.kind==="source_module"))||
-   (lens==="database"&&n.kind==="declared_db_table")||
-   (lens==="services"&&n.kind==="declared_service"));
- const query=document.getElementById("graph-search").value.trim().toLowerCase();
- const matches=relevant.filter(n=>!query||n.label.toLowerCase().includes(query)||n.id.toLowerCase().includes(query));
+ const visible=s.nodes;
+ const matchesCount=s.total_matches??visible.length;
+ text("graph-coverage","Showing "+visible.length+" of "+matchesCount+" matching nodes ("+
+    s.total_nodes+" total), offset "+(s.offset||0)+". "+
+    (s.edges_omitted?"Edges omitted: "+s.edges_omitted+". ":"")+
+    "Search and page through source-backed results.");
+ document.getElementById("graph-prev").disabled=!(s.offset>0);
+ document.getElementById("graph-next").disabled=s.next_offset==null;
  const severity={error:0,warning:1,stale:2,unknown:3,ok:4};
- matches.sort((a,b)=>(a.id===selected?-1:severity[a.status]??5)-
-   (b.id===selected?-1:severity[b.status]??5)||a.label.localeCompare(b.label));
- const visible=matches.slice(0,90);
- text("graph-coverage","Showing "+visible.length+" of "+matches.length+" matching nodes ("+
-    s.nodes.length+" total). Search for a specific node; this is a bounded view.");
  const cols=[[],[],[]];for(const n of visible)cols[group(n)].push(n);
  for(const col of cols)col.sort((a,b)=>(a.id===selected?-1:severity[a.status]??5)-
    (b.id===selected?-1:severity[b.status]??5)||a.label.localeCompare(b.label));
@@ -537,9 +533,19 @@ function draw(s){
  "font-size":10},"CI "+(n.ci_run.conclusion||n.ci_run.status).toUpperCase()));
  g.addEventListener("click",()=>pick(n.id));g.addEventListener("keydown",ev=>{if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();pick(n.id)}});
  svg.append(g)}
- const target=s.nodes.find(n=>n.id===selected);if(target)detail(target,s);
+ // Node detail is fetched separately, never inferred from a partial page.
 }
-function pick(id){selected=id;if(state)draw(state)}
+async function pick(id){
+ selected=id;
+ if(state)draw(state);
+ try{
+   const res=await fetch("/api/node?id="+encodeURIComponent(id),{cache:"no-store"});
+   if(!res.ok)throw Error("detail unavailable");
+   const data=await res.json();
+   if(selected!==id)return;
+   detail(data.node,data);
+ }catch(_){text("details","Selected node detail unavailable. Current health cannot be inferred.")}
+}
 function detail(n,s){
  const ev=s.source_evidence.find(e=>e.id===n.evidence_id);
  const relevant=s.edges.filter(e=>e.source===n.id||e.target===n.id);
@@ -548,7 +554,9 @@ function detail(n,s){
  "SOURCE: "+(n.observation_source||"none"),"TRUST: "+n.source_authenticity,
  "REPORTED STATUS: "+(n.source_status||"unknown"),
  "METRICS: "+JSON.stringify(n.metrics), "LEADING SIGNALS: "+JSON.stringify(n.leading_indicators),
- "","DECLARED CONNECTIONS: "+relevant.length,
+ "","DECLARED CONNECTIONS: "+s.total_related_edges+
+ (s.edges_omitted?" ("+s.edges_omitted+" omitted)":""),
+ "SHOWN CONNECTIONS: "+relevant.length,
  ...relevant.slice(0,20).map(e=>e.relation+" : "+
    (e.source===n.id?e.target:e.source)+
    (e.source_line?" [line "+e.source_line+"]":"")),
