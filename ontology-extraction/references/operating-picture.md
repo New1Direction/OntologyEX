@@ -45,6 +45,13 @@ python "$SKILL_ROOT/scripts/control_room.py" --repo REPO --skill SKILL --links l
 
 Health is what linked systems report. It never proves that an action works.
 
+For more traffic, `ontologyex-feeds run --config feeds.json` does the same job in
+Rust with the same files. If the user agrees to download it,
+`python "$SKILL_ROOT/scripts/fetch_engine.py"` installs the prebuilt binaries into
+the skill's `bin/` after checking their checksum; show them the printed
+`gh attestation verify` command. `control_room.py --view-engine rust` then also
+uses the Rust discovery and graph views.
+
 ## 4. Grades, questions, queries
 
 - `--events EVENTS` on `control_room.py` shows each rule's G0–G4

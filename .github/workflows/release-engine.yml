@@ -1,0 +1,108 @@
+name: Engine binaries
+# Builds the Rust engine (ontologyex-core, -discover, -feeds, -view) for Linux
+# (static musl) and macOS, runs the Python parity suites against each native
+# build, and, for an `engine-v*` tag only, publishes the archives with a
+# SHA256SUMS file and a GitHub build provenance attestation.
+on:
+  push:
+    tags: ['engine-v*']
+  pull_request:
+    paths:
+      - 'engine/**'
+      - 'tests/rust_discover_parity.py'
+      - 'tests/rust_feeds_parity.py'
+      - 'ontology-extraction/scripts/fetch_engine.py'
+      - '.github/workflows/release-engine.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-24.04
+            test: true
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-24.04-arm
+            test: true
+          - target: aarch64-apple-darwin
+            os: macos-14
+            test: true
+          # Cross-built on Apple silicon; the arm64 build above runs the parity suites.
+          - target: x86_64-apple-darwin
+            os: macos-14
+            test: false
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Install the musl C toolchain
+        if: contains(matrix.target, 'musl')
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - name: Build release binaries
+        env:
+          CC_x86_64_unknown_linux_musl: musl-gcc
+          CC_aarch64_unknown_linux_musl: musl-gcc
+        run: cargo build --release --locked --manifest-path engine/Cargo.toml --target ${{ matrix.target }} --bins
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        if: matrix.test
+        with:
+          python-version: '3.11'
+      - name: Parity with the Python reference on this platform
+        if: matrix.test
+        run: |
+          python -m pip install 'PyYAML==6.0.3'
+          bin=engine/target/${{ matrix.target }}/release
+          python tests/rust_discover_parity.py "$bin/ontologyex-discover" --seeds 200
+          python tests/rust_feeds_parity.py "$bin/ontologyex-feeds" --seeds 200
+      - name: Package
+        run: |
+          name=ontologyex-engine-${{ matrix.target }}
+          mkdir -p "dist/$name"
+          for b in ontologyex-core ontologyex-discover ontologyex-feeds ontologyex-view; do
+            cp "engine/target/${{ matrix.target }}/release/$b" "dist/$name/"
+          done
+          cp LICENSE "dist/$name/"
+          tar -C dist -czf "dist/$name.tar.gz" "$name"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/engine-v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum ./*.tar.gz | sed 's| \./| |' > SHA256SUMS && cat SHA256SUMS
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'dist/*.tar.gz'
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" --title "OntologyEX engine ${GITHUB_REF_NAME#engine-}" \
+            --notes "Rust engine binaries (discovery, live feeds, graph views) for Linux and macOS. Install with \`python ontology-extraction/scripts/fetch_engine.py --version $GITHUB_REF_NAME\` and verify provenance with \`gh attestation verify\`."

@@ -170,6 +170,11 @@ Live health comes from real telemetry: `feeds.py` receives OpenTelemetry traces 
 polls Prometheus and HTTP health checks (`python examples/operating-picture/live.py`).
 See [live feeds](docs/live-feeds.md).
 
+The same jobs also run on an optional Rust engine: live feeds with about 18× the
+trace throughput in a fifth of the memory, and repository discovery about 15× faster,
+with answers CI checks against Python on every change. Install prebuilt binaries
+with `python ontology-extraction/scripts/fetch_engine.py`. See [Rust engine](docs/rust-engine.md).
+
 Optional decision models (Jev or Clef) speed up the proposal steps: source selection,
 link routing, review triage, conflict candidates, wording checks, and an **Ask** box that
 routes questions to the right view. They never make the proven decisions. See
