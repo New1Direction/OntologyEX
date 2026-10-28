@@ -276,7 +276,7 @@ theorem filter_unconfirmed (suggs : List Suggestion) (ds : List DecisionRec)
   | cons s t ih =>
     have hs : confirmedBy ds s = false := h s (List.mem_cons_self ..)
     have ht : ∀ x ∈ t, confirmedBy ds x = false := fun x hx => h x (List.mem_cons_of_mem _ hx)
-    simp [List.filter_cons, hs, ih ht]
+    simp [hs, ih ht]
 
 /-- Suggestions alone never change the links. -/
 theorem suggestions_alone_change_nothing (links : List Link) (suggs : List Suggestion) :
