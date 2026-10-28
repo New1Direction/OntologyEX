@@ -33,9 +33,11 @@ Critical panels always exist, have minimum dimensions, and move before the
 map in a single-column/mobile view. The graph itself is never removed.
 Map and incident click targets, search, and lens selection remain reachable.
 
-The user-selected Focus graph preference persists only a harmless boolean
-in localStorage; no credentials, graph data, or source files are persisted
-in the browser. Calculated positions adapt to resize and graph density.
+The user-selected Focus graph preference, bounded graph-width slider (48–76%)
+and explicit noncritical revision-panel collapse persist only harmless UI
+settings in localStorage; no credentials, graph data, or source files are persisted
+in the browser. **Critical incidents and integrity panels cannot be collapsed.**
+Calculated positions adapt to resize and graph density.
 CSS transitions obey prefers-reduced-motion: reduce.
 
 ## Mathematical model
@@ -58,6 +60,10 @@ panels and inappropriate geometry. It never silently removes a panel.
 Important: the score is a hand-authored **heuristic objective**, not a
 globally optimal solution for arbitrary panel sets. It evaluates three
 layout families, not a continuous global search.
+
+Explicit noncritical collapse preserves a visible expansion control and
+minimum panel height; it never removes a panel from the layout model.
+The graph width slider rebalances feasible space subject to panel minimums.
 
 The verifier checks minimum dimensions, missing panels, canvas bounds
 and intersections. A separate browser verifier checks actual DOM
