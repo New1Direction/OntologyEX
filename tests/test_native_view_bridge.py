@@ -59,6 +59,40 @@ class NativeViewTests(unittest.TestCase):
             data = self.native.execute(self.graph, "page", "all", "", "0")
         self.assertEqual(data["kind"], "BOUNDED_GRAPH_PAGE")
 
+    def test_incident_requires_bounded_rows_and_never_authorizes_causality(self):
+        good = {
+            "kind": "UNATTESTED_INCIDENT_INVESTIGATION",
+            "execution_authorized": False,
+            "root_cause": "UNDETERMINED",
+            "observation_semantics": "SOURCE_REPORTED_NOT_AUTHENTICATED_OR_VERIFIED",
+            "timeline": [], "possible_dependents": [],
+            "direct_relationships": [], "source_history": [],
+        }
+        with patch.object(bridge.subprocess, "run") as run:
+            run.return_value = Mock(returncode=0,
+                stdout=json.dumps(good).encode(), stderr=b"")
+            report = self.native.execute(
+                self.graph, "incident", "discovery:service:a",
+                observation_rows=[])
+        self.assertEqual(report["root_cause"], "UNDETERMINED")
+        sent = json.loads(run.call_args.kwargs["input"])
+        self.assertEqual(sent["full"], self.graph)
+        self.assertEqual(sent["rows"], [])
+        with self.assertRaises(bridge.NativeViewError):
+            self.native.execute(self.graph, "incident", "id")
+        with self.assertRaises(bridge.NativeViewError):
+            self.native.execute(self.graph, "summary", observation_rows=[])
+        with self.assertRaises(bridge.NativeViewError):
+            self.native.execute(self.graph, "incident", "id",
+                                observation_rows=[{}]*4097)
+        bad = dict(good, root_cause="CONFIRMED_DATABASE")
+        with patch.object(bridge.subprocess, "run") as run:
+            run.return_value = Mock(returncode=0,
+                stdout=json.dumps(bad).encode(), stderr=b"")
+            with self.assertRaisesRegex(bridge.NativeViewError, "safety contract"):
+                self.native.execute(self.graph, "incident", "id",
+                                    observation_rows=[])
+
     def test_invalid_queries_and_authorization_refused(self):
         for args in (("not-a-command",), ("node",), ("page","all",""),
                      ("node", "x"*1025), ("summary", "other")):

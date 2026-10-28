@@ -19,12 +19,13 @@ MAX_OUTPUT_BYTES = 8 * 1024 * 1024
 MAX_BINARY_BYTES = 64 * 1024 * 1024
 MAX_CONCURRENT = 2
 TIMEOUT_SECONDS = 5.0
-COMMANDS = frozenset({"summary", "page", "neighborhood", "node"})
+COMMANDS = frozenset({"summary", "page", "neighborhood", "node", "incident"})
 KINDS = {
     "summary": "LOCAL_CONTROL_ROOM_SUMMARY",
     "page": "BOUNDED_GRAPH_PAGE",
     "neighborhood": "BOUNDED_GRAPH_NEIGHBORHOOD",
     "node": "BOUNDED_NODE_DETAIL",
+    "incident": "UNATTESTED_INCIDENT_INVESTIGATION",
 }
 
 
@@ -60,10 +61,12 @@ class NativeView:
             raise NativeViewError("invalid or non-executable Rust view binary")
         self._slots = BoundedSemaphore(MAX_CONCURRENT)
 
-    def execute(self, full: dict, command: str, *args: str) -> dict:
+    def execute(self, full: dict, command: str, *args: str,
+                observation_rows: list[dict] | None = None) -> dict:
         if command not in COMMANDS or any(type(arg) is not str for arg in args):
             raise NativeViewError("invalid native view invocation")
-        expected_args = {"summary": 0, "page": 3, "neighborhood": 2, "node": 1}
+        expected_args = {"summary": 0, "page": 3, "neighborhood": 2,
+                         "node": 1, "incident": 1}
         if len(args) != expected_args[command] or any(
             len(arg) > 1024 or (not arg and (command != "page" or i != 1))
             for i, arg in enumerate(args)
@@ -71,9 +74,17 @@ class NativeView:
             raise NativeViewError("invalid native view arguments")
         if full.get("execution_authorized") is not False:
             raise NativeViewError("native input cannot authorize execution")
+        if command == "incident":
+            if type(observation_rows) is not list or len(observation_rows) > 4096:
+                raise NativeViewError("invalid or oversized incident rows")
+            input_record = {"full": full, "rows": observation_rows}
+        else:
+            if observation_rows is not None:
+                raise NativeViewError("unexpected observations for graph view")
+            input_record = full
         try:
             payload = json.dumps(
-                full, ensure_ascii=False, allow_nan=False, sort_keys=True,
+                input_record, ensure_ascii=False, allow_nan=False, sort_keys=True,
                 separators=(",", ":"),
             ).encode("utf-8")
         except (TypeError, ValueError, RecursionError) as exc:
@@ -123,6 +134,19 @@ class NativeView:
             edges = result.get("edges")
             if type(edges) is not list or len(edges) > 40:
                 raise NativeViewError("native detail budget violated")
+        elif command == "incident":
+            timeline = result.get("timeline")
+            exposed = result.get("possible_dependents")
+            direct = result.get("direct_relationships")
+            history = result.get("source_history")
+            if (type(timeline) is not list or len(timeline) > 32
+                    or type(exposed) is not list or len(exposed) > 40
+                    or type(direct) is not list or len(direct) > 40
+                    or type(history) is not list or len(history) > 8
+                    or result.get("root_cause") != "UNDETERMINED"
+                    or result.get("observation_semantics") !=
+                      "SOURCE_REPORTED_NOT_AUTHENTICATED_OR_VERIFIED"):
+                raise NativeViewError("native incident safety contract violated")
         elif "nodes" in result or "edges" in result or "source_evidence" in result:
             raise NativeViewError("native summary contains full graph")
         return result

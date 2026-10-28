@@ -43,6 +43,25 @@ computes the read-only graph projection.
 - Source trust semantics remain UNATTESTED; CI outcomes are not uptime;
   import/navigation relationships do not prove execution or causation.
 
+### Second slice: incident evidence projection
+
+Rust now also computes the read-only incident evidence record when
+`--view-engine rust` is selected. The input is the **same validated
+observation batch** used by the existing Python health projector, so
+a native incident report never sees a different source timeline.
+
+The native incident module (`engine/src/incident.rs`) uses a minimal RFC3339
+parser dependency and enforces 4,096 observation rows; outputs stay bounded
+to 32 timeline entries, 40 possibly exposed dependents, 40 relationships
+and eight source revisions. It never claims that source revisions are
+deployments, static links are executed calls, or that a root cause is known.
+
+`tests/rust_incident_parity.py` asserts **exact equality** with the existing
+Python incident projector on nine fixed-clock cases, including future,
+stale, conflicting and long observation histories. Actual local HTTP
+parity also covers the `/api/incident` endpoint. The Python implementation
+remains available as a compatibility path; there is no silent fallback.
+
 ### Parity and CI
 
 Existing `tests/rust_view_parity.py` compares Rust to Python for a
