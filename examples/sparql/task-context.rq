@@ -1,0 +1,21 @@
+# For each task: the classes it consumes or produces, the declared relations
+# that touch those classes, and the code bindings used by the task.
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX edge: <urn:ontologyex:v1:edge:>
+
+SELECT ?task ?role ?name WHERE {
+  ?t rdfs:label ?task .
+  {
+    { ?t edge:CONSUMES ?c . BIND("consumes" AS ?role) }
+    UNION { ?t edge:PRODUCES ?c . BIND("produces" AS ?role) }
+    ?c rdfs:label ?name .
+  } UNION {
+    { ?t edge:CONSUMES ?c } UNION { ?t edge:PRODUCES ?c }
+    { ?rel edge:DOMAIN ?c } UNION { ?rel edge:RANGE ?c }
+    ?rel rdfs:label ?name . BIND("relation" AS ?role)
+  } UNION {
+    ?b edge:USED_BY_TASK ?t ; rdfs:label ?name . BIND("binding" AS ?role)
+  }
+}
+GROUP BY ?task ?role ?name
+ORDER BY ?task ?role ?name

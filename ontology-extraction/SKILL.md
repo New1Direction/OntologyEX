@@ -29,6 +29,9 @@ mix public-web research with a frozen, local-only onboarding session.
    user-authorized filenames/documentation to propose a small source set. Show the
    exact paths and ask for acknowledgment unless the user already selected them.
    Never collect credentials, hidden full-repository contents, or unrelated files.
+   If `jg` (jevgrep) is installed and the user agrees to send that source to their model
+   provider, it can suggest candidates; its output is a proposal, not the boundary
+   (see [guided onboarding](references/guided-onboarding.md)).
 2. **Start.** Run `python "$SKILL_ROOT/scripts/onboard.py" start --repo REPO
    --include FILE --name DOMAIN --goal GOAL --out SESSION --acknowledge-sources`.
    Repeat `--include` for each approved file. The default budget is three submissions:
@@ -47,6 +50,9 @@ mix public-web research with a frozen, local-only onboarding session.
    Leave uncertain lineage unknown. Inspect every distinct origin and recorded conflict;
    grouping never authorizes dropping evidence. The optional `70-provenance.json` is an
    authoring file included in tracked submissions.
+   Run `python "$SKILL_ROOT/scripts/statement_lint.py" SESSION/workspace` and fix
+   statements that can be read two ways. Its warnings are advisory
+   ([rule wording](references/rule-wording.md)); never reword to hide a blocker.
 5. **Submit.** Run `python "$SKILL_ROOT/scripts/onboard.py" attempt SESSION` exactly once.
    Read its structured diagnostics. Only `REPAIR_REQUIRED` permits another correction.
    Do not call the untracked compiler to bypass the session's budget. Never change
@@ -62,6 +68,9 @@ mix public-web research with a frozen, local-only onboarding session.
    to prepare a focused reference for a fresh agent session. Keep semantic review and
    independent behavioral tests separate. Do not install/promote a generated candidate
    or execute project code without the user's authorization.
+   `evidence_grade.py grade SKILL` reports each rule's G0–G4
+   [evidence grade](references/evidence-grades.md). A new candidate is all G0. Never record
+   review or behavior events for your own work; the reviewer records them.
 
 ## Invariants
 

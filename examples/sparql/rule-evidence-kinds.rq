@@ -1,0 +1,15 @@
+# Distinct evidence kinds and files cited by each rule. Two or more kinds is the
+# mechanical "multi-kind" signal; it does not show the sources are independent.
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX kind: <urn:ontologyex:v1:kind:>
+PREFIX attr: <urn:ontologyex:v1:attr:>
+
+SELECT ?rule (COUNT(DISTINCT ?k) AS ?kinds)
+       (GROUP_CONCAT(DISTINCT ?k; separator=",") AS ?kind_list)
+       (COUNT(DISTINCT ?path) AS ?files) WHERE {
+  ?r a kind:rule ; rdfs:label ?rule ; prov:wasDerivedFrom ?e .
+  ?e attr:evidence_kind ?k ; attr:path ?path .
+}
+GROUP BY ?rule
+ORDER BY DESC(?kinds) ?rule

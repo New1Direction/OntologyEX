@@ -142,6 +142,17 @@ The helper copies an exact source span and digest into the authoring contract. `
 numbered source lines; `record` emits JSON without changing the contract. Existing evidence IDs
 cannot be silently repointed. Someone must still review whether the span supports the claim.
 
+## Grades, wording, and queries
+
+- **Evidence grades:** `evidence_grade.py` reports an ordinal G0–G4 grade per rule from
+  recorded review and behavior-check events. No numbers, no approvals; nothing reaches G4
+  until a tool observes fresh-agent use. See [evidence grades](ontology-extraction/references/evidence-grades.md).
+- **Rule wording:** `statement_lint.py` gives advisory, STE-style warnings for statements that
+  can be read two ways. See [rule wording](ontology-extraction/references/rule-wording.md).
+- **SPARQL:** `rdf_export.py` exports declarations, evidence, rules, unknowns, and conflicts
+  as N-Triples; `examples/sparql/` has queries tested with the optional sparq engine.
+  See [RDF interchange](docs/rdf-interop.md).
+
 ## Existing compiler and four-layer method
 
 The original method remains intact in [METHOD.md](ontology-extraction/METHOD.md):

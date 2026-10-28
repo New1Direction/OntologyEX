@@ -1,0 +1,16 @@
+# Contract items that keep a task from a clean result: unknowns, conflicts,
+# inferred rules, and rules without an executable check.
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX kind: <urn:ontologyex:v1:kind:>
+PREFIX attr: <urn:ontologyex:v1:attr:>
+PREFIX edge: <urn:ontologyex:v1:edge:>
+
+SELECT ?task ?item ?reason ?statement WHERE {
+  ?i edge:CONCERNS_TASK ?t ; rdfs:label ?item ; attr:statement ?statement .
+  ?t rdfs:label ?task .
+  { ?i a kind:unknown . BIND("unknown" AS ?reason) }
+  UNION { ?i a kind:conflict . BIND("conflict" AS ?reason) }
+  UNION { ?i a kind:rule ; attr:status "inferred" . BIND("inferred rule" AS ?reason) }
+  UNION { ?i a kind:rule ; attr:executable false . BIND("no executable check" AS ?reason) }
+}
+ORDER BY ?task ?item ?reason

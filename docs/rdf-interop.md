@@ -27,6 +27,32 @@ The N-Triples interoperability bridge is designed for this exchange; it has
 profile. Installing and running Open Ontologies is separate and optional.
 This repository does not download or invoke its executable.
 
+## Query the export with sparq (optional)
+
+[sparq](https://github.com/sparq-org/sparq) is a Rust RDF store and SPARQL 1.1/1.2 engine
+with Python bindings. It is an optional reader of the export, not an OntologyEX
+dependency. sparq describes itself as an experimental, pre-1.0 engine; the version below
+is the one these queries were tested with.
+
+    python -m pip install 'sparq-rdf==0.1.6'
+    python ontology-extraction/scripts/rdf_export.py /path/to/skill > graph.nt
+    python examples/sparql/run.py graph.nt examples/sparql/review-blockers.rq
+
+Example queries in `examples/sparql/`:
+
+| File | Question |
+|---|---|
+| `review-blockers.rq` | Which unknowns, conflicts, inferred rules, and non-executable rules block each task? |
+| `rules-without-requirement.rq` | Which rules cite no requirement span (behavior without stated intent)? |
+| `rule-evidence-kinds.rq` | How many evidence kinds and files does each rule cite? |
+| `depends-on-file.rq` | What cites a given source file, and so needs review when it changes? |
+| `task-context.rq` | Which classes, relations, and code bindings does each task touch? |
+
+`tests/test_rdf_export.py` runs every query against the compiled payments example when
+`sparq` is installed, and skips that test otherwise. Leave sparq's RDFS/OWL reasoning off:
+the export deliberately asserts no `rdfs:domain`, `rdfs:range`, or class hierarchy, so
+reasoning adds nothing that the authors stated.
+
 ## Semantics
 
 The exporter uses local, versioned URN identifiers. Every projected node is
@@ -36,14 +62,23 @@ ontologyex-specific predicates. A SUPPORTED_BY edge uses the W3C
 prov:wasDerivedFrom predicate to point to an evidence **record**, which carries
 the source file path, SHA-256, source span and declared evidence kind.
 
+The contract's rules, unknowns and conflicts are exported as `kind:rule`,
+`kind:unknown` and `kind:conflict` nodes. Each has an `attr:statement`, a
+`CONCERNS_TASK` edge to its task and `prov:wasDerivedFrom` edges to its evidence.
+A rule also has `attr:status` (`observed` or `inferred`) and `attr:executable`
+(`xsd:boolean`: whether it has a typed check). Statements are authored
+interpretations, not source quotations or entailed facts. The check expression
+itself is not exported.
+
 **Important:** A domain relation node's DOMAIN and RANGE edges are OntologyEX
 metadata, **not** global rdfs:domain/rdfs:range axioms. No owl:sameAs, class
 hierarchy, permission, policy or formal inference is created. This avoids
 silently upgrading a source-bound declaration into a universal semantic rule.
 
 No original source quotation, full file content, agent transcript, secret, or
-tool argument is output. Source paths and graph labels can nonetheless reveal
-private architecture; keep the file local and access-controlled.
+tool argument is output. Source paths, graph labels and rule statements can
+nonetheless reveal private architecture or policy; keep the file local and
+access-controlled.
 
 If graph_view.py finds unresolved references, RDF export **fails closed**
 instead of silently emitting an incomplete subset. Inspect the complete
@@ -67,4 +102,6 @@ agent actions.
 
 The tests cover deterministic sorting, URN identity, evidence metadata,
 escaping, unknown vocabulary rejection, dangling-edge rejection, duplicate
-node rejection, size limits, and failure to promote unreviewed outputs.
+node rejection, size limits, failure to promote unreviewed outputs, contract
+export with fail-closed task and evidence references, and (with sparq) the
+example queries.

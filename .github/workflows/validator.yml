@@ -28,6 +28,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install test and case dependencies
         run: python -m pip install -r examples/cachetools-domain/requirements-case.txt
+      - name: Install optional SPARQL engine for the RDF query tests
+        run: python -m pip install 'sparq-rdf==0.1.6'
       - name: Run regression tests
         run: python -m unittest discover -s tests -v
       - name: Validate every bundled example
