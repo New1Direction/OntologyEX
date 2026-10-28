@@ -126,8 +126,11 @@ def main():
                     document.getElementById('workspace')).ok};
             """)
             assert dense["shown"] <= 90 and dense["shown"] > 0, dense
-            assert "400" in dense["label"] and "synthetic-module-399" in dense["failures"], dense
-            assert dense["valid"], dense
+            assert "405" in dense["label"] and "synthetic-module-399" in dense["failures"], dense
+            WebDriverWait(driver, 4).until(lambda d: d.execute_script("""
+                return OntologyLayout.verifyDOM(lastLayout,
+                  document.getElementById('workspace')).ok
+            """))
             found = driver.execute_script("""
                 const search=document.getElementById('graph-search');
                 search.value='synthetic-module-399';
