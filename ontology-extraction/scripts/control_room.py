@@ -300,9 +300,11 @@ background:#071018;color:#d5e9eb}*{box-sizing:border-box}body{margin:0;backgroun
 min-height:100vh}header{padding:20px 24px;border-bottom:1px solid #254452;display:flex;align-items:center;
 justify-content:space-between;gap:20px}h1{font-size:19px;letter-spacing:.12em;margin:0}small,.muted{color:#839fab}
 header small{display:block;letter-spacing:.11em;margin-bottom:6px;color:#50b5af}
-main#workspace{position:relative;display:block;width:100%;min-height:520px;overflow:visible}
-#workspace>section{position:absolute;min-width:0;min-height:0;box-sizing:border-box;overflow:auto;scrollbar-width:thin;transition:top .22s ease,left .22s ease,width .22s ease,height .22s ease}
-#map{overflow:auto;background:
+main#workspace{position:relative;display:flex;flex-direction:column;gap:12px;padding:12px;
+width:100%;min-height:520px;overflow:visible}
+#workspace>section{position:relative;min-width:0;min-height:120px;box-sizing:border-box;overflow:auto;
+scrollbar-width:thin;transition:top .22s ease,left .22s ease,width .22s ease,height .22s ease}
+#map{min-height:320px;overflow:auto;background:
 linear-gradient(90deg,transparent 49.8%,#17324135 50%,transparent 50.2%),
 repeating-linear-gradient(0deg,transparent 0,transparent 31px,#17324134 32px);
 border:1px solid #284350;border-radius:12px}#svg{width:100%;display:block;min-height:570px}
@@ -417,7 +419,8 @@ function applyLayout(s){
  try{
    const plan=OntologyLayout.optimize({width,height,panels:dims,density:s.nodes.length,focusGraph,
      mapShare:graphShare});
-   root.style.display="block";root.style.height=plan.contentHeight+"px";
+   root.style.display="block";root.style.padding="0";root.style.gap="0";
+   root.style.height=plan.contentHeight+"px";
    for(const [id,r] of Object.entries(plan.rects)){
      const el=document.getElementById(id);
      el.style.position="absolute";el.style.left=r.x+"px";el.style.top=r.y+"px";
