@@ -303,7 +303,8 @@ header small{display:block;letter-spacing:.11em;margin-bottom:6px;color:#50b5af}
 main#workspace{position:relative;display:flex;flex-direction:column;gap:12px;padding:12px;
 width:100%;min-height:520px;overflow:visible}
 #workspace>section{position:relative;min-width:0;min-height:120px;box-sizing:border-box;overflow:auto;
-scrollbar-width:thin;transition:top .22s ease,left .22s ease,width .22s ease,height .22s ease}
+scrollbar-width:thin;transition:none}
+#workspace[data-layout-ready="true"]>section{transition:top .22s ease,left .22s ease,width .22s ease,height .22s ease}
 #map{min-height:320px;overflow:auto;background:
 linear-gradient(90deg,transparent 49.8%,#17324135 50%,transparent 50.2%),
 repeating-linear-gradient(0deg,transparent 0,transparent 31px,#17324134 32px);
@@ -431,6 +432,9 @@ function applyLayout(s){
    // Ignore an obsolete check if viewport/content changed meanwhile.
    setTimeout(()=>{
      if(lastLayout!==plan)return;
+     // Animate only after the first stable layout; never animate from the
+     // safe pre-discovery stacked state into absolute coordinates.
+     root.dataset.layoutReady="true";
      const result=OntologyLayout.verifyDOM(plan,root);
      const report={columns:plan.columns,score:plan.score,contentHeight:plan.contentHeight,
        candidates:plan.candidates,decisions:plan.decisions,
