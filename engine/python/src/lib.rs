@@ -38,8 +38,38 @@ fn node_json(graph_json: &str, node_id: &str) -> PyResult<String> {
     encode(view::node_detail(&decode(graph_json)?,node_id))
 }
 
+/// Immutable parsed snapshot. Repeated queries avoid full graph JSON
+/// marshaling; the caller must rebuild it when source state changes.
+#[pyclass(frozen)]
+struct GraphIndex {
+    state: Value,
+}
+
+#[pymethods]
+impl GraphIndex {
+    #[new]
+    fn new(graph_json: &str) -> PyResult<Self> {
+        let state = decode(graph_json)?;
+        view::validate_source(&state).map_err(PyValueError::new_err)?;
+        Ok(Self { state })
+    }
+    fn summary_json(&self) -> PyResult<String> {
+        encode(view::summary(&self.state))
+    }
+    fn page_json(&self, lens: &str, query: &str, offset: usize) -> PyResult<String> {
+        encode(view::page(&self.state, lens, query, offset))
+    }
+    fn neighborhood_json(&self, center_id: &str, depth: usize) -> PyResult<String> {
+        encode(view::neighborhood(&self.state, center_id, depth))
+    }
+    fn node_json(&self, id: &str) -> PyResult<String> {
+        encode(view::node_detail(&self.state, id))
+    }
+}
+
 #[pymodule]
 fn ontologyex_native(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add_class::<GraphIndex>()?;
     module.add_function(wrap_pyfunction!(summary_json, module)?)?;
     module.add_function(wrap_pyfunction!(page_json, module)?)?;
     module.add_function(wrap_pyfunction!(neighborhood_json, module)?)?;
