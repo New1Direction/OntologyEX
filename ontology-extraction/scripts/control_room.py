@@ -22,6 +22,7 @@ import discover_repo
 import github_discovery
 import snapshot_store
 import graph_view_api
+import incident_view
 from urllib.parse import parse_qs, urlsplit
 
 MAX_OBSERVATION_BYTES = 1024 * 1024
@@ -810,7 +811,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         worker = Thread(target=refresh_loop, name="ontologyex-github-readonly", daemon=True)
         worker.start()
 
-    def snapshot() -> dict:
+    def snapshot(observation_rows: list[dict] | None = None) -> dict:
         current = datetime.now(timezone.utc)
         if remote is not None:
             topology, last_success, refresh_error = remote.snapshot()
@@ -825,7 +826,8 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 topology = state_cache["topology"]
                 last_success = state_cache["last_success"]
                 refresh_error = False
-        result = build_state(topology, read_observations(observations), rules, current)
+        result = build_state(topology, (observation_rows if observation_rows is not None
+                                        else read_observations(observations)), rules, current)
         result["discovery_source"] = topology.get("source", {"provider": "local"})
         result["discovery_freshness"] = (
             "STALE_LAST_KNOWN" if refresh_error else "AS_OF_LATEST_SUCCESSFUL_SCAN")
@@ -857,7 +859,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             elif route.path == "/static/layout_engine.js" and not route.query:
                 payload = (Path(__file__).resolve().parent / "layout_engine.js").read_bytes()
                 mime, code = "application/javascript; charset=utf-8", 200
-            elif route.path in ("/api/state", "/api/view", "/api/node", "/api/neighborhood"):
+            elif route.path in ("/api/state", "/api/view", "/api/node", "/api/neighborhood", "/api/incident"):
                 mime = "application/json; charset=utf-8"
                 try:
                     params = parse_qs(route.query, strict_parsing=True, keep_blank_values=True,
@@ -882,13 +884,19 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                         result = graph_view_api.neighborhood(
                             full, params["id"][0],
                             depth=graph_view_api.valid_depth(params["depth"][0]))
+                    elif route.path == "/api/incident":
+                        if set(params) != {"id"}:
+                            raise graph_view_api.ViewError("incident requires exact node id")
+                        rows = read_observations(observations)
+                        full = snapshot(rows)  # same rows for status and timeline
+                        result = incident_view.incident(full, rows, params["id"][0])
                     else:
                         if set(params) != {"id"}:
                             raise graph_view_api.ViewError("node requires an exact id")
                         result = graph_view_api.node_detail(full, params["id"][0])
                     payload = json.dumps(result, sort_keys=True).encode()
                     code = 200
-                except (graph_view_api.ViewError, ValueError, UnicodeError):
+                except (graph_view_api.ViewError, incident_view.IncidentError, ValueError, UnicodeError):
                     payload, code = b'{"status":"INVALID_QUERY"}', 400
                 except (RoomError, discover_repo.DiscoveryError, github_discovery.GitHubDiscoveryError,
                         OSError, TypeError):
