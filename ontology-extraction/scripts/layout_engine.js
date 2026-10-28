@@ -133,6 +133,10 @@
     const validation = verify(plan, input.panels);
     if (!validation.ok) return null;
     const over = Math.max(0, bottom - H);
+    const panelArea = Object.values(rects).reduce(
+      (sum, r) => sum + r.width * r.height, 0);
+    const emptyArea = Math.max(0, W * bottom - panelArea);
+    const emptyRatio = emptyArea / (W * Math.max(1, H));
     const priorityDelay = others.reduce((sum, p) =>
       sum + Math.min(1200, rects[p.id].y) * importance(p) / 200, 0);
     const geometricPenalty = columns === 1 ? Math.max(0, W - 660) * 1.7 :
@@ -141,12 +145,13 @@
     const userPenalty = prefs.focusGraph ? (columns === 3 ? 210 : 0) : 0;
     // Minimize vertical scroll, high-priority delay, inappropriate column counts.
     plan.score = px(over * 0.38 + priorityDelay * 0.12 +
-                    geometricPenalty + userPenalty);
+                    geometricPenalty + userPenalty + emptyRatio * 30);
     plan.constraints = validation;
     plan.decisions = {
       objective: "SCROLL_PLUS_PRIORITY_LATENCY_PLUS_GEOMETRY",
       focusGraph: !!prefs.focusGraph, mapShare:prefs.mapShare,
       density, scrollOverflowPx: px(over),
+      estimatedUnusedAreaPx2: Math.round(emptyArea),
       chosenColumns: columns,
       fixedBreakpointsUsed: false,
       totalPanels: input.panels.length
