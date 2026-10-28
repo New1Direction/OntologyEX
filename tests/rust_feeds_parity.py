@@ -336,7 +336,12 @@ class Harness:
 
     # 6 ------------------------------------------------------------ once, end to end
     def once(self) -> None:
-        server = ThreadingHTTPServer(("127.0.0.1", 0), Fixture)
+        class Server(ThreadingHTTPServer):
+            # ontologyex-feeds polls up to 16 targets at once; socketserver's default
+            # listen queue of 5 makes macOS refuse the extra connections outright.
+            request_queue_size = 64
+
+        server = Server(("127.0.0.1", 0), Fixture)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         base = f"http://127.0.0.1:{server.server_address[1]}"
         refused = socket.socket()
