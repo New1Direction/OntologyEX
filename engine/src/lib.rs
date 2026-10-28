@@ -6,6 +6,7 @@
 
 pub mod view;
 pub mod incident;
+pub mod business;
 
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};

@@ -77,7 +77,8 @@ def prepare(skills: list[Path], state: dict, links: list[dict], rejected: list[d
             "bindings": sorted(bindings, key=lambda b: (b["skill"], b["binding"])),
             "components": sorted(components, key=lambda c: c["id"]),
             "linked": [list(p) for p in pairs(links)],
-            "rejected": [list(p) for p in pairs(rejected)]}
+            "rejected": [list(p) for p in pairs(rejected)],
+            "execution_authorized": False}
 
 
 def suggestion_id(skill: str, binding: str, component: str) -> str:
@@ -86,7 +87,9 @@ def suggestion_id(skill: str, binding: str, component: str) -> str:
 
 def suggest_from(data: dict) -> dict:
     """Pure matcher over prepared input. Deterministic; no ties are broken by guessing."""
-    require(data.get("kind") == "LINK_MATCH_INPUT", "expected link match input")
+    require(data.get("kind") == "LINK_MATCH_INPUT" and data.get("execution_authorized") is False,
+            "expected link match input that authorizes nothing")
+    require(all(c["kind"] in KINDS for c in data["components"]), "component kind cannot be linked")
     linked = {tuple(p) for p in data["linked"]}
     rejected = {tuple(p) for p in data["rejected"]}
     out, skipped = [], 0
@@ -131,11 +134,14 @@ def suggest_from(data: dict) -> dict:
     return {"schema_version": 1, "kind": "LINK_SUGGESTIONS", "suggestions": out,
             "rejected_not_shown": skipped,
             "semantics": "NAME_AND_PATH_SIGNALS_NOT_RUNTIME_EVIDENCE_CONFIRMATION_REQUIRED",
-            "auto_applied": 0}
+            "auto_applied": 0, "execution_authorized": False}
 
 
-def suggest(skills: list[Path], state: dict, links: list[dict], rejected: list[dict]) -> dict:
-    return suggest_from(prepare(skills, state, links, rejected))
+def suggest(skills: list[Path], state: dict, links: list[dict], rejected: list[dict],
+            native=None) -> dict:
+    """`native` is an optional native_view_bridge.NativeView running the Rust matcher."""
+    data = prepare(skills, state, links, rejected)
+    return native.execute(data, "suggest-links") if native is not None else suggest_from(data)
 
 
 def decide(links_path: Path, suggestion: dict, decision: str, by: str, note: str = "") -> dict:

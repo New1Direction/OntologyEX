@@ -154,6 +154,11 @@ and how far each rule's evidence was checked. Health is the source-reported stat
 of operator-linked systems, not proof that an action works. The demo data is
 synthetic. See [operating picture](docs/operating-picture.md).
 
+Links are suggested from names and paths and applied only when a person confirms
+them. The health rollup, grade ladder, and link decisions are implemented in Python
+and Rust, proven in Lean and Bend, and cross-checked in CI. See
+[business verification](docs/business-verification.md).
+
 ## Grades, wording, and queries
 
 - **Evidence grades:** `evidence_grade.py` reports an ordinal G0–G4 grade per rule from

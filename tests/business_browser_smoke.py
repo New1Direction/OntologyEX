@@ -88,6 +88,40 @@ def main():
             errors = [entry for entry in driver.get_log("browser") if entry["level"] == "SEVERE"]
             assert not errors, json.dumps(errors)
             print("CHROME no console errors", flush=True)
+
+            # One-tap linking: start unlinked, confirm a suggestion in the page.
+            unlinked = demo.build(Path(tmp) / "unlinked", unlinked=True)
+            with socket.socket() as sock:
+                sock.bind(("127.0.0.1", 0))
+                port2 = sock.getsockname()[1]
+            second = subprocess.Popen([*unlinked["command"], "--port", str(port2), "--allow-link-decisions"],
+                                      cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            try:
+                for _ in range(100):
+                    try:
+                        with urllib.request.urlopen(f"http://127.0.0.1:{port2}/api/business", timeout=1):
+                            break
+                    except OSError:
+                        time.sleep(0.1)
+                driver.get(f"http://127.0.0.1:{port2}/business")
+                WebDriverWait(driver, 10).until(lambda d: d.execute_script(
+                    "return document.querySelectorAll('#suggestions .sug').length===2"))
+                assert "UNLINKED" in driver.find_element("id", "attention").text
+                driver.find_element("id", "who").send_keys("smoke-test")
+                driver.execute_script("""
+                    const card=[...document.querySelectorAll('#suggestions .sug')]
+                      .find(c=>c.textContent.includes('payments.apply_refund'));
+                    card.querySelector('.btn.yes').click();""")
+                WebDriverWait(driver, 10).until(lambda d: "IssueRefund" in d.find_element(
+                    "css selector", "#attention .attn").text and "AT RISK" in d.find_element(
+                    "css selector", "#attention .attn").text)
+                links = json.loads(Path(unlinked["links"]).read_text())["links"]
+                assert [(l["binding"], l["declared_by"]) for l in links] == [
+                    ("payments.apply_refund", "smoke-test")], links
+                print("CHROME one-tap link confirmation updates the links file and health", flush=True)
+            finally:
+                second.terminate()
+                second.wait(timeout=3)
         finally:
             if driver is not None:
                 driver.quit()

@@ -82,6 +82,12 @@ graph reachability, deduplication or aggregation, but only when:
 
 No automatic Bend2 installation or experimental GPU code is part of this PR.
 
+**Update (2026-10-28):** Bend 2 moved to `bendlang/bend` and now includes a prover
+(`LAWS.bend` / `PROOF.bend`). OntologyEX uses that prover, not the runtime, to check
+business laws in CI at a pinned commit. See
+[business-verification.md](business-verification.md). Runtime use still has to pass
+the admission gate above.
+
 ## Real hosted acceptance
 
 - A source-scoped scan can map one selected repo, one deployment and one

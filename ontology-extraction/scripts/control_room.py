@@ -855,7 +855,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         link_rows, rejected = ((business_view.read_link_document(links)
                                 if links is not None and links.exists() else ([], [])))
         result = business_view.project(skills, full, link_rows, events)
-        suggestions = link_suggest.suggest(skills, full, link_rows, rejected)
+        suggestions = link_suggest.suggest(skills, full, link_rows, rejected, native_view)
         for row in suggestions["suggestions"]:
             row["confirm_command"] = (" ".join(shlex.quote(part) for part in [
                 *[x.format(decision="confirm") for x in base_command],

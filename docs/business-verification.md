@@ -1,0 +1,74 @@
+# Business layer verification: Python, Rust, Lean, Bend
+
+The business operating picture makes three decisions that people act on:
+
+1. **Action health.** Which actions are AT RISK, POSSIBLY IMPACTED, UNKNOWN, and so on
+   (`business_view.rollup`).
+2. **Evidence grades.** How far a rule's evidence was checked, G0–G4
+   (`evidence_grade.ladder`).
+3. **Link decisions.** Which binding-to-component links exist (`link_suggest`).
+
+Each one is implemented, tested, and stated as laws in more than one language. The
+Python code is the reference that the control room runs.
+
+| Layer | What it does | Where | CI job |
+|---|---|---|---|
+| Python | Reference implementation and unit tests | `ontology-extraction/scripts/` | Validator |
+| Rust | Same link matcher, rollup, and ladder; optional engine for suggestions (`--view-engine rust`) | `engine/src/business.rs` | rust-core |
+| Lean 4 | Proofs about the rollup, ladder, and link decisions; prints a conformance table | `proofs/lean/` | lean-policy |
+| Bend | The same safety rules as laws, proven by Bend's checker | `proofs/bend/business.bend` | bend-laws |
+
+## What is proven
+
+**Lean** (`proofs/lean/OntologyEXProofs.lean`, namespace `OntologyEX.Business`):
+
+- `rollup_nil`: no linked system gives UNLINKED.
+- `error_forces_atRisk`: one erroring linked system makes the action AT RISK.
+- `reportedOk_sound`: REPORTED OK only when a system is linked and every linked
+  system reports ok with no failing dependency.
+- `not_ok_never_reportedOk`, `impacted_never_reportedOk`: unknown, stale, warning,
+  or a declared dependency on a failing system never shows REPORTED OK.
+- `rollup_perm`: the order in which systems are linked never changes the health.
+- `ladder_never_g4`, `rejection_is_g0`, `inferred_at_most_g1`, `g3_needs_every_rung`,
+  `passing_check_monotone`, `failed_check_antitone`.
+- `suggestions_alone_change_nothing`, `rejections_add_nothing`,
+  `added_links_were_confirmed`, `decisions_keep_links`: a suggestion never becomes a
+  link without an explicit confirm decision, and a reject never adds one.
+
+**Bend** (`proofs/bend/business.bend`, checked by `bendlang/bend` at a pinned commit):
+`empty_is_unlinked`, `error_anywhere_is_at_risk`, `unknown_anywhere_is_not_ok`,
+`ladder_never_g4`, `rejection_is_g0`, `inferred_at_most_g1`,
+`suggestions_alone_change_nothing`, `reject_is_inert`, `reject_adds_nothing`.
+
+## How the languages are tied together
+
+- `tests/conformance.py expected` prints the Python table: every list of up to three
+  linked systems over the ten (status, impacted) values (1,111 rows) and all 64
+  ladder inputs.
+- `ontologyex-view conformance` (Rust) and `.lake/build/bin/conformance` (Lean,
+  printed from the proven definitions) must produce exactly that table.
+- `tests/rust_business_parity.py` compares the Rust and Python link matchers on the
+  demo, edge cases, and 300 seeded random inputs.
+
+## Limits
+
+- The Lean and Bend definitions are models. The proofs are about the models. The
+  connection to the Python and Rust code is **exhaustive testing over a bounded
+  domain**, not a refinement proof.
+- Bend's own `--verdict` recheck (its Lean-proven kernel) is not run in CI.
+- Bend is used here for its prover, not its GPU runtime. The admission gate in
+  [rust-lean-bend2-architecture.md](rust-lean-bend2-architecture.md) still applies
+  to any runtime use.
+- None of this proves that a source-reported status is true, that a link is right,
+  or that a rule matches the business. People still review those.
+
+## Run locally
+
+```bash
+cargo test --manifest-path engine/Cargo.toml --all-targets
+cargo build --manifest-path engine/Cargo.toml --bin ontologyex-view
+python tests/rust_business_parity.py
+(cd proofs/lean && lake build && lake build conformance && .lake/build/bin/conformance > /tmp/lean.json)
+python tests/conformance.py check /tmp/lean.json
+bun /path/to/bendlang/bend/bend2/main.ts proofs/bend/business.bend   # ALL PROOFS CHECK
+```

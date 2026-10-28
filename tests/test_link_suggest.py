@@ -33,7 +33,7 @@ PAYMENTS = "discovery:service:compose.yml:payments"
 def match_input(bindings, components, linked=(), rejected=()):
     return {"schema_version": 1, "kind": "LINK_MATCH_INPUT", "bindings": bindings,
             "components": components, "linked": [list(x) for x in linked],
-            "rejected": [list(x) for x in rejected]}
+            "rejected": [list(x) for x in rejected], "execution_authorized": False}
 
 
 def binding(binding="billing.charge_card", path="billing/charge.py", system="", binds="Charge"):

@@ -92,31 +92,43 @@ def load_events(path: Path | None) -> list[dict]:
     return events
 
 
+HELD_BY = {
+    "REJECTED": "A recorded review says the cited spans do not support the claim.",
+    "NOT_REVIEWED": "No recorded review for the current claim.",
+    "INFERRED": "The rule is inferred, so its grade stops at G1.",
+    "ONE_KIND": "The rule cites only one evidence kind.",
+    "CHECK_FAILED": "A recorded behavior check failed for the current claim.",
+    "NOT_EXERCISED": "No recorded behavior check for the current claim.",
+    "NO_G4_PRODUCER": "G4 needs an observed fresh-agent result; no tool here records one.",
+}
+
+
+def ladder(rejected: bool, supported: bool, observed: bool, multi_kind: bool,
+           failed: bool, passed: bool) -> tuple[str, str]:
+    """The grade and why it stops there. Mirrored in Rust, Lean, and Bend."""
+    if rejected:
+        return "G0", "REJECTED"
+    if not supported:
+        return "G0", "NOT_REVIEWED"
+    if not observed:
+        return "G1", "INFERRED"
+    if not multi_kind:
+        return "G1", "ONE_KIND"
+    if failed:
+        return "G2", "CHECK_FAILED"
+    if not passed:
+        return "G2", "NOT_EXERCISED"
+    return "G3", "NO_G4_PRODUCER"
+
+
 def grade_rule(entry: dict, events: list[dict]) -> dict:
     rule = entry["rule"]
     kinds = sorted({c["kind"] for c in entry["cited"]})
     by = {name: [e for e in events if e["event"] == name] for name in EVENTS}
-    holds = []
-    grade = "G0"
-    if by["REVIEW_REJECTS"]:
-        holds.append("A recorded review says the cited spans do not support the claim.")
-    elif not by["REVIEW_SUPPORTS"]:
-        holds.append("No recorded review for the current claim.")
-    else:
-        grade = "G1"
-        if rule["status"] != "observed":
-            holds.append("The rule is inferred, so its grade stops at G1.")
-        elif len(kinds) < 2:
-            holds.append("The rule cites only one evidence kind.")
-        else:
-            grade = "G2"
-            if by["BEHAVIOR_CHECK_FAILED"]:
-                holds.append("A recorded behavior check failed for the current claim.")
-            elif not by["BEHAVIOR_CHECK_PASSED"]:
-                holds.append("No recorded behavior check for the current claim.")
-            else:
-                grade = "G3"
-                holds.append("G4 needs an observed fresh-agent result; no tool here records one.")
+    grade, reason = ladder(bool(by["REVIEW_REJECTS"]), bool(by["REVIEW_SUPPORTS"]),
+                           rule["status"] == "observed", len(kinds) >= 2,
+                           bool(by["BEHAVIOR_CHECK_FAILED"]), bool(by["BEHAVIOR_CHECK_PASSED"]))
+    holds = [HELD_BY[reason]]
     index = [g for g, _, _ in SCALE].index(grade)
     return {
         "id": rule["id"], "task": rule["task"], "status": rule["status"],
