@@ -40,12 +40,22 @@ class CodeSurfaceTests(unittest.TestCase):
                 "size": len(raw), "sha": sha,
             })
             mock.maps[base + "/git/blobs/" + sha] = response
-        for path in ("app/lib/server.mjs", "src/claim.mjs"):
-            sha, _ = fixtures.blob(path.encode("utf-8"))
+        module_contents = {
+            "app/lib/server.mjs": (
+                b"import { createDatabasePool } from '../../src/database-pool.mjs'\n"
+            ),
+            "src/claim.mjs": (
+                b"import { users, orders } from './db/schema.mjs'\n"
+            ),
+            "src/database-pool.mjs": b"export function createDatabasePool() {}\n",
+        }
+        for path, raw in module_contents.items():
+            sha, response = fixtures.blob(raw)
             mock.tree.append({
                 "path": path, "type": "blob", "mode": "100644",
-                "size": len(path), "sha": sha,
+                "size": len(raw), "sha": sha,
             })
+            mock.maps[base + "/git/blobs/" + sha] = response
         schema = (b"import { pgTable } from 'drizzle-orm/pg-core'\n"
                   b"export const users = pgTable('users', {})\n"
                   b"export const orders = pgTable(\"orders\", {})\n"
@@ -72,11 +82,24 @@ class CodeSurfaceTests(unittest.TestCase):
         self.assertEqual(graph["coverage"]["import_route_files_inspected"], 2)
         self.assertEqual(graph["coverage"]["import_relationships_found"], 2)
         self.assertEqual(graph["coverage"]["import_modules_found"], 2)
+        self.assertEqual(graph["coverage"]["second_hop_modules_read"], 2)
+        self.assertEqual(graph["coverage"]["second_hop_import_edges"], 2)
+        self.assertEqual(graph["coverage"]["second_hop_schema_table_declarations"], 2)
+        self.assertEqual(len([e for e in graph["edges"]
+                              if e["relation"] == "DECLARES_TABLE_CANDIDATE"]), 2)
+        self.assertTrue(any(
+            e["relation"] == "STATIC_IMPORTS" and
+            "src/claim.mjs" in e["source"] and
+            "src/db/schema.mjs" in e["target"]
+            for e in graph["edges"]))
+        self.assertTrue(any(n["label"] == "src/db/schema.mjs"
+                            for n in graph["nodes"] if n["kind"] == "source_module"))
         imported = [e for e in graph["edges"] if e["relation"] == "STATIC_IMPORTS"]
         self.assertEqual({e["source_line"] for e in imported}, {1})
         self.assertEqual({n["label"] for n in graph["nodes"]
                           if n["kind"] == "source_module"},
-                         {"src/claim.mjs", "app/lib/server.mjs"})
+                         {"src/claim.mjs", "app/lib/server.mjs",
+                          "src/db/schema.mjs", "src/database-pool.mjs"})
         self.assertTrue(all(e["state"] == "SOURCE_SYNTAX_CANDIDATE"
                             for e in imported))
         self.assertEqual(graph["runtime_health"], "UNKNOWN")
