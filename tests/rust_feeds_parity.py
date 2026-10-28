@@ -380,8 +380,12 @@ class Harness:
             status = json.loads((d / "obs.status.json").read_text())
             rows[impl] = (masked, ok, sorted(status["feeds"]), status["kind"])
         server.shutdown()
-        self.expect(rows["python"] == rows["rust"], "once end to end",
-                    f"python: {json.dumps(rows['python'])[:1500]}\n  rust:   {json.dumps(rows['rust'])[:1500]}")
+        py, rs = rows["python"], rows["rust"]
+        detail = [f"{part}: python {a} rust {b}" for part, a, b in (
+            ("rows", [r for r in py[0] if r not in rs[0]], [r for r in rs[0] if r not in py[0]]),
+            ("ok", {k: v for k, v in py[1].items() if rs[1].get(k) != v} if isinstance(rs[1], dict) else py[1], rs[1]),
+            ("status keys", py[2], rs[2]), ("kind", py[3], rs[3])) if a != b or part == "ok" and a]
+        self.expect(py == rs, "once end to end", "\n  ".join(detail))
         self.expect(set(Fixture.seen_auth) <= {"Bearer s3cret"}, "prometheus bearer token", str(Fixture.seen_auth))
 
     # 7 ------------------------------------------------------------ OTLP receiver

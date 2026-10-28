@@ -137,6 +137,10 @@ def _url(value: object, hosts: set, where: str) -> str:
     check(parts.scheme in ("http", "https") and value[:len(parts.scheme) + 3].lower() == parts.scheme + "://",
           f"{where}: only http and https")
     check("@" not in parts.netloc, f"{where}: never put credentials in a URL; use token_env")
+    # A bracketed host is the whole host: nothing before '[', only ":port" after ']'.
+    # (Older Python versions' urlsplit does not check this itself.)
+    check("[" not in parts.netloc or re.fullmatch(r"\[[^\[\]]*\](?::[0-9]*)?", parts.netloc) is not None,
+          f"{where}: invalid URL")
     check(not any(c in parts.path + parts.query for c in "[]"), f"{where}: brackets only around an IPv6 host")
     check(parts.hostname is not None and _host_ok(parts.hostname, "[" in parts.netloc),
           f"{where}: invalid host")
