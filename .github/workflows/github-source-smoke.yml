@@ -5,6 +5,7 @@ on:
       - 'ontology-extraction/scripts/github_discovery.py'
       - 'ontology-extraction/scripts/graph_view_api.py'
       - 'tests/test_graph_view_api.py'
+      - 'tests/test_graph_neighborhood.py'
       - 'ontology-extraction/scripts/code_imports.py'
       - 'ontology-extraction/scripts/snapshot_store.py'
       - 'tests/test_code_surface_discovery.py'
@@ -133,6 +134,20 @@ jobs:
           detail=graph_view_api.node_detail(full,target['id'])
           assert detail['node']['id']==target['id']
           assert len(detail['edges'])<=40
+          import_edge=next(e for e in full['edges'] if e['relation']=='STATIC_IMPORTS'
+              and any(n['id']==e['source'] and n['kind']=='api_route' for n in full['nodes']))
+          neighborhood=graph_view_api.neighborhood(full,import_edge['source'],depth=2)
+          assert neighborhood['kind']=='BOUNDED_GRAPH_NEIGHBORHOOD'
+          assert import_edge['target'] in {n['id'] for n in neighborhood['nodes']}
+          assert len(neighborhood['nodes'])<=90 and len(neighborhood['edges'])<=300
+          assert neighborhood['runtime_discovery']=='NOT_IMPLEMENTED'
+          assert neighborhood['scope']=='BIDIRECTIONAL_GRAPH_NAVIGATION_NOT_CAUSAL_IMPACT'
+          assert all(e['source'] in {n['id'] for n in neighborhood['nodes']}
+                 and e['target'] in {n['id'] for n in neighborhood['nodes']}
+                 for e in neighborhood['edges'])
+          print('repo.ing neighborhood:',len(neighborhood['nodes']),'nodes',
+                len(neighborhood['edges']),'directed source edges',
+                neighborhood['truncated_node_candidates'],'neighbor candidates clipped')
           print('repo.ing bounded browser payload:',total,'full bytes,',delivered,'atomic summary+first-page bytes; reduction',round(100*(1-delivered/total),2),'percent')
           PY
       - name: No persistent artifact upload
