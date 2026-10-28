@@ -37,7 +37,8 @@ def main():
         repo = root / "business"
         repo.mkdir()
         (repo / "compose.yml").write_text(
-            "services:\n  web:\n    depends_on: [api]\n  api:\n    depends_on: [db]\n  db: {}\n",
+            "services:\n  web:\n    depends_on: [api]\n  api:\n    depends_on: [db]\n  db: {}\n" +
+            "".join(f"  test_service_{i:03d}: {{}}\n" for i in range(120)),
             encoding="utf8",
         )
         (repo / "package.json").write_text('{"name":"smoke"}', encoding="utf8")
