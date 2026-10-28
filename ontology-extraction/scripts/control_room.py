@@ -354,7 +354,77 @@ const color={ok:"#49c4a4",warning:"#eebc63",error:"#f47f7a",stale:"#b79ff2",unkn
 const el=(tag,attrs={},txt)=>{const n=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v));
  if(txt!==undefined)n.textContent=String(txt);return n};
 const text=(id,value)=>document.getElementById(id).textContent=String(value);
-let selected=null,state=null;
+let selected=null,state=null,focusGraph=false,lastLayout=null;
+try{focusGraph=localStorage.getItem("ontologyex-focus-graph")==="1"}catch(_){}
+document.getElementById("graph-focus").setAttribute("aria-pressed",String(focusGraph));
+const PANEL_SPECS=[
+ {id:"map",minWidth:240,minHeight:310,preferredHeight:540,priority:78},
+ {id:"incidents",minWidth:200,minHeight:116,preferredHeight:145,priority:98,critical:true},
+ {id:"integrity",minWidth:200,minHeight:82,preferredHeight:92,priority:96,critical:true},
+ {id:"details-panel",minWidth:200,minHeight:180,preferredHeight:235,priority:85},
+ {id:"coverage-panel",minWidth:200,minHeight:142,preferredHeight:180,priority:62},
+ {id:"versions-panel",minWidth:200,minHeight:95,preferredHeight:108,priority:35},
+ {id:"boundary-panel",minWidth:200,minHeight:104,preferredHeight:124,priority:32}
+];
+function renderIncidents(s){
+ const ul=document.getElementById("incident-list");ul.replaceChildren();
+ const serious=s.nodes.filter(n=>n.status==="error"||n.status==="warning"||
+    (Array.isArray(n.potentially_impacted_by)&&n.potentially_impacted_by.length));
+ serious.sort((a,b)=>(a.status==="error"?0:a.status==="warning"?1:2)-
+   (b.status==="error"?0:b.status==="warning"?1:2)||a.label.localeCompare(b.label));
+ if(!serious.length){
+   const li=document.createElement("li");
+   li.textContent="No current reported alerts. Unobserved components are NOT confirmed healthy.";
+   ul.append(li);
+ }
+ for(const n of serious.slice(0,18)){
+   const li=document.createElement("li"),btn=document.createElement("button");
+   btn.textContent=(n.status.toUpperCase()==="UNKNOWN"?"POSSIBLE IMPACT":n.status.toUpperCase())+" · "+n.label;
+   btn.addEventListener("click",()=>{selected=n.id;document.getElementById("graph-search").value=n.label;draw(state)});
+   li.append(btn);ul.append(li);
+ }
+ if(serious.length>18){
+   const li=document.createElement("li");
+   li.textContent=(serious.length-18)+" more alerts. Search the graph to inspect.";
+   ul.append(li);
+ }
+}
+function applyLayout(s){
+ const root=document.getElementById("workspace");
+ const width=Math.max(280,root.clientWidth),header=document.querySelector("header");
+ const height=Math.max(260,window.innerHeight-header.getBoundingClientRect().height-60);
+ const urgent=s.nodes.filter(n=>n.status==="error"||n.status==="warning"||n.potentially_impacted_by?.length).length;
+ const dims=PANEL_SPECS.map(p=>({...p,items:p.id==="incidents"?urgent:
+   p.id==="details-panel"?(selected?22:3):
+   p.id==="coverage-panel"?(s.gaps.length+s.unresolved.length):
+   p.id==="versions-panel"?(s.snapshot_history?.length||0):0}));
+ try{
+   const plan=OntologyLayout.optimize({width,height,panels:dims,density:s.nodes.length,focusGraph});
+   root.style.display="block";root.style.height=plan.contentHeight+"px";
+   for(const [id,r] of Object.entries(plan.rects)){
+     const el=document.getElementById(id);
+     el.style.position="absolute";el.style.left=r.x+"px";el.style.top=r.y+"px";
+     el.style.width=r.width+"px";el.style.height=r.height+"px";
+   }
+   lastLayout=plan;
+   requestAnimationFrame(()=>{
+     const result=OntologyLayout.verifyDOM(plan,root);
+     const report={columns:plan.columns,score:plan.score,contentHeight:plan.contentHeight,
+       candidates:plan.candidates,decisions:plan.decisions,
+       geometryPassed:plan.constraints.ok,renderedDOMPassed:result.ok,
+       violations:result.violations,rects:plan.rects};
+     document.getElementById("layout-report").textContent=JSON.stringify(report,null,2);
+   });
+ }catch(e){
+   lastLayout=null;
+   root.style.cssText="display:flex;flex-direction:column;gap:12px;height:auto;padding:12px";
+   for(const p of dims){
+     const el=document.getElementById(p.id);
+     el.style.cssText="position:relative;left:auto;top:auto;width:100%;height:"+Math.max(p.minHeight,260)+"px";
+   }
+   document.getElementById("layout-report").textContent="Safe stacked fallback: "+e.message;
+ }
+}
 function group(n){if(n.kind==="project")return 0;
  if(n.kind==="declared_service"||n.kind==="declared_db_table"||n.kind==="source_module")return 2;
  return 1}
@@ -377,6 +447,7 @@ function draw(s){
  (s.coverage.api_route_paths_found??0),
  "Not assessed: "+s.coverage.not_assessed.join(", ")];
  for(const l of lines){const p=document.createElement("p");p.textContent=l;cov.append(p)}
+ renderIncidents(s);
  const versions=document.getElementById("versions");versions.replaceChildren();
  const saved=Array.isArray(s.snapshot_history)?s.snapshot_history:[];
  if(!saved.length){const p=document.createElement("p");p.textContent="No server-side revisions stored.";versions.append(p)}
@@ -386,17 +457,29 @@ function draw(s){
      String(item.commit_sha||"unknown").slice(0,12)+" · "+String(item.scanned_at||"unknown");
    versions.append(p)
  }
+ applyLayout(s);
  const svg=document.getElementById("svg");svg.replaceChildren();
  const lens=document.getElementById("lens").value;
  const relevant=s.nodes.filter(n=>n.kind==="project"||lens==="all"||
    (lens==="api"&&(n.kind==="api_route"||n.kind==="source_module"))||
    (lens==="database"&&n.kind==="declared_db_table")||
    (lens==="services"&&n.kind==="declared_service"));
- const cols=[[],[],[]];for(const n of relevant)cols[group(n)].push(n);
- for(const col of cols)col.sort((a,b)=>a.label.localeCompare(b.label));
- const rowH=76,height=Math.max(550,...cols.map(a=>a.length*rowH+135)),width=1060;
- svg.setAttribute("viewBox","0 0 "+width+" "+height);svg.style.height=height+"px";
- const starts=[50,392,740],nodeW=260,nodeH=48,pos={};
+ const query=document.getElementById("graph-search").value.trim().toLowerCase();
+ const matches=relevant.filter(n=>!query||n.label.toLowerCase().includes(query)||n.id.toLowerCase().includes(query));
+ const severity={error:0,warning:1,stale:2,unknown:3,ok:4};
+ matches.sort((a,b)=>(a.id===selected?-1:severity[a.status]??5)-
+   (b.id===selected?-1:severity[b.status]??5)||a.label.localeCompare(b.label));
+ const visible=matches.slice(0,90);
+ text("graph-coverage","Showing "+visible.length+" of "+matches.length+" matching nodes ("+
+    s.nodes.length+" total). Search for a specific node; this is a bounded view.");
+ const cols=[[],[],[]];for(const n of visible)cols[group(n)].push(n);
+ for(const col of cols)col.sort((a,b)=>(a.id===selected?-1:severity[a.status]??5)-
+   (b.id===selected?-1:severity[b.status]??5)||a.label.localeCompare(b.label));
+ const rowH=64,height=Math.max(350,...cols.map(a=>a.length*rowH+88));
+ const width=Math.max(780,document.getElementById("map").clientWidth-24);
+ svg.setAttribute("viewBox","0 0 "+width+" "+height);
+ svg.style.width=width+"px";svg.style.height=height+"px";
+ const starts=[18,18+width/3,18+2*width/3],nodeW=Math.floor(width/3-35),nodeH=44,pos={};
  for(let i=0;i<3;i++){svg.append(el("text",{x:starts[i],y:45,fill:"#679baa","font-size":12,"letter-spacing":3},
  ["BUSINESS","WORKFLOWS / SOURCES","SERVICES / DATA"][i]));
  cols[i].forEach((n,j)=>pos[n.id]={x:starts[i],y:75+j*rowH})}
@@ -406,13 +489,14 @@ function draw(s){
  svg.append(el("path",{d,stroke:e.relation==="DEPENDS_ON"?"#e5b66f":"#2e8297",
  "stroke-opacity":.65,"stroke-width":e.relation==="DEPENDS_ON"?2:1.35,
  "stroke-dasharray":e.relation==="DEPENDS_ON"?"":"5 6",fill:"none"}))}
- for(const n of s.nodes){const p=pos[n.id],g=el("g",{role:"button",tabindex:0,
+ for(const n of visible){const p=pos[n.id],g=el("g",{role:"button",tabindex:0,
  "aria-label":n.label+" "+n.status,style:"cursor:pointer"});
  const active=selected===n.id,stroke=active?"#d6f6ef":color[n.status];
  g.append(el("rect",{x:p.x,y:p.y,width:nodeW,height:nodeH,rx:9,fill:"#102531",
  stroke,"stroke-width":active?2:1.25}));
  g.append(el("circle",{cx:p.x+19,cy:p.y+nodeH/2,r:6,fill:color[n.status]}));
- const label=n.label.length>29?n.label.slice(0,26)+"…":n.label;
+ const maxLabel=Math.max(16,Math.floor((nodeW-55)/7));
+ const label=n.label.length>maxLabel?n.label.slice(0,maxLabel-1)+"…":n.label;
  g.append(el("text",{x:p.x+36,y:p.y+20,fill:"#dce9e8","font-size":13,"font-weight":"600"},label));
  g.append(el("text",{x:p.x+36,y:p.y+35,fill:"#8ea9b3","font-size":10},
  n.status.toUpperCase()+" · "+n.kind.replaceAll("_"," ")));
@@ -421,7 +505,7 @@ function draw(s){
  if(n.ci_run)g.append(el("text",{x:p.x+nodeW-8,y:p.y+42,
  "text-anchor":"end",fill:n.ci_run.conclusion==="success"?"#49c4a4":"#eebc63",
  "font-size":10},"CI "+(n.ci_run.conclusion||n.ci_run.status).toUpperCase()));
- g.addEventListener("click",()=>pick(n.id));g.addEventListener("keydown",ev=>{if(ev.key==="Enter")pick(n.id)});
+ g.addEventListener("click",()=>pick(n.id));g.addEventListener("keydown",ev=>{if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();pick(n.id)}});
  svg.append(g)}
  const target=s.nodes.find(n=>n.id===selected);if(target)detail(target,s);
 }
@@ -458,6 +542,19 @@ async function refresh(){
 }
 let mapStarted=false;
 document.getElementById("lens").addEventListener("change",()=>{if(state)draw(state)});
+document.getElementById("graph-search").addEventListener("input",()=>{if(state)draw(state)});
+document.getElementById("graph-focus").addEventListener("click",()=>{
+ focusGraph=!focusGraph;
+ document.getElementById("graph-focus").setAttribute("aria-pressed",String(focusGraph));
+ try{localStorage.setItem("ontologyex-focus-graph",focusGraph?"1":"0")}catch(_){}
+ if(state)draw(state);
+});
+let resizeScheduled=false;
+window.addEventListener("resize",()=>{
+ if(resizeScheduled)return;
+ resizeScheduled=true;
+ requestAnimationFrame(()=>{resizeScheduled=false;if(state)draw(state)});
+});
 document.getElementById("map-business").addEventListener("click",()=>{
  mapStarted=true;refresh();
 });
