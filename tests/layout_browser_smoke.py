@@ -13,6 +13,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from datetime import datetime, timezone
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -37,13 +38,22 @@ def main():
         repo = root / "business"
         repo.mkdir()
         (repo / "compose.yml").write_text(
-            "services:\n  web:\n    depends_on: [api]\n  api:\n    depends_on: [db]\n  db: {}\n",
+            "services:\n  web:\n    depends_on: [api]\n  api:\n    depends_on: [db]\n  db: {}\n" +
+            "".join(f"  test_service_{i:03d}: {{}}\n" for i in range(400)),
             encoding="utf8",
         )
         (repo / "package.json").write_text('{"name":"smoke"}', encoding="utf8")
+        observations = root / "health.jsonl"
+        observations.write_text(json.dumps({
+            "schema_version":1,
+            "component_id":"discovery:service:compose.yml:test_service_399",
+            "observed_at":datetime.now(timezone.utc).isoformat().replace("+00:00","Z"),
+            "status":"error", "source":"synthetic",
+            "expires_after_seconds":86400,"metrics":{}
+        })+"\n",encoding="utf-8")
         port = available_port()
         cmd = [sys.executable, str(SCRIPT), "--repo", str(repo),
-               "--port", str(port)]
+               "--observations",str(observations),"--port", str(port)]
         process = subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.DEVNULL,
                                    stderr=subprocess.PIPE, text=True)
         driver = None
@@ -112,42 +122,44 @@ def main():
                     assert report["cols"] == 1 and report["incidentY"] < report["mapY"]
                 print("CHROME",width,height,"layout",report["cols"],"verified",flush=True)
 
-            # Dense data: keep all 400 entities searchable without rendering a
-            # 400-node SVG or suppressing the critical incident panel.
+            # Real >400-node repository fixture: no whole graph is sent by API.
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/state") as response:
+                state_summary=json.load(response)
+            assert state_summary["kind"]=="LOCAL_CONTROL_ROOM_SUMMARY"
+            assert state_summary["total_nodes"]>=400
+            assert all(k not in state_summary for k in ("nodes","edges","source_evidence"))
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/view?lens=all&q=&offset=0") as response:
+                first=json.load(response)
+            assert first["kind"]=="BOUNDED_GRAPH_PAGE" and len(first["nodes"])==90
+            assert first["total_matches"]>=400 and first["next_offset"]==90
+            assert all(e["source"] in {n["id"] for n in first["nodes"]} and
+                       e["target"] in {n["id"] for n in first["nodes"]}
+                       for e in first["edges"])
             driver.execute_cdp_cmd("Emulation.setDeviceMetricsOverride", {
-                "width": 1440, "height": 900,
-                "deviceScaleFactor": 1, "mobile": False})
-            dense = driver.execute_script("""
-                const s=JSON.parse(JSON.stringify(state));
-                const base=s.nodes.find(n=>n.kind==='project')||s.nodes[0];
-                for(let i=0;i<400;i++)s.nodes.push({...base,
-                  id:'discovery:source_module:test/'+i,kind:'source_module',
-                  label:'synthetic-module-'+i,status:i===399?'error':'unknown',
-                  potentially_impacted_by:[],ci_run:null});
-                s.coverage.node_status_counts.error=1;
-                s.coverage.node_status_counts.unknown=s.nodes.length-1;
-                draw(s);
-                return {shown:document.querySelectorAll('#svg g[role="button"]').length,
-                  label:document.getElementById('graph-coverage').textContent,
-                  failures:document.getElementById('incident-list').textContent,
-                  valid:OntologyLayout.verifyDOM(lastLayout,
-                    document.getElementById('workspace')).ok};
-            """)
-            assert dense["shown"] <= 90 and dense["shown"] > 0, dense
-            assert "405" in dense["label"] and "synthetic-module-399" in dense["failures"], dense
-            WebDriverWait(driver, 4).until(lambda d: d.execute_script("""
-                return OntologyLayout.verifyDOM(lastLayout,
-                  document.getElementById('workspace')).ok
-            """))
-            found = driver.execute_script("""
-                const search=document.getElementById('graph-search');
-                search.value='synthetic-module-399';
-                search.dispatchEvent(new Event('input',{bubbles:true}));
-                return document.getElementById('graph-coverage').textContent;
-            """)
-            assert "Showing 1 of 1" in found, found
-            print("CHROME dense graph 400 entities, prioritized incident and search verified",
-                  flush=True)
+                "width":1440,"height":900,"deviceScaleFactor":1,"mobile":False})
+            driver.get(f"http://127.0.0.1:{port}/")
+            driver.find_element("id","map-business").click()
+            WebDriverWait(driver,10).until(lambda d:d.execute_script(
+                "return !!lastPage && lastPage.visible_count===90 && !!lastLayout"))
+            assert driver.find_element("id","graph-next").is_enabled()
+            driver.find_element("id","graph-next").click()
+            WebDriverWait(driver,10).until(lambda d:d.execute_script(
+                "return !!lastPage && lastPage.offset===90"))
+            driver.find_element("id","graph-prev").click()
+            WebDriverWait(driver,10).until(lambda d:d.execute_script(
+                "return !!lastPage && lastPage.offset===0"))
+            search=driver.find_element("id","graph-search")
+            search.send_keys("test_service_399")
+            WebDriverWait(driver,10).until(lambda d:d.execute_script(
+                "return !!lastPage && lastPage.query==='test_service_399' && lastPage.total_matches===1"))
+            assert "Showing 1 of 1" in driver.find_element("id","graph-coverage").text
+            assert "ERROR" in driver.find_element("id","incident-list").text
+            driver.find_element("css selector",'#svg g[role="button"]').click()
+            WebDriverWait(driver,10).until(lambda d:
+                "TEST_SERVICE_399" in
+                d.find_element("id","details").text)
+            assert "SOURCE FILE: compose.yml" in driver.find_element("id","details").text
+            print("CHROME 405-node repo; bounded paging, search, on-demand evidence verified",flush=True)
             driver.find_element("id", "graph-focus").click()
             assert driver.find_element("id", "graph-focus").get_attribute("aria-pressed") == "true"
             driver.execute_cdp_cmd("Emulation.setEmulatedMedia", {
