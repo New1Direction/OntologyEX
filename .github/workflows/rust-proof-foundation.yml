@@ -75,6 +75,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.11'
+      - name: Install the scanner dependency the Python reference imports
+        run: python -m pip install 'PyYAML==6.0.3'
       - name: Print the rollup and ladder tables from the proven Lean definitions
         working-directory: proofs/lean
         run: |
