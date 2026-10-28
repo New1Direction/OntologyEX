@@ -342,7 +342,7 @@ const el=(tag,attrs={},txt)=>{const n=document.createElementNS(NS,tag);for(const
 const text=(id,value)=>document.getElementById(id).textContent=String(value);
 let selected=null,state=null;
 function group(n){if(n.kind==="project")return 0;
- if(n.kind==="declared_service"||n.kind==="declared_db_table")return 2;
+ if(n.kind==="declared_service"||n.kind==="declared_db_table"||n.kind==="source_module")return 2;
  return 1}
 function draw(s){
  state=s;text("mode",s.mode+" / "+(s.discovery_freshness||"SOURCE_UNKNOWN"));
@@ -358,6 +358,9 @@ function draw(s){
  "Unresolved links: "+s.unresolved.length,"Discovery gaps: "+s.gaps.length,
  "API route paths: "+(s.coverage.api_route_paths_found??"not scanned"),
  "DB table candidates: "+(s.coverage.db_schema_candidates_found??"not scanned"),
+ "Verified static import links: "+(s.coverage.import_relationships_found??"not scanned"),
+ "Routes checked for imports: "+(s.coverage.import_route_files_inspected??0)+"/"+
+ (s.coverage.api_route_paths_found??0),
  "Not assessed: "+s.coverage.not_assessed.join(", ")];
  for(const l of lines){const p=document.createElement("p");p.textContent=l;cov.append(p)}
  const versions=document.getElementById("versions");versions.replaceChildren();
@@ -372,7 +375,7 @@ function draw(s){
  const svg=document.getElementById("svg");svg.replaceChildren();
  const lens=document.getElementById("lens").value;
  const relevant=s.nodes.filter(n=>n.kind==="project"||lens==="all"||
-   (lens==="api"&&n.kind==="api_route")||
+   (lens==="api"&&(n.kind==="api_route"||n.kind==="source_module"))||
    (lens==="database"&&n.kind==="declared_db_table")||
    (lens==="services"&&n.kind==="declared_service"));
  const cols=[[],[],[]];for(const n of relevant)cols[group(n)].push(n);
@@ -418,7 +421,9 @@ function detail(n,s){
  "REPORTED STATUS: "+(n.source_status||"unknown"),
  "METRICS: "+JSON.stringify(n.metrics), "LEADING SIGNALS: "+JSON.stringify(n.leading_indicators),
  "","DECLARED CONNECTIONS: "+relevant.length,
- ...relevant.slice(0,20).map(e=>e.relation+" : "+(e.source===n.id?e.target:e.source)),
+ ...relevant.slice(0,20).map(e=>e.relation+" : "+
+   (e.source===n.id?e.target:e.source)+
+   (e.source_line?" [line "+e.source_line+"]":"")),
  "","POTENTIALLY IMPACTED BY: "+(n.potentially_impacted_by.join(", ")||"none"),
  "","GITHUB CI (NOT PRODUCTION HEALTH): "+(n.ci_run
    ? (n.ci_run.status+" / "+(n.ci_run.conclusion||"no result")) : "unavailable"),
