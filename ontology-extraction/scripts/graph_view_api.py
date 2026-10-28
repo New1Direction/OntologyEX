@@ -124,6 +124,7 @@ def page(full, *, lens="all", query="", offset=0, selected=None):
     nxt = offset + len(subset)
     return {
         "schema_version": 1, "kind": "BOUNDED_GRAPH_PAGE",
+        "summary": summary(full),
         "lens": lens, "query": query, "offset": offset,
         "nodes": subset, "edges": edges, "source_evidence": ev,
         "visible_count": len(subset), "total_matches": total,
