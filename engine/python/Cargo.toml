@@ -12,5 +12,5 @@ path = "src/lib.rs"
 
 [dependencies]
 ontologyex-core = { path = ".." }
-pyo3 = { version = "0.23", features = ["extension-module"] }
+pyo3 = { version = "0.23", features = ["extension-module", "abi3-py311"] }
 serde_json = "1"
