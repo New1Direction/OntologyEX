@@ -162,6 +162,10 @@ a workflow, ask your agent:
 run each code binding and let me confirm the links.
 ```
 
+For the wider business story (users, journeys, money flows, and where they can break),
+the **Business X-Ray** preview compiles authored, source-linked blueprints into one offline
+page. See [Business X-Ray](business/README.md).
+
 Live health comes from real telemetry: `feeds.py` receives OpenTelemetry traces and
 polls Prometheus and HTTP health checks (`python examples/operating-picture/live.py`).
 See [live feeds](docs/live-feeds.md).
