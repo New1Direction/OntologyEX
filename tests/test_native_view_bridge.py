@@ -179,6 +179,15 @@ class NativeDiscoveryTests(unittest.TestCase):
         with patch.dict(os.environ, {bridge.ENGINE_DIR_ENV: str(self.root)}):
             self.assertEqual(bridge.engine_binary("ontologyex-feeds"), self.root / "ontologyex-feeds")
 
+    def test_auto_discovery_uses_rust_only_when_installed(self):
+        with patch.dict(os.environ, {bridge.ENGINE_DIR_ENV: str(self.root)}):
+            self.assertEqual(bridge.discovery_engine("auto"), "python")
+            self.fake('{}')
+            self.assertEqual(bridge.discovery_engine("auto"), "rust")
+            self.assertEqual(bridge.discovery_engine("python"), "python")
+        with self.assertRaises(bridge.NativeViewError):
+            bridge.discovery_engine("fastest")
+
     def test_discovery_errors_keep_their_python_type(self):
         import discover_repo
         binary = self.fake('{"error": "repository walk exceeds file budget", "status": "ERROR"}', 1)

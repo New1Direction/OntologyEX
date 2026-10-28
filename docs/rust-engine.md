@@ -34,7 +34,11 @@ cargo build --release --locked --manifest-path engine/Cargo.toml
 ```
 
 The control room looks for binaries in `$ONTOLOGYEX_ENGINE_DIR`, then the skill's
-`bin/`, then `engine/target/release`, then `engine/target/debug`.
+`bin/`, then `engine/target/release`, then `engine/target/debug`. Once they are
+installed, it discovers repositories with Rust automatically (`--discovery-engine
+auto`, the default; the output is byte-identical). Graph views stay on Python unless
+you pass `--view-engine rust`: for small graphs the per-query process costs more
+than it saves.
 
 ## Run
 
