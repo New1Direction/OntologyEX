@@ -573,14 +573,41 @@ function detail(n,s){
  "No causal root cause is asserted."];
  text("details",lines.join("\n"));
 }
-async function refresh(){
- try{const res=await fetch("/api/state",{cache:"no-store"});if(!res.ok)throw Error("source not available");
- const s=await res.json();draw(s)}catch(err){text("mode","DATA UNAVAILABLE · LAST VIEW IS STALE");
- text("updated","Latest fetch failed");}
+async function loadPage(updateSummary=false){
+ const seq=++requestEpoch;
+ try{
+   const lens=document.getElementById("lens").value;
+   const q=document.getElementById("graph-search").value.slice(0,90);
+   const url="/api/view?lens="+encodeURIComponent(lens)+
+     "&q="+encodeURIComponent(q)+"&offset="+graphOffset;
+   const [summaryResponse,pageResponse]=await Promise.all([
+     updateSummary||!lastSummary?fetch("/api/state",{cache:"no-store"}):Promise.resolve(null),
+     fetch(url,{cache:"no-store"})]);
+   if((summaryResponse&&!summaryResponse.ok)||!pageResponse.ok)throw Error("source unavailable");
+   const [summaryData,pageData]=await Promise.all([
+     summaryResponse?summaryResponse.json():Promise.resolve(lastSummary),pageResponse.json()]);
+   if(seq!==requestEpoch)return;
+   if(pageData.kind!=="BOUNDED_GRAPH_PAGE"||summaryData.kind!=="LOCAL_CONTROL_ROOM_SUMMARY")
+     throw Error("invalid graph data");
+   lastSummary=summaryData;lastPage=pageData;
+   draw({...summaryData,...pageData});
+   if(selected)pick(selected);
+ }catch(_){
+   if(seq!==requestEpoch)return;
+   text("mode","DATA UNAVAILABLE · LAST VIEW IS STALE");
+   text("updated","Latest fetch failed; prior view may be stale");
+ }
 }
+function refresh(){return loadPage(true)}
 let mapStarted=false;
-document.getElementById("lens").addEventListener("change",()=>{if(state)draw(state)});
-document.getElementById("graph-search").addEventListener("input",()=>{if(state)draw(state)});
+document.getElementById("lens").addEventListener("change",()=>{graphOffset=0;loadPage()});
+document.getElementById("graph-search").addEventListener("input",()=>{graphOffset=0;loadPage()});
+document.getElementById("graph-prev").addEventListener("click",()=>{
+ graphOffset=Math.max(0,graphOffset-90);loadPage();
+});
+document.getElementById("graph-next").addEventListener("click",()=>{
+ if(lastPage?.next_offset!=null){graphOffset=lastPage.next_offset;loadPage()}
+});
 document.getElementById("graph-share").addEventListener("input",()=>{
  const value=Number(document.getElementById("graph-share").value)/100;
  if(!Number.isFinite(value)||value<0.48||value>0.76)return;
