@@ -159,6 +159,13 @@ def main():
                 "TEST_SERVICE_399" in
                 d.find_element("id","details").text)
             assert "SOURCE FILE: compose.yml" in driver.find_element("id","details").text
+            driver.find_element("id","investigate-node").click()
+            WebDriverWait(driver,10).until(lambda d:
+                "ROOT CAUSE: UNDETERMINED" in d.find_element("id","incident-report").text)
+            report=driver.find_element("id","incident-report").text
+            assert "SOURCE REPORTED ONLY" in report and "NO AUTHORIZATION TO REPAIR" in report
+            assert "STATUS: ERROR" in report and "source=synthetic" in report
+            assert "VERIFY_TELEMETRY_IDENTITY" in report
             print("CHROME 405-node repo; bounded paging, search, on-demand evidence verified",flush=True)
             # Navigate across graph pages using the server-side edge set.
             driver.find_element("id","graph-back").click()
