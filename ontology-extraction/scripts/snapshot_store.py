@@ -74,6 +74,10 @@ def encode(graph: dict) -> tuple[bytes, int, str, str]:
                 "api_route_paths_found", "db_schema_candidates_found",
                 "api_route_source_files_read", "schema_source_files_read",
                 "metadata_only_route_entries",
+                "import_route_files_selected", "import_route_files_inspected",
+                "import_route_files_not_inspected", "import_source_bytes_read",
+                "import_relationships_found", "import_modules_found",
+                "import_unresolved_specifiers", "import_skipped_relations",
             } and type(graph["gaps"]) is list and len(graph["gaps"]) <= 256 and
             type(graph["unresolved"]) is list and len(graph["unresolved"]) <= 256 and
             type(graph["ci_evidence"]) is list and len(graph["ci_evidence"]) <= 100,
@@ -125,9 +129,12 @@ def encode(graph: dict) -> tuple[bytes, int, str, str]:
                 "invalid evidence integrity metadata")
         evidence_ids.add(e["id"])
     for e in edges:
-        require(type(e) is dict and set(e) == {
-            "source", "target", "relation", "evidence_id", "state",
-        } and e.get("state") in ("MANIFEST_DECLARATION",
+        require(type(e) is dict and set(e) in (
+            {"source", "target", "relation", "evidence_id", "state"},
+            {"source", "target", "relation", "evidence_id", "state", "source_line"},
+        ) and ("source_line" not in e or
+               (type(e["source_line"]) is int and 1 <= e["source_line"] <= 100000))
+                and e.get("state") in ("MANIFEST_DECLARATION",
                                  "GITHUB_TREE_DECLARATION",
                                  "SOURCE_SYNTAX_CANDIDATE") and
                 e.get("source") in node_ids and
