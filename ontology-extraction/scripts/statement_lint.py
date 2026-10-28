@@ -155,11 +155,30 @@ def check(statement: str, approved: set[str] | None, technical: set[str]) -> lis
     return found
 
 
-def lint(target: Path, word_list: Path | None = None, technical: list[str] | None = None) -> dict:
+def model_ambiguity(items: list[tuple[str, str, str]], client) -> list[dict]:
+    """Ask the decision model, in one batched request, whether each statement has two readings."""
+    state = "\n".join(f"[S{i}] {statement}" for i, (_, _, statement) in enumerate(items))
+    questions = {f"s{i}": {"type": "noul",
+                           "instructions": f"Can statement S{i} reasonably be read in more than one way?"}
+                 for i in range(len(items))}
+    answers = client.decide(state, questions)
+    found = []
+    for i, (collection, item_id, _) in enumerate(items):
+        p = answers[f"s{i}"]["noul"]
+        if p >= 0.5:
+            found.append({"collection": collection, "id": item_id, "code": "MODEL_AMBIGUITY",
+                          "category": "ambiguity", "text": f"{p:.2f}",
+                          "advice": f"{client.label} rates this {p:.0%} likely to have two readings. "
+                                    "Name the actor, the condition, and the limit."})
+    return found
+
+
+def lint(target: Path, word_list: Path | None = None, technical: list[str] | None = None,
+         client=None) -> dict:
     contract, names, notes = load(target)
     names.update(w.lower() for w in technical or [])
     approved = load_word_list(word_list) if word_list else None
-    warnings, checked = [], 0
+    warnings, checked, statements = [], 0, []
     for collection in COLLECTIONS:
         items = contract.get(collection, [])
         require(type(items) is list, f"invalid {collection}")
@@ -167,13 +186,17 @@ def lint(target: Path, word_list: Path | None = None, technical: list[str] | Non
             if type(item) is not dict or type(item.get("statement")) is not str:
                 continue
             checked += 1
+            statements.append((collection, item.get("id"), item["statement"]))
             for warning in check(item["statement"], approved, names):
                 warnings.append({"collection": collection, "id": item.get("id"), **warning})
+    if client is not None and statements:
+        warnings += model_ambiguity(statements, client)
     return {
         "schema_version": 1, "kind": "STATEMENT_WORDING_ADVICE",
         "status": "ADVISORY_WARNINGS" if warnings else "NO_WARNINGS",
         "blocking": False, "statements_checked": checked, "warnings": warnings,
         "word_list_check": "RUN" if approved is not None else "NOT_RUN",
+        "model_check": client.label if client is not None else "NOT_RUN",
         "notes": [*notes,
                   "Heuristic checks. They do not certify ASD-STE100 compliance.",
                   "Rewording changes the interpretation: re-read the cited evidence after each edit.",
@@ -186,13 +209,17 @@ def main() -> int:
     parser.add_argument("target", type=Path, help="authoring workspace or compiled skill")
     parser.add_argument("--word-list", type=Path,
                         help="your own ASD-STE100 word list (`WORD (pos) [FORMS]` lines)")
+    parser.add_argument("--model-assist", action="store_true",
+                        help="also ask the configured decision model (sends the statements)")
     parser.add_argument("--technical-word", action="append", default=[],
                         help="extra technical name or technical verb; repeat as needed")
     args = parser.parse_args()
     try:
-        print(canonical(lint(args.target, args.word_list, args.technical_word)).decode(), end="")
+        import decide
+        client = decide.DecisionClient() if args.model_assist else None
+        print(canonical(lint(args.target, args.word_list, args.technical_word, client)).decode(), end="")
         return 0
-    except (DomainError, OSError, UnicodeError, ValueError, TypeError, KeyError, RecursionError) as exc:
+    except (DomainError, RuntimeError, OSError, UnicodeError, ValueError, TypeError, KeyError, RecursionError) as exc:
         print(canonical({"status": "ERROR", "error": str(exc)}).decode(), end="")
         return 1
 

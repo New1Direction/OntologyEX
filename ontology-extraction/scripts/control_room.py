@@ -22,7 +22,9 @@ import shlex
 import stat
 
 import business_view
+import decide
 import discover_repo
+import evidence_grade
 import link_suggest
 import github_discovery
 import snapshot_store
@@ -852,7 +854,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
           github_client=None, snapshot_dir: Path | None = None,
           view_engine: str = "python", skills: list[Path] | None = None,
           links: Path | None = None, events: Path | None = None,
-          allow_link_decisions: bool = False) -> None:
+          allow_link_decisions: bool = False, decision_model: bool = False) -> None:
     check(0 <= port <= 65535, "invalid port")
     check(view_engine in ("python", "rust"), "unsupported graph view backend")
     native_view = native_view_bridge.NativeView() if view_engine == "rust" else None
@@ -866,11 +868,14 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
           "link decisions need --links and at least one --skill")
     # Per-process secret for the opt-in write route; served only inside /business.
     write_token = secrets.token_urlsafe(32) if allow_link_decisions else None
+    # Opt-in decision model (Jev or Clef): proposals and routing only, never decisions.
+    decider = decide.DecisionClient() if decision_model else None
     decision_lock = Lock()
     if repo is not None:
         base_command = ["python", "ontology-extraction/scripts/link_suggest.py", "{decision}",
                         "--repo", str(repo), *[x for path in skills for x in ("--skill", str(path))],
-                        "--links", str(links) if links is not None else "LINKS.json"]
+                        "--links", str(links) if links is not None else "LINKS.json",
+                        *(["--model-assist"] if decision_model else [])]
     else:
         base_command = None
 
@@ -895,7 +900,14 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         link_rows, rejected = ((business_view.read_link_document(links)
                                 if links is not None and links.exists() else ([], [])))
         result = business_view.project(skills, full, link_rows, events)
-        suggestions = link_suggest.suggest(skills, full, link_rows, rejected, native_view)
+        suggestions = link_suggest.suggest(skills, full, link_rows, rejected, native_view, decider)
+        if decider is not None:
+            try:
+                rows = [row for path in skills for row in evidence_grade.triage(path, decider)["rows"]]
+                result = business_view.attach_triage(result, rows)
+            except decide.DecisionError as exc:
+                result["triage_error"] = str(exc)[:300]
+        result["decision_model"] = decide.describe(decider)
         for row in suggestions["suggestions"]:
             row["confirm_command"] = (" ".join(shlex.quote(part) for part in [
                 *[x.format(decision="confirm") for x in base_command],
@@ -985,6 +997,26 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                                     f'<meta name="ontologyex-write-token" content="{write_token}"/>'
                                     if write_token else '<meta name="ontologyex-write-token" content=""/>')
                 payload, mime, code = page.encode("utf-8"), "text/html; charset=utf-8", 200
+            elif route.path == "/api/ask":
+                mime = "application/json; charset=utf-8"
+                try:
+                    params = parse_qs(route.query, strict_parsing=True, max_num_fields=1)
+                    query = params.get("q", [""])
+                    if set(params) != {"q"} or len(query) != 1 or not 0 < len(query[0]) <= 200 \
+                            or not query[0].isprintable():
+                        raise graph_view_api.ViewError("ask takes one printable q of 1..200 characters")
+                    picture = business(snapshot())
+                    try:
+                        answer = business_view.route_command(picture, query[0], decider)
+                    except decide.DecisionError:
+                        answer = {**business_view.keyword_route(picture, query[0]),
+                                  "router": "keywords (decision model unavailable)"}
+                    payload, code = json.dumps({"kind": "COMMAND_ROUTE", **answer}, sort_keys=True).encode(), 200
+                except (graph_view_api.ViewError, ValueError):
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, DomainError, discover_repo.DiscoveryError,
+                        github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
             elif route.path == "/api/business":
                 mime = "application/json; charset=utf-8"
                 try:
@@ -1150,6 +1182,10 @@ def main():
                         help="evidence grade events file (see evidence_grade.py)")
     parser.add_argument("--allow-link-decisions", action="store_true",
                         help="let the local business page confirm or reject link suggestions")
+    parser.add_argument("--decision-model", action="store_true",
+                        help="use the decision model set by ONTOLOGYEX_DECIDE_* for link routes, "
+                             "review triage, and the command bar (sends binding source, rules, "
+                             "and quotes to it)")
     args = parser.parse_args()
     try:
         if args.repo is not None:
@@ -1179,12 +1215,13 @@ def main():
                   github=args.github, github_refresh_seconds=args.github_refresh_seconds,
                   snapshot_dir=args.snapshot_dir, view_engine=args.view_engine,
                   skills=args.skill, links=args.links, events=args.events,
-                  allow_link_decisions=args.allow_link_decisions)
+                  allow_link_decisions=args.allow_link_decisions,
+                  decision_model=args.decision_model)
         return 0
     except (OSError, RoomError, discover_repo.DiscoveryError,
             github_discovery.GitHubDiscoveryError, snapshot_store.SnapshotError,
-            native_view_bridge.NativeViewError, DomainError, ValueError, TypeError,
-            RecursionError) as exc:
+            native_view_bridge.NativeViewError, DomainError, decide.DecisionError, ValueError,
+            TypeError, RecursionError) as exc:
         print(json.dumps({"status": "ERROR", "reason": str(exc)}))
         return 1
 

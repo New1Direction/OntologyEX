@@ -177,6 +177,46 @@ def grade(skill: Path, events_path: Path | None = None) -> dict:
     }
 
 
+def triage(skill: Path, client) -> dict:
+    """Model triage for reviewers: how likely each cited span supports its rule.
+
+    Output only. It never records an event, so it can never raise a grade; the
+    reviewer still reads the span. Lowest support first, so likely mis-citations
+    are checked before the rest.
+    """
+    _, model = load_skill(skill)
+    current = claims(model)
+    records = {e["id"]: e for e in model["evidence"]}
+    asks, keys = [], []
+    for rule_id in sorted(current):
+        rule = current[rule_id]["rule"]
+        cited = [records[ref] for ref in rule["evidence"] if ref in records]
+        if not cited:
+            continue
+        state = "\n\n".join([f"Rule ({rule['status']}) for task {rule['task']}: {rule['statement']}"] + [
+            f"[{e['id']}] {e['kind']} evidence, {e['path']} lines {e['start_line']}-{e['end_line']}:\n"
+            f"{e['quote'][:3000]}" for e in cited])
+        questions = {f"q{i}": {"type": "noul",
+                               "instructions": f"Does evidence {e['id']} support the rule statement as written?"}
+                     for i, e in enumerate(cited)}
+        asks.append((state, questions))
+        keys.append((rule_id, cited))
+    rows = []
+    for (rule_id, cited), answers in zip(keys, client.decide_many(asks)):
+        for i, e in enumerate(cited):
+            probability = answers[f"q{i}"]["noul"]
+            rows.append({"rule": rule_id, "evidence": e["id"], "path": e["path"],
+                         "lines": [e["start_line"], e["end_line"]], "kind": e["kind"],
+                         "claim_sha256": current[rule_id]["claim_sha256"],
+                         "support_probability": round(probability, 4),
+                         "flag": "LIKELY_MISCITATION" if probability < 0.5 else "LIKELY_SUPPORTS"})
+    rows.sort(key=lambda r: (r["support_probability"], r["rule"], r["evidence"]))
+    return {"schema_version": 1, "kind": "EVIDENCE_REVIEW_TRIAGE", "skill": model["name"],
+            "rows": rows, "model": client.label,
+            "semantics": "MODEL_TRIAGE_ORDER_NOT_A_REVIEW_NEVER_RECORDED_AS_AN_EVENT",
+            "events_written": 0}
+
+
 def record(skill: Path, events_path: Path, rule_id: str, event: str, by: str, ref: str) -> dict:
     """Append one event bound to the rule's current claim digest. Never rewrites history."""
     skill_root = skill.resolve()
@@ -219,6 +259,8 @@ def main() -> int:
     p = commands.add_parser("grade", help="grade every rule of a verified skill")
     p.add_argument("skill", type=Path)
     p.add_argument("--events", type=Path, help="events file kept outside the bundle")
+    p = commands.add_parser("triage", help="model-ranked review order (sends rules and quotes)")
+    p.add_argument("skill", type=Path)
     p = commands.add_parser("record", help="append one review or behavior event")
     p.add_argument("skill", type=Path)
     p.add_argument("--events", type=Path, required=True)
@@ -230,11 +272,15 @@ def main() -> int:
     try:
         if args.command == "grade":
             result = grade(args.skill, args.events)
+        elif args.command == "triage":
+            import decide
+            result = triage(args.skill, decide.DecisionClient())
         else:
             result = record(args.skill, args.events, args.rule, args.event, args.by, args.ref)
         print(canonical(result).decode(), end="")
         return 0
-    except (DomainError, OSError, UnicodeError, ValueError, TypeError, KeyError, RecursionError) as exc:
+    except (DomainError, RuntimeError, OSError, UnicodeError, ValueError, TypeError, KeyError,
+            RecursionError) as exc:
         print(canonical({"status": "ERROR", "error": str(exc)}).decode(), end="")
         return 1
 

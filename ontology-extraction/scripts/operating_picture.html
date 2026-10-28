@@ -19,7 +19,13 @@ header{display:flex;align-items:center;gap:18px;padding:10px 18px;border-bottom:
 nav{display:flex;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px}
 nav a{padding:6px 12px;border-radius:6px;text-decoration:none;color:var(--muted);font-weight:500}
 nav a[aria-current="page"]{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
-#search{flex:1 1 220px;max-width:420px;background:var(--panel);border:1px solid var(--line2);border-radius:8px;color:var(--text);padding:8px 12px;font:inherit}
+#ask-form{flex:1 1 260px;max-width:440px;margin:0}
+#ask{width:100%;background:#0d1a26;border:1px solid #2f5d73;border-radius:8px;color:var(--text);padding:8px 12px;font:inherit}
+#ask:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.filter{padding:3px 8px;border-radius:999px;border:1px solid var(--accent);color:var(--accent);cursor:pointer;font:11px var(--mono);white-space:nowrap}
+#ask-status{padding:4px 18px;color:var(--muted);font:11px var(--mono);border-bottom:1px solid var(--line);min-height:22px}
+.modelchip{padding:3px 8px;border-radius:999px;border:1px solid #3b4f8a;color:#a5b4fc;white-space:nowrap}
+#search{flex:0 1 180px;max-width:220px;background:var(--panel);border:1px solid var(--line2);border-radius:8px;color:var(--text);padding:8px 12px;font:inherit}
 #search:focus{outline:2px solid var(--accent);outline-offset:-1px}
 .fresh{margin-left:auto;display:flex;align-items:center;gap:10px;color:var(--muted);font:11px var(--mono)}
 .pulse{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 #34d39966;animation:pulse 2.4s infinite}
@@ -104,10 +110,13 @@ footer{padding:8px 18px;border-top:1px solid var(--line);color:var(--faint);font
 <header>
  <div class="brand"><b>ONTOLOGYEX</b><span>Operating Picture</span></div>
  <nav aria-label="Views"><a href="/business" aria-current="page">Business</a><a href="/">Systems</a></nav>
- <input id="search" type="search" maxlength="90" placeholder="Search actions, objects, systems, rules…  ( / )" aria-label="Search the business ontology"/>
- <div class="fresh"><span id="feeds" class="feeds" title="Live observability feeds"></span><span id="pulse" class="pulse off" aria-hidden="true"></span><span id="asof">Connecting…</span></div>
+ <input id="search" type="search" maxlength="90" placeholder="Search…  ( / )" aria-label="Search the business ontology"/>
+ <form id="ask-form" role="search"><input id="ask" type="text" maxlength="200" placeholder="Ask: what is at risk in refunds?" aria-label="Ask the operating picture"/></form>
+ <span id="filter" class="filter" hidden></span>
+ <div class="fresh"><span id="model" class="modelchip" hidden></span><span id="feeds" class="feeds" title="Live observability feeds"></span><span id="pulse" class="pulse off" aria-hidden="true"></span><span id="asof">Connecting…</span></div>
  <button id="refresh" type="button">Refresh now</button>
 </header>
+<div id="ask-status" aria-live="polite"></div>
 <section id="kpis" aria-label="Key indicators"></section>
 <main>
  <aside aria-label="Explorer">
@@ -134,12 +143,12 @@ const NS="http://www.w3.org/2000/svg";
 const C={AT_RISK:"var(--risk)",POSSIBLY_IMPACTED:"var(--impact)",DEGRADED:"var(--warn)",STALE:"var(--stale)",UNKNOWN:"var(--unknown)",
  UNLINKED:"var(--unlinked)",REPORTED_OK:"var(--ok)",REVIEW_BLOCKED:"var(--blocked)",error:"var(--risk)",warning:"var(--warn)",stale:"var(--stale)",unknown:"var(--unknown)",ok:"var(--ok)"};
 const HEX={AT_RISK:"#ff5d5d",POSSIBLY_IMPACTED:"#ff9a3c",DEGRADED:"#f2c14e",STALE:"#a78bfa",UNKNOWN:"#7d8fa3",UNLINKED:"#4f6075",REPORTED_OK:"#34d399",
- REVIEW_BLOCKED:"#6aa8ff",MODELED_NOT_APPROVED:"#8fa3b6",error:"#ff5d5d",warning:"#f2c14e",stale:"#a78bfa",unknown:"#7d8fa3",ok:"#34d399"};
+ REVIEW_BLOCKED:"#6aa8ff",CHECK_CITATION:"#e879f9",MODELED_NOT_APPROVED:"#8fa3b6",error:"#ff5d5d",warning:"#f2c14e",stale:"#a78bfa",unknown:"#7d8fa3",ok:"#34d399"};
 const WORD={AT_RISK:"AT RISK",POSSIBLY_IMPACTED:"POSSIBLY IMPACTED",DEGRADED:"DEGRADED",STALE:"STALE",UNKNOWN:"UNKNOWN",UNLINKED:"UNLINKED",
- REPORTED_OK:"REPORTED OK",REVIEW_BLOCKED:"REVIEW BLOCKED",MODELED_NOT_APPROVED:"MODELED · NOT APPROVED",error:"ERROR",warning:"WARNING",stale:"STALE",unknown:"UNKNOWN",ok:"OK"};
+ REPORTED_OK:"REPORTED OK",REVIEW_BLOCKED:"REVIEW BLOCKED",CHECK_CITATION:"CHECK CITATION",MODELED_NOT_APPROVED:"MODELED · NOT APPROVED",error:"ERROR",warning:"WARNING",stale:"STALE",unknown:"UNKNOWN",ok:"OK"};
 const GRADE_HEX=["#8fa3b6","#8cd0ff","#7fe6d6","#7ff0b4","#c4f59a"];
 const MAX_GRAPH=160;
-let data=null,selected=null,query="",epoch=0;
+let data=null,selected=null,query="",epoch=0,sevFilter=null;
 const $=id=>document.getElementById(id);
 function h(tag,props,...kids){const n=document.createElement(tag);
  for(const [k,v] of Object.entries(props||{})){if(v===undefined||v===null)continue;
@@ -177,15 +186,22 @@ function kpis(){const k=$("kpis");k.replaceChildren();if(!data)return;const sm=d
   [[HEX.error,st.error],[HEX.warning,st.warning],[HEX.ok,st.ok],[HEX.stale,st.stale],[HEX.unknown,st.unknown]],()=>{location.href="/"});
 }
 
+function passesFilter(it,type){if(!sevFilter)return true;
+ if(sevFilter==="REVIEW_BLOCKED")return type==="action"&&it.readiness==="REVIEW_BLOCKED";
+ if(sevFilter==="CHECK_CITATION")return type==="action"&&(it.rules||[]).some(r=>r.evidence.some(e=>e.model_support!==undefined&&e.model_support<0.5));
+ if(type==="system")return ({AT_RISK:"error",STALE:"stale"})[sevFilter]===it.status||(sevFilter==="POSSIBLY_IMPACTED"&&(it.potentially_impacted_by||[]).length>0);
+ return it.health===sevFilter}
+function setFilter(sev){sevFilter=sev&&sev!=="any"?sev:null;const f=$("filter");
+ if(sevFilter){f.hidden=false;f.textContent="Filter: "+(WORD[sevFilter]||sevFilter)+" ✕";f.style.borderColor=HEX[sevFilter]||"";f.style.color=HEX[sevFilter]||""}else f.hidden=true;render()}
 function lists(){
  const at=$("attention");at.replaceChildren();
- const items=(data?data.attention:[]).filter(a=>!query||(a.label+" "+a.reason).toLowerCase().includes(query.toLowerCase()));
+ const items=(data?data.attention:[]).filter(a=>(!query||(a.label+" "+a.reason).toLowerCase().includes(query.toLowerCase()))&&(!sevFilter||a.severity===sevFilter));
  $("attn-count").textContent=data?String(data.attention.length):"";
  if(data&&!data.attention.length)at.append(h("p",{class:"muted",text:"Nothing flagged. Unobserved systems are not confirmed healthy."}));
  for(const a of items.slice(0,40))at.append(h("button",{class:"attn",type:"button",style:`border-left-color:${HEX[a.severity]}`,onclick:()=>select(a.key)},
    h("div",{class:"t"},h("span",{text:a.label}),sev(a.severity)),h("div",{class:"r",text:a.reason})));
  const fill=(id,countId,arr,type)=>{const box=$(id);box.replaceChildren();$(countId).textContent=String(arr.length);
-  for(const it of arr){const key=type==="system"?it.id:it.key;const entry=IDX.get(key);if(!matches(entry))continue;
+  for(const it of arr){const key=type==="system"?it.id:it.key;const entry=IDX.get(key);if(!matches(entry)||!passesFilter(it,type))continue;
    const status=type==="system"?it.status:it.health;
    box.append(h("button",{class:"row",type:"button",role:"option","aria-selected":String(selected===key),onclick:()=>select(key)},
     dot(status),h("span",{class:"lbl"},type==="system"?it.label:it.id),h("span",{class:"sub",text:type==="action"&&it.readiness==="REVIEW_BLOCKED"?"blocked":(WORD[status]||"").toLowerCase()})))}};
@@ -246,7 +262,9 @@ function graph(){
 }
 
 function evidenceList(list){const box=h("div");for(const e of list||[]){
- const d=h("details",{class:"ev"},h("summary",{text:`${e.kind.toUpperCase()} · ${e.path}:${e.start_line}${e.end_line!==e.start_line?"-"+e.end_line:""}`}),
+ const support=e.model_support===undefined?"":` · model support ${e.model_support.toFixed(2)}${e.model_support<0.5?" ⚠":""}`;
+ const d=h("details",{class:"ev"},h("summary",{text:`${e.kind.toUpperCase()} · ${e.path}:${e.start_line}${e.end_line!==e.start_line?"-"+e.end_line:""}${support}`,
+   style:e.model_support!==undefined&&e.model_support<0.5?"color:#e879f9":undefined}),
   h("pre",{class:"q",text:e.quote+(e.quote_truncated?"\n…":"")}));box.append(d)}return box}
 function section(title,count,...kids){return h("div",{class:"sec"},h("h2",{},h("span",{text:title}),count!==undefined?h("em",{text:String(count)}):null),...kids)}
 function banner(status,reason){const c=HEX[status]||"#888";return h("div",{class:"banner",style:`border-color:${c}55;background:${c}12`},h("b",{style:`color:${c}`,text:WORD[status]||status}),reason)}
@@ -320,7 +338,7 @@ function overview(box){
    h("dt",{text:"Stale events"}),h("dd",{text:String(sk.stale_events)})),h("div",{style:"margin-top:8px"},dist(sk.grade_distribution))));
  const g=data.link_gaps||[];if(g.length)box.append(section("Link gaps",g.length,...g.map(x=>h("div",{class:"rule"},h("span",{class:"flag",text:x.reason}),
   h("p",{class:"mono",style:"font-size:11px",text:`${x.link.skill} · ${x.link.binding} → ${x.link.component}`})))));
- box.append(section("Legend",undefined,h("div",{class:"legend"},...["AT_RISK","POSSIBLY_IMPACTED","DEGRADED","STALE","UNKNOWN","UNLINKED","REPORTED_OK","REVIEW_BLOCKED"].map(k=>h("span",{},dot(k),WORD[k]))),
+ box.append(section("Legend",undefined,h("div",{class:"legend"},...["AT_RISK","POSSIBLY_IMPACTED","DEGRADED","STALE","UNKNOWN","UNLINKED","REPORTED_OK","REVIEW_BLOCKED","CHECK_CITATION"].map(k=>h("span",{},dot(k),WORD[k]))),
   h("div",{class:"legend",style:"margin-top:8px"},h("span",{text:"◇ action"}),h("span",{text:"○ object"}),h("span",{text:"□ system"}),h("span",{text:"G0 cited → G4 observed in use"}))));
  box.append(section("Boundaries",undefined,h("p",{class:"muted",style:"margin:0",text:"Links from code to systems are operator declarations. Status is source-reported and unattested. A declared dependency shows possible impact, not a confirmed outage. Nothing here approves or runs an action."})));
 }
@@ -362,7 +380,20 @@ function feedsChip(){const el=$("feeds"),f=data&&data.feeds;if(!f){el.textConten
   el.title=bad?"Failing: "+f.failing.join(", "):"Feeds report through feeds.py"+(f.otlp_listening?"; OTLP on "+f.otlp_listening:"")}
  else{el.className="feeds none";el.textContent=f.status==="NO_LIVE_FEEDS"?"no live feeds":"feed status unreadable";
   el.title="Observations come from the --observations file only"}}
-function render(){feedsChip();if(data)$("mode").textContent=data.link_decisions==="ENABLED_LOCAL_TOKEN"?"READ ONLY EXCEPT LINK DECISIONS":"READ ONLY";IDX=index();if(selected&&!IDX.has(selected))selected=null;kpis();lists();suggestionsPanel();graph();inspector()}
+function modelChip(){const el=$("model"),m=data&&data.decision_model;
+ if(m&&m.status==="ON"){el.hidden=false;el.textContent="model: "+m.model;el.title=`Decision model for link routes, review triage and Ask. ${m.calls} calls, ${m.cache_hits} cached. Proposals only.`}else el.hidden=true}
+async function ask(text){const status=$("ask-status");status.textContent="Routing…";
+ try{const r=await fetch("/api/ask?q="+encodeURIComponent(text),{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.status||r.status);
+  const pr=d.probabilities?` (view ${d.probabilities.view.toFixed(2)}, item ${d.probabilities.focus.toFixed(2)}, filter ${d.probabilities.severity.toFixed(2)})`:"";
+  status.textContent=`Routed by ${d.router}${pr}: ${d.view}${d.focus?" · "+d.focus.split(":").slice(-1)[0]:""}${d.severity&&d.severity!=="any"?" · "+(WORD[d.severity]||d.severity):""}`;
+  if(d.view==="system_map"){location.href="/";return}
+  setFilter(d.severity);if(d.focus)select(d.focus);else if(d.view==="overview")select(null);
+  const target={attention:"attention",actions:"list-actions",objects:"list-objects",systems:"list-systems",suggestions:"sug-sec"}[d.view];
+  if(target){const el=$(target);el.scrollIntoView({block:"nearest"});el.animate([{background:"#13283a"},{background:"transparent"}],{duration:900})}}
+ catch(err){status.textContent="Could not route: "+err.message}}
+$("ask-form").addEventListener("submit",e=>{e.preventDefault();const t=$("ask").value.trim();if(t)ask(t.slice(0,200))});
+$("filter").addEventListener("click",()=>setFilter(null));
+function render(){modelChip();feedsChip();if(data)$("mode").textContent=data.link_decisions==="ENABLED_LOCAL_TOKEN"?"READ ONLY EXCEPT LINK DECISIONS":"READ ONLY";IDX=index();if(selected&&!IDX.has(selected))selected=null;kpis();lists();suggestionsPanel();graph();inspector()}
 async function load(){const mine=++epoch;
  try{const r=await fetch("/api/business",{cache:"no-store"});if(!r.ok)throw new Error(String(r.status));const d=await r.json();
   if(mine!==epoch)return;data=d;$("pulse").className="pulse";$("asof").textContent="As of "+new Date(d.generated_at).toLocaleTimeString()+" · refresh 5s";render()}

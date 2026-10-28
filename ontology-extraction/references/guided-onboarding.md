@@ -41,7 +41,17 @@ python "$SKILL_ROOT/scripts/onboard.py" start \
   --out /path/to/sessions/reservations-v1 --acknowledge-sources
 ```
 
-### Optional: semantic file search with jevgrep
+### Proposing the source set
+
+`propose_sources.py --repo REPO --goal GOAL` ranks readable files by word overlap with
+the goal and prints a proposed set plus the `onboard.py start` command. It skips
+dependencies, build output, hidden paths, `.env` files, keys, and files with token-like
+text. With the user's consent, `--model-assist` asks their decision model (Jev or Clef)
+to score each shortlisted file from its path and first 60 lines; see
+[decision-models.md](decision-models.md). The output is a proposal: show the exact paths
+and get acknowledgment as usual.
+
+### Alternative: semantic file search with jevgrep
 
 In a large or unfamiliar repository, [jevgrep](https://github.com/dzhng/jevgrep) (`jg`) can
 suggest candidate files for a behavioral question, for example

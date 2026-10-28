@@ -16,12 +16,15 @@ import re
 import tempfile
 
 import business_view
+import decide as decision_model
 import evidence_grade
 from policy_check import DomainError, MAX_TOTAL, canonical, digest, parse_json, require, safe_file
 
 KINDS = ("declared_service", "source_module", "api_route", "declared_db_table")
 STRENGTH = ("STRONG", "MODERATE", "WEAK")
 MAX_PER_BINDING = 5
+MAX_ROUTE_OPTIONS = 254          # Jev allows 255 choices; one is "none"
+MODEL_MIN_PROBABILITY = 0.5
 MAX_CANDIDATES = 4096
 STOPWORDS = frozenset({
     "the", "and", "for", "get", "set", "apply", "type", "class", "def", "func", "function",
@@ -137,11 +140,103 @@ def suggest_from(data: dict) -> dict:
             "auto_applied": 0, "execution_authorized": False}
 
 
+def binding_context(skills: list[Path]) -> dict[tuple[str, str], str]:
+    """What a decision model is told about each code binding: its role and its source."""
+    context = {}
+    for path in skills:
+        _, model = evidence_grade.load_skill(path)
+        records = {e["id"]: e for e in model["evidence"]}
+        classes = {c["id"]: c for c in model["layers"]["20-domain.yaml"].get("classes", [])}
+        application = model["layers"]["40-application.yaml"]
+        for concept in application.get("concepts", []):
+            source = records.get(concept.get("source"), {})
+            cls = classes.get(concept.get("binds"), {})
+            lines = [f"Code binding: {concept['id']} ({concept.get('kind', 'unknown kind')})",
+                     f"Business concept: {concept.get('binds', '')}: {cls.get('definition', '')}",
+                     f"Used by tasks: {', '.join(concept.get('used_by_tasks', []))}",
+                     f"System: {application.get('system', '')}"]
+            if source:
+                lines += [f"Source {source['path']} lines {source['start_line']}-{source['end_line']}:",
+                          source.get("quote", "")[:2000]]
+            context[(model["name"], concept["id"])] = "\n".join(lines)
+    return context
+
+
+def model_routes(data: dict, context: dict, client) -> list[dict]:
+    """One pick-one question per binding: which candidate component runs this code?"""
+    linked = {tuple(x) for x in data["linked"]}
+    rejected = {tuple(x) for x in data["rejected"]}
+    asks, keys = [], []
+    for b in data["bindings"]:
+        candidates = [c for c in data["components"]
+                      if (b["skill"], b["binding"], c["id"]) not in linked | rejected][:MAX_ROUTE_OPTIONS]
+        if not candidates:
+            continue
+        criteria = {f"c{i}": f"{c['label']} ({c['kind']}, declared in {c['path'] or 'unknown file'})"
+                    for i, c in enumerate(candidates)}
+        criteria["none"] = "None of these components runs or serves this code."
+        state = context.get((b["skill"], b["binding"]), f"Code binding: {b['binding']}")
+        asks.append((state, {"route": {
+            "type": "choice", "criteria": criteria,
+            "instructions": "Which listed service, module, route, or table runs or serves this "
+                            "code binding? Answer none if no option fits."}}))
+        keys.append((b, candidates))
+    rows = []
+    for (b, candidates), answer in zip(keys, client.decide_many(asks)):
+        route = answer["route"]
+        if route["choice"] == "none":
+            continue
+        probability = route["probabilities"].get(route["choice"], route["confidence"])
+        if probability < MODEL_MIN_PROBABILITY:
+            continue
+        c = candidates[int(route["choice"][1:])]
+        rows.append({"skill": b["skill"], "binding": b["binding"], "component": c,
+                     "signal": {"signal": "MODEL_ROUTED",
+                                "strength": "MODERATE" if probability >= 0.8 else "WEAK",
+                                "detail": f"{client.label} chose {c['label']} "
+                                          f"(probability {probability:.2f})",
+                                "probability": round(probability, 4)}})
+    return rows
+
+
+def merge_model_routes(result: dict, routes: list[dict]) -> dict:
+    """Add model signals to matching suggestions, or new suggestions; still proposals only."""
+    rows = {(r["skill"], r["binding"], r["component"]): r for r in result["suggestions"]}
+    for route in routes:
+        c = route["component"]
+        key = (route["skill"], route["binding"], c["id"])
+        row = rows.get(key)
+        if row is None:
+            row = rows[key] = {"id": suggestion_id(*key), "skill": key[0], "binding": key[1],
+                               "component": c["id"], "component_label": c["label"],
+                               "component_kind": c["kind"], "strength": "WEAK",
+                               "signals": [], "status": "PROPOSED"}
+        row["signals"] = [*row["signals"], route["signal"]]
+        row["strength"] = min((s["strength"] for s in row["signals"]), key=STRENGTH.index)
+    ordered = sorted(rows.values(), key=lambda r: (r["skill"], r["binding"], STRENGTH.index(r["strength"]),
+                                                    -len(r["signals"]), r["component"]))
+    out, per = [], {}
+    for row in ordered:
+        n = per.get((row["skill"], row["binding"]), 0)
+        if n < MAX_PER_BINDING:
+            out.append(row)
+            per[(row["skill"], row["binding"])] = n + 1
+    return {**result, "suggestions": out}
+
+
 def suggest(skills: list[Path], state: dict, links: list[dict], rejected: list[dict],
-            native=None) -> dict:
-    """`native` is an optional native_view_bridge.NativeView running the Rust matcher."""
+            native=None, client=None) -> dict:
+    """`native` runs the Rust matcher; `client` (decide.DecisionClient) adds model routes."""
     data = prepare(skills, state, links, rejected)
-    return native.execute(data, "suggest-links") if native is not None else suggest_from(data)
+    result = native.execute(data, "suggest-links") if native is not None else suggest_from(data)
+    if client is None:
+        return result
+    try:
+        routes = model_routes(data, binding_context(skills), client)
+    except decision_model.DecisionError as exc:
+        return {**result, "model_assist": {"status": "ERROR", "detail": str(exc)[:300]}}
+    return {**merge_model_routes(result, routes),
+            "model_assist": {**decision_model.describe(client), "routes_proposed": len(routes)}}
 
 
 def decide(links_path: Path, suggestion: dict, decision: str, by: str, note: str = "") -> dict:
@@ -202,6 +297,8 @@ def main() -> int:
         p.add_argument("--repo", type=Path, required=True)
         p.add_argument("--skill", type=Path, action="append", required=True)
         p.add_argument("--links", type=Path, required=True)
+        p.add_argument("--model-assist", action="store_true",
+                       help="also ask the configured decision model (sends binding source to it)")
         if name != "suggest":
             p.add_argument("--id", required=True, help="suggestion ID from `suggest`")
             p.add_argument("--by", required=True, help="who decided (not verified)")
@@ -211,14 +308,15 @@ def main() -> int:
         state = control_room.build_state(discover_repo.discover(args.repo), [], {})
         links, rejected = (business_view.read_link_document(args.links)
                            if args.links.exists() else ([], []))
-        result = suggest(args.skill, state, links, rejected)
+        client = decision_model.DecisionClient() if args.model_assist else None
+        result = suggest(args.skill, state, links, rejected, client=client)
         if args.command != "suggest":
             match = [s for s in result["suggestions"] if s["id"] == args.id]
             require(len(match) == 1, "no current suggestion has that ID; run suggest again")
             result = decide(args.links, match[0], args.command, args.by, args.note)
         print(json.dumps(result, sort_keys=True, indent=2))
         return 0
-    except (DomainError, OSError, ValueError, KeyError, TypeError) as exc:
+    except (DomainError, decision_model.DecisionError, OSError, ValueError, KeyError, TypeError) as exc:
         print(json.dumps({"status": "ERROR", "error": str(exc)}))
         return 1
 

@@ -11,11 +11,13 @@ from policy_check import DomainError, canonical, digest, require, safe_file
 PACKAGE = (
     "SKILL.md", "METHOD.md", "LICENSE",
     "scripts/install.py", "scripts/onboard.py", "scripts/evidence.py",
-    "scripts/evidence_grade.py", "scripts/statement_lint.py",
+    "scripts/evidence_grade.py", "scripts/statement_lint.py", "scripts/decide.py",
+    "scripts/propose_sources.py", "scripts/conflict_scan.py", "scripts/link_suggest.py",
+    "scripts/business_view.py", "scripts/discover_repo.py",
     "scripts/domain_skill.py", "scripts/policy_check.py", "scripts/scaffold.py", "scripts/provenance.py",
     "scripts/trace_extract.py", "scripts/otlp_normalize.py", "references/trace-to-ontology.md",
     "references/guided-onboarding.md", "references/domain-skill.md", "references/provenance.md",
-    "references/evidence-grades.md", "references/rule-wording.md",
+    "references/evidence-grades.md", "references/rule-wording.md", "references/decision-models.md",
     "references/design-principles.md", "references/source-mining.md",
     "references/reuse-catalog.md", "references/output-formats.md",
 )

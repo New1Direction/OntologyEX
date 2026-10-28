@@ -158,6 +158,11 @@ Live health comes from real telemetry: `feeds.py` receives OpenTelemetry traces 
 polls Prometheus and HTTP health checks (`python examples/operating-picture/live.py`).
 See [live feeds](docs/live-feeds.md).
 
+Optional decision models (Jev or Clef) speed up the proposal steps: source selection,
+link routing, review triage, conflict candidates, wording checks, and an **Ask** box that
+routes questions to the right view. They never make the proven decisions. See
+[decision models](docs/decision-models.md).
+
 Links are suggested from names and paths and applied only when a person confirms
 them. The health rollup, grade ladder, and link decisions are implemented in Python
 and Rust, proven in Lean and Bend, and cross-checked in CI. See

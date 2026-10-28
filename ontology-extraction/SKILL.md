@@ -29,9 +29,10 @@ mix public-web research with a frozen, local-only onboarding session.
    user-authorized filenames/documentation to propose a small source set. Show the
    exact paths and ask for acknowledgment unless the user already selected them.
    Never collect credentials, hidden full-repository contents, or unrelated files.
-   If `jg` (jevgrep) is installed and the user agrees to send that source to their model
-   provider, it can suggest candidates; its output is a proposal, not the boundary
-   (see [guided onboarding](references/guided-onboarding.md)).
+   `python "$SKILL_ROOT/scripts/propose_sources.py" --repo REPO --goal GOAL` ranks
+   candidate files offline. With the user's consent to send file previews to their
+   decision model (Jev or Clef), add `--model-assist`. Its output is a proposal, not the
+   boundary ([decision models](references/decision-models.md)).
 2. **Start.** Run `python "$SKILL_ROOT/scripts/onboard.py" start --repo REPO
    --include FILE --name DOMAIN --goal GOAL --out SESSION --acknowledge-sources`.
    Repeat `--include` for each approved file. The default budget is three submissions:
@@ -53,6 +54,9 @@ mix public-web research with a frozen, local-only onboarding session.
    Run `python "$SKILL_ROOT/scripts/statement_lint.py" SESSION/workspace` and fix
    statements that can be read two ways. Its warnings are advisory
    ([rule wording](references/rule-wording.md)); never reword to hide a blocker.
+   With consent, `--model-assist` adds a model check, and `conflict_scan.py SESSION/workspace`
+   lists span pairs that may contradict each other. Read both spans before recording a
+   conflict; never add one only because a model suggested it.
 5. **Submit.** Run `python "$SKILL_ROOT/scripts/onboard.py" attempt SESSION` exactly once.
    Read its structured diagnostics. Only `REPAIR_REQUIRED` permits another correction.
    Do not call the untracked compiler to bypass the session's budget. Never change
@@ -71,6 +75,8 @@ mix public-web research with a frozen, local-only onboarding session.
    `evidence_grade.py grade SKILL` reports each rule's G0–G4
    [evidence grade](references/evidence-grades.md). A new candidate is all G0. Never record
    review or behavior events for your own work; the reviewer records them.
+   `evidence_grade.py triage SKILL` (decision model, with consent) orders spans for the
+   reviewer, likely mis-citations first. It is not a review and records nothing.
 
 ## Invariants
 

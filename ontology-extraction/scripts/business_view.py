@@ -21,6 +21,26 @@ MAX_QUOTE = 600
 LINK_KIND = "ONTOLOGYEX_SYSTEM_LINKS"
 # Most urgent first. REPORTED_OK is a source report, not verified health.
 HEALTH = ("AT_RISK", "POSSIBLY_IMPACTED", "DEGRADED", "STALE", "UNKNOWN", "UNLINKED", "REPORTED_OK")
+ATTENTION_ORDER = ("AT_RISK", "POSSIBLY_IMPACTED", "DEGRADED", "STALE", "REVIEW_BLOCKED",
+                   "CHECK_CITATION", "UNLINKED")
+VIEWS = {
+    "attention": "Show what needs attention now: risks, impacts, blockers.",
+    "actions": "List the business actions (tasks people or systems perform).",
+    "objects": "List the business objects (things the business works with).",
+    "systems": "List the linked systems and their health.",
+    "suggestions": "Show suggested links between code and systems, to confirm or reject.",
+    "overview": "Show the overview: loaded skills, evidence grades, and boundaries.",
+    "system_map": "Open the full system dependency map.",
+}
+SEVERITIES = {
+    "any": "No severity filter.",
+    "AT_RISK": "Things at risk: a linked system reports an error, broken, down, failing.",
+    "POSSIBLY_IMPACTED": "Things possibly impacted through a dependency on a failing system.",
+    "REVIEW_BLOCKED": "Actions with open questions, unknowns, or conflicts that need a decision.",
+    "CHECK_CITATION": "Rules whose cited evidence may not support them.",
+    "UNLINKED": "Actions with no linked system, so their health is unknown.",
+    "STALE": "Systems whose last observation expired.",
+}
 
 
 def _link_rows(rows: object, seen: set) -> list[dict]:
@@ -267,8 +287,7 @@ def project(skills: list[Path], state: dict, links: list[dict] | None = None,
             attention.append({"key": action["key"], "kind": "action", "label": action["id"],
                               "skill": action["skill"], "severity": "UNLINKED",
                               "reason": action["health_reason"]})
-    order = {s: i for i, s in enumerate(("AT_RISK", "POSSIBLY_IMPACTED", "DEGRADED", "STALE",
-                                         "REVIEW_BLOCKED", "UNLINKED"))}
+    order = {s: i for i, s in enumerate(ATTENTION_ORDER)}
     attention.sort(key=lambda a: (order[a["severity"]], a["kind"] != "action", a["label"], a["skill"]))
     rules_total = sum(len(a["rules"]) for a in actions)
     reviewed = sum(1 for a in actions for r in a["rules"] if r["grade"] != "G0")
@@ -306,6 +325,97 @@ def project(skills: list[Path], state: dict, links: list[dict] | None = None,
     }
 
 
+def attach_triage(picture: dict, triage_rows: list[dict]) -> dict:
+    """Put model support probabilities beside cited spans; flag likely mis-citations.
+
+    A triage row is never a review: grades are unchanged and only a person records one.
+    """
+    support = {(t["rule"], t["evidence"]): t["support_probability"] for t in triage_rows}
+    flagged = []
+    for action in picture["actions"]:
+        for rule in action["rules"]:
+            for item in rule["evidence"]:
+                p = support.get((rule["id"], item["id"]))
+                if p is None:
+                    continue
+                item["model_support"] = p
+                if p < 0.5:
+                    flagged.append({"key": action["key"], "kind": "action", "label": action["id"],
+                                    "skill": action["skill"], "severity": "CHECK_CITATION",
+                                    "reason": f"{item['id']} may not support rule {rule['id']} "
+                                              f"(model support {p:.2f}). A person checks the span."})
+    order = {s: i for i, s in enumerate(ATTENTION_ORDER)}
+    attention = picture["attention"] + flagged
+    attention.sort(key=lambda a: (order[a["severity"]], a["kind"] != "action", a["label"], a["skill"]))
+    return {**picture, "attention": attention}
+
+
+def _items(picture: dict) -> list[tuple[str, str]]:
+    rows = [(a["key"], f"action {a['id']} ({a['health']}): {a.get('verb_phrase', '')}")
+            for a in picture["actions"]]
+    rows += [(o["key"], f"object {o['id']} ({o['health']}): {o.get('definition', '')[:200]}")
+             for o in picture["objects"]]
+    rows += [(sy["id"], f"system {sy['label']} ({sy['status']})") for sy in picture["systems"]]
+    return rows[:250]
+
+
+def keyword_route(picture: dict, query: str) -> dict:
+    """Offline router for the command bar: words in the request pick a view and an item."""
+    words = set(query.lower().replace("?", " ").split())
+    view, severity = "attention", "any"
+    if words & {"link", "links", "suggest", "suggested", "suggestions", "confirm"}:
+        view = "suggestions"
+    elif words & {"map", "dependency", "dependencies", "topology"}:
+        view = "system_map"
+    elif words & {"system", "systems", "service", "services"}:
+        view = "systems"
+    elif words & {"overview", "skills", "grades"}:
+        view = "overview"
+    if words & {"risk", "broken", "down", "failing", "fail", "error", "errors", "outage"}:
+        severity = "AT_RISK"
+    elif words & {"impacted", "impact", "affected"}:
+        severity = "POSSIBLY_IMPACTED"
+    elif words & {"blocked", "question", "questions", "unknown", "unknowns", "review"}:
+        severity = "REVIEW_BLOCKED"
+    elif words & {"citation", "citations", "evidence", "miscited"}:
+        severity = "CHECK_CITATION"
+    elif words & {"unlinked", "unmonitored"}:
+        severity = "UNLINKED"
+    focus = None
+    for key, description in _items(picture):
+        name = description.split(" ", 2)[1].lower()
+        if name in words or any(len(w) > 3 and w in name.lower() for w in words):
+            focus = key
+            break
+    return {"view": view, "focus": focus, "severity": severity, "router": "keywords",
+            "probabilities": None}
+
+
+def route_command(picture: dict, query: str, client=None) -> dict:
+    """Generative UI: a decision model picks the view, item, and filter for a request.
+
+    The page then renders that choice from the real projection. The model never
+    produces data or text that is shown as fact; with no model, keywords route.
+    """
+    if client is None:
+        return keyword_route(picture, query)
+    items = _items(picture)
+    focus_options = {f"i{n}": d for n, (_, d) in enumerate(items)}
+    focus_options["none"] = "No single item; show a list."
+    answers = client.decide(f"User request in the business operating picture: {query}", {
+        "view": {"type": "choice", "criteria": VIEWS, "instructions": "Which view answers the request?"},
+        "focus": {"type": "choice", "criteria": focus_options,
+                  "instructions": "Which single item is the request about, if any?"},
+        "severity": {"type": "choice", "criteria": SEVERITIES,
+                     "instructions": "Which kind of problem is the request about?"},
+    })
+    focus = answers["focus"]["choice"]
+    return {"view": answers["view"]["choice"],
+            "focus": None if focus == "none" else items[int(focus[1:])][0],
+            "severity": answers["severity"]["choice"], "router": client.label,
+            "probabilities": {k: round(answers[k]["confidence"], 4) for k in ("view", "focus", "severity")}}
+
+
 def main() -> int:
     import control_room
     import discover_repo
@@ -330,3 +440,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
