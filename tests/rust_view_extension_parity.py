@@ -36,25 +36,31 @@ def run():
         ]:
             python.append(("neighborhood",(id,depth),api.neighborhood(full,id,depth=depth)))
         python.append(("node",(db,),api.node_detail(full,db)))
+    indexed=ontologyex_native.GraphIndex(raw)
     with patch.dict(os.environ, {"ONTOLOGYEX_VIEW_BACKEND":"rust"}):
         for kind,args,expected in python:
             if kind=="summary":
                 got=api.summary(full)
                 direct=json.loads(ontologyex_native.summary_json(raw))
+                cached=json.loads(indexed.summary_json())
             elif kind=="page":
                 lens,q,off=args
                 got=api.page(full,lens=lens,query=q,offset=off)
                 direct=json.loads(ontologyex_native.page_json(raw,lens,q,off))
+                cached=json.loads(indexed.page_json(lens,q,off))
             elif kind=="neighborhood":
                 id,depth=args
                 got=api.neighborhood(full,id,depth=depth)
                 direct=json.loads(ontologyex_native.neighborhood_json(raw,id,depth))
+                cached=json.loads(indexed.neighborhood_json(id,depth))
             else:
                 id=args[0]
                 got=api.node_detail(full,id)
                 direct=json.loads(ontologyex_native.node_json(raw,id))
+                cached=json.loads(indexed.node_json(id))
             check(kind+" Python/Rust switch",expected,got)
             check(kind+" direct native extension",expected,direct)
+            check(kind+" immutable indexed native extension",expected,cached)
     for invalid in [
         (ontologyex_native.page_json,(raw,"bogus","",0)),
         (ontologyex_native.neighborhood_json,(raw,db,3)),
