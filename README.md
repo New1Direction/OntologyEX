@@ -168,7 +168,9 @@ page. See [Business X-Ray](business/README.md).
 
 Live health comes from real telemetry: `feeds.py` receives OpenTelemetry traces and
 polls Prometheus and HTTP health checks (`python examples/operating-picture/live.py`).
-See [live feeds](docs/live-feeds.md).
+For your own repository, `feed_setup.py propose` lists the feeds its compose files
+declare, with the line for each; you accept the ones to watch, and `operate.py up`
+starts the feeds and the business screen together. See [live feeds](docs/live-feeds.md).
 
 The same jobs also run on an optional Rust engine: live feeds with about 18× the
 trace throughput in a fifth of the memory, and repository discovery about 15× faster,
