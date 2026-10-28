@@ -854,10 +854,12 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
           github_client=None, snapshot_dir: Path | None = None,
           view_engine: str = "python", skills: list[Path] | None = None,
           links: Path | None = None, events: Path | None = None,
-          allow_link_decisions: bool = False, decision_model: bool = False) -> None:
+          allow_link_decisions: bool = False, decision_model: bool = False,
+          discovery_engine: str = "python") -> None:
     check(0 <= port <= 65535, "invalid port")
     check(view_engine in ("python", "rust"), "unsupported graph view backend")
     native_view = native_view_bridge.NativeView() if view_engine == "rust" else None
+    native_discovery = view_engine == "rust" or native_view_bridge.discovery_engine(discovery_engine) == "rust"
     rules = read_thresholds(thresholds)
     skills = list(skills or [])
     # Fail at startup on a tampered skill or malformed links; re-verified per request.
@@ -955,7 +957,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 last_attempt = state_cache.get("last_attempt")
                 if last_attempt is None or (current - last_attempt).total_seconds() > 15:
                     state_cache["last_attempt"] = current
-                    topology = (native_view_bridge.native_discover(repo) if native_view
+                    topology = (native_view_bridge.native_discover(repo) if native_discovery
                                 else discover_repo.discover(repo))
                     state_cache["topology"] = topology
                     state_cache["last_success"] = current
@@ -1154,6 +1156,8 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         with ThreadingHTTPServer(("127.0.0.1", port), Handler) as server:
             print(f"OntologyEX local control room: http://127.0.0.1:{server.server_port}",
                   flush=True)
+            if repo is not None:
+                print(f"Repository discovery: {'rust' if native_discovery else 'python'}", flush=True)
             server.serve_forever()
     finally:
         stop_worker.set()
@@ -1175,6 +1179,9 @@ def main():
     parser.add_argument("--state-only", action="store_true")
     parser.add_argument("--view-engine", choices=("python", "rust"), default="python",
                         help="read-only projection backend; rust requires compiled ontologyex-view")
+    parser.add_argument("--discovery-engine", choices=("auto", "python", "rust"), default="auto",
+                        help="repository discovery: auto uses the byte-identical Rust ontologyex-discover "
+                             "when it is installed (fetch_engine.py or a cargo build), else Python")
     parser.add_argument("--skill", type=Path, action="append", default=[],
                         help="compiled domain skill for the business view; repeat for more")
     parser.add_argument("--links", type=Path, default=None,
@@ -1201,7 +1208,9 @@ def main():
                 args.github, github_discovery.GitHubClient(
                     token=os.environ.get("ONTOLOGYEX_GITHUB_TOKEN")))
                         if args.github else native_view_bridge.native_discover(args.repo)
-                        if args.view_engine == "rust" else discover_repo.discover(args.repo))
+                        if args.view_engine == "rust" or
+                        native_view_bridge.discovery_engine(args.discovery_engine) == "rust"
+                        else discover_repo.discover(args.repo))
             result = build_state(topology, read_observations(args.observations),
                                  read_thresholds(args.thresholds))
             result["discovery_source"] = topology.get("source", {"provider": "local"})
@@ -1216,6 +1225,7 @@ def main():
             serve(args.repo, args.observations, args.thresholds, args.port,
                   github=args.github, github_refresh_seconds=args.github_refresh_seconds,
                   snapshot_dir=args.snapshot_dir, view_engine=args.view_engine,
+                  discovery_engine=args.discovery_engine,
                   skills=args.skill, links=args.links, events=args.events,
                   allow_link_decisions=args.allow_link_decisions,
                   decision_model=args.decision_model)

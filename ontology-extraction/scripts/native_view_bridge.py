@@ -80,6 +80,20 @@ def checked_binary(binary: Path) -> Path:
     return binary
 
 
+def discovery_engine(choice: str) -> str:
+    """"python" or "rust". `auto` picks Rust when ontologyex-discover is installed
+    (it is byte-identical and faster); a broken install still fails loudly later."""
+    if choice not in ("auto", "python", "rust"):
+        raise NativeViewError("unsupported discovery engine")
+    if choice != "auto":
+        return choice
+    try:
+        checked_binary(engine_binary("ontologyex-discover"))
+        return "rust"
+    except NativeViewError:
+        return "python"
+
+
 def native_discover(repo: Path, binary: Path | None = None) -> dict:
     """`discover_repo.discover(repo)` computed by `ontologyex-discover` (byte-identical output)."""
     import discover_repo
