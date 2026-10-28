@@ -65,7 +65,8 @@ class NativeView:
             raise NativeViewError("invalid native view invocation")
         expected_args = {"summary": 0, "page": 3, "neighborhood": 2, "node": 1}
         if len(args) != expected_args[command] or any(
-            not 0 < len(arg) <= 1024 for arg in args
+            len(arg) > 1024 or (not arg and (command != "page" or i != 1))
+            for i, arg in enumerate(args)
         ):
             raise NativeViewError("invalid native view arguments")
         if full.get("execution_authorized") is not False:
