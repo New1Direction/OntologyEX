@@ -1,7 +1,7 @@
 ---
 name: ontology-extraction
-description: Onboard an unfamiliar repository or business domain for an AI agent. Turn a scoped set of code and documentation into a source-linked domain skill with concepts, rules, implementation mappings, explicit unknowns, and a reviewable handoff. Use for "onboard my repo", "understand this workflow", "build a domain skill", ontology extraction, domain modeling, or mapping an API/codebase before modifying it.
-compatibility: Python 3.11+ and PyYAML 6.0.3 for local tools. The existing coding agent authors the model; no model API is called by these scripts.
+description: Onboard an unfamiliar repository or business domain for an AI agent. Turn a scoped set of code and documentation into a source-linked domain skill with concepts, rules, implementation mappings, explicit unknowns, and a reviewable handoff. Use for "onboard my repo", "understand this workflow", "build a domain skill", ontology extraction, domain modeling, mapping an API/codebase before modifying it, or showing which business actions are at risk on a local business screen.
+compatibility: Python 3.11+ and PyYAML 6.0.3 for local tools. The existing coding agent authors the model; scripts call no model API unless the user opts in to a decision model.
 license: MIT
 ---
 
@@ -22,6 +22,10 @@ Run the scripts below using that root so installation works from any working dir
 and [output formats](references/output-formats.md). Preserve the original upper/domain/task/
 application method. Research may use explicitly authorized public sources. Do not silently
 mix public-web research with a frozen, local-only onboarding session.
+
+**Business screen / what is at risk:** when a domain skill already exists and the user
+wants to see their business, its systems, and live health together, follow
+[operating picture](references/operating-picture.md).
 
 ## Guided workflow
 
@@ -77,6 +81,10 @@ mix public-web research with a frozen, local-only onboarding session.
    review or behavior events for your own work; the reviewer records them.
    `evidence_grade.py triage SKILL` (decision model, with consent) orders spans for the
    reviewer, likely mis-citations first. It is not a review and records nothing.
+8. **Show the business (optional).** Offer the user the local business screen:
+   `python "$SKILL_ROOT/scripts/control_room.py" --repo REPO --skill SKILL`, then
+   `http://127.0.0.1:8765/business`. Linking code to systems and adding live health
+   follow [operating picture](references/operating-picture.md); the user decides every link.
 
 ## Invariants
 
@@ -85,7 +93,9 @@ Code documents current behavior; requirements document intended behavior. Preser
 Observed claims require exact evidence. Inferred claims, unknowns, conflicts, and conditions
 outside the supported checker language remain review blockers; do not approximate them away.
 An integer checker does not become a floating-point time or concurrency verifier.
-No tool here authenticates supplied values, moves funds, calls a model, or approves production actions.
+No tool here authenticates supplied values, moves funds, or approves production actions.
+No tool calls a model unless the user opts in to a decision model (`--model-assist`,
+`--decision-model`); its answers are proposals, never decisions.
 
 ## Final report
 

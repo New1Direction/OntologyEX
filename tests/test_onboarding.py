@@ -348,6 +348,20 @@ class OnboardingTests(unittest.TestCase):
                              capture_output=True, text=True, timeout=20)
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
         self.assertEqual(json.loads(run.stdout)['status'], 'AWAITING_AUTHORING')
+        # Every installed script must import only installed modules, including lazy imports.
+        for path in installer.PACKAGE:
+            if path.endswith('.py'):
+                run = subprocess.run([sys.executable, '-B', str(installed / path), '--help'], cwd=self.root,
+                                     capture_output=True, text=True, timeout=20)
+                self.assertEqual(run.returncode, 0, path + run.stdout + run.stderr)
+        for script, *extra in (('business_view.py',), ('control_room.py', '--state-only'),
+                               ('link_suggest.py', 'suggest', '--skill', str(self.root / 'none'),
+                                '--links', str(self.root / 'links.json'))):
+            run = subprocess.run([sys.executable, '-B', str(installed / 'scripts' / script), *extra[:1],
+                                  '--repo', str(self.repo), *extra[1:]], cwd=self.root,
+                                 capture_output=True, text=True, timeout=30)
+            self.assertNotIn('ModuleNotFoundError', run.stderr, script)
+            self.assertNotIn('Traceback', run.stderr, script)
         self.author()
         run = subprocess.run([sys.executable, '-B', str(installed / 'scripts/onboard.py'), 'attempt', str(self.session)],
                              cwd=self.root, capture_output=True, text=True, timeout=20)
