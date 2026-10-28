@@ -935,7 +935,10 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                             raise graph_view_api.ViewError("incident requires exact node id")
                         rows = read_observations(observations)
                         full = snapshot(rows)  # same rows for status and timeline
-                        result = incident_view.incident(full, rows, params["id"][0])
+                        result = (native_view.execute(
+                            full, "incident", params["id"][0], observation_rows=rows)
+                                  if native_view else incident_view.incident(
+                                      full, rows, params["id"][0]))
                     else:
                         if set(params) != {"id"}:
                             raise graph_view_api.ViewError("node requires an exact id")
