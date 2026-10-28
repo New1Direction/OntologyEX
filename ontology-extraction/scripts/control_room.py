@@ -300,13 +300,14 @@ background:#071018;color:#d5e9eb}*{box-sizing:border-box}body{margin:0;backgroun
 min-height:100vh}header{padding:20px 24px;border-bottom:1px solid #254452;display:flex;align-items:center;
 justify-content:space-between;gap:20px}h1{font-size:19px;letter-spacing:.12em;margin:0}small,.muted{color:#839fab}
 header small{display:block;letter-spacing:.11em;margin-bottom:6px;color:#50b5af}
-main{display:grid;grid-template-columns:minmax(0,1fr) 325px;gap:12px;padding:14px;min-height:calc(100vh - 90px)}
-#map{min-height:590px;max-height:calc(100vh - 120px);overflow:auto;background:
+main#workspace{position:relative;display:block;width:100%;min-height:520px;overflow:visible}
+#workspace>section{position:absolute;min-width:0;min-height:0;box-sizing:border-box;overflow:auto;scrollbar-width:thin;transition:top .22s ease,left .22s ease,width .22s ease,height .22s ease}
+#map{overflow:auto;background:
 linear-gradient(90deg,transparent 49.8%,#17324135 50%,transparent 50.2%),
 repeating-linear-gradient(0deg,transparent 0,transparent 31px,#17324134 32px);
 border:1px solid #284350;border-radius:12px}#svg{width:100%;display:block;min-height:570px}
-aside{border:1px solid #284350;border-radius:12px;background:#0c1d28;display:flex;
-flex-direction:column;gap:20px;padding:18px;overflow:auto;max-height:calc(100vh - 120px)}
+#workspace>section:not(#map){border:1px solid #284350;border-radius:12px;background:#0c1d28;padding:14px;overflow:auto}
+#workspace>section.priority-critical{border-color:#52747f}
 h2{font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:#4fbfbb;margin:0 0 12px}
 p{font-size:12px;line-height:1.7;overflow-wrap:anywhere}#counts{display:flex;gap:8px;flex-wrap:wrap}
 .chip{font-size:11px;border:1px solid #325361;border-radius:6px;padding:6px 10px}
@@ -316,23 +317,36 @@ cursor:pointer;padding:9px 14px;font:inherit}button:hover{background:#244956}
 .error{color:#f47f7a}.stale{color:#b79ff2}.unknown{color:#8196a5}
 #details{white-space:pre-wrap;font-size:12px;overflow-wrap:anywhere;color:#c5d6d9;line-height:1.7}
 #footer{padding:0 24px 14px;color:#78939f;font-size:11px}
-@media(max-width:850px){main{grid-template-columns:1fr}aside{max-height:none}#map{max-height:70vh}}
+header{flex-wrap:wrap}header>div:last-child{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+header>div:last-child #mode{flex-basis:100%;font-size:11px}
+#graph-search{width:min(180px,42vw);border-radius:6px;background:#0f2530;border:1px solid #386372;color:#d5e9eb;padding:8px}
+#lens{border-radius:6px;background:#0f2530;color:#d5e9eb;border:1px solid #386372;padding:7px}
+#graph-coverage{font-size:11px;color:#a9c7ce;margin:0;padding:6px}
+#incidents ul{padding-left:19px;margin:0;font-size:12px;line-height:1.6}
+#layout-debug{margin:0 14px 16px;padding:8px 12px;font-size:11px;border:1px solid #345264;border-radius:7px;max-width:800px}
+#layout-report{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto}
+@media(prefers-reduced-motion:reduce){#workspace>section{transition:none!important}}
 </style></head>
 <body><header><div><small>ONTOLOGYEX // LOCAL OBSERVABILITY</small>
 <h1>BUSINESS CONTROL ROOM</h1></div><div><select id="lens" aria-label="Graph lens">
 <option value="all">ALL SYSTEMS</option><option value="api">API ROUTES</option>
 <option value="database">DATABASE</option><option value="services">SERVICES</option>
-</select> <button id="map-business" type="button">Map My Business</button><div id="mode" class="muted">Connecting to local source...</div><small id="updated"></small></div></header>
-<main><section id="map" aria-label="Declared component topology"><svg id="svg" role="img" aria-label="Interactive dependency diagram"></svg></section>
-<aside><section><h2>System integrity</h2><div id="counts"></div></section>
-<section><h2>Selected component</h2><div id="details">Select a node to inspect its source and status.</div></section>
-<section><h2>Coverage and blind spots</h2><div id="coverage" class="muted"></div></section>
-<section><h2>Saved source revisions</h2><div id="versions" class="muted"></div></section>
-<section><h2>Operational boundary</h2>
+</select> <input id="graph-search" type="search" aria-label="Find graph node" placeholder="Find node…"/>
+<button id="graph-focus" type="button" aria-pressed="false">Focus graph</button> <button id="map-business" type="button">Map My Business</button><div id="mode" class="muted">Connecting to local source...</div><small id="updated"></small></div></header>
+<main id="workspace" aria-label="Adaptive business workspace">
+<section id="map" aria-label="Declared component topology"><p id="graph-coverage" aria-live="polite"></p><svg id="svg" role="img" aria-label="Interactive dependency diagram"></svg></section>
+<section id="incidents" class="priority-critical"><h2>Incidents and risks</h2><ul id="incident-list"></ul></section>
+<section id="integrity" class="priority-critical"><h2>System integrity</h2><div id="counts"></div></section>
+<section id="details-panel"><h2>Selected component</h2><div id="details">Select a node to inspect its source and status.</div></section>
+<section id="coverage-panel"><h2>Coverage and blind spots</h2><div id="coverage" class="muted"></div></section>
+<section id="versions-panel"><h2>Saved source revisions</h2><div id="versions" class="muted"></div></section>
+<section id="boundary-panel"><h2>Operational boundary</h2>
 <p class="muted">A declared dependency is not proof of a live network call. Source-reported status is not independently authenticated.
 Warnings require explicit observations or configured thresholds. Impact shows possible dependents, not confirmed outages.
-Unknown remains unknown. No repair actions run here.</p></section></aside></main>
+Unknown remains unknown. No repair actions run here.</p></section></main>
+<details id="layout-debug"><summary>Layout diagnostics</summary><pre id="layout-report">Layout not yet calculated.</pre></details>
 <div id="footer">READ ONLY · LOOPBACK ONLY · NO LIVE PROVIDER CONNECTION · REFRESH 5S</div>
+<script src="/static/layout_engine.js"></script>
 <script>
 "use strict";
 const NS="http://www.w3.org/2000/svg";
@@ -575,6 +589,9 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 return
             if self.path == "/":
                 payload, mime, code = PAGE.encode("utf-8"), "text/html; charset=utf-8", 200
+            elif self.path == "/static/layout_engine.js":
+                payload = (Path(__file__).resolve().parent / "layout_engine.js").read_bytes()
+                mime, code = "application/javascript; charset=utf-8", 200
             elif self.path == "/api/state":
                 try:
                     value = snapshot()
@@ -595,7 +612,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             self.send_header("Cross-Origin-Resource-Policy", "same-origin")
             self.send_header("Content-Security-Policy",
                              "default-src 'none'; connect-src 'self'; style-src 'unsafe-inline'; "
-                             "script-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'")
+                             "script-src 'self' 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'")
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
             self.wfile.write(payload)
