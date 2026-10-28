@@ -52,7 +52,7 @@ pub fn project(full: &Value, rows: &[Value], component_id: &str) -> Result<Value
         if row.get("schema_version") != Some(&json!(1)) ||
             !matches!(row.get("status").and_then(Value::as_str), Some("ok"|"warning"|"error")) ||
             !matches!(row.get("source").and_then(Value::as_str),
-                      Some("otel"|"health_probe"|"manual_export"|"synthetic")) {
+                      Some("otel"|"health_probe"|"prometheus"|"manual_export"|"synthetic")) {
             return Err("invalid incident observation schema/status/source".into());
         }
         let id = string(row, "component_id")?;
@@ -64,9 +64,9 @@ pub fn project(full: &Value, rows: &[Value], component_id: &str) -> Result<Value
         }
         let metrics = row.get("metrics").and_then(Value::as_object)
             .ok_or_else(|| "missing incident metrics".to_owned())?;
-        if metrics.len() > 5 || !metrics.iter().all(|(k, v)| {
+        if metrics.len() > 6 || !metrics.iter().all(|(k, v)| {
             matches!(k.as_str(), "queue_lag_seconds" | "db_pool_utilization_pct" |
-                "error_rate_pct" | "p95_latency_ms" | "job_lag_seconds")
+                "error_rate_pct" | "p95_latency_ms" | "job_lag_seconds" | "probe_latency_ms")
                 && v.as_f64().is_some_and(|n| n.is_finite() && (0.0..=1e9).contains(&n))
         }) {
             return Err("invalid incident metrics".into());

@@ -11,29 +11,38 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from threading import Event, RLock, Thread
+from threading import Event, Lock, RLock, Thread
+import hmac
 import json
 import math
 import os
 import re
+import secrets
+import shlex
 import stat
 
+import business_view
+import decide
 import discover_repo
+import evidence_grade
+import link_suggest
 import github_discovery
 import snapshot_store
 import graph_view_api
 import incident_view
 import native_view_bridge
+from policy_check import DomainError
 from urllib.parse import parse_qs, urlsplit
 
 MAX_OBSERVATION_BYTES = 1024 * 1024
 MAX_OBSERVATIONS = 4096
 MAX_THRESHOLDS_BYTES = 16384
 METRICS = frozenset({"queue_lag_seconds", "db_pool_utilization_pct",
-                     "error_rate_pct", "p95_latency_ms", "job_lag_seconds"})
+                     "error_rate_pct", "p95_latency_ms", "job_lag_seconds",
+                     "probe_latency_ms"})
 PERCENT_METRICS = frozenset({"db_pool_utilization_pct", "error_rate_pct"})
 STATUS = frozenset({"ok", "warning", "error"})
-SOURCES = frozenset({"otel", "health_probe", "manual_export", "synthetic"})
+SOURCES = frozenset({"otel", "health_probe", "prometheus", "manual_export", "synthetic"})
 MAX_AGE = 86400
 IDENT_RE = re.compile(r"^discovery:[a-z_]+:[A-Za-z0-9_.~/%:-]{1,600}$")
 
@@ -177,16 +186,20 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
         grouped[component_id].append(record)
     conflicts = set()
     for component_id, records in grouped.items():
-        # Never let JSONL line order decide health when two sources disagree
-        # about a component at the exact same timestamp.
         records.sort(key=lambda r: (r["observed_at"], r["source"], r["status"]))
-        newest_time = records[-1]["observed_at"]
-        newest = [r for r in records if r["observed_at"] == newest_time]
-        if len({json.dumps(r, sort_keys=True) for r in newest}) > 1:
-            conflicts.add(component_id)
+        # Never let JSONL line order decide health: one source that disagrees
+        # with itself at its newest timestamp fails closed. Different sources
+        # are combined below by severity, which no line order can change.
+        for source in {r["source"] for r in records}:
+            mine = [r for r in records if r["source"] == source]
+            newest = [r for r in mine if r["observed_at"] == mine[-1]["observed_at"]]
+            if len({json.dumps(r, sort_keys=True) for r in newest}) > 1:
+                conflicts.add(component_id)
+        if component_id in conflicts:
             gaps.append({"source": component_id,
                          "reason": "CONFLICTING_SAME_TIMESTAMP_OBSERVATIONS"})
 
+    severity = {"error": 0, "warning": 1, "ok": 2}
     nodes = []
     failed = set()
     for node in graph_nodes:
@@ -194,28 +207,45 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
         latest = values[-1] if values else None
         state = "unknown"
         leading = []
-        if latest is not None:
-            age = (now - timestamp(latest["observed_at"])).total_seconds()
-            if node["id"] in conflicts:
-                state = "unknown"
-            elif age > latest["expires_after_seconds"]:
+        sources = []
+        if latest is not None and node["id"] not in conflicts:
+            # Newest sample per source; each source expires on its own TTL.
+            per_source = {}
+            for record in values:
+                per_source[record["source"]] = record
+            fresh = []
+            for source, record in sorted(per_source.items()):
+                age = (now - timestamp(record["observed_at"])).total_seconds()
+                is_fresh = age <= record["expires_after_seconds"]
+                sources.append({"source": source, "status": record["status"],
+                                "observed_at": record["observed_at"], "fresh": is_fresh})
+                if is_fresh:
+                    fresh.append(record)
+            if not fresh:
                 state = "stale"
             else:
+                # The most severe fresh source decides; an ok elsewhere cannot hide it.
+                worst = min(severity[r["status"]] for r in fresh)
+                latest = max((r for r in fresh if severity[r["status"]] == worst),
+                             key=lambda r: (r["observed_at"], r["source"]))
                 state = latest["status"]
-                if len(values) >= 2:
-                    prior = values[-2]
+                for current in fresh:
+                    mine = [r for r in values if r["source"] == current["source"]]
+                    if len(mine) < 2:
+                        continue
+                    prior = mine[-2]
                     prior_age = (now - timestamp(prior["observed_at"])).total_seconds()
-                    if (prior_age <= prior["expires_after_seconds"] and
-                            prior["source"] == latest["source"]):
-                        for metric, threshold in sorted(thresholds.items()):
-                            if (metric in prior["metrics"] and metric in latest["metrics"] and
-                                    prior["metrics"][metric] > threshold and
-                                    latest["metrics"][metric] > threshold):
-                                leading.append({
-                                    "metric": metric, "threshold": threshold,
-                                    "current": latest["metrics"][metric],
-                                    "previous": prior["metrics"][metric],
-                                    "rule": "TWO_CONSECUTIVE_FRESH_BREACHES"})
+                    if prior_age > prior["expires_after_seconds"]:
+                        continue
+                    for metric, threshold in sorted(thresholds.items()):
+                        if (metric in prior["metrics"] and metric in current["metrics"] and
+                                prior["metrics"][metric] > threshold and
+                                current["metrics"][metric] > threshold):
+                            leading.append({
+                                "metric": metric, "threshold": threshold,
+                                "current": current["metrics"][metric],
+                                "previous": prior["metrics"][metric],
+                                "rule": "TWO_CONSECUTIVE_FRESH_BREACHES"})
                 if state == "ok" and leading:
                     state = "warning"
         if state == "error":
@@ -233,6 +263,7 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
             "leading_indicators": leading,
             "evidence_id": node.get("evidence_id"),
             "source_line": node.get("source_line"),
+            "observation_sources": sources,
             "potentially_impacted_by": [],
         })
 
@@ -304,6 +335,7 @@ background:#071018;color:#d5e9eb}*{box-sizing:border-box}body{margin:0;backgroun
 min-height:100vh}header{padding:20px 24px;border-bottom:1px solid #254452;display:flex;align-items:center;
 justify-content:space-between;gap:20px}h1{font-size:19px;letter-spacing:.12em;margin:0}small,.muted{color:#839fab}
 header small{display:block;letter-spacing:.11em;margin-bottom:6px;color:#50b5af}
+#business-view{display:inline-block;margin-top:6px;font-size:12px;color:#7fd6d2}
 main#workspace{position:relative;display:flex;flex-direction:column;gap:12px;padding:12px;
 width:100%;min-height:520px;overflow:visible}
 #workspace>section{position:relative;min-width:0;min-height:120px;box-sizing:border-box;overflow:auto;
@@ -344,7 +376,7 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 @media(prefers-reduced-motion:reduce){#workspace>section{transition:none!important}}
 </style></head>
 <body><header><div><small>ONTOLOGYEX // LOCAL OBSERVABILITY</small>
-<h1>BUSINESS CONTROL ROOM</h1></div><div><select id="lens" aria-label="Graph lens">
+<h1>BUSINESS CONTROL ROOM</h1><a id="business-view" href="/business">Business operating picture →</a></div><div><select id="lens" aria-label="Graph lens">
 <option value="all">ALL SYSTEMS</option><option value="api">API ROUTES</option>
 <option value="database">DATABASE</option><option value="services">SERVICES</option>
 </select> <input id="graph-search" type="search" aria-label="Find graph node" maxlength="90" placeholder="Find node…"/>
@@ -820,11 +852,73 @@ class RemoteInventory:
 def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
           port: int, github: str | None = None, github_refresh_seconds: int = 300,
           github_client=None, snapshot_dir: Path | None = None,
-          view_engine: str = "python") -> None:
+          view_engine: str = "python", skills: list[Path] | None = None,
+          links: Path | None = None, events: Path | None = None,
+          allow_link_decisions: bool = False, decision_model: bool = False) -> None:
     check(0 <= port <= 65535, "invalid port")
     check(view_engine in ("python", "rust"), "unsupported graph view backend")
     native_view = native_view_bridge.NativeView() if view_engine == "rust" else None
     rules = read_thresholds(thresholds)
+    skills = list(skills or [])
+    # Fail at startup on a tampered skill or malformed links; re-verified per request.
+    if links is not None and links.exists():
+        business_view.read_link_document(links)
+    check(len(skills) <= business_view.MAX_SKILLS, "too many skills")
+    check(not allow_link_decisions or (links is not None and skills),
+          "link decisions need --links and at least one --skill")
+    # Per-process secret for the opt-in write route; served only inside /business.
+    write_token = secrets.token_urlsafe(32) if allow_link_decisions else None
+    # Opt-in decision model (Jev or Clef): proposals and routing only, never decisions.
+    decider = decide.DecisionClient() if decision_model else None
+    decision_lock = Lock()
+    if repo is not None:
+        base_command = ["python", "ontology-extraction/scripts/link_suggest.py", "{decision}",
+                        "--repo", str(repo), *[x for path in skills for x in ("--skill", str(path))],
+                        "--links", str(links) if links is not None else "LINKS.json",
+                        *(["--model-assist"] if decision_model else [])]
+    else:
+        base_command = None
+
+    def feed_status() -> dict:
+        """Summary of feeds.py's status file beside the observations file, if any."""
+        path = observations.with_suffix(".status.json") if observations is not None else None
+        if path is None or not path.is_file() or path.is_symlink():
+            return {"status": "NO_LIVE_FEEDS"}
+        try:
+            data = parse_json(safe_read(path, 262144))
+            rows = data["feeds"]
+            check(type(rows) is dict and len(rows) <= 1024, "invalid feed status")
+            failing = sorted(name for name, row in rows.items()
+                             if type(row) is dict and row.get("ok") is False)[:20]
+            return {"status": "LIVE_FEEDS", "feeds": len(rows), "failing": failing,
+                    "generated_at": str(data.get("generated_at", ""))[:40],
+                    "otlp_listening": data.get("otlp_listening") if type(data.get("otlp_listening")) is str else None}
+        except (RoomError, OSError, KeyError, TypeError, ValueError):
+            return {"status": "FEED_STATUS_UNREADABLE"}
+
+    def business(full: dict) -> dict:
+        link_rows, rejected = ((business_view.read_link_document(links)
+                                if links is not None and links.exists() else ([], [])))
+        result = business_view.project(skills, full, link_rows, events)
+        suggestions = link_suggest.suggest(skills, full, link_rows, rejected, native_view, decider)
+        if decider is not None:
+            try:
+                rows = [row for path in skills for row in evidence_grade.triage(path, decider)["rows"]]
+                result = business_view.attach_triage(result, rows)
+            except decide.DecisionError as exc:
+                result["triage_error"] = str(exc)[:300]
+        result["decision_model"] = decide.describe(decider)
+        for row in suggestions["suggestions"]:
+            row["confirm_command"] = (" ".join(shlex.quote(part) for part in [
+                *[x.format(decision="confirm") for x in base_command],
+                "--id", row["id"], "--by", "YOUR_NAME"]) if base_command else None)
+        result["link_suggestions"] = suggestions
+        result["link_decisions"] = ("ENABLED_LOCAL_TOKEN" if write_token else
+                                    "READ_ONLY_USE_CLI")
+        result["feeds"] = feed_status()
+        result["discovery_freshness"] = full["discovery_freshness"]
+        result["discovery_scanned_at"] = full["discovery_scanned_at"]
+        return result
     check(60 <= github_refresh_seconds <= 3600, "invalid GitHub refresh interval")
     check((repo is None) != (github is None), "configure exactly one source")
     if github:
@@ -897,6 +991,43 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 payload, mime, code = b"Request rejected", "text/plain", 414
             elif route.path == "/" and not route.query:
                 payload, mime, code = PAGE.encode("utf-8"), "text/html; charset=utf-8", 200
+            elif route.path == "/business" and not route.query:
+                page = (Path(__file__).resolve().parent / "operating_picture.html").read_text(encoding="utf-8")
+                page = page.replace('<meta name="ontologyex-write-token" content=""/>',
+                                    f'<meta name="ontologyex-write-token" content="{write_token}"/>'
+                                    if write_token else '<meta name="ontologyex-write-token" content=""/>')
+                payload, mime, code = page.encode("utf-8"), "text/html; charset=utf-8", 200
+            elif route.path == "/api/ask":
+                mime = "application/json; charset=utf-8"
+                try:
+                    params = parse_qs(route.query, strict_parsing=True, max_num_fields=1)
+                    query = params.get("q", [""])
+                    if set(params) != {"q"} or len(query) != 1 or not 0 < len(query[0]) <= 200 \
+                            or not query[0].isprintable():
+                        raise graph_view_api.ViewError("ask takes one printable q of 1..200 characters")
+                    picture = business(snapshot())
+                    try:
+                        answer = business_view.route_command(picture, query[0], decider)
+                    except decide.DecisionError:
+                        answer = {**business_view.keyword_route(picture, query[0]),
+                                  "router": "keywords (decision model unavailable)"}
+                    payload, code = json.dumps({"kind": "COMMAND_ROUTE", **answer}, sort_keys=True).encode(), 200
+                except (graph_view_api.ViewError, ValueError):
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, DomainError, discover_repo.DiscoveryError,
+                        github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
+            elif route.path == "/api/business":
+                mime = "application/json; charset=utf-8"
+                try:
+                    if route.query:
+                        raise graph_view_api.ViewError("business view takes no parameters")
+                    payload, code = json.dumps(business(snapshot()), sort_keys=True).encode(), 200
+                except graph_view_api.ViewError:
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, DomainError, discover_repo.DiscoveryError,
+                        github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
             elif route.path == "/static/layout_engine.js" and not route.query:
                 payload = (Path(__file__).resolve().parent / "layout_engine.js").read_bytes()
                 mime, code = "application/javascript; charset=utf-8", 200
@@ -967,10 +1098,57 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             self.end_headers()
             self.wfile.write(payload)
 
+        def do_POST(self):
+            """The one write route: an explicit link decision, only when opted in."""
+            host_headers = self.headers.get_all("Host", [])
+            origin = self.headers.get("Origin")
+            route = urlsplit(self.path)
+            if (len(host_headers) != 1 or origin is None or not valid_local_host(
+                    host_headers[0], origin, self.server.server_port)):
+                code, body = 403, {"status": "FORBIDDEN"}
+            elif route.path != "/api/links/decision" or route.query:
+                code, body = 404, {"status": "NOT_FOUND"}
+            elif write_token is None:
+                code, body = 403, {"status": "LINK_DECISIONS_DISABLED"}
+            elif not hmac.compare_digest(self.headers.get("X-OntologyEX-Token", ""), write_token):
+                code, body = 403, {"status": "INVALID_TOKEN"}
+            elif self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
+                code, body = 415, {"status": "JSON_REQUIRED"}
+            else:
+                try:
+                    length = int(self.headers.get("Content-Length", "-1"))
+                    if not 0 < length <= 4096:
+                        raise ValueError("invalid body length")
+                    request = json.loads(self.rfile.read(length),
+                                         object_pairs_hook=no_duplicates)
+                    if type(request) is not dict or set(request) != {"id", "decision", "by", "note"}:
+                        raise ValueError("expected id, decision, by and note")
+                    with decision_lock:
+                        current = business(snapshot())["link_suggestions"]["suggestions"]
+                        match = [x for x in current if x["id"] == request["id"]]
+                        if len(match) != 1:
+                            raise ValueError("no current suggestion has that ID")
+                        match[0].pop("confirm_command", None)
+                        body = link_suggest.decide(links, match[0], request["decision"],
+                                                   request["by"], request["note"])
+                    code = 200
+                except (ValueError, TypeError, KeyError, UnicodeError, RoomError, DomainError):
+                    code, body = 400, {"status": "INVALID_DECISION"}
+                except OSError:
+                    code, body = 503, {"status": "SOURCE_UNAVAILABLE"}
+            payload = json.dumps(body, sort_keys=True).encode()
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
         def log_message(self, *args):
             return  # No user-supplied paths or request logs persisted.
 
-    # No POST, no write operations and no external listener.
+    # No external listener. The only write is the opt-in link decision above.
     try:
         with ThreadingHTTPServer(("127.0.0.1", port), Handler) as server:
             print(f"OntologyEX local control room: http://127.0.0.1:{server.server_port}",
@@ -996,6 +1174,18 @@ def main():
     parser.add_argument("--state-only", action="store_true")
     parser.add_argument("--view-engine", choices=("python", "rust"), default="python",
                         help="read-only projection backend; rust requires compiled ontologyex-view")
+    parser.add_argument("--skill", type=Path, action="append", default=[],
+                        help="compiled domain skill for the business view; repeat for more")
+    parser.add_argument("--links", type=Path, default=None,
+                        help="operator-declared binding-to-component links (JSON)")
+    parser.add_argument("--events", type=Path, default=None,
+                        help="evidence grade events file (see evidence_grade.py)")
+    parser.add_argument("--allow-link-decisions", action="store_true",
+                        help="let the local business page confirm or reject link suggestions")
+    parser.add_argument("--decision-model", action="store_true",
+                        help="use the decision model set by ONTOLOGYEX_DECIDE_* for link routes, "
+                             "review triage, and the command bar (sends binding source, rules, "
+                             "and quotes to it)")
     args = parser.parse_args()
     try:
         if args.repo is not None:
@@ -1013,16 +1203,25 @@ def main():
             result = build_state(topology, read_observations(args.observations),
                                  read_thresholds(args.thresholds))
             result["discovery_source"] = topology.get("source", {"provider": "local"})
+            if args.skill:
+                link_rows, rejected = (business_view.read_link_document(args.links)
+                                       if args.links is not None else ([], []))
+                result["business"] = business_view.project(args.skill, result, link_rows, args.events)
+                result["business"]["link_suggestions"] = link_suggest.suggest(
+                    args.skill, result, link_rows, rejected)
             print(json.dumps(result, sort_keys=True, separators=(",", ":")))
         else:
             serve(args.repo, args.observations, args.thresholds, args.port,
                   github=args.github, github_refresh_seconds=args.github_refresh_seconds,
-                  snapshot_dir=args.snapshot_dir, view_engine=args.view_engine)
+                  snapshot_dir=args.snapshot_dir, view_engine=args.view_engine,
+                  skills=args.skill, links=args.links, events=args.events,
+                  allow_link_decisions=args.allow_link_decisions,
+                  decision_model=args.decision_model)
         return 0
     except (OSError, RoomError, discover_repo.DiscoveryError,
             github_discovery.GitHubDiscoveryError, snapshot_store.SnapshotError,
-            native_view_bridge.NativeViewError, ValueError, TypeError,
-            RecursionError) as exc:
+            native_view_bridge.NativeViewError, DomainError, decide.DecisionError, ValueError,
+            TypeError, RecursionError) as exc:
         print(json.dumps({"status": "ERROR", "reason": str(exc)}))
         return 1
 

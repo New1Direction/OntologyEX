@@ -19,13 +19,14 @@ MAX_OUTPUT_BYTES = 8 * 1024 * 1024
 MAX_BINARY_BYTES = 64 * 1024 * 1024
 MAX_CONCURRENT = 2
 TIMEOUT_SECONDS = 5.0
-COMMANDS = frozenset({"summary", "page", "neighborhood", "node", "incident"})
+COMMANDS = frozenset({"summary", "page", "neighborhood", "node", "incident", "suggest-links"})
 KINDS = {
     "summary": "LOCAL_CONTROL_ROOM_SUMMARY",
     "page": "BOUNDED_GRAPH_PAGE",
     "neighborhood": "BOUNDED_GRAPH_NEIGHBORHOOD",
     "node": "BOUNDED_NODE_DETAIL",
     "incident": "UNATTESTED_INCIDENT_INVESTIGATION",
+    "suggest-links": "LINK_SUGGESTIONS",
 }
 
 
@@ -66,7 +67,7 @@ class NativeView:
         if command not in COMMANDS or any(type(arg) is not str for arg in args):
             raise NativeViewError("invalid native view invocation")
         expected_args = {"summary": 0, "page": 3, "neighborhood": 2,
-                         "node": 1, "incident": 1}
+                         "node": 1, "incident": 1, "suggest-links": 0}
         if len(args) != expected_args[command] or any(
             len(arg) > 1024 or (not arg and (command != "page" or i != 1))
             for i, arg in enumerate(args)
@@ -147,6 +148,12 @@ class NativeView:
                     or result.get("observation_semantics") !=
                       "SOURCE_REPORTED_NOT_AUTHENTICATED_OR_VERIFIED"):
                 raise NativeViewError("native incident safety contract violated")
+        elif command == "suggest-links":
+            rows = result.get("suggestions")
+            if (type(rows) is not list or len(rows) > 5 * len(full.get("bindings", []))
+                    or result.get("auto_applied") != 0
+                    or any(type(r) is not dict or r.get("status") != "PROPOSED" for r in rows)):
+                raise NativeViewError("native suggestions violate the confirmation contract")
         elif "nodes" in result or "edges" in result or "source_evidence" in result:
             raise NativeViewError("native summary contains full graph")
         return result

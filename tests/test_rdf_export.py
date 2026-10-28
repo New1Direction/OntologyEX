@@ -1,13 +1,26 @@
 """N-Triples serialization boundary regression for the OntologyEX graph export."""
 import copy
+import importlib.util
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "ontology-extraction/scripts"))
+import domain_skill as ds
 import rdf_export as rdf
 from policy_check import DomainError
+
+spec = importlib.util.spec_from_file_location(
+    "ontologyex_rdf_payments_fixture", ROOT / "examples/payments-domain/demo.py")
+demo = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = demo
+spec.loader.exec_module(demo)
+spec = importlib.util.spec_from_file_location(
+    "ontologyex_sparql_runner", ROOT / "examples/sparql/run.py")
+runner = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(runner)
 
 
 def example():
@@ -114,6 +127,109 @@ class RDFInteropTests(unittest.TestCase):
         graph = example()
         graph["kind"] = "CROSS_SCOPE_DECLARATION_VIEW"
         self.assertIn("urn:ontologyex:", rdf.serialize(graph))
+
+
+def contract_graph():
+    graph = example()
+    graph["nodes"].append({"id": "goal-1:task:Deploy", "kind": "task", "local_id": "Deploy"})
+    return graph
+
+
+def contract_model():
+    return {"root_goal_id": "goal-1",
+            "rules": [{"id": "needs-approval", "task": "Deploy", "status": "inferred",
+                       "statement": "A deploy must have one approval.",
+                       "evidence": ["E-code"], "check": None}],
+            "unknowns": [{"id": "who-approves", "task": "Deploy",
+                          "statement": "The sources do not name the approver.", "evidence": []}],
+            "conflicts": []}
+
+
+class ContractExportTests(unittest.TestCase):
+    def test_rules_and_unknowns_are_exported_with_evidence(self):
+        data = rdf.serialize(rdf.with_contract(contract_graph(), contract_model()))
+        rule = "<urn:ontologyex:v1:node:goal-1%3Arule%3Aneeds-approval>"
+        self.assertIn(f"{rule} <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> "
+                      "<urn:ontologyex:v1:kind:rule> .", data)
+        self.assertIn(f'{rule} <urn:ontologyex:v1:attr:status> "inferred" .', data)
+        self.assertIn(f'{rule} <urn:ontologyex:v1:attr:executable> '
+                      '"false"^^<http://www.w3.org/2001/XMLSchema#boolean> .', data)
+        self.assertIn(f"{rule} <http://www.w3.org/ns/prov#wasDerivedFrom> "
+                      "<urn:ontologyex:v1:node:goal-1%3Aevidence%3AE-code> .", data)
+        self.assertIn("<urn:ontologyex:v1:node:goal-1%3Aunknown%3Awho-approves> "
+                      "<urn:ontologyex:v1:edge:CONCERNS_TASK> "
+                      "<urn:ontologyex:v1:node:goal-1%3Atask%3ADeploy> .", data)
+        self.assertEqual(data.splitlines(), sorted(data.splitlines()))
+
+    def test_executable_rule_is_marked(self):
+        model = contract_model()
+        model["rules"][0].update(status="observed", check={"left": "a", "op": "eq", "right": {"value": 1}})
+        data = rdf.serialize(rdf.with_contract(contract_graph(), model))
+        self.assertIn('"true"^^<http://www.w3.org/2001/XMLSchema#boolean>', data)
+
+    def test_missing_task_or_evidence_fails_closed(self):
+        for field, value in (("task", "Absent"), ("evidence", ["E-absent"])):
+            model = contract_model()
+            model["rules"][0][field] = value
+            with self.assertRaises(DomainError):
+                rdf.serialize(rdf.with_contract(contract_graph(), model))
+
+    def test_contract_id_cannot_shadow_a_node(self):
+        model = contract_model()
+        model["unknowns"][0]["id"] = "needs-approval"
+        model["unknowns"].append(copy.deepcopy(model["unknowns"][0]))
+        with self.assertRaises(DomainError):
+            rdf.with_contract(contract_graph(), model)
+
+    def test_rule_without_status_rejected(self):
+        model = contract_model()
+        model["rules"][0]["status"] = "approved"
+        with self.assertRaises(DomainError):
+            rdf.serialize(rdf.with_contract(contract_graph(), model))
+
+
+class CompiledSkillExportTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.temp = tempfile.TemporaryDirectory()
+        root = Path(cls.temp.name)
+        source = ROOT / "examples/payments-domain/source"
+        workspace = root / "workspace"
+        cls.skill = root / demo.NAME
+        ds.prepare(source, ["requirements.md", "payments.py"], workspace, demo.NAME, demo.GOAL)
+        demo.populate(workspace)
+        ds.build(workspace, cls.skill, source)
+        cls.graph = root / "graph.nt"
+        cls.graph.write_text(rdf.export([cls.skill]), encoding="utf-8")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.temp.cleanup()
+
+    def test_compiled_contract_reaches_rdf(self):
+        data = self.graph.read_text(encoding="utf-8")
+        self.assertEqual(data.count("<urn:ontologyex:v1:kind:rule> ."), 7)
+        self.assertEqual(data.count("<urn:ontologyex:v1:kind:unknown> ."), 1)
+
+    @unittest.skipUnless(importlib.util.find_spec("sparq"), "optional sparq-rdf not installed")
+    def test_example_queries_run_under_sparq(self):
+        queries = ROOT / "examples/sparql"
+
+        def rows(name):
+            return runner.run(self.graph, queries / name)
+
+        self.assertEqual(rows("review-blockers.rq"), [{
+            "task": "ApproveException", "item": "exception-authority", "reason": "unknown",
+            "statement": "The supplied requirements do not specify who can approve an exception."}])
+        self.assertEqual(rows("rules-without-requirement.rq"), [])
+        kinds = rows("rule-evidence-kinds.rq")
+        self.assertEqual(len(kinds), 7)
+        self.assertTrue(all(row["kind_list"] == "requirement" for row in kinds))
+        self.assertEqual({row["item"] for row in rows("depends-on-file.rq")},
+                         {"payments.Payment", "payments.apply_refund"})
+        context = rows("task-context.rq")
+        self.assertIn({"task": "IssueRefund", "role": "produces", "name": "Refund"}, context)
+        self.assertIn({"task": "IssueRefund", "role": "relation", "name": "requests_refund"}, context)
 
 
 if __name__ == "__main__":

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Export verified OntologyEX declared graphs as deterministic RDF N-Triples.
 
-A standards-based interchange format, NOT independently checked ontology
-entailment, SHACL conformance, approval or operational telemetry.
+Declarations, evidence and the contract's rules, unknowns and conflicts are
+exported. A standards-based interchange format, NOT independently checked
+ontology entailment, SHACL conformance, approval or operational telemetry.
 """
 from __future__ import annotations
 
@@ -12,18 +13,25 @@ from pathlib import Path
 from urllib.parse import quote
 
 import graph_view
-from policy_check import DomainError, require
+from policy_check import (
+    DomainError, ID, MAX_TOTAL, parse_json, require, safe_file, verify_bundle,
+)
 
 RDF_TYPE = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>"
 RDFS_LABEL = "<http://www.w3.org/2000/01/rdf-schema#label>"
 PROV_SOURCE = "<http://www.w3.org/ns/prov#wasDerivedFrom>"
 XSD_INTEGER = "<http://www.w3.org/2001/XMLSchema#integer>"
+XSD_BOOLEAN = "<http://www.w3.org/2001/XMLSchema#boolean>"
 BASE = "urn:ontologyex:v1:"
-KINDS = frozenset(["evidence", *(row[2] for row in graph_view.SPECS)])
+# Contract collection -> node kind. Rules, unknowns and conflicts are authored
+# interpretations bound to evidence, not entailed facts or permissions.
+CONTRACT = (("rules", "rule"), ("unknowns", "unknown"), ("conflicts", "conflict"))
+CONTRACT_KINDS = frozenset(kind for _, kind in CONTRACT)
+KINDS = frozenset(["evidence", *(row[2] for row in graph_view.SPECS), *CONTRACT_KINDS])
 RELATIONS = frozenset({
     "SUPPORTED_BY", "ANCHORED_TO", "IMPLEMENTS", "APPLIES_TO",
     "DOMAIN", "RANGE", "CONSUMES", "PRODUCES", "ACTOR_ROLE",
-    "DECOMPOSES_TO", "BINDS_TO", "USED_BY_TASK",
+    "DECOMPOSES_TO", "BINDS_TO", "USED_BY_TASK", "CONCERNS_TASK",
 })
 MAX_TRIPLES = 100000
 
@@ -106,6 +114,16 @@ def serialize(graph: dict) -> str:
                 require(node[field] > 0, "invalid line number")
                 add(subject, iri("attr", field),
                     f'{literal(str(node[field]))}^^{XSD_INTEGER}')
+        elif node["kind"] in CONTRACT_KINDS:
+            require(type(node.get("statement")) is str and node["statement"],
+                    "invalid contract statement")
+            add(subject, iri("attr", "statement"), literal(node["statement"]))
+            if node["kind"] == "rule":
+                require(node.get("status") in ("observed", "inferred") and
+                        type(node.get("executable")) is bool, "invalid rule metadata")
+                add(subject, iri("attr", "status"), literal(node["status"]))
+                add(subject, iri("attr", "executable"),
+                    f'{literal(str(node["executable"]).lower())}^^{XSD_BOOLEAN}')
 
     for edge in edges:
         require(type(edge) is dict and edge.get("relation") in RELATIONS and
@@ -122,15 +140,70 @@ def serialize(graph: dict) -> str:
     return "\n".join(sorted(statements)) + ("\n" if statements else "")
 
 
+def with_contract(graph: dict, model: dict) -> dict:
+    """Add one verified model's rules, unknowns and conflicts to its projection.
+
+    graph_view stays the declaration projection shared with the native kernel;
+    contract nodes are added only for RDF. Missing targets fail closed.
+    """
+    scope = model.get("root_goal_id")
+    require(type(scope) is str and ID.fullmatch(scope), "invalid root goal id")
+    nodes = {node["id"]: node for node in graph["nodes"]}
+    edges = list(graph["edges"])
+    unresolved = list(graph["unresolved"])
+
+    def link(source: str, relation: str, kind: str, local: object) -> None:
+        require(type(local) is str and ID.fullmatch(local), f"invalid reference {relation}")
+        target = graph_view.stable_id(scope, kind, local)
+        if target not in nodes:
+            unresolved.append({"source": source, "relation": relation,
+                               "missing_target": target, "status": "UNRESOLVED_REFERENCE"})
+            return
+        edges.append({"id": f"{source}|{relation}|{target}", "source": source,
+                      "relation": relation, "target": target})
+
+    for collection, kind in CONTRACT:
+        items = model.get(collection)
+        require(type(items) is list and len(items) <= 256, f"invalid contract {collection}")
+        for item in items:
+            require(type(item) is dict and type(item.get("id")) is str and
+                    ID.fullmatch(item["id"]) and type(item.get("evidence")) is list and
+                    len(item["evidence"]) <= 256, f"invalid contract {kind}")
+            uid = graph_view.stable_id(scope, kind, item["id"])
+            require(uid not in nodes, f"duplicate {kind} node: {item['id']}")
+            entry = {"id": uid, "kind": kind, "local_id": item["id"],
+                     "statement": item.get("statement")}
+            if kind == "rule":
+                entry.update(status=item.get("status"), executable=item.get("check") is not None)
+            nodes[uid] = entry
+            link(uid, "CONCERNS_TASK", "task", item.get("task"))
+            for ref in item["evidence"]:
+                link(uid, "SUPPORTED_BY", "evidence", ref)
+
+    require(len(nodes) <= graph_view.MAX_NODES and len(edges) <= graph_view.MAX_EDGES,
+            "graph budget exceeded")
+    return {**graph, "nodes": sorted(nodes.values(), key=lambda x: x["id"]),
+            "edges": sorted(edges, key=lambda x: x["id"]),
+            "unresolved": unresolved}
+
+
+def export(skills: list[Path]) -> str:
+    """Verified declarations plus contract items for one or more distinct scopes."""
+    graph = (graph_view.project(skills[0]) if len(skills) == 1
+             else graph_view.compose(skills))
+    for skill in skills:
+        verify_bundle(skill)
+        graph = with_contract(graph, parse_json(safe_file(skill, "model.json", MAX_TOTAL)))
+    return serialize(graph)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("skill", type=Path, nargs="+",
                         help="one verified skill or distinct scopes to compose")
     args = parser.parse_args()
     try:
-        graph = (graph_view.project(args.skill[0]) if len(args.skill) == 1
-                 else graph_view.compose(args.skill))
-        result = serialize(graph)
+        result = export(args.skill)
         sys.stdout.write(result)
         return 0
     except (DomainError, OSError, ValueError, KeyError, TypeError, RecursionError) as exc:

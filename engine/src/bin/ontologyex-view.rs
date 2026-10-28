@@ -1,7 +1,7 @@
 //! Offline Rust read-only graph view protocol, bounded JSON on stdin.
 //! No listener, connector, file access, execution, credentials or tenant auth.
 //! The Python control room is unchanged until parity and performance review.
-use ontologyex_core::{incident, view};
+use ontologyex_core::{business, incident, view};
 use serde_json::Value;
 use std::env;
 use std::io::{self, Read};
@@ -39,6 +39,8 @@ fn run() -> Result<(), String> {
                 .ok_or("incident requires observation rows")?;
             incident::project(graph, rows, &args[2])?
         },
+        "suggest-links" if args.len() == 2 => business::suggest_from(&full)?,
+        "conformance" if args.len() == 2 => business::conformance_table(),
         _ => return Err("unsupported view command or argument count".into()),
     };
     println!("{}",serde_json::to_string(&output)
