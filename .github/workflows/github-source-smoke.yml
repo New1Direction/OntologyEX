@@ -41,6 +41,13 @@ jobs:
           assert x['source']['integrity']=='COMMIT_PINNED_BLOBS_VALIDATED'
           assert x['coverage']['candidate_manifests']>=3
           assert x['coverage']['files_with_evidence']>=3
+          assert x['coverage']['api_route_paths_found']>=100
+          assert x['coverage']['db_schema_candidates_found']>=1
+          assert x['coverage']['api_route_source_files_read']==0
+          assert x['coverage']['schema_source_files_read']==1
+          assert any(n['kind']=='api_route' for n in x['nodes'])
+          assert any(n['kind']=='declared_db_table' and
+                     n['state']=='SOURCE_SYNTAX_CANDIDATE' for n in x['nodes'])
           assert x['runtime_health']=='UNKNOWN'
           assert x['execution_authorized'] is False
           assert all(e['git_blob_sha'] for e in x['source_evidence'])
