@@ -200,9 +200,12 @@ def main():
             assert two["webToApi"] and two["apiToDb"],two
             assert two["nodes"]<=90 and two["edges"]<=300
             assert two["scope"]=="BIDIRECTIONAL_GRAPH_NAVIGATION_NOT_CAUSAL_IMPACT"
+            arrows=driver.execute_script(
+                "return document.querySelectorAll('#svg path[marker-end]').length")
+            assert arrows>=2,arrows
             driver.find_element("id","graph-back").click()
             WebDriverWait(driver,10).until(lambda d:d.execute_script(
-                "return state?.kind==='BOUNDED_GRAPH_PAGE' && !document.getElementById('graph-back').disabled===false"))
+                "return state?.kind==='BOUNDED_GRAPH_PAGE' && document.getElementById('graph-back').disabled"))
             print("CHROME 1/2-hop cross-page dependency navigation, direction, safety and back verified",flush=True)
             driver.find_element("id", "graph-focus").click()
             assert driver.find_element("id", "graph-focus").get_attribute("aria-pressed") == "true"
