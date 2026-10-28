@@ -327,6 +327,7 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 #graph-search{width:min(180px,42vw);border-radius:6px;background:#0f2530;border:1px solid #386372;color:#d5e9eb;padding:8px}
 #lens{border-radius:6px;background:#0f2530;color:#d5e9eb;border:1px solid #386372;padding:7px}
 #graph-coverage{font-size:11px;color:#a9c7ce;margin:0;padding:6px}
+#graph-legend{font-size:10px;color:#8ea9b3;padding:1px 8px}
 #graph-pager{display:flex;gap:8px;padding:2px 8px}
 #graph-pager button:disabled{opacity:.42;cursor:default}
 #graph-scope{font-size:11px;color:#8fa9b5;min-height:17px;padding:0 8px}
@@ -348,7 +349,9 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 <input id="graph-share" type="range" min="48" max="76" value="63" aria-label="Graph area width"/>
 <button id="graph-focus" type="button" aria-pressed="false">Focus graph</button> <button id="map-business" type="button">Map My Business</button><div id="mode" class="muted">Connecting to local source...</div><small id="updated"></small></div></header>
 <main id="workspace" aria-label="Adaptive business workspace">
-<section id="map" aria-label="Declared component topology"><p id="graph-coverage" aria-live="polite"></p><div id="graph-pager">
+<section id="map" aria-label="Declared component topology"><p id="graph-coverage" aria-live="polite"></p><div id="graph-legend" aria-label="Graph edge legend">
+<text>Amber arrows: declared dependency. Teal dashed arrows: other source relationships. Direction is source → target, not runtime causation.</text></div>
+<div id="graph-pager">
 <button id="graph-back" type="button" disabled>Back to list</button>
 <label for="graph-depth">Hops</label>
 <select id="graph-depth" aria-label="Neighborhood depth"><option value="1">1 hop</option><option value="2">2 hops</option></select>
@@ -546,11 +549,15 @@ function draw(s){
  for(const e of s.edges){const a=pos[e.source],b=pos[e.target];if(!a||!b)continue;
  const x1=a.x+nodeW,y1=a.y+nodeH/2,x2=b.x,y2=b.y+nodeH/2;
  const d="M"+x1+","+y1+" C"+(x1+38)+","+y1+" "+(x2-38)+","+y2+" "+x2+","+y2;
- svg.append(el("path",{d,stroke:e.relation==="DEPENDS_ON"?"#e5b66f":"#2e8297",
+ const path=el("path",{d,stroke:e.relation==="DEPENDS_ON"?"#e5b66f":"#2e8297",
  "stroke-opacity":.65,"stroke-width":e.relation==="DEPENDS_ON"?2:1.35,
  "stroke-dasharray":e.relation==="DEPENDS_ON"?"":"5 6",
  "marker-end":e.relation==="DEPENDS_ON"?"url(#dependency-arrow)":"url(#source-arrow)",
- fill:"none"}))}
+ fill:"none"});
+ path.append(el("title",{},e.relation+" · "+e.source+" → "+e.target+
+   (e.source_line?" · source line "+e.source_line:"")+
+   " · source relationship, not observed runtime execution"));
+ svg.append(path)}
  for(const n of visible){const p=pos[n.id],g=el("g",{role:"button",tabindex:0,
  "aria-label":n.label+" "+n.status,style:"cursor:pointer"});
  const active=selected===n.id,stroke=active?"#d6f6ef":color[n.status];
