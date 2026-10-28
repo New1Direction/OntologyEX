@@ -25,6 +25,7 @@ import business_view
 import decide
 import discover_repo
 import evidence_grade
+import decisions
 import dependency_suggest
 import link_suggest
 import github_discovery
@@ -932,9 +933,19 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         result["link_suggestions"] = suggestions
         result["link_decisions"] = ("ENABLED_LOCAL_TOKEN" if write_token and links is not None and skills else
                                     "READ_ONLY_USE_CLI")
+        labels = {n["id"]: n["label"] for n in full["nodes"]}
+        result["link_decided"] = [
+            {**row, "component_label": labels.get(row["component"], row["component"])}
+            for row in decisions.decided(link_rows, rejected, link_suggest.link_key)]
+        dep_confirmed, dep_rejected = dependency_documents()
+        result["dependency_decided"] = [
+            {k: v for k, v in row.items() if k != "evidence"} | {
+                "source_label": labels.get(row["source"], row["source"]),
+                "target_label": labels.get(row["target"], row["target"])}
+            for row in decisions.decided(dep_confirmed, dep_rejected, dependency_suggest.dependency_key)]
         try:
             observed = dependency_suggest.suggest(full, dependency_suggest.read_calls(calls_path),
-                                                  *dependency_documents())
+                                                  dep_confirmed, dep_rejected)
         except ValueError as exc:  # a calls file the feeds are rewriting, or one edited by hand
             observed = {"status": "CALLS_FILE_UNREADABLE", "detail": str(exc)[:200], "suggestions": [],
                         "corroborated": [], "gaps": [], "rejected_not_shown": 0, "execution_authorized": False}
@@ -1153,24 +1164,32 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             else:
                 try:
                     length = int(self.headers.get("Content-Length", "-1"))
-                    if not 0 < length <= 4096:
+                    if not 0 < length <= 8192:
                         raise ValueError("invalid body length")
                     request = json.loads(self.rfile.read(length),
                                          object_pairs_hook=no_duplicates)
-                    if type(request) is not dict or set(request) != {"id", "decision", "by", "note"}:
-                        raise ValueError("expected id, decision, by and note")
+                    # One suggestion ("id") or a batch ("ids"); undo takes decided IDs.
+                    if type(request) is not dict or set(request) not in (
+                            {"id", "decision", "by", "note"}, {"ids", "decision", "by", "note"}):
+                        raise ValueError("expected id or ids, decision, by and note")
+                    ids = [request["id"]] if "id" in request else request["ids"]
+                    if (type(ids) is not list or not 0 < len(ids) <= decisions.MAX_BATCH
+                            or not all(type(i) is str for i in ids)
+                            or request["decision"] not in ("confirm", "reject", "undo")):
+                        raise ValueError("invalid IDs or decision")
                     links_route = route.path == "/api/links/decision"
+                    apply = link_suggest.apply_decisions if links_route else dependency_suggest.apply_decisions
+                    target = links if links_route else dependencies
                     with decision_lock:
-                        current = business(snapshot())["link_suggestions" if links_route else
-                                                        "dependency_suggestions"]["suggestions"]
-                        match = [x for x in current if x["id"] == request["id"]]
-                        if len(match) != 1:
-                            raise ValueError("no current suggestion has that ID")
-                        match[0].pop("confirm_command", None)
-                        body = (link_suggest.decide(links, match[0], request["decision"],
-                                                    request["by"], request["note"]) if links_route else
-                                dependency_suggest.decide(dependencies, match[0], request["decision"],
-                                                          request["by"], request["note"]))
+                        if request["decision"] == "undo":
+                            body = apply(target, request["by"], request["note"], undo=ids)
+                        else:
+                            current = {x["id"]: x for x in business(snapshot())[
+                                "link_suggestions" if links_route else "dependency_suggestions"]["suggestions"]}
+                            if not all(i in current for i in ids):
+                                raise ValueError("no current suggestion has that ID")
+                            chosen = [current[i] for i in dict.fromkeys(ids)]
+                            body = apply(target, request["by"], request["note"], **{request["decision"]: chosen})
                     code = 200
                 except (ValueError, TypeError, KeyError, UnicodeError, RoomError, DomainError):
                     code, body = 400, {"status": "INVALID_DECISION"}

@@ -78,22 +78,37 @@ python ontology-extraction/scripts/link_suggest.py confirm --repo REPO --skill S
   --id SUGGESTION_ID --by your-name
 python ontology-extraction/scripts/link_suggest.py reject  --repo REPO --skill SKILL --links links.json \
   --id SUGGESTION_ID --by your-name --note "Payment lives in ledger"
+python ontology-extraction/scripts/link_suggest.py confirm --repo REPO --skill SKILL --links links.json \
+  --all-strong --by your-name                 # or --id A --id B ... for several at once
+python ontology-extraction/scripts/link_suggest.py undo    --repo REPO --skill SKILL --links links.json \
+  --id DECIDED_ID --by your-name
 ```
 
-A confirm appends to `links`; a reject appends to `rejected`. Writes are atomic,
-append-only, and idempotent, and a pair can never be both confirmed and rejected.
-`--by` is recorded, not verified.
+A confirm adds to `links`; a reject adds to `rejected`; a pair can never be both.
+Several decisions at once are one atomic write: all of them land, or none do (an
+unknown ID, or a file someone else changed meanwhile, refuses the whole batch).
+Deciding an already decided pair changes nothing. `undo` removes a decided row, so
+its suggestion comes back; `suggest` lists the decided rows with the ID that undoes
+each (the same ID the suggestion had). Every change is also appended to
+`links.history.jsonl` beside the links file: what, who, and when. `--by` is
+recorded, not verified. `dependency_suggest.py` takes the same `confirm`, `reject`,
+`undo`, `--all-strong`, and repeated `--id`.
 
 In the page, **Suggested links** lists each suggestion with its signals. By default
 the server stays read-only and each card has a **Copy confirm command** button.
 Start the control room with `--allow-link-decisions` (and `--links`) to get
-**Confirm link** and **Reject** buttons. That enables exactly one write route,
-`POST /api/links/decision`, which requires:
+**Confirm link** and **Reject** buttons, checkboxes with **Select all** and **Select
+STRONG**, **Confirm/Reject N selected**, an **Undo** for the last action, and a
+**Decided** list with an Undo per row. That enables the write route
+`POST /api/links/decision` (and `POST /api/dependencies/decision` with
+`--dependencies`), which requires:
 
 - a same-origin loopback `Origin` header (requests without one are refused),
 - the per-process token that is embedded only in the `/business` page,
-- a JSON body of exactly `id`, `decision`, `by`, and `note`, at most 4 KB,
-- an `id` that matches a suggestion in the current state.
+- a JSON body of exactly `ids` (1 to 100; or one `id`), `decision` (`confirm`,
+  `reject`, or `undo`), `by`, and `note`, at most 8 KB,
+- for confirm and reject, IDs that all match suggestions in the current state; for
+  undo, IDs that all match decided rows.
 
 `python examples/operating-picture/demo.py --serve --start-unlinked` starts the
 demo with no links so you can confirm the suggestions yourself.

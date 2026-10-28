@@ -14,6 +14,7 @@ on:
       - 'ontology-extraction/scripts/evidence_grade.py'
       - 'ontology-extraction/scripts/link_suggest.py'
       - 'ontology-extraction/scripts/dependency_suggest.py'
+      - 'ontology-extraction/scripts/decisions.py'
       - 'ontology-extraction/scripts/feeds.py'
       - 'proofs/bend/**'
       - 'tests/conformance.py'

@@ -21,8 +21,8 @@ import argparse
 import json
 from pathlib import Path
 
+import decisions
 import feeds
-import link_suggest
 from policy_check import DomainError, MAX_TOTAL, canonical, digest, parse_json, require, safe_file
 
 DEPENDENCY_KIND = "ONTOLOGYEX_DEPENDENCIES"
@@ -80,7 +80,7 @@ def strength(calls: int) -> str:
 
 
 def suggestion_id(source: str, target: str) -> str:
-    return digest(canonical(["depends_on", source, target]))[:24]
+    return decisions.decision_id("depends_on", source, target)
 
 
 def suggest(state: dict, calls: list[dict] | None, confirmed: list[dict], rejected: list[dict]) -> dict:
@@ -161,34 +161,29 @@ def with_confirmed(topology: dict, confirmed: list[dict], source_name: str) -> d
     return {**topology, "edges": edges, "source_evidence": evidence, "gaps": gaps}
 
 
+def dependency_key(row: dict) -> tuple[str, str, str]:
+    return ("depends_on", row["source"], row["target"])
+
+
+def apply_decisions(path: Path, by: str, note: str = "", confirm: list[dict] = (),
+                    reject: list[dict] = (), undo: list[str] = ()) -> dict:
+    """Confirm or reject proposed dependencies and undo decided ones, in one atomic write."""
+    for suggestion in (*confirm, *reject):
+        require(suggestion.get("status") == "PROPOSED", "only a proposed suggestion can be decided")
+    row = lambda s: {"source": s["source"], "target": s["target"], "evidence": s["evidence"]}
+    return decisions.apply(path, read=read_dependency_document, kind=DEPENDENCY_KIND, confirmed_field="confirmed",
+                           key=dependency_key, name="dependencies", max_rows=MAX_DEPENDENCIES, by=by, note=note,
+                           confirm=[row(s) for s in confirm], reject=[row(s) for s in reject], undo=list(undo))
+
+
 def decide(path: Path, suggestion: dict, decision: str, by: str, note: str = "") -> dict:
-    """Append one confirmed dependency or one rejection. Atomic, append-only, idempotent."""
+    """Append one confirmed dependency or one rejection. Atomic and idempotent."""
     require(decision in ("confirm", "reject"), "decision must be confirm or reject")
-    require(type(by) is str and 0 < len(by.strip()) <= 120, "a decision needs the deciding person")
-    require(type(note) is str and len(note) <= 500, "invalid note")
-    require(suggestion.get("status") == "PROPOSED", "only a proposed suggestion can be decided")
-    target = path.absolute()
-    if target.exists():
-        before = safe_file(target.parent, target.name, MAX_TOTAL)
-        confirmed, rejected = read_dependency_document(target)
-    else:
-        before, confirmed, rejected = None, [], []
-    row = {"source": suggestion["source"], "target": suggestion["target"], "declared_by": by.strip(),
-           "note": note, "evidence": suggestion["evidence"]}
-    if (row["source"], row["target"]) in {(r["source"], r["target"]) for r in confirmed + rejected}:
-        return {"status": "UNCHANGED", "decision": decision, "dependency": row}
-    if decision == "confirm":
-        confirmed = [*confirmed, row]
-    else:
-        rejected = [*rejected, row]
-    require(len(confirmed) <= MAX_DEPENDENCIES and len(rejected) <= MAX_DEPENDENCIES, "too many decisions")
-    document = {"schema_version": 1, "kind": DEPENDENCY_KIND, "confirmed": confirmed}
-    if rejected:
-        document["rejected"] = rejected
-    link_suggest.replace_checked(target, canonical(document), before, "dependencies")
-    read_dependency_document(target)  # the written file must load back
+    result = apply_decisions(path, by, note, **{decision: [suggestion]})
+    if not result["applied"]:
+        return {"status": "UNCHANGED", "decision": decision, "dependency": result["unchanged"][0]}
     return {"status": "CONFIRMED" if decision == "confirm" else "REJECTED",
-            "decision": decision, "dependency": row, "authenticated": False}
+            "decision": decision, "dependency": result["applied"][0]["row"], "authenticated": False}
 
 
 def main() -> int:
@@ -197,28 +192,36 @@ def main() -> int:
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("suggest", "confirm", "reject"):
+    for name in ("suggest", "confirm", "reject", "undo"):
         p = commands.add_parser(name)
         p.add_argument("--repo", type=Path, required=True)
         p.add_argument("--calls", type=Path, required=True,
                        help="the calls file the feeds write beside the observations (OBS.calls.json)")
         p.add_argument("--dependencies", type=Path, required=True)
         if name != "suggest":
-            p.add_argument("--id", required=True, help="suggestion ID from `suggest`")
+            p.add_argument("--id", action="append", default=[],
+                           help="suggestion ID from `suggest` (or, for undo, a decided dependency's ID); repeatable")
             p.add_argument("--by", required=True, help="who decided (not verified)")
             p.add_argument("--note", default="")
+        if name in ("confirm", "reject"):
+            p.add_argument("--all-strong", action="store_true", help="decide every STRONG suggestion")
     args = parser.parse_args()
     try:
         confirmed, rejected = (read_dependency_document(args.dependencies)
                                if args.dependencies.exists() else ([], []))
         topology = with_confirmed(discover_repo.discover(args.repo), confirmed, args.dependencies.name)
         state = control_room.build_state(topology, [], {})
-        require(args.calls.is_file(), f"no calls file at {args.calls}; the feeds write it once traces arrive")
-        result = suggest(state, read_calls(args.calls), confirmed, rejected)
-        if args.command != "suggest":
-            match = [s for s in result["suggestions"] if s["id"] == args.id]
-            require(len(match) == 1, "no current suggestion has that ID; run suggest again")
-            result = decide(args.dependencies, match[0], args.command, args.by, args.note)
+        if args.command == "undo":
+            require(args.id, "pass --id for each decided dependency to undo (see `suggest`'s decided list)")
+            result = apply_decisions(args.dependencies, args.by, args.note, undo=args.id)
+        else:
+            require(args.calls.is_file(), f"no calls file at {args.calls}; the feeds write it once traces arrive")
+            result = suggest(state, read_calls(args.calls), confirmed, rejected)
+            if args.command != "suggest":
+                chosen = decisions.select(result["suggestions"], args.id, args.all_strong)
+                result = apply_decisions(args.dependencies, args.by, args.note, **{args.command: chosen})
+            else:
+                result["decided"] = decisions.decided(confirmed, rejected, dependency_key)
         print(json.dumps(result, sort_keys=True, indent=2))
         return 0
     except (DomainError, feeds.FeedError, control_room.RoomError, discover_repo.DiscoveryError,
