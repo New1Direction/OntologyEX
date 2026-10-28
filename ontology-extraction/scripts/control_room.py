@@ -378,7 +378,7 @@ const PANEL_SPECS=[
  {id:"integrity",minWidth:200,minHeight:82,preferredHeight:92,priority:96,critical:true},
  {id:"details-panel",minWidth:200,minHeight:180,preferredHeight:235,priority:85},
  {id:"coverage-panel",minWidth:200,minHeight:142,preferredHeight:180,priority:62},
- {id:"versions-panel",minWidth:200,minHeight:60,preferredHeight:108,priority:35},
+ {id:"versions-panel",minWidth:200,minHeight:88,preferredHeight:108,priority:35},
  {id:"boundary-panel",minWidth:200,minHeight:104,preferredHeight:124,priority:32}
 ];
 function renderIncidents(s){
