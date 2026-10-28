@@ -228,6 +228,7 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
             "metrics": latest["metrics"] if latest else {},
             "leading_indicators": leading,
             "evidence_id": node.get("evidence_id"),
+            "source_line": node.get("source_line"),
             "potentially_impacted_by": [],
         })
 
@@ -318,7 +319,10 @@ cursor:pointer;padding:9px 14px;font:inherit}button:hover{background:#244956}
 @media(max-width:850px){main{grid-template-columns:1fr}aside{max-height:none}#map{max-height:70vh}}
 </style></head>
 <body><header><div><small>ONTOLOGYEX // LOCAL OBSERVABILITY</small>
-<h1>BUSINESS CONTROL ROOM</h1></div><div><button id="map-business" type="button">Map My Business</button><div id="mode" class="muted">Connecting to local source...</div><small id="updated"></small></div></header>
+<h1>BUSINESS CONTROL ROOM</h1></div><div><select id="lens" aria-label="Graph lens">
+<option value="all">ALL SYSTEMS</option><option value="api">API ROUTES</option>
+<option value="database">DATABASE</option><option value="services">SERVICES</option>
+</select> <button id="map-business" type="button">Map My Business</button><div id="mode" class="muted">Connecting to local source...</div><small id="updated"></small></div></header>
 <main><section id="map" aria-label="Declared component topology"><svg id="svg" role="img" aria-label="Interactive dependency diagram"></svg></section>
 <aside><section><h2>System integrity</h2><div id="counts"></div></section>
 <section><h2>Selected component</h2><div id="details">Select a node to inspect its source and status.</div></section>
@@ -337,7 +341,9 @@ const el=(tag,attrs={},txt)=>{const n=document.createElementNS(NS,tag);for(const
  if(txt!==undefined)n.textContent=String(txt);return n};
 const text=(id,value)=>document.getElementById(id).textContent=String(value);
 let selected=null,state=null;
-function group(n){if(n.kind==="project")return 0;if(n.kind==="declared_service")return 2;if(n.kind==="workflow")return 1;return 1}
+function group(n){if(n.kind==="project")return 0;
+ if(n.kind==="declared_service"||n.kind==="declared_db_table")return 2;
+ return 1}
 function draw(s){
  state=s;text("mode",s.mode+" / "+(s.discovery_freshness||"SOURCE_UNKNOWN"));
  text("updated","As of "+s.generated_at);
@@ -350,6 +356,8 @@ function draw(s){
  "Monitored nodes: "+s.coverage.observed_nodes+"/"+s.nodes.length,
  "Unknown / stale: "+s.coverage.unknown_or_stale_nodes,
  "Unresolved links: "+s.unresolved.length,"Discovery gaps: "+s.gaps.length,
+ "API route paths: "+(s.coverage.api_route_paths_found??"not scanned"),
+ "DB table candidates: "+(s.coverage.db_schema_candidates_found??"not scanned"),
  "Not assessed: "+s.coverage.not_assessed.join(", ")];
  for(const l of lines){const p=document.createElement("p");p.textContent=l;cov.append(p)}
  const versions=document.getElementById("versions");versions.replaceChildren();
@@ -362,7 +370,12 @@ function draw(s){
    versions.append(p)
  }
  const svg=document.getElementById("svg");svg.replaceChildren();
- const cols=[[],[],[]];for(const n of s.nodes)cols[group(n)].push(n);
+ const lens=document.getElementById("lens").value;
+ const relevant=s.nodes.filter(n=>n.kind==="project"||lens==="all"||
+   (lens==="api"&&n.kind==="api_route")||
+   (lens==="database"&&n.kind==="declared_db_table")||
+   (lens==="services"&&n.kind==="declared_service"));
+ const cols=[[],[],[]];for(const n of relevant)cols[group(n)].push(n);
  for(const col of cols)col.sort((a,b)=>a.label.localeCompare(b.label));
  const rowH=76,height=Math.max(550,...cols.map(a=>a.length*rowH+135)),width=1060;
  svg.setAttribute("viewBox","0 0 "+width+" "+height);svg.style.height=height+"px";
@@ -413,7 +426,10 @@ function detail(n,s){
  "CI UPDATED: "+(n.ci_run?.updated_at||"unknown"),
  "","SOURCE FILE: "+(ev?.path||"not captured"),
  "EVIDENCE HASH: "+(ev?.sha256||"unknown"),
- "","No causal root cause is asserted."];
+ "SOURCE LINE: "+(n.source_line??"unknown"),
+ "EVIDENCE TYPE: "+(ev?.source_kind||"unknown"),
+ "","Database table names are source-syntax candidates until verified.",
+ "No causal root cause is asserted."];
  text("details",lines.join("\n"));
 }
 async function refresh(){
@@ -422,6 +438,7 @@ async function refresh(){
  text("updated","Latest fetch failed");}
 }
 let mapStarted=false;
+document.getElementById("lens").addEventListener("change",()=>{if(state)draw(state)});
 document.getElementById("map-business").addEventListener("click",()=>{
  mapStarted=true;refresh();
 });
