@@ -21,6 +21,7 @@ from urllib.parse import quote
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 import discover_repo
+import code_imports
 
 REPOSITORY = re.compile(r"[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}\Z")
 GIT_OID = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
@@ -392,6 +393,8 @@ def enriched_code_surfaces(client, api: str, mapped: dict,
         else:
             mapped["gaps"].append({
                 "source": path, "reason": "SCHEMA_FILE_EXCEEDS_SOURCE_BUDGET"})
+    code_imports.attach(mapped, selected_routes, entries, client, api, commit,
+                        repo_id, read_blob, link_node, require)
     mapped["nodes"].sort(key=lambda n: n["id"])
     mapped["edges"].sort(key=lambda e: (e["source"], e["target"], e["relation"]))
     mapped["source_evidence"].sort(key=lambda e: e["id"])

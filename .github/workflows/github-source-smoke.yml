@@ -45,6 +45,12 @@ jobs:
           assert x['coverage']['db_schema_candidates_found']>=1
           assert x['coverage']['api_route_source_files_read']==0
           assert x['coverage']['schema_source_files_read']==1
+          assert x['coverage']['import_route_files_inspected']>=20
+          assert x['coverage']['import_relationships_found']>=10
+          assert any(e['relation']=='STATIC_IMPORTS' and
+                     e['state']=='SOURCE_SYNTAX_CANDIDATE'
+                     for e in x['edges'])
+          assert x['runtime_health']=='UNKNOWN'
           assert any(n['kind']=='api_route' for n in x['nodes'])
           assert any(n['kind']=='declared_db_table' and
                      n['state']=='SOURCE_SYNTAX_CANDIDATE' for n in x['nodes'])

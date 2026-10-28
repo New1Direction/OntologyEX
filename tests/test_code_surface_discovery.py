@@ -23,10 +23,28 @@ class CodeSurfaceTests(unittest.TestCase):
     def fixture(self):
         mock = fixtures.GitHubFixture()
         base = f"/repos/{mock.repo}"
-        for path in ("app/api/health/route.js", "app/api/orders/[id]/route.ts"):
+        files = {
+            "app/api/health/route.js": (
+                b"import { database } from '../../lib/server.mjs'\n"
+                b"export async function GET() { return Response.json({ ok: true }) }\n"
+            ),
+            "app/api/orders/[id]/route.ts": (
+                b"import { createClaim } from '../../../../src/claim.mjs'\n"
+                b"export async function POST() { return new Response('ok') }\n"
+            ),
+        }
+        for path, raw in files.items():
+            sha, response = fixtures.blob(raw)
             mock.tree.append({
                 "path": path, "type": "blob", "mode": "100644",
-                "size": 80, "sha": "c" * 40,
+                "size": len(raw), "sha": sha,
+            })
+            mock.maps[base + "/git/blobs/" + sha] = response
+        for path in ("app/lib/server.mjs", "src/claim.mjs"):
+            sha, _ = fixtures.blob(path.encode("utf-8"))
+            mock.tree.append({
+                "path": path, "type": "blob", "mode": "100644",
+                "size": len(path), "sha": sha,
             })
         schema = (b"import { pgTable } from 'drizzle-orm/pg-core'\n"
                   b"export const users = pgTable('users', {})\n"
@@ -51,6 +69,16 @@ class CodeSurfaceTests(unittest.TestCase):
         self.assertEqual(graph["coverage"]["db_schema_candidates_found"], 2)
         self.assertEqual(graph["coverage"]["api_route_source_files_read"], 0)
         self.assertEqual(graph["coverage"]["schema_source_files_read"], 1)
+        self.assertEqual(graph["coverage"]["import_route_files_inspected"], 2)
+        self.assertEqual(graph["coverage"]["import_relationships_found"], 2)
+        self.assertEqual(graph["coverage"]["import_modules_found"], 2)
+        imported = [e for e in graph["edges"] if e["relation"] == "STATIC_IMPORTS"]
+        self.assertEqual({e["source_line"] for e in imported}, {1})
+        self.assertEqual({n["label"] for n in graph["nodes"]
+                          if n["kind"] == "source_module"},
+                         {"src/claim.mjs", "app/lib/server.mjs"})
+        self.assertTrue(all(e["state"] == "SOURCE_SYNTAX_CANDIDATE"
+                            for e in imported))
         self.assertEqual(graph["runtime_health"], "UNKNOWN")
         self.assertFalse(graph["execution_authorized"])
         self.assertFalse(any("/git/blobs/" + "c"*40 in call for call in mock.requested))
@@ -95,7 +123,8 @@ class CodeSurfaceTests(unittest.TestCase):
             self.assertIn(edge["source"], nodes)
             self.assertIn(edge["target"], nodes)
         table_edges = [e for e in graph["edges"]
-                       if e["state"] == "SOURCE_SYNTAX_CANDIDATE"]
+                       if e["state"] == "SOURCE_SYNTAX_CANDIDATE"
+                       and e["relation"] == "DECLARES"]
         self.assertEqual(len(table_edges), 2)
         self.assertFalse(any(e["relation"] == "DEPENDS_ON"
                              for e in table_edges))
