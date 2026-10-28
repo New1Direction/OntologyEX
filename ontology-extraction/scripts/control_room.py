@@ -775,7 +775,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             elif route.path == "/static/layout_engine.js" and not route.query:
                 payload = (Path(__file__).resolve().parent / "layout_engine.js").read_bytes()
                 mime, code = "application/javascript; charset=utf-8", 200
-            elif route.path in ("/api/state", "/api/view", "/api/node"):
+            elif route.path in ("/api/state", "/api/view", "/api/node", "/api/neighborhood"):
                 mime = "application/json; charset=utf-8"
                 try:
                     params = parse_qs(route.query, strict_parsing=True, keep_blank_values=True,
@@ -794,6 +794,12 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                             full, lens=params.get("lens", ["all"])[0],
                             query=params.get("q", [""])[0],
                             offset=graph_view_api.parse_offset(params.get("offset", ["0"])[0]))
+                    elif route.path == "/api/neighborhood":
+                        if set(params) != {"id", "depth"}:
+                            raise graph_view_api.ViewError("neighborhood requires id and depth")
+                        result = graph_view_api.neighborhood(
+                            full, params["id"][0],
+                            depth=graph_view_api.valid_depth(params["depth"][0]))
                     else:
                         if set(params) != {"id"}:
                             raise graph_view_api.ViewError("node requires an exact id")
