@@ -215,6 +215,11 @@ def neighborhood(full, node_id, *, depth=1):
         current, dist = queue.popleft()
         if dist >= depth:
             continue
+        # A generic project DECLARES hundreds of nodes. Keep it visible
+        # as direct evidence, but do not use it as a two-hop shortcut
+        # between unrelated services, APIs and database candidates.
+        if current == full["project"] and current != node_id:
+            continue
         explored += 1
         choices = sorted(adj.get(current, []), key=lambda item: (
             # Put actual reported failures and warnings first, then
