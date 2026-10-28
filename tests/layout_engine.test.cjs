@@ -71,6 +71,24 @@ test("changes in content density can expand map, but do not hide controls",()=>{
  assert.ok(dense.rects["boundary-panel"],"boundary remains reachable");
 });
 
+test("graph-share user resizing obeys minimums",()=>{
+  const low=L.optimize({...model(900,820),mapShare:0.48});
+  const high=L.optimize({...model(900,820),mapShare:0.76});
+  assert.equal(low.columns,2);assert.equal(high.columns,2);
+  assert.ok(high.rects.map.width>low.rects.map.width);
+  assert.ok(L.verify(high,panels()).ok);
+});
+test("only noncritical panel may shrink by explicit collapse",()=>{
+  const expanded=model(900,820,300,10);
+  expanded.panels.find(p=>p.id==="versions-panel").items=40;
+  const collapsed=JSON.parse(JSON.stringify(expanded));
+  collapsed.panels.find(p=>p.id==="versions-panel").collapsed=true;
+  collapsed.panels.find(p=>p.id==="incidents").collapsed=true;
+  const original=L.optimize(expanded), reduced=L.optimize(collapsed);
+  assert.ok(reduced.rects["versions-panel"].height<original.rects["versions-panel"].height);
+  assert.ok(reduced.rects["versions-panel"].height>=collapsed.panels.find(p=>p.id==="versions-panel").minHeight);
+  assert.equal(reduced.rects.incidents.height,original.rects.incidents.height);
+});
 test("invalid input fails closed rather than creating broken rectangles",()=>{
  for(const width of [0,100,-30,NaN,Infinity,20000])
    assert.throws(()=>L.optimize(model(width,800)),/invalid viewport/);
