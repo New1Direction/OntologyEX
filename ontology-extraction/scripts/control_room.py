@@ -329,6 +329,9 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 #graph-coverage{font-size:11px;color:#a9c7ce;margin:0;padding:6px}
 #graph-pager{display:flex;gap:8px;padding:2px 8px}
 #graph-pager button:disabled{opacity:.42;cursor:default}
+#graph-scope{font-size:11px;color:#8fa9b5;min-height:17px;padding:0 8px}
+#graph-depth{border-radius:6px;background:#0f2530;color:#d5e9eb;border:1px solid #386372;padding:7px}
+#graph-pager button:focus-visible,#graph-depth:focus-visible{outline:2px solid #50b5af}
 #graph-share{accent-color:#50b5af;max-width:115px}
 #versions-panel[data-collapsed="true"] #versions{display:none}
 #incidents ul{padding-left:19px;margin:0;font-size:12px;line-height:1.6}
@@ -345,7 +348,13 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 <input id="graph-share" type="range" min="48" max="76" value="63" aria-label="Graph area width"/>
 <button id="graph-focus" type="button" aria-pressed="false">Focus graph</button> <button id="map-business" type="button">Map My Business</button><div id="mode" class="muted">Connecting to local source...</div><small id="updated"></small></div></header>
 <main id="workspace" aria-label="Adaptive business workspace">
-<section id="map" aria-label="Declared component topology"><p id="graph-coverage" aria-live="polite"></p><div id="graph-pager"><button id="graph-prev" type="button" disabled>Previous</button> <button id="graph-next" type="button" disabled>Next</button></div><svg id="svg" role="img" aria-label="Interactive dependency diagram"></svg></section>
+<section id="map" aria-label="Declared component topology"><p id="graph-coverage" aria-live="polite"></p><div id="graph-pager">
+<button id="graph-back" type="button" disabled>Back to list</button>
+<label for="graph-depth">Hops</label>
+<select id="graph-depth" aria-label="Neighborhood depth"><option value="1">1 hop</option><option value="2">2 hops</option></select>
+<button id="graph-prev" type="button" disabled>Previous</button>
+<button id="graph-next" type="button" disabled>Next</button>
+</div><p id="graph-scope" aria-live="polite">Select a node to explore its connected neighbors.</p><svg id="svg" role="img" aria-label="Interactive dependency diagram"></svg></section>
 <section id="incidents" class="priority-critical"><h2>Incidents and risks</h2><ul id="incident-list"></ul></section>
 <section id="integrity" class="priority-critical"><h2>System integrity</h2><div id="counts"></div></section>
 <section id="details-panel"><h2>Selected component</h2><div id="details">Select a node to inspect its source and status.</div></section>
@@ -368,7 +377,8 @@ const el=(tag,attrs={},txt)=>{const n=document.createElementNS(NS,tag);for(const
  if(txt!==undefined)n.textContent=String(txt);return n};
 const text=(id,value)=>document.getElementById(id).textContent=String(value);
 let selected=null,state=null,focusGraph=false,lastLayout=null,graphShare=0.63,versionsCollapsed=false;
-let graphOffset=0,requestEpoch=0,lastSummary=null,lastPage=null;
+let graphOffset=0,requestEpoch=0,lastSummary=null,lastPage=null,neighborhoodRoot=null;
+let detailEpoch=0;
 try{
  focusGraph=localStorage.getItem("ontologyex-focus-graph")==="1";
  const saved=Number(localStorage.getItem("ontologyex-graph-share"));
@@ -490,8 +500,22 @@ function draw(s){
  applyLayout(s);
  const svg=document.getElementById("svg");svg.replaceChildren();
  const visible=s.nodes.slice(0,90);
+ const neighborhoodMode=s.kind==="BOUNDED_GRAPH_NEIGHBORHOOD";
  const matchesCount=s.total_matches??visible.length;
- text("graph-coverage","Showing "+visible.length+" of "+matchesCount+" matching nodes ("+
+ document.getElementById("graph-back").disabled=!neighborhoodMode;
+ document.getElementById("graph-prev").hidden=neighborhoodMode;
+ document.getElementById("graph-next").hidden=neighborhoodMode;
+ text("graph-scope",neighborhoodMode?
+    "Connected source graph · "+s.requested_depth+" hop(s) · "+s.direct_incoming_edges+
+    " incoming / "+s.direct_outgoing_edges+" outgoing at selected node · "+
+    (s.is_complete_within_depth?"complete within modeled depth":"partial/bounded")+
+    " · static declarations are NOT runtime execution":
+    "Paged source inventory · click a node to explore incoming and outgoing relationships.");
+ text("graph-coverage",neighborhoodMode?
+    "Neighborhood: "+visible.length+" nodes, "+s.edges.length+" edges, "+
+    s.truncated_node_candidates+" neighbor candidates excluded, "+
+    s.edges_omitted+" internal edges omitted. No causal or runtime claims.":
+    "Showing "+visible.length+" of "+matchesCount+" matching nodes ("+
     s.total_nodes+" total), offset "+(s.offset||0)+". "+
     (s.edges_omitted?"Edges omitted: "+s.edges_omitted+". ":"")+
     "Search and page through source-backed results.");
@@ -528,6 +552,9 @@ function draw(s){
  n.status.toUpperCase()+" · "+n.kind.replaceAll("_"," ")));
  if(n.potentially_impacted_by.length)g.append(el("text",{x:p.x+nodeW-8,y:p.y+14,
  "text-anchor":"end",fill:"#eebc63","font-size":10},"RISK"));
+ if(neighborhoodMode&&n.id===s.center_id)g.append(el("text",{
+  x:p.x+nodeW-8,y:p.y+14,"text-anchor":"end",fill:"#50d7cc","font-size":10
+ },"CENTER"));
  if(n.ci_run)g.append(el("text",{x:p.x+nodeW-8,y:p.y+42,
  "text-anchor":"end",fill:n.ci_run.conclusion==="success"?"#49c4a4":"#eebc63",
  "font-size":10},"CI "+(n.ci_run.conclusion||n.ci_run.status).toUpperCase()));
