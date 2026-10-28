@@ -413,3 +413,165 @@ theorem fuse_perm {l₁ l₂ : List Sample} (h : l₁.Perm l₂) : fuse l₁ = f
       Business.any_perm (p := freshWarning) h, Business.any_perm (p := isFresh) h]
 
 end OntologyEX.Fusion
+
+/-!
+# Live feeds (`feeds.py`, `engine/src/feeds.rs`)
+
+Classification of one sample from its metrics and thresholds, the retention rule
+of the observation store, and the nearest-rank p95 index. `lake exe conformance`
+prints these definitions over bounded domains and CI compares them with Python
+and Rust (tests/feeds_conformance.py).
+-/
+
+namespace OntologyEX.Feeds
+
+inductive Status where
+  | ok | warning | error
+deriving DecidableEq, Repr
+
+def Status.rank : Status → Nat
+  | .ok => 0 | .warning => 1 | .error => 2
+
+/-- Metric values and threshold rules as (metric, value) pairs; a rule is hit when
+    the metric is present and at or above the threshold. -/
+def hit (metrics rules : List (Nat × Nat)) : Bool :=
+  rules.any (fun r => metrics.any (fun m => m.1 == r.1 && decide (r.2 ≤ m.2)))
+
+def classify (metrics warning error : List (Nat × Nat)) (down : Bool) : Status :=
+  if down || hit metrics error then .error
+  else if hit metrics warning then .warning
+  else .ok
+
+/-- A target that is down is an error, whatever its metrics say. -/
+theorem down_is_error (m w e : List (Nat × Nat)) : classify m w e true = .error := by
+  simp [classify]
+
+/-- Thresholds are inclusive: a value equal to an error threshold is an error. -/
+theorem threshold_inclusive (m w e : List (Nat × Nat)) (k v : Nat) (hm : (k, v) ∈ m)
+    (he : (k, v) ∈ e) : classify m w e false = .error := by
+  have h : hit m e = true :=
+    List.any_eq_true.mpr ⟨(k, v), he, List.any_eq_true.mpr ⟨(k, v), hm, by simp⟩⟩
+  simp [classify, h]
+
+/-- With no thresholds, a target that is up is ok. -/
+theorem no_rules_ok (m : List (Nat × Nat)) : classify m [] [] false = .ok := by
+  simp [classify, hit]
+
+/-- `hi` reports every metric of `lo`, at the same or a higher value. -/
+def dominates (hi lo : List (Nat × Nat)) : Prop :=
+  ∀ p ∈ lo, ∃ q ∈ hi, q.1 = p.1 ∧ p.2 ≤ q.2
+
+theorem hit_mono {hi lo : List (Nat × Nat)} (h : dominates hi lo) (rules : List (Nat × Nat))
+    (hl : hit lo rules = true) : hit hi rules = true := by
+  unfold hit at hl ⊢
+  obtain ⟨r, hr, hm⟩ := List.any_eq_true.mp hl
+  obtain ⟨p, hp, hpr⟩ := List.any_eq_true.mp hm
+  obtain ⟨q, hq, hk, hv⟩ := h p hp
+  simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at hpr
+  refine List.any_eq_true.mpr ⟨r, hr, List.any_eq_true.mpr ⟨q, hq, ?_⟩⟩
+  simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq]
+  exact ⟨hk.trans hpr.1, Nat.le_trans hpr.2 hv⟩
+
+/-- Worse metrics never make a sample look healthier. -/
+theorem classify_monotone {hi lo : List (Nat × Nat)} (h : dominates hi lo)
+    (w e : List (Nat × Nat)) (d : Bool) :
+    (classify lo w e d).rank ≤ (classify hi w e d).rank := by
+  have he := hit_mono h e
+  have hw := hit_mono h w
+  unfold classify
+  cases d <;> cases h1 : hit lo e <;> cases h2 : hit hi e <;> cases h3 : hit lo w <;>
+    cases h4 : hit hi w <;> simp_all [Status.rank]
+
+/-! Retention: the store keeps the newest `k` samples of a component (by sort key). -/
+
+def ins (x : Nat) : List Nat → List Nat
+  | [] => [x]
+  | y :: ys => if x ≤ y then x :: y :: ys else y :: ins x ys
+
+def isort : List Nat → List Nat
+  | [] => []
+  | x :: xs => ins x (isort xs)
+
+def keepNewest (k : Nat) (xs : List Nat) : List Nat :=
+  (isort xs).drop ((isort xs).length - k)
+
+theorem ins_le {x y : Nat} {ys : List Nat} (h : x ≤ y) : ins x (y :: ys) = x :: y :: ys := by
+  simp [ins, h]
+
+theorem ins_gt {x y : Nat} {ys : List Nat} (h : ¬ x ≤ y) : ins x (y :: ys) = y :: ins x ys := by
+  simp [ins, h]
+
+theorem ins_perm (x : Nat) : ∀ l : List Nat, (ins x l).Perm (x :: l)
+  | [] => List.Perm.refl _
+  | y :: ys => by
+    by_cases hxy : x ≤ y
+    · rw [ins_le hxy] <;> exact List.Perm.refl _
+    · rw [ins_gt hxy]
+      exact ((ins_perm x ys).cons y).trans (List.Perm.swap x y ys)
+
+theorem isort_perm : ∀ l : List Nat, (isort l).Perm l
+  | [] => List.Perm.nil
+  | x :: xs => by
+    rw [isort]
+    exact (ins_perm x (isort xs)).trans ((isort_perm xs).cons x)
+
+theorem ins_sorted (x : Nat) : ∀ l : List Nat, l.Pairwise (· ≤ ·) → (ins x l).Pairwise (· ≤ ·)
+  | [], _ => by simp [ins]
+  | y :: ys, h => by
+    have hy := List.pairwise_cons.mp h
+    by_cases hxy : x ≤ y
+    · rw [ins_le hxy]
+      refine List.Pairwise.cons ?_ h
+      intro a ha
+      rcases List.mem_cons.mp ha with rfl | ha
+      · exact hxy
+      · exact Nat.le_trans hxy (hy.1 a ha)
+    · rw [ins_gt hxy]
+      refine List.Pairwise.cons ?_ (ins_sorted x ys hy.2)
+      intro a ha
+      rcases List.mem_cons.mp ((ins_perm x ys).mem_iff.mp ha) with rfl | ha
+      · omega
+      · exact hy.1 a ha
+
+theorem isort_sorted : ∀ l : List Nat, (isort l).Pairwise (· ≤ ·)
+  | [] => List.Pairwise.nil
+  | x :: xs => by
+    rw [isort]
+    exact ins_sorted x (isort xs) (isort_sorted xs)
+
+/-- At most `k` samples per component are kept. -/
+theorem keep_at_most (k : Nat) (xs : List Nat) : (keepNewest k xs).length ≤ k := by
+  unfold keepNewest
+  rw [List.length_drop]
+  omega
+
+/-- Every kept sample was in the input: retention never invents a sample. -/
+theorem keep_from_input (k : Nat) (xs : List Nat) (x : Nat) (h : x ∈ keepNewest k xs) : x ∈ xs := by
+  unfold keepNewest at h
+  have h2 : x ∈ List.take ((isort xs).length - k) (isort xs) ++
+      List.drop ((isort xs).length - k) (isort xs) := List.mem_append.mpr (Or.inr h)
+  rw [List.take_append_drop] at h2
+  exact (isort_perm xs).mem_iff.mp h2
+
+/-- A sample that is dropped is no newer than any sample that is kept. -/
+theorem dropped_are_older (k : Nat) (xs : List Nat) (x y : Nat) (hx : x ∈ xs)
+    (hd : x ∉ keepNewest k xs) (hy : y ∈ keepNewest k xs) : x ≤ y := by
+  unfold keepNewest at hd hy
+  have hs := isort_sorted xs
+  have hx' : x ∈ isort xs := (isort_perm xs).mem_iff.mpr hx
+  rw [← List.take_append_drop ((isort xs).length - k) (isort xs)] at hs hx'
+  have hcross := (List.pairwise_append.mp hs).2.2
+  rcases List.mem_append.mp hx' with ht | hdrop
+  · exact hcross x ht y hy
+  · exact absurd hdrop hd
+
+/-! The p95 of n samples is the sample at index ⌈0.95 n⌉ - 1 after sorting. -/
+
+def p95Index (n : Nat) : Nat := (95 * n + 99) / 100 - 1
+
+/-- The p95 index always names one of the samples. -/
+theorem p95_index_in_range (n : Nat) (h : 0 < n) : p95Index n < n := by
+  unfold p95Index
+  omega
+
+end OntologyEX.Feeds

@@ -52,6 +52,12 @@ ERROR_CODE = 2
 METRIC_RULES = ("error_rate_pct", "p95_latency_ms", "probe_latency_ms")
 IDENT = re.compile(r"^discovery:[a-z_]+:[A-Za-z0-9_.~/%:-]{1,600}$")
 SERVICE = re.compile(r"^[A-Za-z0-9_.:/@-]{1,200}$")
+# RFC 3986 characters only (no spaces, controls, or fragments), so every
+# implementation reads the same scheme, host, and port.
+URL_TEXT = re.compile(r"[A-Za-z0-9\-._~:/?\[\]@!$&'()*+,;=%]{1,2048}")
+HOST_NAME = re.compile(r"[a-z0-9_-]+(?:\.[a-z0-9_-]+)*")
+PROM_NUMBER = re.compile(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?|NaN|[+-]?Inf")
+MAX_JSON_DEPTH = 64
 
 
 class FeedError(ValueError):
@@ -99,15 +105,46 @@ def _component(value: object, where: str) -> str:
     return value
 
 
+def _host_ok(host: str, bracketed: bool) -> bool:
+    """A DNS name, a dotted-quad IPv4 address, or (in brackets) an IPv6 address."""
+    if bracketed:
+        try:
+            return "%" not in host and ipaddress.ip_address(host).version == 6
+        except ValueError:
+            return False
+    if HOST_NAME.fullmatch(host) is None:
+        return False
+    last = host.rsplit(".", 1)[-1]
+    if last.isdigit() or last.startswith("0x"):  # numeric hosts must be plain IPv4
+        try:
+            return ipaddress.IPv4Address(host) is not None
+        except ValueError:
+            return False
+    return True
+
+
 def _url(value: object, hosts: set, where: str) -> str:
-    check(type(value) is str and len(value) <= 2048, f"{where}: invalid URL")
-    parts = urllib.parse.urlsplit(value)
-    check(parts.scheme in ("http", "https"), f"{where}: only http and https")
-    check(parts.username is None and parts.password is None,
-          f"{where}: never put credentials in a URL; use token_env")
-    check(not parts.fragment, f"{where}: no URL fragment")
-    check(parts.hostname is not None and parts.hostname.lower() in hosts,
-          f"{where}: host {parts.hostname!r} is not in allowed_hosts")
+    check(type(value) is str and URL_TEXT.fullmatch(value) is not None,
+          f"{where}: invalid URL (printable RFC 3986 characters, at most 2048)")
+    check("#" not in value, f"{where}: no URL fragment")
+    try:
+        parts = urllib.parse.urlsplit(value)
+        port = parts.netloc.rpartition("@")[2].rpartition("]")[2].partition(":")[2]
+        check(port == "" or port.isdigit(), f"{where}: invalid port")
+        parts.port  # range check
+    except ValueError as exc:
+        raise FeedError(f"{where}: invalid URL") from exc
+    check(parts.scheme in ("http", "https") and value[:len(parts.scheme) + 3].lower() == parts.scheme + "://",
+          f"{where}: only http and https")
+    check("@" not in parts.netloc, f"{where}: never put credentials in a URL; use token_env")
+    # A bracketed host is the whole host: nothing before '[', only ":port" after ']'.
+    # (Older Python versions' urlsplit does not check this itself.)
+    check("[" not in parts.netloc or re.fullmatch(r"\[[^\[\]]*\](?::[0-9]*)?", parts.netloc) is not None,
+          f"{where}: invalid URL")
+    check(not any(c in parts.path + parts.query for c in "[]"), f"{where}: brackets only around an IPv6 host")
+    check(parts.hostname is not None and _host_ok(parts.hostname, "[" in parts.netloc),
+          f"{where}: invalid host")
+    check(parts.hostname in hosts, f"{where}: host {parts.hostname!r} is not in allowed_hosts")
     return value
 
 
@@ -116,10 +153,7 @@ def load_config(path: Path) -> dict:
     check(path.is_file() and not path.is_symlink(), "config must be a regular file")
     data = path.read_bytes()
     check(len(data) <= MAX_CONFIG_BYTES, "config too large")
-    try:
-        config = json.loads(data, object_pairs_hook=control_room.no_duplicates)
-    except (ValueError, control_room.RoomError) as exc:
-        raise FeedError(f"config is not valid JSON: {exc}") from exc
+    config = json_document(data, "config", pairs=control_room.no_duplicates)
     _keys(config, {"schema_version", "kind", "output"},
           {"allowed_hosts", "keep_per_component", "probes", "prometheus", "otlp"}, "config")
     check(config["schema_version"] == 1 and config["kind"] == FEED_KIND, "unsupported feed config")
@@ -174,9 +208,13 @@ def load_config(path: Path) -> dict:
                                    "min_requests", "warning", "error"}, "otlp")
         bind = otlp.get("bind", "127.0.0.1")
         try:
-            loopback = ipaddress.ip_address(bind).is_loopback
+            check(type(bind) is str and "%" not in bind, "otlp.bind must be an IP address")
+            address = ipaddress.ip_address(bind)
         except ValueError as exc:
             raise FeedError("otlp.bind must be an IP address") from exc
+        # 127.0.0.0/8 or ::1, the same answer on every Python version.
+        loopback = (address in ipaddress.ip_network("127.0.0.0/8") if address.version == 4
+                    else address == ipaddress.IPv6Address("::1"))
         token_env = otlp.get("token_env", "")
         check(type(token_env) is str and len(token_env) <= 64, "otlp.token_env must name a variable")
         check(loopback or token_env, "a non-loopback OTLP listener requires token_env")
@@ -230,6 +268,18 @@ def observation(component: str, status: str, source: str, interval: int, metrics
 
 # ---------------------------------------------------------------- bounded store
 
+def retain(rows: list[dict], keep: int) -> list[dict]:
+    """The newest `keep` samples per component (by time, then source and status), components in order."""
+    by_component: dict[str, list[dict]] = {}
+    for row in rows:
+        by_component.setdefault(row["component_id"], []).append(row)
+    kept = []
+    for component in sorted(by_component):
+        samples = sorted(by_component[component], key=lambda r: (r["observed_at"], r["source"], r["status"]))
+        kept.extend(samples[-keep:])
+    return kept
+
+
 class ObservationStore:
     """Keeps the newest samples per component in one JSONL file, rewritten atomically."""
 
@@ -244,14 +294,7 @@ class ObservationStore:
         with self.lock:
             existing = (control_room.read_observations(self.path)
                         if self.path.exists() else [])
-            by_component: dict[str, list[dict]] = {}
-            for row in existing + rows:
-                by_component.setdefault(row["component_id"], []).append(row)
-            kept = []
-            for component in sorted(by_component):
-                samples = sorted(by_component[component],
-                                 key=lambda r: (r["observed_at"], r["source"], r["status"]))
-                kept.extend(samples[-self.keep:])
+            kept = retain(existing + rows, self.keep)
             text = "".join(json.dumps(r, sort_keys=True, separators=(",", ":")) + "\n" for r in kept)
             check(len(kept) <= control_room.MAX_OBSERVATIONS and
                   len(text.encode()) <= control_room.MAX_OBSERVATION_BYTES,
@@ -309,15 +352,53 @@ def run_probe(probe: dict, moment: datetime | None = None, getter=fetch) -> tupl
                         probe.get("interval_seconds", 30), metrics, moment or now_utc()), detail)
 
 
+def json_document(body: bytes, where: str, pairs=None):
+    """Strict UTF-8 JSON with finite numbers, valid Unicode, and at most MAX_JSON_DEPTH levels."""
+    def reject(_):
+        raise ValueError("non-finite number")
+
+    try:
+        data = json.loads(body.decode("utf-8"), parse_constant=reject, object_pairs_hook=pairs)
+    except (ValueError, RecursionError) as exc:
+        raise FeedError(f"invalid {where} JSON") from exc
+    stack = [(data, 1)]
+    while stack:
+        value, depth = stack.pop()
+        if type(value) in (dict, list):
+            check(depth <= MAX_JSON_DEPTH, f"{where} JSON nested too deeply")
+            items = list(value.items()) if type(value) is dict else [(None, v) for v in value]
+            for key, item in items:
+                if key is not None:
+                    stack.append((key, depth + 1))
+                stack.append((item, depth + 1))
+        elif type(value) is float:
+            check(math.isfinite(value), f"non-finite number in {where} JSON")
+        elif type(value) is int:
+            try:
+                float(value)  # as large as a double can hold
+            except OverflowError as exc:
+                raise FeedError(f"number out of range in {where} JSON") from exc
+        elif type(value) is str:
+            try:
+                value.encode("utf-8")
+            except UnicodeEncodeError as exc:
+                raise FeedError(f"invalid Unicode in {where} JSON") from exc
+    return data
+
+
 def prometheus_value(base: str, query: str, timeout: float, token: str, getter=fetch) -> float:
     """One scalar from an instant query that returns exactly one series."""
     url = base.rstrip("/") + "/api/v1/query?" + urllib.parse.urlencode({"query": query})
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     status, body, _, error = getter(url, timeout, headers)
     check(status == 200, f"prometheus answered {error or status}")
+    return prometheus_number(body)
+
+
+def prometheus_number(body: bytes) -> float:
     try:
-        data = json.loads(body)
-        check(data.get("status") == "success", "prometheus query failed")
+        data = json_document(body, "prometheus")
+        check(type(data) is dict and data.get("status") == "success", "prometheus query failed")
         result = data["data"]["result"]
         kind = data["data"]["resultType"]
         if kind == "scalar":
@@ -326,10 +407,12 @@ def prometheus_value(base: str, query: str, timeout: float, token: str, getter=f
             check(kind == "vector" and type(result) is list, "expected a vector or scalar result")
             check(len(result) == 1, f"query must return exactly one series, got {len(result)}")
             value = result[0]["value"][1]
+        check(type(value) is str and PROM_NUMBER.fullmatch(value) is not None,
+              "prometheus value is not a number")
         number = float(value)
     except FeedError:
         raise
-    except (ValueError, KeyError, IndexError, TypeError) as exc:
+    except (ValueError, KeyError, IndexError, TypeError, AttributeError) as exc:
         raise FeedError(f"unexpected prometheus response: {type(exc).__name__}") from exc
     check(math.isfinite(number), "prometheus returned a non-finite value")
     return number
@@ -430,34 +513,59 @@ _KINDS = {"SPAN_KIND_SERVER": 2, "SPAN_KIND_CLIENT": 3, "SPAN_KIND_INTERNAL": 1,
 _CODES = {"STATUS_CODE_UNSET": 0, "STATUS_CODE_OK": 1, "STATUS_CODE_ERROR": 2}
 
 
+def _fields(value, key: str, kinds, default):
+    """value[key] if present (its type must be one of `kinds`), else default."""
+    check(type(value) is dict, "invalid OTLP/JSON traces")
+    item = value.get(key, default)
+    check(type(item) in (kinds if type(kinds) is tuple else (kinds,)), "invalid OTLP/JSON traces")
+    return item
+
+
+def _enum(value, names: dict) -> int:
+    """An enum as its name or as an integer in the int64/uint64 range."""
+    if type(value) is str:
+        return names.get(value, 0)
+    check(-2 ** 63 <= value < 2 ** 64, "invalid OTLP/JSON traces")
+    return value
+
+
+def _nanos(value) -> int:
+    """A uint64 as a JSON integer or a decimal string."""
+    if type(value) is str:
+        check(re.fullmatch(r"[0-9]{1,20}", value) is not None, "invalid OTLP/JSON traces")
+        value = int(value)
+    check(type(value) is int and 0 <= value < 2 ** 64, "invalid OTLP/JSON traces")
+    return value
+
+
 def spans_from_json(body: bytes) -> list[tuple[str, int, int, float]]:
     """OTLP/JSON (lowerCamelCase, 64-bit integers as strings)."""
-    try:
-        data = json.loads(body)
-        out = []
-        for rs in data.get("resourceSpans", []):
-            service = ""
-            for kv in rs.get("resource", {}).get("attributes", []):
-                if kv.get("key") == "service.name":
-                    service = str(kv.get("value", {}).get("stringValue", ""))
-            for ss in rs.get("scopeSpans", []):
-                for span in ss.get("spans", []):
-                    kind = span.get("kind", 0)
-                    kind = _KINDS.get(kind, 0) if type(kind) is str else int(kind)
-                    code = span.get("status", {}).get("code", 0)
-                    code = _CODES.get(code, 0) if type(code) is str else int(code)
-                    start = int(span.get("startTimeUnixNano", 0))
-                    end = int(span.get("endTimeUnixNano", 0))
-                    out.append((service, kind, code, max(0, end - start) / 1e6))
-        return out
-    except (ValueError, TypeError, AttributeError) as exc:
-        raise FeedError("invalid OTLP/JSON traces") from exc
+    data = json_document(body, "OTLP")
+    out = []
+    for rs in _fields(data, "resourceSpans", list, []):
+        service = ""
+        for kv in _fields(_fields(rs, "resource", dict, {}), "attributes", list, []):
+            if _fields(kv, "key", str, "") == "service.name":
+                service = _fields(_fields(kv, "value", dict, {}), "stringValue", str, "")
+        for ss in _fields(rs, "scopeSpans", list, []):
+            for span in _fields(ss, "spans", list, []):
+                kind = _enum(_fields(span, "kind", (str, int), 0), _KINDS)
+                code = _enum(_fields(_fields(span, "status", dict, {}), "code", (str, int), 0), _CODES)
+                start = _nanos(span.get("startTimeUnixNano", 0))
+                end = _nanos(span.get("endTimeUnixNano", 0))
+                out.append((service, kind, code, max(0, end - start) / 1e6))
+    return out
+
+
+def p95_index(n: int) -> int:
+    """Index of the nearest-rank 95th percentile in n sorted values."""
+    return max(0, math.ceil(0.95 * n) - 1)
 
 
 def p95(values: list[float]) -> float:
     """Nearest-rank 95th percentile."""
     ordered = sorted(values)
-    return ordered[max(0, math.ceil(0.95 * len(ordered)) - 1)]
+    return ordered[p95_index(len(ordered))]
 
 
 class SpanWindow:
@@ -508,6 +616,27 @@ class SpanWindow:
         return rows
 
 
+def decode_request(body: bytes, content_type: str, content_encoding: str) -> tuple[int, list]:
+    """(200 or 201 for protobuf, spans), or (400 or 415, []): what the receiver does with a body."""
+    mime = content_type.split(";")[0].strip()
+    try:
+        encoding = content_encoding.strip().lower()
+        if encoding == "gzip":
+            inflater = zlib.decompressobj(16 + zlib.MAX_WBITS)
+            body = inflater.decompress(body, MAX_OTLP_DECOMPRESSED)
+            check(not inflater.unconsumed_tail, "decompressed body too large")
+            check(inflater.eof, "truncated gzip body")
+        elif encoding not in ("", "identity"):
+            return 415, []
+        if mime == "application/x-protobuf":
+            return 201, spans_from_protobuf(body)
+        if mime == "application/json":
+            return 200, spans_from_json(body)
+        return 415, []
+    except (FeedError, zlib.error, RecursionError):
+        return 400, []
+
+
 def otlp_handler(window: SpanWindow, token: str):
     class Handler(BaseHTTPRequestHandler):
         def reply(self, code: int, body: bytes, mime: str = "application/json") -> None:
@@ -520,35 +649,23 @@ def otlp_handler(window: SpanWindow, token: str):
         def do_POST(self):
             if urllib.parse.urlsplit(self.path).path != "/v1/traces":
                 return self.reply(404, b'{"error":"only /v1/traces is accepted"}')
-            if token and not hmac.compare_digest(self.headers.get("Authorization", ""),
-                                                 f"Bearer {token}"):
+            if token and not hmac.compare_digest(self.headers.get("Authorization", "").encode("latin-1"),
+                                                 f"Bearer {token}".encode("utf-8")):
                 return self.reply(401, b'{"error":"bearer token required"}')
-            try:
-                length = int(self.headers.get("Content-Length", "-1"))
-            except ValueError:
-                length = -1
+            declared = self.headers.get("Content-Length", "")
+            length = int(declared) if declared.isascii() and declared.isdigit() else -1
             if not 0 <= length <= MAX_OTLP_BODY:
                 return self.reply(413, b'{"error":"body too large or unknown length"}')
             body = self.rfile.read(length)
-            mime = self.headers.get("Content-Type", "").split(";")[0].strip()
-            try:
-                encoding = self.headers.get("Content-Encoding", "").strip().lower()
-                if encoding == "gzip":
-                    inflater = zlib.decompressobj(16 + zlib.MAX_WBITS)
-                    body = inflater.decompress(body, MAX_OTLP_DECOMPRESSED)
-                    check(not inflater.unconsumed_tail, "decompressed body too large")
-                elif encoding not in ("", "identity"):
-                    return self.reply(415, b'{"error":"use gzip or no compression"}')
-                if mime == "application/x-protobuf":
-                    spans = spans_from_protobuf(body)
-                elif mime == "application/json":
-                    spans = spans_from_json(body)
-                else:
-                    return self.reply(415, b'{"error":"use application/x-protobuf or application/json"}')
-            except (FeedError, zlib.error, RecursionError):
+            code, spans = decode_request(body, self.headers.get("Content-Type", ""),
+                                         self.headers.get("Content-Encoding", ""))
+            if code == 415:
+                return self.reply(415, b'{"error":"use gzip or no compression, and application/x-protobuf '
+                                       b'or application/json"}')
+            if code == 400:
                 return self.reply(400, b'{"error":"invalid OTLP traces"}')
             window.ingest(spans, time.monotonic())
-            if mime == "application/x-protobuf":
+            if code == 201:
                 return self.reply(200, b"", "application/x-protobuf")  # empty ExportTraceServiceResponse
             return self.reply(200, b"{}")
 
@@ -605,6 +722,7 @@ class FeedRunner:
         return written
 
     def write_status(self) -> None:
+        self.status_path.parent.mkdir(parents=True, exist_ok=True)
         document = {"schema_version": 1, "kind": "ONTOLOGYEX_FEED_STATUS",
                     "generated_at": stamp(now_utc()), "feeds": self.status,
                     "otlp_listening": (f"{self.server.server_address[0]}:{self.server.server_address[1]}"

@@ -82,6 +82,27 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(report["gaps"][0]["reason"], "PARSE_OR_VALIDATION_FAILED")
         self.assertEqual(len(report["nodes"]), 1)
 
+    def test_parse_failures_report_a_stable_category(self):
+        self.write("a/compose.yml", "services:\n  a: !reset {}\n")       # explicit tag
+        self.write("b/compose.yml", "services:\n  a:\t{}\n")             # tab cannot start a token
+        self.write("c/compose.yml", "services: 1\n")                     # valid YAML, invalid compose
+        self.write("d/package.json", "[" * 513 + "]" * 513)              # nested too deeply
+        self.write("e/Cargo.toml", "a = 1e400\n")                        # float overflow is not infinity
+        self.write("f/pyproject.toml", "a = inf\n")                      # inf is a TOML float
+        self.write("g/package.json", "[" * 512 + "]" * 512)
+        (self.repo / "h").mkdir()
+        (self.repo / "h" / "package.json").write_bytes(b'{"a": "\xff"}')
+        gaps = {g["source"]: g["error_type"] for g in scanner.discover(self.repo)["gaps"]}
+        self.assertEqual(gaps, {"a/compose.yml": "YAMLError", "b/compose.yml": "YAMLError",
+                                "c/compose.yml": "DiscoveryError", "d/package.json": "JSONDecodeError",
+                                "e/Cargo.toml": "TOMLDecodeError", "h/package.json": "UnicodeError"})
+
+    def test_yaml_nesting_limit(self):
+        self.write("ok/compose.yml", "x: " + "[" * 63 + "]" * 63 + "\nservices: {}\n")
+        self.write("deep/compose.yml", "x: " + "[" * 64 + "]" * 64 + "\nservices: {}\n")
+        gaps = [g["source"] for g in scanner.discover(self.repo)["gaps"]]
+        self.assertEqual(gaps, ["deep/compose.yml"])
+
     def test_malformed_json_is_reported(self):
         self.write("package.json", '{"name":')
         report = scanner.discover(self.repo)

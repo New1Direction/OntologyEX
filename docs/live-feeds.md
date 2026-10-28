@@ -23,6 +23,19 @@ OpenTelemetry SDK's standard exporter. `payments` answers 503 and fails about 30
 its requests, so IssueRefund shows **AT RISK** and ApproveException **POSSIBLY
 IMPACTED**, from live data. Without the SDK it runs with probes only.
 
+## Faster: the Rust feeds service
+
+`ontologyex-feeds` is a drop-in replacement for `feeds.py`: the same config file,
+the same observations and status files, about 18× the trace throughput in a fifth
+of the memory, and probes polled in parallel. CI checks it against `feeds.py` on
+every change. Install it with `fetch_engine.py` or build it with cargo; see
+[Rust engine](rust-engine.md).
+
+```bash
+ontologyex-feeds check --config feeds.json --repo /path/to/repo
+ontologyex-feeds run --config feeds.json
+```
+
 ## Your own systems
 
 1. Copy `examples/feeds/feeds.example.json` and set the components. Each `component`

@@ -11,7 +11,9 @@ keep it updated while the user's laptop is only a viewport.
 | Graph identity, observations, bounded impact | Rust | Initial offline core under engine/ |
 | Domain model and evidence compiler | Existing OntologyEX Python | Preserve |
 | Model-policy invariants | Lean 4 | Formal package under proofs/lean |
-| Concurrent ingestion and durable remote jobs | Rust + bounded worker scheduler | Planned |
+| Live telemetry ingestion (probes, Prometheus, OTLP) | Rust `ontologyex-feeds` | Shipped; parity-checked against `feeds.py` ([Rust engine](rust-engine.md)) |
+| Repository discovery | Rust `ontologyex-discover` | Shipped; byte-identical to `discover_repo.py` |
+| Durable remote jobs | Rust + bounded worker scheduler | Planned |
 | Pure parallel graph acceleration | Bend2 | Experimental; benchmark gate |
 | Persistent workspace data and snapshots | Hosted database + object storage | Planned |
 | Observability | OpenTelemetry collectors and signals | Planned |

@@ -162,5 +162,39 @@ class NativeViewTests(unittest.TestCase):
             self.native._slots.release()
 
 
+
+class NativeDiscoveryTests(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+
+    def fake(self, output: str, code: int = 0) -> Path:
+        binary = self.root / "ontologyex-discover"
+        binary.write_text(f"#!/bin/sh\ncat <<'EOF'\n{output}\nEOF\nexit {code}\n")
+        binary.chmod(0o755)
+        return binary
+
+    def test_engine_dir_environment_wins(self):
+        with patch.dict(os.environ, {bridge.ENGINE_DIR_ENV: str(self.root)}):
+            self.assertEqual(bridge.engine_binary("ontologyex-feeds"), self.root / "ontologyex-feeds")
+
+    def test_discovery_errors_keep_their_python_type(self):
+        import discover_repo
+        binary = self.fake('{"error": "repository walk exceeds file budget", "status": "ERROR"}', 1)
+        with self.assertRaises(discover_repo.DiscoveryError):
+            bridge.native_discover(self.root, binary)
+
+    def test_discovery_output_must_keep_the_trust_contract(self):
+        binary = self.fake('{"kind": "UNREVIEWED_BUSINESS_DISCOVERY_PREVIEW", "execution_authorized": true}')
+        with self.assertRaises(bridge.NativeViewError):
+            bridge.native_discover(self.root, binary)
+
+    @unittest.skipUnless(bridge.engine_binary("ontologyex-discover").exists(), "Rust discovery not built")
+    def test_native_discovery_matches_python(self):
+        import discover_repo
+        for repo in (ROOT, ROOT / "examples" / "operating-picture"):
+            self.assertEqual(bridge.native_discover(repo), discover_repo.discover(repo))
+
 if __name__ == "__main__":
     unittest.main()

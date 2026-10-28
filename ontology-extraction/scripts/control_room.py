@@ -955,7 +955,8 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 last_attempt = state_cache.get("last_attempt")
                 if last_attempt is None or (current - last_attempt).total_seconds() > 15:
                     state_cache["last_attempt"] = current
-                    topology = discover_repo.discover(repo)
+                    topology = (native_view_bridge.native_discover(repo) if native_view
+                                else discover_repo.discover(repo))
                     state_cache["topology"] = topology
                     state_cache["last_success"] = current
                 topology = state_cache["topology"]
@@ -1199,7 +1200,8 @@ def main():
             topology = (github_discovery.discover_github(
                 args.github, github_discovery.GitHubClient(
                     token=os.environ.get("ONTOLOGYEX_GITHUB_TOKEN")))
-                        if args.github else discover_repo.discover(args.repo))
+                        if args.github else native_view_bridge.native_discover(args.repo)
+                        if args.view_engine == "rust" else discover_repo.discover(args.repo))
             result = build_state(topology, read_observations(args.observations),
                                  read_thresholds(args.thresholds))
             result["discovery_source"] = topology.get("source", {"provider": "local"})

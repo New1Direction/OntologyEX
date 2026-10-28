@@ -18,7 +18,7 @@ PACKAGE = (
     "scripts/control_room.py", "scripts/operating_picture.html", "scripts/layout_engine.js",
     "scripts/github_discovery.py", "scripts/code_imports.py", "scripts/snapshot_store.py",
     "scripts/graph_view_api.py", "scripts/incident_view.py", "scripts/native_view_bridge.py",
-    "scripts/feeds.py", "scripts/rdf_export.py", "scripts/graph_view.py",
+    "scripts/feeds.py", "scripts/rdf_export.py", "scripts/graph_view.py", "scripts/fetch_engine.py",
     "references/operating-picture.md",
     "scripts/domain_skill.py", "scripts/policy_check.py", "scripts/scaffold.py", "scripts/provenance.py",
     "scripts/trace_extract.py", "scripts/otlp_normalize.py", "references/trace-to-ontology.md",
