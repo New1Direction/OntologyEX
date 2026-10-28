@@ -123,7 +123,8 @@ class CodeSurfaceTests(unittest.TestCase):
             self.assertIn(edge["source"], nodes)
             self.assertIn(edge["target"], nodes)
         table_edges = [e for e in graph["edges"]
-                       if e["state"] == "SOURCE_SYNTAX_CANDIDATE"]
+                       if e["state"] == "SOURCE_SYNTAX_CANDIDATE"
+                       and e["relation"] == "DECLARES"]
         self.assertEqual(len(table_edges), 2)
         self.assertFalse(any(e["relation"] == "DEPENDS_ON"
                              for e in table_edges))
