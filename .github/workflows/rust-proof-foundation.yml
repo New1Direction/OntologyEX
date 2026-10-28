@@ -26,7 +26,7 @@ jobs:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
       - name: Test core and deny warnings
-        run: cargo test --manifest-path engine/Cargo.toml --all-targets
+        run: RUSTFLAGS='-D warnings' cargo test --manifest-path engine/Cargo.toml --all-targets
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.11'
@@ -38,7 +38,7 @@ jobs:
         run: python tests/rust_view_parity.py
       - name: Static graph-to-status fixture
         run: |
-          cargo run --manifest-path engine/Cargo.toml --quiet --             engine/examples/topology.json engine/examples/observations.jsonl 2000 > /tmp/ontologyex-state.json
+          cargo run --manifest-path engine/Cargo.toml --quiet --bin ontologyex-core --             engine/examples/topology.json engine/examples/observations.jsonl 2000 > /tmp/ontologyex-state.json
           python -c 'import json; s=json.load(open("/tmp/ontologyex-state.json")); assert not s["execution_authorized"]; assert s["trust"] == "UNAUTHENTICATED_INPUT_NOT_PRODUCTION_HEALTH"; assert any(n["health"] == "failed" for n in s["nodes"])'
   lean-policy:
     runs-on: ubuntu-latest
