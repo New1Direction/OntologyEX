@@ -21,6 +21,8 @@ import stat
 import discover_repo
 import github_discovery
 import snapshot_store
+import graph_view_api
+from urllib.parse import parse_qs, urlsplit
 
 MAX_OBSERVATION_BYTES = 1024 * 1024
 MAX_OBSERVATIONS = 4096
@@ -732,20 +734,44 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 self.send_header("Content-Length", "0")
                 self.end_headers()
                 return
-            if self.path == "/":
+            route = urlsplit(self.path)
+            if len(self.path) > 2200 or route.fragment:
+                payload, mime, code = b"Request rejected", "text/plain", 414
+            elif route.path == "/" and not route.query:
                 payload, mime, code = PAGE.encode("utf-8"), "text/html; charset=utf-8", 200
-            elif self.path == "/static/layout_engine.js":
+            elif route.path == "/static/layout_engine.js" and not route.query:
                 payload = (Path(__file__).resolve().parent / "layout_engine.js").read_bytes()
                 mime, code = "application/javascript; charset=utf-8", 200
-            elif self.path == "/api/state":
-                try:
-                    value = snapshot()
-                    payload, code = json.dumps(value, sort_keys=True).encode(), 200
-                except (RoomError, discover_repo.DiscoveryError, github_discovery.GitHubDiscoveryError,
-                        OSError, ValueError) as exc:
-                    payload = json.dumps({"status": "ERROR", "reason": type(exc).__name__}).encode()
-                    code = 503
+            elif route.path in ("/api/state", "/api/view", "/api/node"):
                 mime = "application/json; charset=utf-8"
+                try:
+                    params = parse_qs(route.query, strict_parsing=True, keep_blank_values=True,
+                                      max_num_fields=4)
+                    if any(len(values) != 1 for values in params.values()):
+                        raise graph_view_api.ViewError("ambiguous query parameter")
+                    full = snapshot()
+                    if route.path == "/api/state":
+                        if params:
+                            raise graph_view_api.ViewError("summary takes no query parameters")
+                        result = graph_view_api.summary(full)
+                    elif route.path == "/api/view":
+                        if not set(params).issubset({"lens", "q", "offset"}):
+                            raise graph_view_api.ViewError("unsupported view parameter")
+                        result = graph_view_api.page(
+                            full, lens=params.get("lens", ["all"])[0],
+                            query=params.get("q", [""])[0],
+                            offset=graph_view_api.parse_offset(params.get("offset", ["0"])[0]))
+                    else:
+                        if set(params) != {"id"}:
+                            raise graph_view_api.ViewError("node requires an exact id")
+                        result = graph_view_api.node_detail(full, params["id"][0])
+                    payload = json.dumps(result, sort_keys=True).encode()
+                    code = 200
+                except (graph_view_api.ViewError, ValueError, UnicodeError):
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, discover_repo.DiscoveryError, github_discovery.GitHubDiscoveryError,
+                        OSError, TypeError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
             else:
                 payload, mime, code = b"Not found", "text/plain", 404
             self.send_response(code)
