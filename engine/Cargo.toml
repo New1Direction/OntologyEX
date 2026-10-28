@@ -5,11 +5,25 @@ edition = "2021"
 license = "MIT"
 description = "Bounded, deterministic graph state and health projection for OntologyEX"
 
+[features]
+default = ["discover", "feeds"]
+# Repository manifest discovery (byte-identical to discover_repo.py).
+discover = ["dep:toml"]
+# Live feeds service: HTTP probes, Prometheus, OTLP/HTTP receiver (same files as feeds.py).
+feeds = ["discover", "dep:ureq", "dep:tiny_http", "dep:flate2"]
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-chrono = { version = "0.4", default-features = false, features = ["std"] }
+chrono = { version = "0.4", default-features = false, features = ["std", "now"] }
 sha2 = "0.10"
+# TOML 1.0, the version Python's tomllib reads.
+toml = { version = "0.8", default-features = false, features = ["parse"], optional = true }
+
+# No gzip, no automatic proxy, system trust store (like urllib).
+ureq = { version = "3", default-features = false, features = ["rustls", "platform-verifier"], optional = true }
+tiny_http = { version = "0.12", default-features = false, optional = true }
+flate2 = { version = "1", default-features = false, features = ["rust_backend"], optional = true }
 
 [lib]
 name = "ontologyex_core"
@@ -18,3 +32,18 @@ path = "src/lib.rs"
 [[bin]]
 name = "ontologyex-core"
 path = "src/main.rs"
+
+[[bin]]
+name = "ontologyex-discover"
+path = "src/bin/ontologyex-discover.rs"
+required-features = ["discover"]
+
+[[bin]]
+name = "ontologyex-feeds"
+path = "src/bin/ontologyex-feeds.rs"
+required-features = ["feeds"]
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

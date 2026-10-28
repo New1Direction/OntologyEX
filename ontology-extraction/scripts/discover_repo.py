@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 import sys
@@ -35,11 +36,22 @@ MAX_MANIFESTS = 128
 MAX_FILE_BYTES = 256 * 1024
 MAX_TOTAL_BYTES = 2 * 1024 * 1024
 MAX_DEPTH = 6
+MAX_YAML_TOKENS = 50000
+MAX_YAML_NESTING = 64
+MAX_JSON_NESTING = 512
 IDENT = re.compile(r"[A-Za-z0-9_.-]{1,80}\Z")
 
 
 class DiscoveryError(ValueError):
     pass
+
+
+class ParseFailure(ValueError):
+    """A manifest could not be read as its format. `category` is reported as the gap's error_type."""
+
+    def __init__(self, category: str):
+        super().__init__(category)
+        self.category = category
 
 
 class StrictLoader(yaml.SafeLoader):
@@ -74,12 +86,83 @@ def mapping(loader, node):
 StrictLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, mapping)
 
 
+_OPEN = (yaml.tokens.BlockSequenceStartToken, yaml.tokens.BlockMappingStartToken,
+         yaml.tokens.FlowSequenceStartToken, yaml.tokens.FlowMappingStartToken)
+_CLOSE = (yaml.tokens.BlockEndToken, yaml.tokens.FlowSequenceEndToken, yaml.tokens.FlowMappingEndToken)
+
+
 def load_yaml(data: bytes):
-    # Forbid anchors and aliases, including recursive alias expansion.
+    # Forbid anchors, aliases (including recursive alias expansion), and explicit
+    # tags, and bound size and nesting before building anything.
+    depth = 0
     for i, token in enumerate(yaml.scan(data)):
-        if i >= 50000 or isinstance(token, (yaml.tokens.AnchorToken, yaml.tokens.AliasToken)):
-            raise DiscoveryError("YAML exceeds token limit or contains anchors/aliases")
+        if i >= MAX_YAML_TOKENS or isinstance(token, (yaml.tokens.AnchorToken, yaml.tokens.AliasToken,
+                                                       yaml.tokens.TagToken)):
+            raise DiscoveryError("YAML exceeds token limit or contains anchors, aliases, or tags")
+        depth += isinstance(token, _OPEN) - isinstance(token, _CLOSE)
+        if depth > MAX_YAML_NESTING:
+            raise DiscoveryError("YAML nesting exceeds limit")
     return yaml.load(data, Loader=StrictLoader)
+
+
+def json_nesting_ok(text: str) -> bool:
+    """Bracket depth outside strings stays within MAX_JSON_NESTING (checked before parsing)."""
+    depth = 0
+    in_string = escaped = False
+    for c in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif c == "\\":
+                escaped = True
+            elif c == '"':
+                in_string = False
+        elif c == '"':
+            in_string = True
+        elif c in "[{":
+            depth += 1
+            if depth > MAX_JSON_NESTING:
+                return False
+        elif c in "]}":
+            depth -= 1
+    return True
+
+
+def toml_float(text: str) -> float:
+    """TOML floats, but a literal too large for a double is an error, not infinity."""
+    value = float(text)
+    if math.isinf(value) and text.lstrip("+-") != "inf":
+        raise ValueError("TOML float out of range")
+    return value
+
+
+def parse_manifest(rel: str, data: bytes):
+    """The parsed document, or None for presence-only manifests. Raises ParseFailure."""
+    name = Path(rel).name
+    if rel.endswith(".json") or rel.endswith(".toml"):
+        try:
+            text = data.decode("utf-8")
+        except UnicodeError as exc:
+            raise ParseFailure("UnicodeError") from exc
+        if rel.endswith(".json"):
+            try:
+                if not json_nesting_ok(text):
+                    raise ValueError("JSON nesting exceeds limit")
+                return json.loads(text)
+            except (ValueError, RecursionError) as exc:
+                raise ParseFailure("JSONDecodeError") from exc
+        try:
+            return tomllib.loads(text, parse_float=toml_float)
+        except (ValueError, RecursionError) as exc:
+            raise ParseFailure("TOMLDecodeError") from exc
+    if name in ("go.mod", "Dockerfile"):
+        return None  # Presence only; never execute or interpret arbitrary instructions
+    if Path(rel).suffix in (".yaml", ".yml"):
+        try:
+            return load_yaml(data)
+        except (yaml.YAMLError, ValueError, TypeError, RecursionError) as exc:
+            raise ParseFailure("YAMLError") from exc
+    return None
 
 
 def canonical_id(kind: str, path: str, name: str = "") -> str:
@@ -172,16 +255,7 @@ def discover(repo: Path) -> dict:
         evidence[eid] = {"id": eid, "path": rel, "sha256": digest,
                          "source_kind": "LOCAL_MANIFEST_BYTES", "authenticity": "UNVERIFIED"}
         try:
-            if rel.endswith(".json"):
-                doc = json.loads(data.decode("utf-8"))
-            elif rel.endswith(".toml"):
-                doc = tomllib.loads(data.decode("utf-8"))
-            elif rel in ("go.mod",) or Path(rel).name in ("go.mod", "Dockerfile"):
-                doc = None  # Presence only; never execute or interpret arbitrary instructions
-            elif Path(rel).suffix in (".yaml", ".yml"):
-                doc = load_yaml(data)
-            else:
-                doc = None
+            doc = parse_manifest(rel, data)
             base = Path(rel).name
             if base in COMPOSE_FILES:
                 if not isinstance(doc, dict) or not isinstance(doc.get("services"), dict):
@@ -222,8 +296,9 @@ def discover(repo: Path) -> dict:
                 uid = canonical_id("manifest", rel)
                 add_node(uid, "source_manifest", rel, eid)
                 add_edge(project, uid, "DECLARES", eid)
-        except (UnicodeError, ValueError, TypeError, KeyError, yaml.YAMLError, RecursionError) as exc:
-            gaps.append({"source": rel, "reason": "PARSE_OR_VALIDATION_FAILED", "error_type": type(exc).__name__})
+        except (ParseFailure, ValueError, TypeError, KeyError) as exc:
+            category = exc.category if isinstance(exc, ParseFailure) else "DiscoveryError"
+            gaps.append({"source": rel, "reason": "PARSE_OR_VALIDATION_FAILED", "error_type": category})
             # Don't leave successfully parsed siblings from one malformed manifest:
             for key in list(nodes):
                 if nodes[key].get("evidence_id") == eid:

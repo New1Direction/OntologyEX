@@ -43,23 +43,71 @@ def no_duplicates(pairs):
     return value
 
 
+ENGINE_DIR_ENV = "ONTOLOGYEX_ENGINE_DIR"
+MAX_DISCOVERY_OUTPUT = 16 * 1024 * 1024
+DISCOVERY_TIMEOUT_SECONDS = 60.0
+# Native subprocesses never inherit the server's tokens, credentials, or session environment.
+CLEAN_ENV = {"PATH": "/usr/bin:/bin", "LANG": "C", "LC_ALL": "C"}
+
+
+def engine_binary(name: str) -> Path:
+    """Where the Rust binary `name` lives: $ONTOLOGYEX_ENGINE_DIR, the installed
+    skill's bin/ (see fetch_engine.py), then this checkout's release or debug build."""
+    configured = os.environ.get(ENGINE_DIR_ENV)
+    if configured:
+        return Path(configured) / name
+    here = Path(__file__).resolve()
+    candidates = [here.parents[1] / "bin" / name]
+    if len(here.parents) > 2:
+        target = here.parents[2] / "engine" / "target"
+        candidates += [target / "release" / name, target / "debug" / name]
+    return next((c for c in candidates if c.exists()), candidates[-1])
+
+
+def checked_binary(binary: Path) -> Path:
+    """A regular, executable, bounded file that is not a symlink."""
+    if binary.is_symlink():
+        raise NativeViewError("native binary symlink not allowed")
+    try:
+        st = os.stat(binary, follow_symlinks=False)
+    except OSError as exc:
+        raise NativeViewError(
+            f"Rust binary missing: build the engine or run fetch_engine.py ({binary.name})"
+        ) from exc
+    if not (stat.S_ISREG(st.st_mode) and 0 < st.st_size <= MAX_BINARY_BYTES
+            and os.access(binary, os.X_OK)):
+        raise NativeViewError("invalid or non-executable Rust binary")
+    return binary
+
+
+def native_discover(repo: Path, binary: Path | None = None) -> dict:
+    """`discover_repo.discover(repo)` computed by `ontologyex-discover` (byte-identical output)."""
+    import discover_repo
+
+    binary = checked_binary(Path(binary) if binary is not None else engine_binary("ontologyex-discover"))
+    try:
+        process = subprocess.run([str(binary), "--repo", str(repo)], stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE, timeout=DISCOVERY_TIMEOUT_SECONDS, check=False, env=CLEAN_ENV)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise NativeViewError("native discovery unavailable or timed out") from exc
+    if len(process.stdout) > MAX_DISCOVERY_OUTPUT:
+        raise NativeViewError("native discovery output byte budget exceeded")
+    try:
+        result = json.loads(process.stdout.decode("utf-8"), object_pairs_hook=no_duplicates)
+    except (UnicodeError, ValueError, TypeError) as exc:
+        raise NativeViewError("native discovery returned invalid JSON") from exc
+    if process.returncode == 1 and type(result) is dict and result.get("status") == "ERROR":
+        raise discover_repo.DiscoveryError(str(result.get("error", "discovery failed")))
+    if (process.returncode != 0 or type(result) is not dict
+            or result.get("kind") != "UNREVIEWED_BUSINESS_DISCOVERY_PREVIEW"
+            or result.get("execution_authorized") is not False):
+        raise NativeViewError("native discovery violates trust contract")
+    return result
+
+
 class NativeView:
     def __init__(self, binary: Path | None = None):
-        root = Path(__file__).resolve().parents[2]
-        self.binary = Path(binary) if binary is not None else (
-            root / "engine" / "target" / "debug" / "ontologyex-view"
-        )
-        if self.binary.is_symlink():
-            raise NativeViewError("native binary symlink not allowed")
-        try:
-            st = os.stat(self.binary, follow_symlinks=False)
-        except OSError as exc:
-            raise NativeViewError(
-                "Rust binary missing: compile ontologyex-view first"
-            ) from exc
-        if not (stat.S_ISREG(st.st_mode) and 0 < st.st_size <= MAX_BINARY_BYTES
-                and os.access(self.binary, os.X_OK)):
-            raise NativeViewError("invalid or non-executable Rust view binary")
+        self.binary = checked_binary(Path(binary) if binary is not None else engine_binary("ontologyex-view"))
         self._slots = BoundedSemaphore(MAX_CONCURRENT)
 
     def execute(self, full: dict, command: str, *args: str,
@@ -100,8 +148,7 @@ class NativeView:
             process = subprocess.run(
                 [str(self.binary), command, *args],
                 input=payload, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                timeout=TIMEOUT_SECONDS, check=False,
-                env={"PATH": "/usr/bin:/bin", "LANG": "C", "LC_ALL": "C"},
+                timeout=TIMEOUT_SECONDS, check=False, env=CLEAN_ENV,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise NativeViewError("native view process unavailable or timed out") from exc

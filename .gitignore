@@ -23,6 +23,8 @@ build/
 workspaces/
 .ontologyex-*/
 
-# Rust build output
+# Rust build output (Cargo.lock is committed: released binaries build from it)
 engine/target/
-engine/Cargo.lock
+
+# Prebuilt engine binaries installed by fetch_engine.py
+ontology-extraction/bin/
