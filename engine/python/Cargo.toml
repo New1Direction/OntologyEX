@@ -1,0 +1,16 @@
+[package]
+name = "ontologyex-native"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "In-process Python adapter to the bounded Rust OntologyEX graph view"
+
+[lib]
+name = "ontologyex_native"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+ontologyex-core = { path = ".." }
+pyo3 = { version = "0.23", features = ["extension-module"] }
+serde_json = "1"
