@@ -89,6 +89,7 @@ def main():
             root_id = "discovery:service:compose.yml:web"
             db_id = "discovery:service:compose.yml:db"
             for component in (root_id, db_id):
+                endpoints.append("/api/incident?id=" + quote(component, safe=""))
                 endpoints.append("/api/node?id=" + quote(component, safe=""))
                 for depth in (1, 2):
                     endpoints.append(
