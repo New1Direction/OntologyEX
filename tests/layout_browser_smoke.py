@@ -81,6 +81,14 @@ def main():
                     "width": width, "height": height,
                     "deviceScaleFactor": 1, "mobile": False})
                 driver.get(f"http://127.0.0.1:{port}/")
+                safe_before = driver.execute_script("""
+                    const rs=[...document.querySelectorAll('#workspace>section')]
+                      .map(el=>el.getBoundingClientRect());
+                    return rs.every((a,i)=>rs.every((b,j)=>i===j||
+                      !(a.left < b.right-1 && a.right > b.left+1 &&
+                        a.top < b.bottom-1 && a.bottom > b.top+1)));
+                """)
+                assert safe_before, ("pre-discovery controls must not overlap",width,height)
                 driver.find_element("id", "map-business").click()
                 WebDriverWait(driver, 10).until(lambda d: d.execute_script(
                     "return typeof lastLayout !== 'undefined' && !!lastLayout && "
