@@ -160,3 +160,116 @@ def node_detail(full, node_id):
         "impact_semantics": full["impact_semantics"],
         "execution_authorized": False,
     }
+
+
+# Relations are source-declared links. Neither a static import nor a Compose
+# dependency is proof that a runtime call, database query or outage occurred.
+MAX_NEIGHBORHOOD_DEPTH = 2
+MAX_NEIGHBORHOOD_NODES = MAX_PAGE
+RELATION_ORDER = {
+    "DEPENDS_ON": 0, "STATIC_IMPORTS": 1,
+    "CALLS": 2, "READS_FROM": 3, "WRITES_TO": 4,
+    "DECLARES_TABLE_CANDIDATE": 5, "DECLARES": 6,
+}
+
+
+def valid_depth(raw):
+    require(type(raw) is str and raw in ("1", "2"),
+            "neighborhood depth must be 1 or 2")
+    return int(raw)
+
+
+def neighborhood(full, node_id, *, depth=1):
+    """One/two-hop bounded undirected *navigation* over directed cited edges.
+
+    Every edge retains the original source->target direction and relation,
+    because walking an edge in reverse is not a causal dependency. Navigation
+    is not a blast-radius calculation or confirmation of runtime behavior.
+    """
+    require(type(node_id) is str and 0 < len(node_id) <= 1024,
+            "invalid neighborhood node identity")
+    require(type(depth) is int and 1 <= depth <= MAX_NEIGHBORHOOD_DEPTH,
+            "unsupported neighborhood traversal depth")
+    by_id = {node["id"]: node for node in full["nodes"]}
+    require(node_id in by_id, "neighborhood node not found")
+    from collections import defaultdict, deque
+    adj = defaultdict(list)
+    for e in full["edges"]:
+        a, b = e["source"], e["target"]
+        # Corrupt/dangling graph references never lead to fabricated nodes.
+        if a not in by_id or b not in by_id:
+            continue
+        adj[a].append((b, e))
+        if b != a:
+            adj[b].append((a, e))
+    def edge_rank(edge):
+        return (RELATION_ORDER.get(edge["relation"], 7),
+                edge["relation"], edge["source"], edge["target"],
+                edge.get("source_line", 0), edge.get("evidence_id", ""))
+    visited = {node_id}
+    queue = deque([(node_id, 0)])
+    clipped = set()
+    explored = 0
+    max_seen_depth = 0
+    while queue:
+        current, dist = queue.popleft()
+        if dist >= depth:
+            continue
+        # A generic project DECLARES hundreds of nodes. Keep it visible
+        # as direct evidence, but do not use it as a two-hop shortcut
+        # between unrelated services, APIs and database candidates.
+        if current == full["project"] and current != node_id:
+            continue
+        explored += 1
+        choices = sorted(adj.get(current, []), key=lambda item: (
+            # Put actual reported failures and warnings first, then
+            # the more descriptive static/declared relationships.
+            priority(by_id[item[0]])[0], edge_rank(item[1]), item[0]))
+        for other, edge in choices:
+            if other in visited:
+                continue
+            if len(visited) >= MAX_NEIGHBORHOOD_NODES:
+                clipped.add(other)
+                continue
+            visited.add(other)
+            queue.append((other, dist + 1))
+            max_seen_depth = max(max_seen_depth, dist + 1)
+    ordered_nodes = [by_id[node_id]] + sorted(
+        (by_id[key] for key in visited if key != node_id),
+        key=lambda n: (priority(n), n["id"]))
+    internal = sorted((e for e in full["edges"]
+                       if e["source"] in visited and e["target"] in visited),
+                      key=edge_rank)
+    edges = internal[:MAX_EDGES]
+    evidence_keys = {node.get("evidence_id") for node in ordered_nodes} | {
+        e.get("evidence_id") for e in edges}
+    evidence = [item for item in full["source_evidence"]
+                if item["id"] in evidence_keys]
+    direct_out = sum(e["source"] == node_id for e in full["edges"])
+    direct_in = sum(e["target"] == node_id for e in full["edges"])
+    return {
+        "schema_version": 1,
+        "kind": "BOUNDED_GRAPH_NEIGHBORHOOD",
+        "summary": summary(full),
+        "center_id": node_id,
+        "requested_depth": depth,
+        "depth_reached": max_seen_depth,
+        "nodes": ordered_nodes,
+        "edges": edges,
+        "source_evidence": evidence,
+        "visible_count": len(ordered_nodes),
+        "total_matches": len(ordered_nodes),
+        "total_nodes": len(full["nodes"]),
+        "offset": 0,
+        "next_offset": None,
+        "direct_incoming_edges": direct_in,
+        "direct_outgoing_edges": direct_out,
+        "explored_nodes": explored,
+        "truncated_node_candidates": len(clipped),
+        "edge_count_in_view": len(internal),
+        "edges_omitted": max(0, len(internal) - len(edges)),
+        "is_complete_within_depth": not clipped and len(internal) <= MAX_EDGES,
+        "scope": "BIDIRECTIONAL_GRAPH_NAVIGATION_NOT_CAUSAL_IMPACT",
+        "runtime_discovery": full["runtime_discovery"],
+        "execution_authorized": False,
+    }
