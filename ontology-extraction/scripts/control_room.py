@@ -22,6 +22,7 @@ import discover_repo
 import github_discovery
 import snapshot_store
 import graph_view_api
+import incident_view
 from urllib.parse import parse_qs, urlsplit
 
 MAX_OBSERVATION_BYTES = 1024 * 1024
@@ -338,6 +339,7 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 #incidents ul{padding-left:19px;margin:0;font-size:12px;line-height:1.6}
 #layout-debug{margin:0 14px 16px;padding:8px 12px;font-size:11px;border:1px solid #345264;border-radius:7px;max-width:800px}
 #layout-report{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto}
+#incident-report{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;line-height:1.6;max-height:320px;overflow:auto;color:#9dbdc2}
 @media(prefers-reduced-motion:reduce){#workspace>section{transition:none!important}}
 </style></head>
 <body><header><div><small>ONTOLOGYEX // LOCAL OBSERVABILITY</small>
@@ -360,7 +362,7 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 </div><p id="graph-scope" aria-live="polite">Select a node to explore its connected neighbors.</p><svg id="svg" role="img" aria-label="Interactive dependency diagram"></svg></section>
 <section id="incidents" class="priority-critical"><h2>Incidents and risks</h2><ul id="incident-list"></ul></section>
 <section id="integrity" class="priority-critical"><h2>System integrity</h2><div id="counts"></div></section>
-<section id="details-panel"><h2>Selected component</h2><div id="details">Select a node to inspect its source and status.</div></section>
+<section id="details-panel"><h2>Selected component</h2><div id="details">Select a node to inspect its source and status.</div><button type="button" id="investigate-node" disabled>Investigate evidence</button><pre id="incident-report" aria-live="polite">Select a node to inspect its observations and possible exposures.</pre></section>
 <section id="coverage-panel"><h2>Coverage and blind spots</h2><div id="coverage" class="muted"></div></section>
 <section id="versions-panel" data-collapsed="false"><h2>Saved source revisions</h2>
 <button id="toggle-versions" type="button" aria-expanded="true" aria-controls="versions">Collapse revisions</button>
@@ -381,7 +383,7 @@ const el=(tag,attrs={},txt)=>{const n=document.createElementNS(NS,tag);for(const
 const text=(id,value)=>document.getElementById(id).textContent=String(value);
 let selected=null,state=null,focusGraph=false,lastLayout=null,graphShare=0.63,versionsCollapsed=false;
 let graphOffset=0,requestEpoch=0,lastSummary=null,lastPage=null,neighborhoodRoot=null;
-let detailEpoch=0;
+let detailEpoch=0,incidentEpoch=0;
 try{
  focusGraph=localStorage.getItem("ontologyex-focus-graph")==="1";
  const saved=Number(localStorage.getItem("ontologyex-graph-share"));
@@ -616,6 +618,9 @@ async function loadNeighborhood(id){
 }
 function pick(id){
  selected=id;neighborhoodRoot=id;
+ ++incidentEpoch;
+ document.getElementById("investigate-node").disabled=false;
+ text("incident-report","Select Investigate evidence to load this node’s source-reported timeline.");
  if(state)draw(state);
  loadNodeDetail(id);
  return loadNeighborhood(id);
@@ -670,6 +675,39 @@ async function loadPage(){
    text("updated","Latest fetch failed; prior view may be stale");
  }
 }
+async function investigateSelected(){
+ if(!selected)return;
+ const id=selected,seq=++incidentEpoch;
+ text("incident-report","Loading bounded source evidence…");
+ try{
+   const res=await fetch("/api/incident?id="+encodeURIComponent(id),{cache:"no-store"});
+   if(!res.ok)throw Error("incident evidence unavailable");
+   const record=await res.json();
+   if(seq!==incidentEpoch||selected!==id||record.component_id!==id)return;
+   const lines=[
+     "INCIDENT EVIDENCE · SOURCE REPORTED ONLY",
+     "COMPONENT: "+record.component.label,
+     "STATUS: "+record.component.reported_state.toUpperCase(),
+     "SOURCE TRUST: "+record.component.source_authenticity,
+     "OBSERVATIONS: "+record.observations_included+"/"+record.observation_count,
+     ...record.timeline.map(o=>o.observed_at+" "+o.status.toUpperCase()+
+       " source="+o.source+" age="+o.age_seconds+"s "+
+       (o.fresh_at_evaluation?"fresh":"stale")+" metrics="+JSON.stringify(o.metrics)),
+     "POSSIBLY EXPOSED DEPENDENTS: "+record.possible_dependents.length+
+       (record.possible_dependents_omitted?" (others omitted)":""),
+     ...record.possible_dependents.map(n=>n.label+" · independently reported: "+n.independently_reported_status),
+     "SOURCE REVISIONS: "+record.source_history.length+" (NOT deployments)",
+     "ROOT CAUSE: UNDETERMINED",
+     "VERIFY: "+record.recommended_diagnosis,
+     "NO AUTHORIZATION TO REPAIR"
+   ];
+   text("incident-report",lines.join("\n"));
+ }catch(_){
+   if(seq===incidentEpoch&&selected===id)text("incident-report",
+       "Incident evidence unavailable. Last viewed status may be stale.");
+ }
+}
+document.getElementById("investigate-node").addEventListener("click",investigateSelected);
 function refresh(){return neighborhoodRoot?loadNeighborhood(neighborhoodRoot):loadPage()}
 let mapStarted=false;
 function returnToList(){
@@ -810,7 +848,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         worker = Thread(target=refresh_loop, name="ontologyex-github-readonly", daemon=True)
         worker.start()
 
-    def snapshot() -> dict:
+    def snapshot(observation_rows: list[dict] | None = None) -> dict:
         current = datetime.now(timezone.utc)
         if remote is not None:
             topology, last_success, refresh_error = remote.snapshot()
@@ -825,7 +863,8 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 topology = state_cache["topology"]
                 last_success = state_cache["last_success"]
                 refresh_error = False
-        result = build_state(topology, read_observations(observations), rules, current)
+        result = build_state(topology, (observation_rows if observation_rows is not None
+                                        else read_observations(observations)), rules, current)
         result["discovery_source"] = topology.get("source", {"provider": "local"})
         result["discovery_freshness"] = (
             "STALE_LAST_KNOWN" if refresh_error else "AS_OF_LATEST_SUCCESSFUL_SCAN")
@@ -857,7 +896,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             elif route.path == "/static/layout_engine.js" and not route.query:
                 payload = (Path(__file__).resolve().parent / "layout_engine.js").read_bytes()
                 mime, code = "application/javascript; charset=utf-8", 200
-            elif route.path in ("/api/state", "/api/view", "/api/node", "/api/neighborhood"):
+            elif route.path in ("/api/state", "/api/view", "/api/node", "/api/neighborhood", "/api/incident"):
                 mime = "application/json; charset=utf-8"
                 try:
                     params = parse_qs(route.query, strict_parsing=True, keep_blank_values=True,
@@ -882,13 +921,19 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                         result = graph_view_api.neighborhood(
                             full, params["id"][0],
                             depth=graph_view_api.valid_depth(params["depth"][0]))
+                    elif route.path == "/api/incident":
+                        if set(params) != {"id"}:
+                            raise graph_view_api.ViewError("incident requires exact node id")
+                        rows = read_observations(observations)
+                        full = snapshot(rows)  # same rows for status and timeline
+                        result = incident_view.incident(full, rows, params["id"][0])
                     else:
                         if set(params) != {"id"}:
                             raise graph_view_api.ViewError("node requires an exact id")
                         result = graph_view_api.node_detail(full, params["id"][0])
                     payload = json.dumps(result, sort_keys=True).encode()
                     code = 200
-                except (graph_view_api.ViewError, ValueError, UnicodeError):
+                except (graph_view_api.ViewError, incident_view.IncidentError, ValueError, UnicodeError):
                     payload, code = b'{"status":"INVALID_QUERY"}', 400
                 except (RoomError, discover_repo.DiscoveryError, github_discovery.GitHubDiscoveryError,
                         OSError, TypeError):
