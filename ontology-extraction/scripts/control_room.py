@@ -424,7 +424,8 @@ function applyLayout(s){
    root.style.height=plan.contentHeight+"px";
    for(const [id,r] of Object.entries(plan.rects)){
      const el=document.getElementById(id);
-     el.style.position="absolute";el.style.left=r.x+"px";el.style.top=r.y+"px";
+     el.style.position="absolute";el.style.minHeight="0px";
+     el.style.left=r.x+"px";el.style.top=r.y+"px";
      el.style.width=r.width+"px";el.style.height=r.height+"px";
    }
    lastLayout=plan;
