@@ -327,6 +327,8 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 #graph-search{width:min(180px,42vw);border-radius:6px;background:#0f2530;border:1px solid #386372;color:#d5e9eb;padding:8px}
 #lens{border-radius:6px;background:#0f2530;color:#d5e9eb;border:1px solid #386372;padding:7px}
 #graph-coverage{font-size:11px;color:#a9c7ce;margin:0;padding:6px}
+#graph-pager{display:flex;gap:8px;padding:2px 8px}
+#graph-pager button:disabled{opacity:.42;cursor:default}
 #graph-share{accent-color:#50b5af;max-width:115px}
 #versions-panel[data-collapsed="true"] #versions{display:none}
 #incidents ul{padding-left:19px;margin:0;font-size:12px;line-height:1.6}
@@ -338,12 +340,12 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 <h1>BUSINESS CONTROL ROOM</h1></div><div><select id="lens" aria-label="Graph lens">
 <option value="all">ALL SYSTEMS</option><option value="api">API ROUTES</option>
 <option value="database">DATABASE</option><option value="services">SERVICES</option>
-</select> <input id="graph-search" type="search" aria-label="Find graph node" placeholder="Find node…"/>
+</select> <input id="graph-search" type="search" aria-label="Find graph node" maxlength="90" placeholder="Find node…"/>
 <label for="graph-share" title="Resize the graph area">Graph size</label>
 <input id="graph-share" type="range" min="48" max="76" value="63" aria-label="Graph area width"/>
 <button id="graph-focus" type="button" aria-pressed="false">Focus graph</button> <button id="map-business" type="button">Map My Business</button><div id="mode" class="muted">Connecting to local source...</div><small id="updated"></small></div></header>
 <main id="workspace" aria-label="Adaptive business workspace">
-<section id="map" aria-label="Declared component topology"><p id="graph-coverage" aria-live="polite"></p><svg id="svg" role="img" aria-label="Interactive dependency diagram"></svg></section>
+<section id="map" aria-label="Declared component topology"><p id="graph-coverage" aria-live="polite"></p><div id="graph-pager"><button id="graph-prev" type="button" disabled>Previous</button> <button id="graph-next" type="button" disabled>Next</button></div><svg id="svg" role="img" aria-label="Interactive dependency diagram"></svg></section>
 <section id="incidents" class="priority-critical"><h2>Incidents and risks</h2><ul id="incident-list"></ul></section>
 <section id="integrity" class="priority-critical"><h2>System integrity</h2><div id="counts"></div></section>
 <section id="details-panel"><h2>Selected component</h2><div id="details">Select a node to inspect its source and status.</div></section>
@@ -366,6 +368,7 @@ const el=(tag,attrs={},txt)=>{const n=document.createElementNS(NS,tag);for(const
  if(txt!==undefined)n.textContent=String(txt);return n};
 const text=(id,value)=>document.getElementById(id).textContent=String(value);
 let selected=null,state=null,focusGraph=false,lastLayout=null,graphShare=0.63,versionsCollapsed=false;
+let graphOffset=0,requestEpoch=0,lastSummary=null,lastPage=null;
 try{
  focusGraph=localStorage.getItem("ontologyex-focus-graph")==="1";
  const saved=Number(localStorage.getItem("ontologyex-graph-share"));
@@ -388,10 +391,7 @@ const PANEL_SPECS=[
 ];
 function renderIncidents(s){
  const ul=document.getElementById("incident-list");ul.replaceChildren();
- const serious=s.nodes.filter(n=>n.status==="error"||n.status==="warning"||
-    (Array.isArray(n.potentially_impacted_by)&&n.potentially_impacted_by.length));
- serious.sort((a,b)=>(a.status==="error"?0:a.status==="warning"?1:2)-
-   (b.status==="error"?0:b.status==="warning"?1:2)||a.label.localeCompare(b.label));
+ const serious=Array.isArray(s.alerts)?s.alerts:[];
  if(!serious.length){
    const li=document.createElement("li");
    li.textContent="No current reported alerts. Unobserved components are NOT confirmed healthy.";
@@ -400,12 +400,12 @@ function renderIncidents(s){
  for(const n of serious.slice(0,18)){
    const li=document.createElement("li"),btn=document.createElement("button");
    btn.textContent=(n.status.toUpperCase()==="UNKNOWN"?"POSSIBLE IMPACT":n.status.toUpperCase())+" · "+n.label;
-   btn.addEventListener("click",()=>{selected=n.id;document.getElementById("graph-search").value=n.label;draw(state)});
+   btn.addEventListener("click",()=>{pick(n.id)});
    li.append(btn);ul.append(li);
  }
- if(serious.length>18){
+ if((s.total_alerts||0)>serious.length){
    const li=document.createElement("li");
-   li.textContent=(serious.length-18)+" more alerts. Search the graph to inspect.";
+   li.textContent=(s.total_alerts-serious.length)+" more alerts. Search the graph to inspect.";
    ul.append(li);
  }
 }
@@ -413,14 +413,14 @@ function applyLayout(s){
  const root=document.getElementById("workspace");
  const width=Math.max(280,root.clientWidth),header=document.querySelector("header");
  const height=Math.max(260,window.innerHeight-header.getBoundingClientRect().height-60);
- const urgent=s.nodes.filter(n=>n.status==="error"||n.status==="warning"||n.potentially_impacted_by?.length).length;
+ const urgent=s.total_alerts||0;
  const dims=PANEL_SPECS.map(p=>({...p,collapsed:p.id==="versions-panel"&&versionsCollapsed,
    items:p.id==="incidents"?urgent:
    p.id==="details-panel"?(selected?22:3):
    p.id==="coverage-panel"?(s.gaps.length+s.unresolved.length):
    p.id==="versions-panel"?(s.snapshot_history?.length||0):0}));
  try{
-   const plan=OntologyLayout.optimize({width,height,panels:dims,density:s.nodes.length,focusGraph,
+   const plan=OntologyLayout.optimize({width,height,panels:dims,density:s.total_nodes||s.nodes.length,focusGraph,
      mapShare:graphShare});
    root.style.display="block";root.style.padding="0";root.style.gap="0";
    root.style.height=plan.contentHeight+"px";
@@ -467,9 +467,9 @@ function draw(s){
  b.textContent=k.toUpperCase()+" "+(count[k]||0);counts.append(b)}
  const cov=document.getElementById("coverage");cov.replaceChildren();
  const lines=["Candidate manifests: "+s.coverage.candidate_manifests,
- "Monitored nodes: "+s.coverage.observed_nodes+"/"+s.nodes.length,
+ "Monitored nodes: "+s.coverage.observed_nodes+"/"+s.total_nodes,
  "Unknown / stale: "+s.coverage.unknown_or_stale_nodes,
- "Unresolved links: "+s.unresolved.length,"Discovery gaps: "+s.gaps.length,
+ "Unresolved links: "+s.unresolved_count,"Discovery gaps: "+s.total_gaps,
  "API route paths: "+(s.coverage.api_route_paths_found??"not scanned"),
  "DB table candidates: "+(s.coverage.db_schema_candidates_found??"not scanned"),
  "Verified static import links: "+(s.coverage.import_relationships_found??"not scanned"),
