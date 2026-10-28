@@ -163,8 +163,10 @@ class LinkRouteTests(DemoBase):
         self.assertIn("clef-flash", routed["signals"][0]["detail"])
         self.assertEqual(result["model_assist"]["routes_proposed"], 2)
         self.assertEqual(result["auto_applied"], 0)
-        # The state the model saw is the binding's own source quote.
-        self.assertIn("class Payment:", self.server.requests[0]["state"])
+        # Each binding's state is its own source quote (requests run in parallel, any order).
+        states = sorted(r["state"] for r in self.server.requests)
+        self.assertTrue(any("class Payment:" in st and "payments.Payment" in st for st in states))
+        self.assertTrue(any("def apply_refund(" in st and "payments.apply_refund" in st for st in states))
 
     def test_model_signal_joins_an_existing_suggestion(self):
         c = self.client(choose("payments (", 0.65))
