@@ -78,6 +78,10 @@ def encode(graph: dict) -> tuple[bytes, int, str, str]:
                 "import_route_files_not_inspected", "import_source_bytes_read",
                 "import_relationships_found", "import_modules_found",
                 "import_unresolved_specifiers", "import_skipped_relations",
+                "second_hop_modules_selected", "second_hop_modules_read",
+                "second_hop_modules_not_read", "second_hop_source_bytes_read",
+                "second_hop_import_edges", "second_hop_unresolved_imports",
+                "second_hop_limited_links", "second_hop_schema_table_declarations",
             } and type(graph["gaps"]) is list and len(graph["gaps"]) <= 256 and
             type(graph["unresolved"]) is list and len(graph["unresolved"]) <= 256 and
             type(graph["ci_evidence"]) is list and len(graph["ci_evidence"]) <= 100,
