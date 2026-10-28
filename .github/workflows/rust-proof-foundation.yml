@@ -1,0 +1,45 @@
+name: Rust + Lean Foundation
+on:
+  pull_request:
+    paths:
+      - 'engine/**'
+      - 'proofs/lean/**'
+      - '.github/workflows/rust-proof-foundation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'engine/**'
+      - 'proofs/lean/**'
+      - '.github/workflows/rust-proof-foundation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  rust-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test core and deny warnings
+        run: cargo test --manifest-path engine/Cargo.toml --all-targets
+      - name: Static graph-to-status fixture
+        run: |
+          cargo run --manifest-path engine/Cargo.toml --quiet --             engine/examples/topology.json engine/examples/observations.jsonl 2000 > /tmp/ontologyex-state.json
+          python -c 'import json; s=json.load(open("/tmp/ontologyex-state.json")); assert not s["execution_authorized"]; assert s["trust"] == "UNAUTHENTICATED_INPUT_NOT_PRODUCTION_HEALTH"; assert any(n["health"] == "failed" for n in s["nodes"])'
+  lean-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: proofs/lean
+          build: true
+          leanchecker: true
+          leanchecker-args: OntologyEXProofs
