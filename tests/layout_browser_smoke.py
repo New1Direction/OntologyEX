@@ -151,6 +151,25 @@ def main():
             assert driver.find_element("id", "graph-focus").get_attribute("aria-pressed") == "true"
             print("CHROME graph preference persisted, reduced-motion disables transitions",
                   flush=True)
+            # Explicit noncritical collapse must keep its toggle accessible.
+            driver.find_element("id", "toggle-versions").click()
+            assert driver.find_element("id", "toggle-versions").get_attribute("aria-expanded") == "false"
+            assert driver.execute_script(
+                "return getComputedStyle(document.getElementById('versions')).display") == "none"
+            # User-controlled width range overrides temporary graph focus.
+            resized = driver.execute_script("""
+                const slider=document.getElementById("graph-share");
+                slider.value="76";
+                slider.dispatchEvent(new Event("input",{bubbles:true}));
+                return {share:slider.value,
+                   focus:document.getElementById("graph-focus").getAttribute("aria-pressed"),
+                   valid:OntologyLayout.verifyDOM(lastLayout,document.getElementById("workspace")).ok};
+            """)
+            assert resized["share"] == "76" and resized["focus"] == "false", resized
+            driver.refresh()
+            assert driver.find_element("id", "graph-share").get_attribute("value") == "76"
+            assert driver.find_element("id", "toggle-versions").get_attribute("aria-expanded") == "false"
+            print("CHROME explicit revision collapse and graph-width preference persist",flush=True)
         finally:
             if driver is not None:
                 driver.quit()
