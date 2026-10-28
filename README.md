@@ -154,6 +154,14 @@ and how far each rule's evidence was checked. Health is the source-reported stat
 of operator-linked systems, not proof that an action works. The demo data is
 synthetic. See [operating picture](docs/operating-picture.md).
 
+For your own project, the installed skill includes the business screen. After onboarding
+a workflow, ask your agent:
+
+```text
+/ontology-extraction Show my business screen for this repository. Suggest which systems
+run each code binding and let me confirm the links.
+```
+
 Live health comes from real telemetry: `feeds.py` receives OpenTelemetry traces and
 polls Prometheus and HTTP health checks (`python examples/operating-picture/live.py`).
 See [live feeds](docs/live-feeds.md).
@@ -207,6 +215,21 @@ Source text is untrusted data. Secret-name filtering is not an exhaustive secret
 Fingerprints are not signatures; session files and trial folders are not an OS security sandbox.
 Keep private snapshots out of commits and use proper isolation for untrusted execution.
 
+## Experimental: traces → ontology candidates
+
+OntologyEX now includes a bounded, offline prototype to extract **observed** object types,
+actions, tool relationships and evidence lineages from normalized agent spans. These are
+**unreviewed candidates**, not independently confirmed policy or operational authorization.
+
+```bash
+python ontology-extraction/scripts/trace_extract.py \
+  examples/trace-to-ontology/demo.jsonl --out build/trace-ontology-draft
+```
+
+See [the trace format, privacy boundary and roadmap](ontology-extraction/references/trace-to-ontology.md).
+Raw prompt/tool inputs and outputs are forbidden; neither agents nor source files are executed.
+The prototype does not interpret natural-language transcripts automatically or grant execution rights.
+
 ## Contributing and verification
 
 ```bash
@@ -226,18 +249,3 @@ Useful for your agent stack? Star the repo to follow worked examples and release
 
 [MIT](LICENSE) © 2026 New1Direction. The optional cachetools case preserves upstream MIT attribution
 and verifies the upstream files against the pinned commit listed in its provenance manifest.
-
-## Experimental: traces → ontology candidates
-
-OntologyEX now includes a bounded, offline prototype to extract **observed** object types,
-actions, tool relationships and evidence lineages from normalized agent spans. These are
-**unreviewed candidates**, not independently confirmed policy or operational authorization.
-
-```bash
-python ontology-extraction/scripts/trace_extract.py \
-  examples/trace-to-ontology/demo.jsonl --out build/trace-ontology-draft
-```
-
-See [the trace format, privacy boundary and roadmap](ontology-extraction/references/trace-to-ontology.md).
-Raw prompt/tool inputs and outputs are forbidden; neither agents nor source files are executed.
-The prototype does not interpret natural-language transcripts automatically or grant execution rights.

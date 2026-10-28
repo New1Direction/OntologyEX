@@ -14,6 +14,12 @@ PACKAGE = (
     "scripts/evidence_grade.py", "scripts/statement_lint.py", "scripts/decide.py",
     "scripts/propose_sources.py", "scripts/conflict_scan.py", "scripts/link_suggest.py",
     "scripts/business_view.py", "scripts/discover_repo.py",
+    # Operating picture runtime: control room, its views, live feeds, and RDF export.
+    "scripts/control_room.py", "scripts/operating_picture.html", "scripts/layout_engine.js",
+    "scripts/github_discovery.py", "scripts/code_imports.py", "scripts/snapshot_store.py",
+    "scripts/graph_view_api.py", "scripts/incident_view.py", "scripts/native_view_bridge.py",
+    "scripts/feeds.py", "scripts/rdf_export.py", "scripts/graph_view.py",
+    "references/operating-picture.md",
     "scripts/domain_skill.py", "scripts/policy_check.py", "scripts/scaffold.py", "scripts/provenance.py",
     "scripts/trace_extract.py", "scripts/otlp_normalize.py", "references/trace-to-ontology.md",
     "references/guided-onboarding.md", "references/domain-skill.md", "references/provenance.md",
