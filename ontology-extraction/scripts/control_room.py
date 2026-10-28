@@ -417,7 +417,7 @@ function applyLayout(s){
  const dims=PANEL_SPECS.map(p=>({...p,collapsed:p.id==="versions-panel"&&versionsCollapsed,
    items:p.id==="incidents"?urgent:
    p.id==="details-panel"?(selected?22:3):
-   p.id==="coverage-panel"?(s.gaps.length+s.unresolved.length):
+   p.id==="coverage-panel"?((s.total_gaps||0)+(s.unresolved_count||0)):
    p.id==="versions-panel"?(s.snapshot_history?.length||0):0}));
  try{
    const plan=OntologyLayout.optimize({width,height,panels:dims,density:s.total_nodes||s.nodes.length,focusGraph,
@@ -489,7 +489,7 @@ function draw(s){
  }
  applyLayout(s);
  const svg=document.getElementById("svg");svg.replaceChildren();
- const visible=s.nodes;
+ const visible=s.nodes.slice(0,90);
  const matchesCount=s.total_matches??visible.length;
  text("graph-coverage","Showing "+visible.length+" of "+matchesCount+" matching nodes ("+
     s.total_nodes+" total), offset "+(s.offset||0)+". "+
