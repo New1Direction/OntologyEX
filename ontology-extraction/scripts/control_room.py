@@ -300,13 +300,17 @@ background:#071018;color:#d5e9eb}*{box-sizing:border-box}body{margin:0;backgroun
 min-height:100vh}header{padding:20px 24px;border-bottom:1px solid #254452;display:flex;align-items:center;
 justify-content:space-between;gap:20px}h1{font-size:19px;letter-spacing:.12em;margin:0}small,.muted{color:#839fab}
 header small{display:block;letter-spacing:.11em;margin-bottom:6px;color:#50b5af}
-main{display:grid;grid-template-columns:minmax(0,1fr) 325px;gap:12px;padding:14px;min-height:calc(100vh - 90px)}
-#map{min-height:590px;max-height:calc(100vh - 120px);overflow:auto;background:
+main#workspace{position:relative;display:flex;flex-direction:column;gap:12px;padding:12px;
+width:100%;min-height:520px;overflow:visible}
+#workspace>section{position:relative;min-width:0;min-height:120px;box-sizing:border-box;overflow:auto;
+scrollbar-width:thin;transition:none}
+#workspace[data-layout-ready="true"]>section{transition:top .22s ease,left .22s ease,width .22s ease,height .22s ease}
+#map{min-height:320px;overflow:auto;background:
 linear-gradient(90deg,transparent 49.8%,#17324135 50%,transparent 50.2%),
 repeating-linear-gradient(0deg,transparent 0,transparent 31px,#17324134 32px);
 border:1px solid #284350;border-radius:12px}#svg{width:100%;display:block;min-height:570px}
-aside{border:1px solid #284350;border-radius:12px;background:#0c1d28;display:flex;
-flex-direction:column;gap:20px;padding:18px;overflow:auto;max-height:calc(100vh - 120px)}
+#workspace>section:not(#map){border:1px solid #284350;border-radius:12px;background:#0c1d28;padding:14px;overflow:auto}
+#workspace>section.priority-critical{border-color:#52747f}
 h2{font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:#4fbfbb;margin:0 0 12px}
 p{font-size:12px;line-height:1.7;overflow-wrap:anywhere}#counts{display:flex;gap:8px;flex-wrap:wrap}
 .chip{font-size:11px;border:1px solid #325361;border-radius:6px;padding:6px 10px}
@@ -316,23 +320,42 @@ cursor:pointer;padding:9px 14px;font:inherit}button:hover{background:#244956}
 .error{color:#f47f7a}.stale{color:#b79ff2}.unknown{color:#8196a5}
 #details{white-space:pre-wrap;font-size:12px;overflow-wrap:anywhere;color:#c5d6d9;line-height:1.7}
 #footer{padding:0 24px 14px;color:#78939f;font-size:11px}
-@media(max-width:850px){main{grid-template-columns:1fr}aside{max-height:none}#map{max-height:70vh}}
+header{flex-wrap:wrap}header>div:last-child{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+header>div:last-child #mode{flex-basis:100%;font-size:11px}
+#graph-search{width:min(180px,42vw);border-radius:6px;background:#0f2530;border:1px solid #386372;color:#d5e9eb;padding:8px}
+#lens{border-radius:6px;background:#0f2530;color:#d5e9eb;border:1px solid #386372;padding:7px}
+#graph-coverage{font-size:11px;color:#a9c7ce;margin:0;padding:6px}
+#graph-share{accent-color:#50b5af;max-width:115px}
+#versions-panel[data-collapsed="true"] #versions{display:none}
+#incidents ul{padding-left:19px;margin:0;font-size:12px;line-height:1.6}
+#layout-debug{margin:0 14px 16px;padding:8px 12px;font-size:11px;border:1px solid #345264;border-radius:7px;max-width:800px}
+#layout-report{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto}
+@media(prefers-reduced-motion:reduce){#workspace>section{transition:none!important}}
 </style></head>
 <body><header><div><small>ONTOLOGYEX // LOCAL OBSERVABILITY</small>
 <h1>BUSINESS CONTROL ROOM</h1></div><div><select id="lens" aria-label="Graph lens">
 <option value="all">ALL SYSTEMS</option><option value="api">API ROUTES</option>
 <option value="database">DATABASE</option><option value="services">SERVICES</option>
-</select> <button id="map-business" type="button">Map My Business</button><div id="mode" class="muted">Connecting to local source...</div><small id="updated"></small></div></header>
-<main><section id="map" aria-label="Declared component topology"><svg id="svg" role="img" aria-label="Interactive dependency diagram"></svg></section>
-<aside><section><h2>System integrity</h2><div id="counts"></div></section>
-<section><h2>Selected component</h2><div id="details">Select a node to inspect its source and status.</div></section>
-<section><h2>Coverage and blind spots</h2><div id="coverage" class="muted"></div></section>
-<section><h2>Saved source revisions</h2><div id="versions" class="muted"></div></section>
-<section><h2>Operational boundary</h2>
+</select> <input id="graph-search" type="search" aria-label="Find graph node" placeholder="Find node…"/>
+<label for="graph-share" title="Resize the graph area">Graph size</label>
+<input id="graph-share" type="range" min="48" max="76" value="63" aria-label="Graph area width"/>
+<button id="graph-focus" type="button" aria-pressed="false">Focus graph</button> <button id="map-business" type="button">Map My Business</button><div id="mode" class="muted">Connecting to local source...</div><small id="updated"></small></div></header>
+<main id="workspace" aria-label="Adaptive business workspace">
+<section id="map" aria-label="Declared component topology"><p id="graph-coverage" aria-live="polite"></p><svg id="svg" role="img" aria-label="Interactive dependency diagram"></svg></section>
+<section id="incidents" class="priority-critical"><h2>Incidents and risks</h2><ul id="incident-list"></ul></section>
+<section id="integrity" class="priority-critical"><h2>System integrity</h2><div id="counts"></div></section>
+<section id="details-panel"><h2>Selected component</h2><div id="details">Select a node to inspect its source and status.</div></section>
+<section id="coverage-panel"><h2>Coverage and blind spots</h2><div id="coverage" class="muted"></div></section>
+<section id="versions-panel" data-collapsed="false"><h2>Saved source revisions</h2>
+<button id="toggle-versions" type="button" aria-expanded="true" aria-controls="versions">Collapse revisions</button>
+<div id="versions" class="muted"></div></section>
+<section id="boundary-panel"><h2>Operational boundary</h2>
 <p class="muted">A declared dependency is not proof of a live network call. Source-reported status is not independently authenticated.
 Warnings require explicit observations or configured thresholds. Impact shows possible dependents, not confirmed outages.
-Unknown remains unknown. No repair actions run here.</p></section></aside></main>
+Unknown remains unknown. No repair actions run here.</p></section></main>
+<details id="layout-debug"><summary>Layout diagnostics</summary><pre id="layout-report">Layout not yet calculated.</pre></details>
 <div id="footer">READ ONLY · LOOPBACK ONLY · NO LIVE PROVIDER CONNECTION · REFRESH 5S</div>
+<script src="/static/layout_engine.js"></script>
 <script>
 "use strict";
 const NS="http://www.w3.org/2000/svg";
@@ -340,7 +363,96 @@ const color={ok:"#49c4a4",warning:"#eebc63",error:"#f47f7a",stale:"#b79ff2",unkn
 const el=(tag,attrs={},txt)=>{const n=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v));
  if(txt!==undefined)n.textContent=String(txt);return n};
 const text=(id,value)=>document.getElementById(id).textContent=String(value);
-let selected=null,state=null;
+let selected=null,state=null,focusGraph=false,lastLayout=null,graphShare=0.63,versionsCollapsed=false;
+try{
+ focusGraph=localStorage.getItem("ontologyex-focus-graph")==="1";
+ const saved=Number(localStorage.getItem("ontologyex-graph-share"));
+ if(Number.isFinite(saved)&&saved>=0.48&&saved<=0.76)graphShare=saved;
+ versionsCollapsed=localStorage.getItem("ontologyex-versions-collapsed")==="1";
+}catch(_){}
+document.getElementById("graph-focus").setAttribute("aria-pressed",String(focusGraph));
+document.getElementById("graph-share").value=String(Math.round(graphShare*100));
+document.getElementById("versions-panel").dataset.collapsed=String(versionsCollapsed);
+document.getElementById("toggle-versions").setAttribute("aria-expanded",String(!versionsCollapsed));
+document.getElementById("toggle-versions").textContent=versionsCollapsed?"Expand revisions":"Collapse revisions";
+const PANEL_SPECS=[
+ {id:"map",minWidth:240,minHeight:310,preferredHeight:540,priority:78},
+ {id:"incidents",minWidth:200,minHeight:116,preferredHeight:145,priority:98,critical:true},
+ {id:"integrity",minWidth:200,minHeight:82,preferredHeight:92,priority:96,critical:true},
+ {id:"details-panel",minWidth:200,minHeight:180,preferredHeight:235,priority:85},
+ {id:"coverage-panel",minWidth:200,minHeight:142,preferredHeight:180,priority:62},
+ {id:"versions-panel",minWidth:200,minHeight:88,preferredHeight:108,priority:35},
+ {id:"boundary-panel",minWidth:200,minHeight:104,preferredHeight:124,priority:32}
+];
+function renderIncidents(s){
+ const ul=document.getElementById("incident-list");ul.replaceChildren();
+ const serious=s.nodes.filter(n=>n.status==="error"||n.status==="warning"||
+    (Array.isArray(n.potentially_impacted_by)&&n.potentially_impacted_by.length));
+ serious.sort((a,b)=>(a.status==="error"?0:a.status==="warning"?1:2)-
+   (b.status==="error"?0:b.status==="warning"?1:2)||a.label.localeCompare(b.label));
+ if(!serious.length){
+   const li=document.createElement("li");
+   li.textContent="No current reported alerts. Unobserved components are NOT confirmed healthy.";
+   ul.append(li);
+ }
+ for(const n of serious.slice(0,18)){
+   const li=document.createElement("li"),btn=document.createElement("button");
+   btn.textContent=(n.status.toUpperCase()==="UNKNOWN"?"POSSIBLE IMPACT":n.status.toUpperCase())+" · "+n.label;
+   btn.addEventListener("click",()=>{selected=n.id;document.getElementById("graph-search").value=n.label;draw(state)});
+   li.append(btn);ul.append(li);
+ }
+ if(serious.length>18){
+   const li=document.createElement("li");
+   li.textContent=(serious.length-18)+" more alerts. Search the graph to inspect.";
+   ul.append(li);
+ }
+}
+function applyLayout(s){
+ const root=document.getElementById("workspace");
+ const width=Math.max(280,root.clientWidth),header=document.querySelector("header");
+ const height=Math.max(260,window.innerHeight-header.getBoundingClientRect().height-60);
+ const urgent=s.nodes.filter(n=>n.status==="error"||n.status==="warning"||n.potentially_impacted_by?.length).length;
+ const dims=PANEL_SPECS.map(p=>({...p,collapsed:p.id==="versions-panel"&&versionsCollapsed,
+   items:p.id==="incidents"?urgent:
+   p.id==="details-panel"?(selected?22:3):
+   p.id==="coverage-panel"?(s.gaps.length+s.unresolved.length):
+   p.id==="versions-panel"?(s.snapshot_history?.length||0):0}));
+ try{
+   const plan=OntologyLayout.optimize({width,height,panels:dims,density:s.nodes.length,focusGraph,
+     mapShare:graphShare});
+   root.style.display="block";root.style.padding="0";root.style.gap="0";
+   root.style.height=plan.contentHeight+"px";
+   for(const [id,r] of Object.entries(plan.rects)){
+     const el=document.getElementById(id);
+     el.style.position="absolute";el.style.minHeight="0px";
+     el.style.left=r.x+"px";el.style.top=r.y+"px";
+     el.style.width=r.width+"px";el.style.height=r.height+"px";
+   }
+   lastLayout=plan;
+   // Geometry is verified after the 220ms CSS transition settles.
+   // Ignore an obsolete check if viewport/content changed meanwhile.
+   setTimeout(()=>{
+     if(lastLayout!==plan)return;
+     // Animate only after the first stable layout; never animate from the
+     // safe pre-discovery stacked state into absolute coordinates.
+     root.dataset.layoutReady="true";
+     const result=OntologyLayout.verifyDOM(plan,root);
+     const report={columns:plan.columns,score:plan.score,contentHeight:plan.contentHeight,
+       candidates:plan.candidates,decisions:plan.decisions,
+       geometryPassed:plan.constraints.ok,renderedDOMPassed:result.ok,
+       violations:result.violations,rects:plan.rects};
+     document.getElementById("layout-report").textContent=JSON.stringify(report,null,2);
+   },280);
+ }catch(e){
+   lastLayout=null;
+   root.style.cssText="display:flex;flex-direction:column;gap:12px;height:auto;padding:12px";
+   for(const p of dims){
+     const el=document.getElementById(p.id);
+     el.style.cssText="position:relative;left:auto;top:auto;width:100%;height:"+Math.max(p.minHeight,260)+"px";
+   }
+   document.getElementById("layout-report").textContent="Safe stacked fallback: "+e.message;
+ }
+}
 function group(n){if(n.kind==="project")return 0;
  if(n.kind==="declared_service"||n.kind==="declared_db_table"||n.kind==="source_module")return 2;
  return 1}
@@ -363,6 +475,7 @@ function draw(s){
  (s.coverage.api_route_paths_found??0),
  "Not assessed: "+s.coverage.not_assessed.join(", ")];
  for(const l of lines){const p=document.createElement("p");p.textContent=l;cov.append(p)}
+ renderIncidents(s);
  const versions=document.getElementById("versions");versions.replaceChildren();
  const saved=Array.isArray(s.snapshot_history)?s.snapshot_history:[];
  if(!saved.length){const p=document.createElement("p");p.textContent="No server-side revisions stored.";versions.append(p)}
@@ -372,17 +485,29 @@ function draw(s){
      String(item.commit_sha||"unknown").slice(0,12)+" · "+String(item.scanned_at||"unknown");
    versions.append(p)
  }
+ applyLayout(s);
  const svg=document.getElementById("svg");svg.replaceChildren();
  const lens=document.getElementById("lens").value;
  const relevant=s.nodes.filter(n=>n.kind==="project"||lens==="all"||
    (lens==="api"&&(n.kind==="api_route"||n.kind==="source_module"))||
    (lens==="database"&&n.kind==="declared_db_table")||
    (lens==="services"&&n.kind==="declared_service"));
- const cols=[[],[],[]];for(const n of relevant)cols[group(n)].push(n);
- for(const col of cols)col.sort((a,b)=>a.label.localeCompare(b.label));
- const rowH=76,height=Math.max(550,...cols.map(a=>a.length*rowH+135)),width=1060;
- svg.setAttribute("viewBox","0 0 "+width+" "+height);svg.style.height=height+"px";
- const starts=[50,392,740],nodeW=260,nodeH=48,pos={};
+ const query=document.getElementById("graph-search").value.trim().toLowerCase();
+ const matches=relevant.filter(n=>!query||n.label.toLowerCase().includes(query)||n.id.toLowerCase().includes(query));
+ const severity={error:0,warning:1,stale:2,unknown:3,ok:4};
+ matches.sort((a,b)=>(a.id===selected?-1:severity[a.status]??5)-
+   (b.id===selected?-1:severity[b.status]??5)||a.label.localeCompare(b.label));
+ const visible=matches.slice(0,90);
+ text("graph-coverage","Showing "+visible.length+" of "+matches.length+" matching nodes ("+
+    s.nodes.length+" total). Search for a specific node; this is a bounded view.");
+ const cols=[[],[],[]];for(const n of visible)cols[group(n)].push(n);
+ for(const col of cols)col.sort((a,b)=>(a.id===selected?-1:severity[a.status]??5)-
+   (b.id===selected?-1:severity[b.status]??5)||a.label.localeCompare(b.label));
+ const rowH=64,height=Math.max(350,...cols.map(a=>a.length*rowH+88));
+ const width=Math.max(780,document.getElementById("map").clientWidth-24);
+ svg.setAttribute("viewBox","0 0 "+width+" "+height);
+ svg.style.width=width+"px";svg.style.height=height+"px";
+ const starts=[18,18+width/3,18+2*width/3],nodeW=Math.floor(width/3-35),nodeH=44,pos={};
  for(let i=0;i<3;i++){svg.append(el("text",{x:starts[i],y:45,fill:"#679baa","font-size":12,"letter-spacing":3},
  ["BUSINESS","WORKFLOWS / SOURCES","SERVICES / DATA"][i]));
  cols[i].forEach((n,j)=>pos[n.id]={x:starts[i],y:75+j*rowH})}
@@ -392,13 +517,14 @@ function draw(s){
  svg.append(el("path",{d,stroke:e.relation==="DEPENDS_ON"?"#e5b66f":"#2e8297",
  "stroke-opacity":.65,"stroke-width":e.relation==="DEPENDS_ON"?2:1.35,
  "stroke-dasharray":e.relation==="DEPENDS_ON"?"":"5 6",fill:"none"}))}
- for(const n of s.nodes){const p=pos[n.id],g=el("g",{role:"button",tabindex:0,
+ for(const n of visible){const p=pos[n.id],g=el("g",{role:"button",tabindex:0,
  "aria-label":n.label+" "+n.status,style:"cursor:pointer"});
  const active=selected===n.id,stroke=active?"#d6f6ef":color[n.status];
  g.append(el("rect",{x:p.x,y:p.y,width:nodeW,height:nodeH,rx:9,fill:"#102531",
  stroke,"stroke-width":active?2:1.25}));
  g.append(el("circle",{cx:p.x+19,cy:p.y+nodeH/2,r:6,fill:color[n.status]}));
- const label=n.label.length>29?n.label.slice(0,26)+"…":n.label;
+ const maxLabel=Math.max(16,Math.floor((nodeW-55)/7));
+ const label=n.label.length>maxLabel?n.label.slice(0,maxLabel-1)+"…":n.label;
  g.append(el("text",{x:p.x+36,y:p.y+20,fill:"#dce9e8","font-size":13,"font-weight":"600"},label));
  g.append(el("text",{x:p.x+36,y:p.y+35,fill:"#8ea9b3","font-size":10},
  n.status.toUpperCase()+" · "+n.kind.replaceAll("_"," ")));
@@ -407,7 +533,7 @@ function draw(s){
  if(n.ci_run)g.append(el("text",{x:p.x+nodeW-8,y:p.y+42,
  "text-anchor":"end",fill:n.ci_run.conclusion==="success"?"#49c4a4":"#eebc63",
  "font-size":10},"CI "+(n.ci_run.conclusion||n.ci_run.status).toUpperCase()));
- g.addEventListener("click",()=>pick(n.id));g.addEventListener("keydown",ev=>{if(ev.key==="Enter")pick(n.id)});
+ g.addEventListener("click",()=>pick(n.id));g.addEventListener("keydown",ev=>{if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();pick(n.id)}});
  svg.append(g)}
  const target=s.nodes.find(n=>n.id===selected);if(target)detail(target,s);
 }
@@ -444,6 +570,39 @@ async function refresh(){
 }
 let mapStarted=false;
 document.getElementById("lens").addEventListener("change",()=>{if(state)draw(state)});
+document.getElementById("graph-search").addEventListener("input",()=>{if(state)draw(state)});
+document.getElementById("graph-share").addEventListener("input",()=>{
+ const value=Number(document.getElementById("graph-share").value)/100;
+ if(!Number.isFinite(value)||value<0.48||value>0.76)return;
+ graphShare=value;focusGraph=false;
+ document.getElementById("graph-focus").setAttribute("aria-pressed","false");
+ try{
+   localStorage.setItem("ontologyex-graph-share",String(graphShare));
+   localStorage.setItem("ontologyex-focus-graph","0");
+ }catch(_){}
+ if(state)draw(state);
+});
+document.getElementById("toggle-versions").addEventListener("click",()=>{
+ versionsCollapsed=!versionsCollapsed;
+ const panel=document.getElementById("versions-panel");
+ panel.dataset.collapsed=String(versionsCollapsed);
+ document.getElementById("toggle-versions").setAttribute("aria-expanded",String(!versionsCollapsed));
+ document.getElementById("toggle-versions").textContent=versionsCollapsed?"Expand revisions":"Collapse revisions";
+ try{localStorage.setItem("ontologyex-versions-collapsed",versionsCollapsed?"1":"0")}catch(_){}
+ if(state)draw(state);
+});
+document.getElementById("graph-focus").addEventListener("click",()=>{
+ focusGraph=!focusGraph;
+ document.getElementById("graph-focus").setAttribute("aria-pressed",String(focusGraph));
+ try{localStorage.setItem("ontologyex-focus-graph",focusGraph?"1":"0")}catch(_){}
+ if(state)draw(state);
+});
+let resizeScheduled=false;
+window.addEventListener("resize",()=>{
+ if(resizeScheduled)return;
+ resizeScheduled=true;
+ requestAnimationFrame(()=>{resizeScheduled=false;if(state)draw(state)});
+});
 document.getElementById("map-business").addEventListener("click",()=>{
  mapStarted=true;refresh();
 });
@@ -575,6 +734,9 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 return
             if self.path == "/":
                 payload, mime, code = PAGE.encode("utf-8"), "text/html; charset=utf-8", 200
+            elif self.path == "/static/layout_engine.js":
+                payload = (Path(__file__).resolve().parent / "layout_engine.js").read_bytes()
+                mime, code = "application/javascript; charset=utf-8", 200
             elif self.path == "/api/state":
                 try:
                     value = snapshot()
@@ -595,7 +757,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             self.send_header("Cross-Origin-Resource-Policy", "same-origin")
             self.send_header("Content-Security-Policy",
                              "default-src 'none'; connect-src 'self'; style-src 'unsafe-inline'; "
-                             "script-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'")
+                             "script-src 'self' 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'")
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
             self.wfile.write(payload)
