@@ -407,7 +407,10 @@ function applyLayout(s){
      el.style.width=r.width+"px";el.style.height=r.height+"px";
    }
    lastLayout=plan;
-   requestAnimationFrame(()=>{
+   // Geometry is verified after the 220ms CSS transition settles.
+   // Ignore an obsolete check if viewport/content changed meanwhile.
+   setTimeout(()=>{
+     if(lastLayout!==plan)return;
      const result=OntologyLayout.verifyDOM(plan,root);
      const report={columns:plan.columns,score:plan.score,contentHeight:plan.contentHeight,
        candidates:plan.candidates,decisions:plan.decisions,
