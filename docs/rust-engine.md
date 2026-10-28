@@ -120,7 +120,9 @@ refinement proof.
 
 ## Releasing
 
-Push a tag `engine-vX.Y.Z`. `release-engine.yml` builds the four targets, runs the
+Push a tag `engine-vX.Y.Z`, or run the **Engine binaries** workflow by hand with
+`version` set to `engine-vX.Y.Z` (it creates the tag on the commit it built).
+`release-engine.yml` builds the four targets, runs the
 parity suites on each native build, and publishes the archives, `SHA256SUMS`, and a
 build provenance attestation. Pull requests that touch the engine run the same
 builds without publishing.
