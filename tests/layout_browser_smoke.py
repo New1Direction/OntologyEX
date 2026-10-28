@@ -160,6 +160,53 @@ def main():
                 d.find_element("id","details").text)
             assert "SOURCE FILE: compose.yml" in driver.find_element("id","details").text
             print("CHROME 405-node repo; bounded paging, search, on-demand evidence verified",flush=True)
+            # Navigate across graph pages using the server-side edge set.
+            driver.find_element("id","graph-back").click()
+            WebDriverWait(driver,10).until(lambda d:d.execute_script(
+                "return state?.kind==='BOUNDED_GRAPH_PAGE'"))
+            driver.execute_script("""
+                const q=document.getElementById("graph-search");
+                q.value="web";q.dispatchEvent(new Event("input",{bubbles:true}));
+            """)
+            WebDriverWait(driver,10).until(lambda d:d.execute_script(
+                "return state?.kind==='BOUNDED_GRAPH_PAGE' && state?.query==='web' && state.nodes.some(n=>n.label==='web')"))
+            driver.find_element("css selector",'#svg g[role="button"]').click()
+            WebDriverWait(driver,10).until(lambda d:d.execute_script(
+                "return state?.kind==='BOUNDED_GRAPH_NEIGHBORHOOD' && state?.requested_depth===1 && state.nodes.some(n=>n.label==='api')"))
+            one=driver.execute_script("""
+                return {center:state.center_id,kind:state.kind,
+                  edges:state.edges.map(e=>e.relation),
+                  nodeLabels:state.nodes.map(n=>n.label),
+                  backEnabled:!document.getElementById("graph-back").disabled};
+            """)
+            assert one["center"].endswith(":web") and one["backEnabled"]
+            assert "api" in one["nodeLabels"] and "db" not in one["nodeLabels"]
+            assert "DEPENDS_ON" in one["edges"]
+            driver.execute_script("""
+                const depth=document.getElementById("graph-depth");
+                depth.value="2";depth.dispatchEvent(new Event("change",{bubbles:true}));
+            """)
+            WebDriverWait(driver,10).until(lambda d:d.execute_script(
+                "return state?.kind==='BOUNDED_GRAPH_NEIGHBORHOOD' && state?.requested_depth===2 && state.nodes.some(n=>n.label==='db')"))
+            two=driver.execute_script("""
+                return {nodes:state.nodes.length,edges:state.edges.length,
+                  completeness:state.is_complete_within_depth,
+                  scope:state.scope,
+                  webToApi:state.edges.some(e=>e.relation==="DEPENDS_ON"&&
+                    e.source.endsWith(":web")&&e.target.endsWith(":api")),
+                  apiToDb:state.edges.some(e=>e.relation==="DEPENDS_ON"&&
+                    e.source.endsWith(":api")&&e.target.endsWith(":db"))};
+            """)
+            assert two["webToApi"] and two["apiToDb"],two
+            assert two["nodes"]<=90 and two["edges"]<=300
+            assert two["scope"]=="BIDIRECTIONAL_GRAPH_NAVIGATION_NOT_CAUSAL_IMPACT"
+            arrows=driver.execute_script(
+                "return document.querySelectorAll('#svg path[marker-end]').length")
+            assert arrows>=2,arrows
+            driver.find_element("id","graph-back").click()
+            WebDriverWait(driver,10).until(lambda d:d.execute_script(
+                "return state?.kind==='BOUNDED_GRAPH_PAGE' && document.getElementById('graph-back').disabled"))
+            print("CHROME 1/2-hop cross-page dependency navigation, direction, safety and back verified",flush=True)
             driver.find_element("id", "graph-focus").click()
             assert driver.find_element("id", "graph-focus").get_attribute("aria-pressed") == "true"
             driver.execute_cdp_cmd("Emulation.setEmulatedMedia", {
