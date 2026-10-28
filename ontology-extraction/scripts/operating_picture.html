@@ -61,7 +61,7 @@ aside{border-right:1px solid var(--line)}#inspector{border-left:1px solid var(--
 .btn{border:1px solid var(--line2);background:var(--panel2);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px}
 .btn:hover{border-color:var(--accent)}.btn.yes{border-color:#2f7d62;color:#7ff0b4}.btn.no{color:var(--muted)}
 .btn:disabled{opacity:.5;cursor:default}
-#who{width:100%;margin-bottom:8px;background:var(--panel);border:1px solid var(--line2);border-radius:6px;color:var(--text);padding:6px 8px;font:inherit;font-size:12px}
+#who,#who-deps{width:100%;margin-bottom:8px;background:var(--panel);border:1px solid var(--line2);border-radius:6px;color:var(--text);padding:6px 8px;font:inherit;font-size:12px}
 .attn{display:block;padding:9px 10px;border-radius:7px;margin-bottom:6px;border:1px solid var(--line);border-left-width:3px;background:var(--bg);cursor:pointer;width:100%;text-align:left}
 .attn:hover{background:var(--panel2)}
 .attn .t{display:flex;justify-content:space-between;gap:8px;font-weight:600}
@@ -122,6 +122,7 @@ footer{padding:8px 18px;border-top:1px solid var(--line);color:var(--faint);font
  <aside aria-label="Explorer">
   <div class="sec"><h2>Needs attention <em id="attn-count"></em></h2><div id="attention"></div></div>
   <div class="sec" id="sug-sec"><h2>Suggested links <em id="sug-count"></em></h2><div id="suggestions"></div></div>
+  <div class="sec" id="dep-sec"><h2>Observed dependencies <em id="dep-count"></em></h2><div id="dependencies"></div></div>
   <div class="sec"><h2>Actions <em id="n-actions"></em></h2><div id="list-actions" role="listbox" aria-label="Business actions"></div></div>
   <div class="sec"><h2>Objects <em id="n-objects"></em></h2><div id="list-objects" role="listbox" aria-label="Business objects"></div></div>
   <div class="sec"><h2>Linked systems <em id="n-systems"></em></h2><div id="list-systems" role="listbox" aria-label="Linked systems"></div></div>
@@ -340,17 +341,17 @@ function overview(box){
   h("p",{class:"mono",style:"font-size:11px",text:`${x.link.skill} · ${x.link.binding} → ${x.link.component}`})))));
  box.append(section("Legend",undefined,h("div",{class:"legend"},...["AT_RISK","POSSIBLY_IMPACTED","DEGRADED","STALE","UNKNOWN","UNLINKED","REPORTED_OK","REVIEW_BLOCKED","CHECK_CITATION"].map(k=>h("span",{},dot(k),WORD[k]))),
   h("div",{class:"legend",style:"margin-top:8px"},h("span",{text:"◇ action"}),h("span",{text:"○ object"}),h("span",{text:"□ system"}),h("span",{text:"G0 cited → G4 observed in use"}))));
- box.append(section("Boundaries",undefined,h("p",{class:"muted",style:"margin:0",text:"Links from code to systems are operator declarations. Status is source-reported and unattested. A declared dependency shows possible impact, not a confirmed outage. Nothing here approves or runs an action."})));
+ box.append(section("Boundaries",undefined,h("p",{class:"muted",style:"margin:0",text:"Links from code to systems are operator declarations. Status is source-reported and unattested. A declared or confirmed dependency shows possible impact, not a confirmed outage. Nothing here approves or runs an action."})));
 }
 const TOKEN=(document.querySelector('meta[name="ontologyex-write-token"]')||{}).content||"";
 let who="";try{who=localStorage.getItem("ontologyex-decider")||""}catch(_){}
 const STRENGTH_HEX={STRONG:"#7ff0b4",MODERATE:"#8cd0ff",WEAK:"#8fa3b6"};
 function suggestionsFor(bindingIds){const all=(data&&data.link_suggestions)?data.link_suggestions.suggestions:[];
  return bindingIds?all.filter(x=>bindingIds.includes(x.skill+"\u0000"+x.binding)):all}
-async function decideLink(s,decision,btns,status){
+async function decideLink(s,decision,btns,status,route="/api/links/decision"){
  if(!who.trim()){status.textContent="Enter your name above first.";return}
  btns.forEach(b=>b.disabled=true);status.textContent=decision==="confirm"?"Confirming…":"Rejecting…";
- try{const r=await fetch("/api/links/decision",{method:"POST",headers:{"Content-Type":"application/json","X-OntologyEX-Token":TOKEN},
+ try{const r=await fetch(route,{method:"POST",headers:{"Content-Type":"application/json","X-OntologyEX-Token":TOKEN},
    body:JSON.stringify({id:s.id,decision,by:who.trim().slice(0,120),note:""})});
   const d=await r.json();if(!r.ok)throw new Error(d.status||String(r.status));status.textContent=d.status==="UNCHANGED"?"Already decided.":"Saved.";await load()}
  catch(err){status.textContent="Not saved: "+err.message;btns.forEach(b=>b.disabled=false)}}
@@ -366,14 +367,41 @@ function suggestionCard(s){const status=h("div",{class:"sig"});
   card.append(h("div",{class:"act"},copy),status)}
  else card.append(h("div",{class:"sig",text:"Confirm with link_suggest.py confirm --id "+s.id}));
  return card}
+function whoInput(id){const inp=h("input",{id,type:"text",maxlength:120,placeholder:"Your name (recorded with each decision)",value:who});
+ inp.addEventListener("input",e=>{who=e.target.value;try{localStorage.setItem("ontologyex-decider",who)}catch(_){}});return inp}
+function linkPanelDecides(){return data&&data.status==="READY"&&TOKEN&&data.link_decisions==="ENABLED_LOCAL_TOKEN"}
 function suggestionsPanel(){const box=$("suggestions");box.replaceChildren();const all=suggestionsFor(null);
  $("sug-count").textContent=String(all.length);$("sug-sec").style.display=data&&data.status==="READY"?"block":"none";
  if(!data)return;
- if(TOKEN&&data.link_decisions==="ENABLED_LOCAL_TOKEN"){const inp=h("input",{id:"who",type:"text",maxlength:120,placeholder:"Your name (recorded with each decision)",value:who});
-  inp.addEventListener("input",e=>{who=e.target.value;try{localStorage.setItem("ontologyex-decider",who)}catch(_){}});box.append(inp)}
+ if(linkPanelDecides())box.append(whoInput("who"));
  if(!all.length)box.append(h("p",{class:"muted",text:"No suggestions. Every binding is linked, rejected, or has no matching name or path."}));
  for(const s of all.slice(0,30))box.append(suggestionCard(s));
  const hidden=data.link_suggestions.rejected_not_shown;if(hidden)box.append(h("p",{class:"muted",style:"font-size:11px",text:`${hidden} rejected suggestion(s) hidden.`}))}
+function dependencyCard(s){const status=h("div",{class:"sig"}),e=s.evidence;
+ const card=h("div",{class:"sug"},h("div",{class:"t"},h("span",{text:`${s.source_label} → ${s.target_label}`}),
+   h("span",{class:"sev",style:`color:${STRENGTH_HEX[s.strength]};background:${STRENGTH_HEX[s.strength]}1f`,text:s.strength})),
+  h("div",{class:"sig",text:`Called ${e.calls.toLocaleString()} times in traces${e.errors?`, ${e.errors.toLocaleString()} failed`:""} · last seen ${ago(e.last_seen)}`}),
+  h("div",{class:"sig mono",text:e.caller_services.join(", ")}));
+ if(TOKEN&&data.dependency_decisions==="ENABLED_LOCAL_TOKEN"){const yes=h("button",{class:"btn yes",type:"button",text:"Confirm dependency"}),no=h("button",{class:"btn no",type:"button",text:"Reject"});
+  yes.addEventListener("click",()=>decideLink(s,"confirm",[yes,no],status,"/api/dependencies/decision"));
+  no.addEventListener("click",()=>decideLink(s,"reject",[yes,no],status,"/api/dependencies/decision"));
+  card.append(h("div",{class:"act"},yes,no),status)}
+ else if(s.confirm_command){const copy=h("button",{class:"btn",type:"button",text:"Copy confirm command"});
+  copy.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(s.confirm_command);status.textContent="Copied. Replace YOUR_NAME and run it."}catch(_){status.textContent=s.confirm_command}});
+  card.append(h("div",{class:"act"},copy),status)}
+ return card}
+function dependenciesPanel(){const box=$("dependencies"),d=data&&data.dependency_suggestions;box.replaceChildren();
+ const show=d&&d.status!=="NO_OBSERVED_CALLS";$("dep-sec").style.display=show?"block":"none";if(!show)return;
+ $("dep-count").textContent=String(d.suggestions.length);
+ if(d.status==="CALLS_FILE_UNREADABLE"){box.append(h("p",{class:"muted",text:"The calls file could not be read: "+d.detail}));return}
+ box.append(h("p",{class:"muted",style:"margin:0 0 8px;font-size:12px",text:"Calls seen in traces that the repository does not declare. Confirming one adds it to the system map, where it carries possible impact. A call seen is not proof of a dependency."}));
+ if(d.suggestions.length&&TOKEN&&data.dependency_decisions==="ENABLED_LOCAL_TOKEN"&&!linkPanelDecides())box.append(whoInput("who-deps"));
+ if(!d.suggestions.length)box.append(h("p",{class:"muted",text:"No new dependencies. Every observed call is declared, confirmed, or rejected."}));
+ for(const s of d.suggestions.slice(0,30))box.append(dependencyCard(s));
+ const notes=[];if(d.corroborated.length)notes.push(`${d.corroborated.length} declared dependenc${d.corroborated.length===1?"y":"ies"} also seen in traces.`);
+ if(d.rejected_not_shown)notes.push(`${d.rejected_not_shown} rejected hidden.`);
+ if(d.gaps.length)notes.push(`${d.gaps.length} call pair(s) not shown: `+d.gaps.slice(0,5).map(g=>`${g.source} (${g.reason.replace(/_/g," ").toLowerCase()})`).join("; ")+(d.gaps.length>5?"; …":""));
+ if(notes.length)box.append(h("p",{class:"muted",style:"font-size:11px",text:notes.join(" ")}))}
 function feedsChip(){const el=$("feeds"),f=data&&data.feeds;if(!f){el.textContent="";return}
  if(f.status==="LIVE_FEEDS"){const bad=f.failing.length;el.className="feeds "+(bad?"failing":"live");
   el.textContent=bad?`${bad} of ${f.feeds} feeds failing`:`${f.feeds} live feeds`+(f.generated_at?" · "+ago(f.generated_at):"");
@@ -393,7 +421,7 @@ async function ask(text){const status=$("ask-status");status.textContent="Routin
  catch(err){status.textContent="Could not route: "+err.message}}
 $("ask-form").addEventListener("submit",e=>{e.preventDefault();const t=$("ask").value.trim();if(t)ask(t.slice(0,200))});
 $("filter").addEventListener("click",()=>setFilter(null));
-function render(){modelChip();feedsChip();if(data)$("mode").textContent=data.link_decisions==="ENABLED_LOCAL_TOKEN"?"READ ONLY EXCEPT LINK DECISIONS":"READ ONLY";IDX=index();if(selected&&!IDX.has(selected))selected=null;kpis();lists();suggestionsPanel();graph();inspector()}
+function render(){modelChip();feedsChip();if(data)$("mode").textContent=data.link_decisions==="ENABLED_LOCAL_TOKEN"||data.dependency_decisions==="ENABLED_LOCAL_TOKEN"?"READ ONLY EXCEPT DECISIONS":"READ ONLY";IDX=index();if(selected&&!IDX.has(selected))selected=null;kpis();lists();suggestionsPanel();dependenciesPanel();graph();inspector()}
 async function load(){const mine=++epoch;
  try{const r=await fetch("/api/business",{cache:"no-store"});if(!r.ok)throw new Error(String(r.status));const d=await r.json();
   if(mine!==epoch)return;data=d;$("pulse").className="pulse";$("asof").textContent="As of "+new Date(d.generated_at).toLocaleTimeString()+" · refresh 5s";render()}

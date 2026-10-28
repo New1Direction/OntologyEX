@@ -239,6 +239,26 @@ def suggest(skills: list[Path], state: dict, links: list[dict], rejected: list[d
             "model_assist": {**decision_model.describe(client), "routes_proposed": len(routes)}}
 
 
+def replace_checked(target: Path, data: bytes, before: bytes | None, name: str) -> None:
+    """Write a decisions file atomically, refusing if it changed since it was read."""
+    require(len(data) <= MAX_TOTAL, f"{name} byte budget exceeded")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=target.parent, prefix=f".{name}-", delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        now = safe_file(target.parent, target.name, MAX_TOTAL) if target.exists() else None
+        require(now == before, f"{name} file changed during write")
+        temporary.replace(target)
+        temporary = None
+    finally:
+        if temporary is not None and temporary.exists():
+            temporary.unlink()
+
+
 def decide(links_path: Path, suggestion: dict, decision: str, by: str, note: str = "") -> dict:
     """Append one confirmed link or one rejection. Atomic, append-only, idempotent."""
     require(decision in ("confirm", "reject"), "decision must be confirm or reject")
@@ -264,23 +284,7 @@ def decide(links_path: Path, suggestion: dict, decision: str, by: str, note: str
     document = {"schema_version": 1, "kind": business_view.LINK_KIND, "links": links}
     if rejected:
         document["rejected"] = rejected
-    data = canonical(document)
-    require(len(data) <= MAX_TOTAL, "links byte budget exceeded")
-    target.parent.mkdir(parents=True, exist_ok=True)
-    temporary = None
-    try:
-        with tempfile.NamedTemporaryFile(dir=target.parent, prefix=".links-", delete=False) as handle:
-            temporary = Path(handle.name)
-            handle.write(data)
-            handle.flush()
-            os.fsync(handle.fileno())
-        now = safe_file(target.parent, target.name, MAX_TOTAL) if target.exists() else None
-        require(now == before, "links file changed during write")
-        temporary.replace(target)
-        temporary = None
-    finally:
-        if temporary is not None and temporary.exists():
-            temporary.unlink()
+    replace_checked(target, canonical(document), before, "links")
     business_view.read_link_document(target)  # the written file must load back
     return {"status": "CONFIRMED" if decision == "confirm" else "REJECTED",
             "decision": decision, "link": row, "authenticated": False}

@@ -91,7 +91,7 @@ def rollup(systems: list[dict]) -> tuple[str, str]:
         if system["potentially_impacted_by"]:
             sources = ", ".join(system["potentially_impacted_by"])
             return ("POSSIBLY_IMPACTED",
-                    f"{system['label']} declares a dependency on failing {sources}.")
+                    f"{system['label']} depends on failing {sources}.")
     for system in systems:
         if system["status"] == "warning":
             return "DEGRADED", f"Linked system {system['label']} reports a warning."

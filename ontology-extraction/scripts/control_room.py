@@ -25,6 +25,7 @@ import business_view
 import decide
 import discover_repo
 import evidence_grade
+import dependency_suggest
 import link_suggest
 import github_discovery
 import snapshot_store
@@ -271,8 +272,9 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
     for edge in graph_edges:
         check(edge["source"] in by_id and edge["target"] in by_id,
               "topology contains dangling edge")
-        # Directed DEPENDS_ON from consumer to dependency.
-        if edge["relation"] == "DEPENDS_ON":
+        # Directed from consumer to dependency: declared (DEPENDS_ON), or seen in
+        # traces and confirmed by a person (CALLS, from dependency_suggest).
+        if edge["relation"] in ("DEPENDS_ON", "CALLS"):
             reverse[edge["target"]].add(edge["source"])
 
     impact = defaultdict(set)
@@ -385,7 +387,7 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 <button id="graph-focus" type="button" aria-pressed="false">Focus graph</button> <button id="map-business" type="button">Map My Business</button><div id="mode" class="muted">Connecting to local source...</div><small id="updated"></small></div></header>
 <main id="workspace" aria-label="Adaptive business workspace">
 <section id="map" aria-label="Declared component topology"><p id="graph-coverage" aria-live="polite"></p><div id="graph-legend" aria-label="Graph edge legend">
-<span>Amber arrows: declared dependency. Teal dashed arrows: other source relationships. Direction is source → target, not runtime causation.</span></div>
+<span>Amber arrows: declared dependency. Violet arrows: dependency seen in traces and confirmed by a person. Teal dashed arrows: other source relationships. Direction is source → target, not runtime causation.</span></div>
 <div id="graph-pager">
 <button id="graph-back" type="button" disabled>Back to list</button>
 <label for="graph-depth">Hops</label>
@@ -574,7 +576,7 @@ function draw(s){
  // Arrowheads show the stored source -> target direction, even though
  // neighborhood navigation can traverse an edge from either endpoint.
  const defs=el("defs");
- for(const [id,fill] of [["dependency-arrow","#e5b66f"],["source-arrow","#2e8297"]]){
+ for(const [id,fill] of [["dependency-arrow","#e5b66f"],["calls-arrow","#b59cff"],["source-arrow","#2e8297"]]){
    const marker=el("marker",{id,viewBox:"0 0 10 10",refX:9,refY:5,
      markerWidth:6,markerHeight:6,orient:"auto",markerUnits:"strokeWidth"});
    marker.append(el("path",{d:"M 0 0 L 10 5 L 0 10 z",fill}));
@@ -584,14 +586,16 @@ function draw(s){
  for(const e of s.edges){const a=pos[e.source],b=pos[e.target];if(!a||!b)continue;
  const x1=a.x+nodeW,y1=a.y+nodeH/2,x2=b.x,y2=b.y+nodeH/2;
  const d="M"+x1+","+y1+" C"+(x1+38)+","+y1+" "+(x2-38)+","+y2+" "+x2+","+y2;
- const path=el("path",{d,stroke:e.relation==="DEPENDS_ON"?"#e5b66f":"#2e8297",
- "stroke-opacity":.65,"stroke-width":e.relation==="DEPENDS_ON"?2:1.35,
- "stroke-dasharray":e.relation==="DEPENDS_ON"?"":"5 6",
- "marker-end":e.relation==="DEPENDS_ON"?"url(#dependency-arrow)":"url(#source-arrow)",
+ const dep=e.relation==="DEPENDS_ON",calls=e.relation==="CALLS";
+ const path=el("path",{d,stroke:dep?"#e5b66f":calls?"#b59cff":"#2e8297",
+ "stroke-opacity":.65,"stroke-width":dep||calls?2:1.35,
+ "stroke-dasharray":dep||calls?"":"5 6",
+ "marker-end":dep?"url(#dependency-arrow)":calls?"url(#calls-arrow)":"url(#source-arrow)",
  fill:"none"});
  path.append(el("title",{},e.relation+" · "+e.source+" → "+e.target+
    (e.source_line?" · source line "+e.source_line:"")+
-   " · source relationship, not observed runtime execution"));
+   (calls?" · seen in traces and confirmed by a person; calls are source-reported":
+    " · source relationship, not observed runtime execution")));
  svg.append(path)}
  for(const n of visible){const p=pos[n.id],g=el("g",{role:"button",tabindex:0,
  "aria-label":n.label+" "+n.status,style:"cursor:pointer"});
@@ -855,7 +859,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
           view_engine: str = "python", skills: list[Path] | None = None,
           links: Path | None = None, events: Path | None = None,
           allow_link_decisions: bool = False, decision_model: bool = False,
-          discovery_engine: str = "python") -> None:
+          discovery_engine: str = "python", dependencies: Path | None = None) -> None:
     check(0 <= port <= 65535, "invalid port")
     check(view_engine in ("python", "rust"), "unsupported graph view backend")
     native_view = native_view_bridge.NativeView() if view_engine == "rust" else None
@@ -865,9 +869,11 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
     # Fail at startup on a tampered skill or malformed links; re-verified per request.
     if links is not None and links.exists():
         business_view.read_link_document(links)
+    if dependencies is not None and dependencies.exists():
+        dependency_suggest.read_dependency_document(dependencies)
     check(len(skills) <= business_view.MAX_SKILLS, "too many skills")
-    check(not allow_link_decisions or (links is not None and skills),
-          "link decisions need --links and at least one --skill")
+    check(not allow_link_decisions or (links is not None and skills) or dependencies is not None,
+          "decisions need --links and at least one --skill, or --dependencies")
     # Per-process secret for the opt-in write route; served only inside /business.
     write_token = secrets.token_urlsafe(32) if allow_link_decisions else None
     # Opt-in decision model (Jev or Clef): proposals and routing only, never decisions.
@@ -880,6 +886,15 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                         *(["--model-assist"] if decision_model else [])]
     else:
         base_command = None
+    calls_path = observations.with_suffix(".calls.json") if observations is not None else None
+    dependency_command = (["python", "ontology-extraction/scripts/dependency_suggest.py", "confirm", "--repo",
+                           str(repo), "--calls", str(calls_path), "--dependencies",
+                           str(dependencies) if dependencies is not None else "DEPENDENCIES.json"]
+                          if repo is not None and calls_path is not None else None)
+
+    def dependency_documents() -> tuple[list[dict], list[dict]]:
+        return (dependency_suggest.read_dependency_document(dependencies)
+                if dependencies is not None and dependencies.exists() else ([], []))
 
     def feed_status() -> dict:
         """Summary of feeds.py's status file beside the observations file, if any."""
@@ -915,8 +930,20 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 *[x.format(decision="confirm") for x in base_command],
                 "--id", row["id"], "--by", "YOUR_NAME"]) if base_command else None)
         result["link_suggestions"] = suggestions
-        result["link_decisions"] = ("ENABLED_LOCAL_TOKEN" if write_token else
+        result["link_decisions"] = ("ENABLED_LOCAL_TOKEN" if write_token and links is not None and skills else
                                     "READ_ONLY_USE_CLI")
+        try:
+            observed = dependency_suggest.suggest(full, dependency_suggest.read_calls(calls_path),
+                                                  *dependency_documents())
+        except ValueError as exc:  # a calls file the feeds are rewriting, or one edited by hand
+            observed = {"status": "CALLS_FILE_UNREADABLE", "detail": str(exc)[:200], "suggestions": [],
+                        "corroborated": [], "gaps": [], "rejected_not_shown": 0, "execution_authorized": False}
+        for row in observed["suggestions"]:
+            row["confirm_command"] = (" ".join(shlex.quote(part) for part in [
+                *dependency_command, "--id", row["id"], "--by", "YOUR_NAME"]) if dependency_command else None)
+        result["dependency_suggestions"] = observed
+        result["dependency_decisions"] = ("ENABLED_LOCAL_TOKEN" if write_token and dependencies is not None else
+                                          "READ_ONLY_USE_CLI")
         result["feeds"] = feed_status()
         result["discovery_freshness"] = full["discovery_freshness"]
         result["discovery_scanned_at"] = full["discovery_scanned_at"]
@@ -964,6 +991,8 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 topology = state_cache["topology"]
                 last_success = state_cache["last_success"]
                 refresh_error = False
+        if dependencies is not None:
+            topology = dependency_suggest.with_confirmed(topology, dependency_documents()[0], dependencies.name)
         result = build_state(topology, (observation_rows if observation_rows is not None
                                         else read_observations(observations)), rules, current)
         result["discovery_source"] = topology.get("source", {"provider": "local"})
@@ -1102,17 +1131,21 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             self.wfile.write(payload)
 
         def do_POST(self):
-            """The one write route: an explicit link decision, only when opted in."""
+            """The write routes: an explicit link or dependency decision, only when opted in."""
             host_headers = self.headers.get_all("Host", [])
             origin = self.headers.get("Origin")
             route = urlsplit(self.path)
             if (len(host_headers) != 1 or origin is None or not valid_local_host(
                     host_headers[0], origin, self.server.server_port)):
                 code, body = 403, {"status": "FORBIDDEN"}
-            elif route.path != "/api/links/decision" or route.query:
+            elif route.path not in ("/api/links/decision", "/api/dependencies/decision") or route.query:
                 code, body = 404, {"status": "NOT_FOUND"}
             elif write_token is None:
                 code, body = 403, {"status": "LINK_DECISIONS_DISABLED"}
+            elif route.path == "/api/links/decision" and (links is None or not skills):
+                code, body = 403, {"status": "LINK_DECISIONS_DISABLED"}
+            elif route.path == "/api/dependencies/decision" and dependencies is None:
+                code, body = 403, {"status": "DEPENDENCY_DECISIONS_DISABLED"}
             elif not hmac.compare_digest(self.headers.get("X-OntologyEX-Token", ""), write_token):
                 code, body = 403, {"status": "INVALID_TOKEN"}
             elif self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
@@ -1126,14 +1159,18 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                                          object_pairs_hook=no_duplicates)
                     if type(request) is not dict or set(request) != {"id", "decision", "by", "note"}:
                         raise ValueError("expected id, decision, by and note")
+                    links_route = route.path == "/api/links/decision"
                     with decision_lock:
-                        current = business(snapshot())["link_suggestions"]["suggestions"]
+                        current = business(snapshot())["link_suggestions" if links_route else
+                                                        "dependency_suggestions"]["suggestions"]
                         match = [x for x in current if x["id"] == request["id"]]
                         if len(match) != 1:
                             raise ValueError("no current suggestion has that ID")
                         match[0].pop("confirm_command", None)
-                        body = link_suggest.decide(links, match[0], request["decision"],
-                                                   request["by"], request["note"])
+                        body = (link_suggest.decide(links, match[0], request["decision"],
+                                                    request["by"], request["note"]) if links_route else
+                                dependency_suggest.decide(dependencies, match[0], request["decision"],
+                                                          request["by"], request["note"]))
                     code = 200
                 except (ValueError, TypeError, KeyError, UnicodeError, RoomError, DomainError):
                     code, body = 400, {"status": "INVALID_DECISION"}
@@ -1151,7 +1188,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         def log_message(self, *args):
             return  # No user-supplied paths or request logs persisted.
 
-    # No external listener. The only write is the opt-in link decision above.
+    # No external listener. The only writes are the opt-in decisions above.
     try:
         with ThreadingHTTPServer(("127.0.0.1", port), Handler) as server:
             print(f"OntologyEX local control room: http://127.0.0.1:{server.server_port}",
@@ -1188,8 +1225,10 @@ def main():
                         help="operator-declared binding-to-component links (JSON)")
     parser.add_argument("--events", type=Path, default=None,
                         help="evidence grade events file (see evidence_grade.py)")
+    parser.add_argument("--dependencies", type=Path, default=None,
+                        help="dependencies confirmed from observed calls (JSON; see dependency_suggest.py)")
     parser.add_argument("--allow-link-decisions", action="store_true",
-                        help="let the local business page confirm or reject link suggestions")
+                        help="let the local business page confirm or reject link and dependency suggestions")
     parser.add_argument("--decision-model", action="store_true",
                         help="use the decision model set by ONTOLOGYEX_DECIDE_* for link routes, "
                              "review triage, and the command bar (sends binding source, rules, "
@@ -1211,6 +1250,10 @@ def main():
                         if args.view_engine == "rust" or
                         native_view_bridge.discovery_engine(args.discovery_engine) == "rust"
                         else discover_repo.discover(args.repo))
+            if args.dependencies is not None and args.dependencies.exists():
+                topology = dependency_suggest.with_confirmed(
+                    topology, dependency_suggest.read_dependency_document(args.dependencies)[0],
+                    args.dependencies.name)
             result = build_state(topology, read_observations(args.observations),
                                  read_thresholds(args.thresholds))
             result["discovery_source"] = topology.get("source", {"provider": "local"})
@@ -1228,7 +1271,7 @@ def main():
                   discovery_engine=args.discovery_engine,
                   skills=args.skill, links=args.links, events=args.events,
                   allow_link_decisions=args.allow_link_decisions,
-                  decision_model=args.decision_model)
+                  decision_model=args.decision_model, dependencies=args.dependencies)
         return 0
     except (OSError, RoomError, discover_repo.DiscoveryError,
             github_discovery.GitHubDiscoveryError, snapshot_store.SnapshotError,
