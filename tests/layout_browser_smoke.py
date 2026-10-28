@@ -157,6 +157,10 @@ def main():
             assert all(float(v.replace("s", "")) == 0 for v in transition.split(",")), transition
             driver.refresh()
             assert driver.find_element("id", "graph-focus").get_attribute("aria-pressed") == "true"
+            # A refresh is deliberately not an automatic source discovery.
+            driver.find_element("id", "map-business").click()
+            WebDriverWait(driver, 10).until(lambda d: d.execute_script(
+                "return typeof lastLayout !== 'undefined' && !!lastLayout"))
             print("CHROME graph preference persisted, reduced-motion disables transitions",
                   flush=True)
             # Explicit noncritical collapse must keep its toggle accessible.
