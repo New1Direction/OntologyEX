@@ -562,16 +562,44 @@ function draw(s){
  svg.append(g)}
  // Node detail is fetched separately, never inferred from a partial page.
 }
-async function pick(id){
- selected=id;
- if(state)draw(state);
+async function loadNodeDetail(id){
+ const seq=++detailEpoch;
  try{
    const res=await fetch("/api/node?id="+encodeURIComponent(id),{cache:"no-store"});
    if(!res.ok)throw Error("detail unavailable");
    const data=await res.json();
-   if(selected!==id)return;
+   if(seq!==detailEpoch||selected!==id)return;
    detail(data.node,data);
- }catch(_){text("details","Selected node detail unavailable. Current health cannot be inferred.")}
+ }catch(_){
+   if(seq===detailEpoch&&selected===id)
+     text("details","Selected node detail unavailable. Current health cannot be inferred.");
+ }
+}
+async function loadNeighborhood(id){
+ const seq=++requestEpoch;
+ const hops=document.getElementById("graph-depth").value;
+ try{
+   const response=await fetch("/api/neighborhood?id="+encodeURIComponent(id)+
+     "&depth="+encodeURIComponent(hops),{cache:"no-store"});
+   if(!response.ok)throw Error("neighborhood unavailable");
+   const graph=await response.json();
+   if(seq!==requestEpoch||neighborhoodRoot!==id)return;
+   if(graph.kind!=="BOUNDED_GRAPH_NEIGHBORHOOD"||
+      graph.summary?.kind!=="LOCAL_CONTROL_ROOM_SUMMARY"||
+      graph.center_id!==id)throw Error("invalid neighborhood response");
+   lastSummary=graph.summary;
+   draw({...graph.summary,...graph});
+ }catch(_){
+   if(seq!==requestEpoch||neighborhoodRoot!==id)return;
+   text("mode","NEIGHBORHOOD UNAVAILABLE · LAST VIEW MAY BE STALE");
+   text("graph-scope","Could not verify connected source neighbors. Return to list or retry.");
+ }
+}
+function pick(id){
+ selected=id;neighborhoodRoot=id;
+ if(state)draw(state);
+ loadNodeDetail(id);
+ return loadNeighborhood(id);
 }
 function detail(n,s){
  const ev=s.source_evidence.find(e=>e.id===n.evidence_id);
@@ -616,17 +644,25 @@ async function loadPage(){
       summaryData.kind!=="LOCAL_CONTROL_ROOM_SUMMARY")throw Error("invalid data");
    lastSummary=summaryData;lastPage=pageData;
    draw({...summaryData,...pageData});
-   if(selected)pick(selected);
+   if(selected)loadNodeDetail(selected);
  }catch(_){
    if(seq!==requestEpoch)return;
    text("mode","DATA UNAVAILABLE · LAST VIEW IS STALE");
    text("updated","Latest fetch failed; prior view may be stale");
  }
 }
-function refresh(){return loadPage()}
+function refresh(){return neighborhoodRoot?loadNeighborhood(neighborhoodRoot):loadPage()}
 let mapStarted=false;
-document.getElementById("lens").addEventListener("change",()=>{graphOffset=0;if(mapStarted)loadPage()});
-document.getElementById("graph-search").addEventListener("input",()=>{graphOffset=0;if(mapStarted)loadPage()});
+function returnToList(){
+ neighborhoodRoot=null;graphOffset=0;
+ if(mapStarted)return loadPage();
+}
+document.getElementById("graph-back").addEventListener("click",returnToList);
+document.getElementById("graph-depth").addEventListener("change",()=>{
+ if(mapStarted&&neighborhoodRoot)loadNeighborhood(neighborhoodRoot);
+});
+document.getElementById("lens").addEventListener("change",()=>{graphOffset=0;neighborhoodRoot=null;if(mapStarted)loadPage()});
+document.getElementById("graph-search").addEventListener("input",()=>{graphOffset=0;neighborhoodRoot=null;if(mapStarted)loadPage()});
 document.getElementById("graph-prev").addEventListener("click",()=>{
  graphOffset=Math.max(0,graphOffset-90);loadPage();
 });
