@@ -36,7 +36,51 @@ ontologyex-feeds check --config feeds.json --repo /path/to/repo
 ontologyex-feeds run --config feeds.json
 ```
 
+## Set up from your repository
+
+If your services run under Docker Compose, let OntologyEX propose the feeds and
+choose which to keep:
+
+```bash
+python ontology-extraction/scripts/feed_setup.py propose --repo /path/to/repo
+```
+
+It reads your compose files (and a `prometheus.yml` that a Prometheus service in
+them mounts) and lists candidates, each with the file and line that declares it:
+
+| Candidate | Comes from | Strength |
+|---|---|---|
+| HTTP probe | A `healthcheck` that calls an HTTP URL, on the host port that container port is published to | STRONG |
+| OTLP mapping | `OTEL_SERVICE_NAME`, or `service.name` in `OTEL_RESOURCE_ATTRIBUTES` | STRONG |
+| OTLP mapping | `OTEL_EXPORTER_OTLP_ENDPOINT` without a service name: the compose name is a guess | WEAK |
+| Prometheus target | A `static_configs` target that names a compose service, with Prometheus's port published | STRONG |
+
+Anything it cannot back with a declaration is listed as a gap with the reason (a
+port not published, a non-HTTP healthcheck, a service name set at deploy time), never
+guessed. `propose` writes nothing. Then write the ones you accept and start everything:
+
+```bash
+python ontology-extraction/scripts/feed_setup.py init --repo /path/to/repo --out feeds.json --accept-strong
+python ontology-extraction/scripts/operate.py up --repo /path/to/repo --feeds feeds.json
+# open http://127.0.0.1:8765/business
+```
+
+Use `--accept ID` (repeatable) instead of `--accept-strong` to pick candidates one by
+one. `init` refuses unknown IDs and will not overwrite an existing file without
+`--force`; the config it writes allows only `127.0.0.1` and passes the same validator
+as `feeds.py`. Probes assume the services run on this machine with their ports
+published as declared, and Prometheus targets assume its default `job` and
+`instance` labels; edit `feeds.json` if yours differ.
+
+`operate.py up` starts the feeds service (`ontologyex-feeds` when it is installed,
+otherwise `feeds.py`) and the control room reading its observations. Add `--skill`
+and `--links` as you would for `control_room.py`. Ctrl-C stops both; if one exits,
+the other is stopped too.
+
 ## Your own systems
+
+To write the config by hand, for systems not described in compose or not on this
+machine:
 
 1. Copy `examples/feeds/feeds.example.json` and set the components. Each `component`
    is a node ID from the system map (`control_room.py --state-only`). Check them:

@@ -32,9 +32,30 @@ click Confirm/Reject in the page instead, add `--links links.json
 
 ## 3. Add live health (optional)
 
-`feeds.py` writes observations from HTTP health checks, Prometheus queries, and
-OpenTelemetry traces (OTLP/HTTP). The user writes the feed config; it names only
-hosts they allow.
+Propose feeds from what the repository declares, show them to the user, and write
+only the ones they accept:
+
+```bash
+python "$SKILL_ROOT/scripts/feed_setup.py" propose --repo REPO
+```
+
+Each candidate (an HTTP probe from a compose `healthcheck`, an OTLP mapping from
+`OTEL_SERVICE_NAME` or `service.name`, a Prometheus target from a mounted
+`prometheus.yml`) has an ID, a strength, and the file and line that declares it.
+Show the user each candidate with its evidence and each gap with its reason. Do not
+accept on their behalf: WEAK candidates rest on a guess, and every probe will call
+the URL it names. Then, with the IDs they chose:
+
+```bash
+python "$SKILL_ROOT/scripts/feed_setup.py" init --repo REPO --out feeds.json --accept ID [--accept ID ...]
+python "$SKILL_ROOT/scripts/operate.py" up --repo REPO --feeds feeds.json --skill SKILL --links links.json
+```
+
+`init` refuses unknown IDs, an empty choice, and an existing file without `--force`,
+and checks the config with the same validator `feeds.py` uses. `operate.py up` starts
+the feeds (Rust when installed) and the control room together and stops both on
+Ctrl-C. To run them yourself, or for feeds the repository does not declare, write
+`feeds.json` by hand (see `docs/live-feeds.md`) and run:
 
 ```bash
 python "$SKILL_ROOT/scripts/feeds.py" check --config feeds.json --repo REPO
@@ -49,8 +70,8 @@ For more traffic, `ontologyex-feeds run --config feeds.json` does the same job i
 Rust with the same files. If the user agrees to download it,
 `python "$SKILL_ROOT/scripts/fetch_engine.py"` installs the prebuilt binaries into
 the skill's `bin/` after checking their checksum; show them the printed
-`gh attestation verify` command. `control_room.py --view-engine rust` then also
-uses the Rust discovery and graph views.
+`gh attestation verify` command. The control room then discovers repositories with
+Rust automatically; `--view-engine rust` also moves the graph views to Rust.
 
 ## 4. Grades, questions, queries
 
