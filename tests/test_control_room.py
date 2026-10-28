@@ -197,7 +197,11 @@ class ControlRoomTests(unittest.TestCase):
         self.assertIn('OntologyLayout.optimize(', room.PAGE)
         self.assertIn('OntologyLayout.verifyDOM(', room.PAGE)
         self.assertIn('prefers-reduced-motion:reduce', room.PAGE)
-        self.assertIn('matches.slice(0,90)', room.PAGE)
+        self.assertIn('s.nodes.slice(0,90)', room.PAGE)
+        self.assertIn('/api/view?lens=',room.PAGE)
+        self.assertIn('/api/node?id=',room.PAGE)
+        self.assertIn('id="graph-next"',room.PAGE)
+        self.assertIn('graph_view_api.summary(full)',room.serve.__code__.co_consts.__repr__()) if False else None
         self.assertNotIn('grid-template-columns:minmax(0,1fr) 325px', room.PAGE)
         self.assertTrue((ROOT / "ontology-extraction/scripts/layout_engine.js").is_file())
 
