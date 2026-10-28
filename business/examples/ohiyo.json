@@ -1,0 +1,406 @@
+{
+  "schema_version": 1,
+  "id": "New1Direction/ohiyo",
+  "name": "Ohiyo / Burrow",
+  "purpose": "Private-by-design chat and collaboration with real-time channels, opt-in end-to-end encryption, and agent workspaces.",
+  "stage": "Chat public beta; select additional hosting features not enabled",
+  "audiences": [
+    {
+      "id": "community",
+      "name": "Community creator",
+      "description": "Creates private spaces and collaborates through chats.",
+      "evidence": [
+        "intro"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "member",
+      "name": "Member",
+      "description": "Communicates in channels and DMs with privacy choices.",
+      "evidence": [
+        "intro"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "agent",
+      "name": "Kikka agent user",
+      "description": "Delegates bounded workspace tasks, source visible via worker manifest.",
+      "evidence": [
+        "stack"
+      ],
+      "basis": "operator_declared"
+    }
+  ],
+  "value": [
+    {
+      "id": "privacy",
+      "name": "Private conversation",
+      "description": "Optional E2EE DMs/groups and desktop client.",
+      "evidence": [
+        "intro",
+        "highlights"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "ownership",
+      "name": "Portable community ownership",
+      "description": "Hosting and export/self-host direction.",
+      "evidence": [
+        "highlights"
+      ],
+      "basis": "derived_from_source"
+    }
+  ],
+  "money_flows": [
+    {
+      "id": "paid_servers",
+      "name": "Optional paid server",
+      "description": "README describes ~$8/month optional persistent server plan, gated until provisioning/billing setup.",
+      "evidence": [
+        "highlights"
+      ],
+      "basis": "derived_from_source",
+      "state": "gated"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "conversation",
+      "name": "Join → message → receive",
+      "actor": "Member",
+      "outcome": "Message delivered",
+      "steps": [
+        {
+          "id": "join",
+          "name": "Join a community",
+          "description": "Choose server/channel.",
+          "evidence": [
+            "intro"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": []
+        },
+        {
+          "id": "privacy",
+          "name": "Select privacy mode",
+          "description": "Opt-in E2EE for applicable DMs/groups.",
+          "evidence": [
+            "intro",
+            "privacy"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "privacy"
+          ]
+        },
+        {
+          "id": "send",
+          "name": "Send message",
+          "description": "Client sends to realtime server/gateway.",
+          "evidence": [
+            "intro",
+            "stack"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "delivery"
+          ]
+        },
+        {
+          "id": "receive",
+          "name": "Receive and read",
+          "description": "Recipients receive message and receipts where supported.",
+          "evidence": [
+            "highlights"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "delivery"
+          ]
+        }
+      ],
+      "evidence": [
+        "intro"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "voice",
+      "name": "Voice call",
+      "actor": "Member",
+      "outcome": "Voice session established",
+      "steps": [
+        {
+          "id": "select",
+          "name": "Select voice room",
+          "description": "Roster and prejoin context.",
+          "evidence": [
+            "highlights"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": []
+        },
+        {
+          "id": "connect",
+          "name": "Connect WebRTC",
+          "description": "Peer-to-peer or configured relay/SFU.",
+          "evidence": [
+            "highlights"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "media"
+          ]
+        },
+        {
+          "id": "participate",
+          "name": "Participate",
+          "description": "Join/listen with published privacy behavior.",
+          "evidence": [
+            "highlights"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "privacy",
+            "media"
+          ]
+        }
+      ],
+      "evidence": [
+        "highlights"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "hosting",
+      "name": "Provision community server",
+      "actor": "Community creator",
+      "outcome": "Running owned server",
+      "steps": [
+        {
+          "id": "request",
+          "name": "Request server",
+          "description": "Instant server feature described.",
+          "evidence": [
+            "highlights"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": []
+        },
+        {
+          "id": "bill",
+          "name": "Choose optional paid tier",
+          "description": "Hosted billing path disabled until setup.",
+          "evidence": [
+            "highlights"
+          ],
+          "basis": "derived_from_source",
+          "state": "gated",
+          "risk_ids": [
+            "hosting_gate"
+          ]
+        },
+        {
+          "id": "deploy",
+          "name": "Provision/export/self-host",
+          "description": "Must verify deployment readiness.",
+          "evidence": [
+            "highlights"
+          ],
+          "basis": "derived_from_source",
+          "state": "gated",
+          "risk_ids": [
+            "hosting_gate"
+          ]
+        }
+      ],
+      "evidence": [
+        "highlights"
+      ],
+      "basis": "derived_from_source"
+    }
+  ],
+  "systems": [
+    {
+      "id": "client",
+      "name": "React + Tauri",
+      "description": "Chat and desktop privacy controls.",
+      "evidence": [
+        "stack"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "server",
+      "name": "Rust chat server",
+      "description": "Realtime messages and SQLite store.",
+      "evidence": [
+        "stack"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "media",
+      "name": "WebRTC / LiveKit optional",
+      "description": "Audio/video flows.",
+      "evidence": [
+        "highlights"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "worker",
+      "name": "Kikka worker",
+      "description": "Separate agent task engine under worker manifest.",
+      "evidence": [
+        "stack"
+      ],
+      "basis": "operator_declared"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "intro",
+      "repo": "New1Direction/ohiyo",
+      "commit": "1b0cb16a16f094e0888cdd8ccd009b5a3f69e586",
+      "path": "README.md",
+      "start": 1,
+      "end": 29
+    },
+    {
+      "id": "highlights",
+      "repo": "New1Direction/ohiyo",
+      "commit": "1b0cb16a16f094e0888cdd8ccd009b5a3f69e586",
+      "path": "README.md",
+      "start": 30,
+      "end": 90
+    },
+    {
+      "id": "stack",
+      "repo": "New1Direction/ohiyo",
+      "commit": "1b0cb16a16f094e0888cdd8ccd009b5a3f69e586",
+      "path": "README.md",
+      "start": 91,
+      "end": 116
+    },
+    {
+      "id": "privacy",
+      "repo": "New1Direction/ohiyo",
+      "commit": "1b0cb16a16f094e0888cdd8ccd009b5a3f69e586",
+      "path": "README.md",
+      "start": 184,
+      "end": 215
+    }
+  ],
+  "risks": [
+    {
+      "id": "delivery",
+      "name": "Messages not delivered or replayed",
+      "description": "Real-time sessions and reconnects can lose user trust.",
+      "evidence": [
+        "intro"
+      ],
+      "basis": "proposed",
+      "severity": "high",
+      "signal": "delivery receipts, reconnects, retry ledger",
+      "category": "POTENTIAL_BREAKPOINT"
+    },
+    {
+      "id": "privacy",
+      "name": "Encryption expectations mismatch",
+      "description": "Opt-in coverage and experimental group messaging have limitations.",
+      "evidence": [
+        "intro",
+        "privacy"
+      ],
+      "basis": "proposed",
+      "severity": "critical",
+      "signal": "user mode, attempted plaintext fallbacks",
+      "category": "POTENTIAL_BREAKPOINT"
+    },
+    {
+      "id": "media",
+      "name": "Voice reliability",
+      "description": "TURN/SFU and WebRTC connectivity vary by network.",
+      "evidence": [
+        "highlights"
+      ],
+      "basis": "proposed",
+      "severity": "high",
+      "signal": "join failure and media connectivity",
+      "category": "POTENTIAL_BREAKPOINT"
+    },
+    {
+      "id": "hosting_gate",
+      "name": "Hosting charge/provision state mismatch",
+      "description": "Product documentation says paid provisioning is not yet enabled.",
+      "evidence": [
+        "highlights"
+      ],
+      "basis": "proposed",
+      "severity": "high",
+      "signal": "billing vs deployed server state",
+      "category": "POTENTIAL_BREAKPOINT"
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "hosted",
+      "name": "Which provisioning features are actually enabled now?",
+      "description": "README lists gated paths; needs runtime.",
+      "evidence": [
+        "highlights"
+      ],
+      "basis": "unknown"
+    },
+    {
+      "id": "encryption",
+      "name": "How often does group E2EE deliver while peers are offline?",
+      "description": "README documents known limits; requires measurement.",
+      "evidence": [
+        "privacy"
+      ],
+      "basis": "unknown"
+    }
+  ],
+  "improvements": [
+    {
+      "id": "delivery_journey",
+      "name": "Measure end-to-end message delivery",
+      "description": "Trace send, accept, relay, receive; separate reliability and privacy exposure.",
+      "evidence": [
+        "highlights"
+      ],
+      "basis": "proposed",
+      "addresses": [
+        "delivery",
+        "privacy"
+      ],
+      "priority": "P0"
+    },
+    {
+      "id": "hosting_readiness",
+      "name": "Gate hosted server lifecycle with proof",
+      "description": "Track requested → paid → provisioned → recoverable.",
+      "evidence": [
+        "highlights"
+      ],
+      "basis": "proposed",
+      "addresses": [
+        "hosting_gate"
+      ],
+      "priority": "P1"
+    }
+  ]
+}
