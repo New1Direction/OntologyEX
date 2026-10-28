@@ -11,7 +11,7 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from threading import RLock
+from threading import Event, RLock, Thread
 import json
 import math
 import os
@@ -19,6 +19,7 @@ import re
 import stat
 
 import discover_repo
+import github_discovery
 
 MAX_OBSERVATION_BYTES = 1024 * 1024
 MAX_OBSERVATIONS = 4096
@@ -252,8 +253,16 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
                     queue.append((dependent, depth + 1))
                 elif dependent != source:
                     impact[dependent].add(source)
+    ci_by_node = {
+        record["workflow_node_id"]: record
+        for record in topology.get("ci_evidence", [])
+        if type(record) is dict and type(record.get("workflow_node_id")) is str
+           and record.get("scope") == "CI_ONLY_NOT_PRODUCTION_HEALTH"
+    }
     for node in nodes:
         node["potentially_impacted_by"] = sorted(impact.get(node["id"], set()))
+        node["ci_run"] = (ci_by_node.get(node["id"])
+                          if node["kind"] == "workflow" else None)
 
     counts = {value: sum(n["status"] == value for n in nodes)
               for value in ("ok", "warning", "error", "stale", "unknown")}
@@ -275,6 +284,7 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
         "impact_semantics": "DECLARED_DEPENDENCIES_POTENTIAL_IMPACT_NOT_CAUSAL_PROOF",
         "leading_indicator_semantics": "USER_CONFIGURED_THRESHOLD_NOT_OUTAGE_PREDICTION",
         "runtime_discovery": "NOT_IMPLEMENTED",
+        "ci_evidence_semantics": "GITHUB_ACTIONS_RUN_AT_PINNED_COMMIT_NOT_PRODUCTION_HEALTH",
         "execution_authorized": False,
     }
 
@@ -307,7 +317,7 @@ cursor:pointer;padding:9px 14px;font:inherit}button:hover{background:#244956}
 @media(max-width:850px){main{grid-template-columns:1fr}aside{max-height:none}#map{max-height:70vh}}
 </style></head>
 <body><header><div><small>ONTOLOGYEX // LOCAL OBSERVABILITY</small>
-<h1>BUSINESS CONTROL ROOM</h1></div><div><div id="mode" class="muted">Connecting to local source...</div><small id="updated"></small></div></header>
+<h1>BUSINESS CONTROL ROOM</h1></div><div><button id="map-business" type="button">Map My Business</button><div id="mode" class="muted">Connecting to local source...</div><small id="updated"></small></div></header>
 <main><section id="map" aria-label="Declared component topology"><svg id="svg" role="img" aria-label="Interactive dependency diagram"></svg></section>
 <aside><section><h2>System integrity</h2><div id="counts"></div></section>
 <section><h2>Selected component</h2><div id="details">Select a node to inspect its source and status.</div></section>
@@ -366,6 +376,9 @@ function draw(s){
  n.status.toUpperCase()+" · "+n.kind.replaceAll("_"," ")));
  if(n.potentially_impacted_by.length)g.append(el("text",{x:p.x+nodeW-8,y:p.y+14,
  "text-anchor":"end",fill:"#eebc63","font-size":10},"RISK"));
+ if(n.ci_run)g.append(el("text",{x:p.x+nodeW-8,y:p.y+42,
+ "text-anchor":"end",fill:n.ci_run.conclusion==="success"?"#49c4a4":"#eebc63",
+ "font-size":10},"CI "+(n.ci_run.conclusion||n.ci_run.status).toUpperCase()));
  g.addEventListener("click",()=>pick(n.id));g.addEventListener("keydown",ev=>{if(ev.key==="Enter")pick(n.id)});
  svg.append(g)}
  const target=s.nodes.find(n=>n.id===selected);if(target)detail(target,s);
@@ -382,6 +395,10 @@ function detail(n,s){
  "","DECLARED CONNECTIONS: "+relevant.length,
  ...relevant.slice(0,20).map(e=>e.relation+" : "+(e.source===n.id?e.target:e.source)),
  "","POTENTIALLY IMPACTED BY: "+(n.potentially_impacted_by.join(", ")||"none"),
+ "","GITHUB CI (NOT PRODUCTION HEALTH): "+(n.ci_run
+   ? (n.ci_run.status+" / "+(n.ci_run.conclusion||"no result")) : "unavailable"),
+ "CI RUN ID: "+(n.ci_run?.run_id||"none"),
+ "CI UPDATED: "+(n.ci_run?.updated_at||"unknown"),
  "","SOURCE FILE: "+(ev?.path||"not captured"),
  "EVIDENCE HASH: "+(ev?.sha256||"unknown"),
  "","No causal root cause is asserted."];
@@ -392,28 +409,101 @@ async function refresh(){
  const s=await res.json();draw(s)}catch(err){text("mode","DATA UNAVAILABLE · LAST VIEW IS STALE");
  text("updated","Latest fetch failed");}
 }
-refresh();setInterval(refresh,5000);
+let mapStarted=false;
+document.getElementById("map-business").addEventListener("click",()=>{
+ mapStarted=true;refresh();
+});
+setInterval(()=>{if(mapStarted)refresh()},5000);
 </script></body></html>"""
 
 
-def serve(repo: Path, observations: Path | None, thresholds: Path | None,
-          port: int) -> None:
+class RemoteInventory:
+    """Atomically hold the last successful source-pinned inventory.
+
+    Polling is driven by the server worker, never by a browser request.
+    A refresh failure is visible; it never silently changes last-known bytes.
+    """
+    def __init__(self, scan):
+        self._scan = scan
+        self._lock = RLock()
+        self._latest = None
+        self._last_success = None
+        self._failed = False
+
+    def refresh(self):
+        try:
+            value = self._scan()
+        except (github_discovery.GitHubDiscoveryError,
+                discover_repo.DiscoveryError, OSError, ValueError, TypeError,
+                KeyError, RecursionError):
+            with self._lock:
+                self._failed = True
+            return False
+        with self._lock:
+            self._latest = value
+            self._last_success = datetime.now(timezone.utc)
+            self._failed = False
+        return True
+
+    def snapshot(self):
+        with self._lock:
+            if self._latest is None:
+                raise RoomError("source inventory not ready")
+            return self._latest, self._last_success, self._failed
+
+
+def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
+          port: int, github: str | None = None, github_refresh_seconds: int = 300,
+          github_client=None) -> None:
     check(0 <= port <= 65535, "invalid port")
     rules = read_thresholds(thresholds)
-    # Discovery is read-only and can change while serving. Limit update cadence.
+    check(60 <= github_refresh_seconds <= 3600, "invalid GitHub refresh interval")
+    check((repo is None) != (github is None), "configure exactly one source")
+    if github:
+        github_discovery.parse_repository(github)
+        client = github_client or github_discovery.GitHubClient(
+            token=os.environ.get("ONTOLOGYEX_GITHUB_TOKEN"))
+    else:
+        client = None
     state_cache: dict = {}
     cache_lock = RLock()
+    remote = RemoteInventory(lambda: github_discovery.discover_github(github, client)) if github else None
+    stop_worker = Event()
+    worker = None
+
+    if remote is not None:
+        def refresh_loop():
+            while not stop_worker.is_set():
+                remote.refresh()
+                stop_worker.wait(github_refresh_seconds)
+        worker = Thread(target=refresh_loop, name="ontologyex-github-readonly", daemon=True)
+        worker.start()
 
     def snapshot() -> dict:
         current = datetime.now(timezone.utc)
-        with cache_lock:
-            key = state_cache.get("time")
-            if key is None or (current - key).total_seconds() > 15:
-                topology = discover_repo.discover(repo)
-                state_cache["topology"] = topology
-                state_cache["time"] = current
-            topology = state_cache["topology"]
-        return build_state(topology, read_observations(observations), rules, current)
+        if remote is not None:
+            topology, last_success, refresh_error = remote.snapshot()
+        else:
+            with cache_lock:
+                last_attempt = state_cache.get("last_attempt")
+                if last_attempt is None or (current - last_attempt).total_seconds() > 15:
+                    state_cache["last_attempt"] = current
+                    topology = discover_repo.discover(repo)
+                    state_cache["topology"] = topology
+                    state_cache["last_success"] = current
+                topology = state_cache["topology"]
+                last_success = state_cache["last_success"]
+                refresh_error = False
+        result = build_state(topology, read_observations(observations), rules, current)
+        result["discovery_source"] = topology.get("source", {"provider": "local"})
+        result["discovery_freshness"] = (
+            "STALE_LAST_KNOWN" if refresh_error else "AS_OF_LATEST_SUCCESSFUL_SCAN")
+        result["discovery_scanned_at"] = (
+            last_success.isoformat().replace("+00:00", "Z")
+            if last_success is not None else None)
+        if refresh_error:
+            result["gaps"].append({"source": "github", "reason": "GITHUB_REFRESH_UNAVAILABLE"})
+        return result
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -431,7 +521,8 @@ def serve(repo: Path, observations: Path | None, thresholds: Path | None,
                 try:
                     value = snapshot()
                     payload, code = json.dumps(value, sort_keys=True).encode(), 200
-                except (RoomError, discover_repo.DiscoveryError, OSError, ValueError) as exc:
+                except (RoomError, discover_repo.DiscoveryError, github_discovery.GitHubDiscoveryError,
+                        OSError, ValueError) as exc:
                     payload = json.dumps({"status": "ERROR", "reason": type(exc).__name__}).encode()
                     code = 503
                 mime = "application/json; charset=utf-8"
@@ -455,31 +546,49 @@ def serve(repo: Path, observations: Path | None, thresholds: Path | None,
             return  # No user-supplied paths or request logs persisted.
 
     # No POST, no write operations and no external listener.
-    with ThreadingHTTPServer(("127.0.0.1", port), Handler) as server:
-        print(f"OntologyEX local control room: http://127.0.0.1:{server.server_port}",
-              flush=True)
-        server.serve_forever()
+    try:
+        with ThreadingHTTPServer(("127.0.0.1", port), Handler) as server:
+            print(f"OntologyEX local control room: http://127.0.0.1:{server.server_port}",
+                  flush=True)
+            server.serve_forever()
+    finally:
+        stop_worker.set()
+        if worker is not None:
+            worker.join(timeout=2)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", type=Path, required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--repo", type=Path, help="existing local repository")
+    source.add_argument("--github", help="GitHub owner/name; optional token via env")
+    parser.add_argument("--github-refresh-seconds", type=int, default=300)
     parser.add_argument("--observations", type=Path, default=None)
     parser.add_argument("--thresholds", type=Path, default=None)
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--state-only", action="store_true")
     args = parser.parse_args()
     try:
-        check(args.repo.is_dir() and not args.repo.is_symlink(), "invalid repository root")
+        if args.repo is not None:
+            check(args.repo.is_dir() and not args.repo.is_symlink(),
+                  "invalid repository root")
+        if args.github is not None:
+            github_discovery.parse_repository(args.github)
         if args.state_only:
-            result = build_state(discover_repo.discover(args.repo),
-                                 read_observations(args.observations),
+            topology = (github_discovery.discover_github(
+                args.github, github_discovery.GitHubClient(
+                    token=os.environ.get("ONTOLOGYEX_GITHUB_TOKEN")))
+                        if args.github else discover_repo.discover(args.repo))
+            result = build_state(topology, read_observations(args.observations),
                                  read_thresholds(args.thresholds))
+            result["discovery_source"] = topology.get("source", {"provider": "local"})
             print(json.dumps(result, sort_keys=True, separators=(",", ":")))
         else:
-            serve(args.repo, args.observations, args.thresholds, args.port)
+            serve(args.repo, args.observations, args.thresholds, args.port,
+                  github=args.github, github_refresh_seconds=args.github_refresh_seconds)
         return 0
-    except (OSError, RoomError, discover_repo.DiscoveryError, ValueError, TypeError,
+    except (OSError, RoomError, discover_repo.DiscoveryError,
+            github_discovery.GitHubDiscoveryError, ValueError, TypeError,
             RecursionError) as exc:
         print(json.dumps({"status": "ERROR", "reason": str(exc)}))
         return 1
