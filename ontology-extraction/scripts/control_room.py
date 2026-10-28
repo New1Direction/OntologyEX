@@ -36,10 +36,11 @@ MAX_OBSERVATION_BYTES = 1024 * 1024
 MAX_OBSERVATIONS = 4096
 MAX_THRESHOLDS_BYTES = 16384
 METRICS = frozenset({"queue_lag_seconds", "db_pool_utilization_pct",
-                     "error_rate_pct", "p95_latency_ms", "job_lag_seconds"})
+                     "error_rate_pct", "p95_latency_ms", "job_lag_seconds",
+                     "probe_latency_ms"})
 PERCENT_METRICS = frozenset({"db_pool_utilization_pct", "error_rate_pct"})
 STATUS = frozenset({"ok", "warning", "error"})
-SOURCES = frozenset({"otel", "health_probe", "manual_export", "synthetic"})
+SOURCES = frozenset({"otel", "health_probe", "prometheus", "manual_export", "synthetic"})
 MAX_AGE = 86400
 IDENT_RE = re.compile(r"^discovery:[a-z_]+:[A-Za-z0-9_.~/%:-]{1,600}$")
 
@@ -183,16 +184,20 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
         grouped[component_id].append(record)
     conflicts = set()
     for component_id, records in grouped.items():
-        # Never let JSONL line order decide health when two sources disagree
-        # about a component at the exact same timestamp.
         records.sort(key=lambda r: (r["observed_at"], r["source"], r["status"]))
-        newest_time = records[-1]["observed_at"]
-        newest = [r for r in records if r["observed_at"] == newest_time]
-        if len({json.dumps(r, sort_keys=True) for r in newest}) > 1:
-            conflicts.add(component_id)
+        # Never let JSONL line order decide health: one source that disagrees
+        # with itself at its newest timestamp fails closed. Different sources
+        # are combined below by severity, which no line order can change.
+        for source in {r["source"] for r in records}:
+            mine = [r for r in records if r["source"] == source]
+            newest = [r for r in mine if r["observed_at"] == mine[-1]["observed_at"]]
+            if len({json.dumps(r, sort_keys=True) for r in newest}) > 1:
+                conflicts.add(component_id)
+        if component_id in conflicts:
             gaps.append({"source": component_id,
                          "reason": "CONFLICTING_SAME_TIMESTAMP_OBSERVATIONS"})
 
+    severity = {"error": 0, "warning": 1, "ok": 2}
     nodes = []
     failed = set()
     for node in graph_nodes:
@@ -200,28 +205,45 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
         latest = values[-1] if values else None
         state = "unknown"
         leading = []
-        if latest is not None:
-            age = (now - timestamp(latest["observed_at"])).total_seconds()
-            if node["id"] in conflicts:
-                state = "unknown"
-            elif age > latest["expires_after_seconds"]:
+        sources = []
+        if latest is not None and node["id"] not in conflicts:
+            # Newest sample per source; each source expires on its own TTL.
+            per_source = {}
+            for record in values:
+                per_source[record["source"]] = record
+            fresh = []
+            for source, record in sorted(per_source.items()):
+                age = (now - timestamp(record["observed_at"])).total_seconds()
+                is_fresh = age <= record["expires_after_seconds"]
+                sources.append({"source": source, "status": record["status"],
+                                "observed_at": record["observed_at"], "fresh": is_fresh})
+                if is_fresh:
+                    fresh.append(record)
+            if not fresh:
                 state = "stale"
             else:
+                # The most severe fresh source decides; an ok elsewhere cannot hide it.
+                worst = min(severity[r["status"]] for r in fresh)
+                latest = max((r for r in fresh if severity[r["status"]] == worst),
+                             key=lambda r: (r["observed_at"], r["source"]))
                 state = latest["status"]
-                if len(values) >= 2:
-                    prior = values[-2]
+                for current in fresh:
+                    mine = [r for r in values if r["source"] == current["source"]]
+                    if len(mine) < 2:
+                        continue
+                    prior = mine[-2]
                     prior_age = (now - timestamp(prior["observed_at"])).total_seconds()
-                    if (prior_age <= prior["expires_after_seconds"] and
-                            prior["source"] == latest["source"]):
-                        for metric, threshold in sorted(thresholds.items()):
-                            if (metric in prior["metrics"] and metric in latest["metrics"] and
-                                    prior["metrics"][metric] > threshold and
-                                    latest["metrics"][metric] > threshold):
-                                leading.append({
-                                    "metric": metric, "threshold": threshold,
-                                    "current": latest["metrics"][metric],
-                                    "previous": prior["metrics"][metric],
-                                    "rule": "TWO_CONSECUTIVE_FRESH_BREACHES"})
+                    if prior_age > prior["expires_after_seconds"]:
+                        continue
+                    for metric, threshold in sorted(thresholds.items()):
+                        if (metric in prior["metrics"] and metric in current["metrics"] and
+                                prior["metrics"][metric] > threshold and
+                                current["metrics"][metric] > threshold):
+                            leading.append({
+                                "metric": metric, "threshold": threshold,
+                                "current": current["metrics"][metric],
+                                "previous": prior["metrics"][metric],
+                                "rule": "TWO_CONSECUTIVE_FRESH_BREACHES"})
                 if state == "ok" and leading:
                     state = "warning"
         if state == "error":
@@ -239,6 +261,7 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
             "leading_indicators": leading,
             "evidence_id": node.get("evidence_id"),
             "source_line": node.get("source_line"),
+            "observation_sources": sources,
             "potentially_impacted_by": [],
         })
 
@@ -851,6 +874,23 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
     else:
         base_command = None
 
+    def feed_status() -> dict:
+        """Summary of feeds.py's status file beside the observations file, if any."""
+        path = observations.with_suffix(".status.json") if observations is not None else None
+        if path is None or not path.is_file() or path.is_symlink():
+            return {"status": "NO_LIVE_FEEDS"}
+        try:
+            data = parse_json(safe_read(path, 262144))
+            rows = data["feeds"]
+            check(type(rows) is dict and len(rows) <= 1024, "invalid feed status")
+            failing = sorted(name for name, row in rows.items()
+                             if type(row) is dict and row.get("ok") is False)[:20]
+            return {"status": "LIVE_FEEDS", "feeds": len(rows), "failing": failing,
+                    "generated_at": str(data.get("generated_at", ""))[:40],
+                    "otlp_listening": data.get("otlp_listening") if type(data.get("otlp_listening")) is str else None}
+        except (RoomError, OSError, KeyError, TypeError, ValueError):
+            return {"status": "FEED_STATUS_UNREADABLE"}
+
     def business(full: dict) -> dict:
         link_rows, rejected = ((business_view.read_link_document(links)
                                 if links is not None and links.exists() else ([], [])))
@@ -863,6 +903,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         result["link_suggestions"] = suggestions
         result["link_decisions"] = ("ENABLED_LOCAL_TOKEN" if write_token else
                                     "READ_ONLY_USE_CLI")
+        result["feeds"] = feed_status()
         result["discovery_freshness"] = full["discovery_freshness"]
         result["discovery_scanned_at"] = full["discovery_scanned_at"]
         return result

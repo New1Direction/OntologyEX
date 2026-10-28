@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "kind": "ONTOLOGYEX_FEEDS",
+  "output": "observations.jsonl",
+  "allowed_hosts": ["127.0.0.1", "prometheus.internal", "api.internal"],
+  "probes": [
+    {"component": "discovery:service:compose.yml:api", "url": "https://api.internal/healthz",
+     "interval_seconds": 30, "timeout_seconds": 3, "expect_status": [200],
+     "warning": {"probe_latency_ms": 800}}
+  ],
+  "prometheus": {
+    "url": "http://prometheus.internal:9090",
+    "token_env": "ONTOLOGYEX_PROMETHEUS_TOKEN",
+    "interval_seconds": 30,
+    "targets": [
+      {"component": "discovery:service:compose.yml:payments",
+       "up": "min(up{job=\"payments\"})",
+       "error_rate_pct": "100 * sum(rate(http_server_requests_total{job=\"payments\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_server_requests_total{job=\"payments\"}[5m])), 1)",
+       "p95_latency_ms": "1000 * histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{job=\"payments\"}[5m])))",
+       "warning": {"error_rate_pct": 1, "p95_latency_ms": 500},
+       "error": {"error_rate_pct": 5}}
+    ]
+  },
+  "otlp": {
+    "bind": "127.0.0.1",
+    "port": 4318,
+    "token_env": "ONTOLOGYEX_OTLP_TOKEN",
+    "services": {
+      "payments": "discovery:service:compose.yml:payments",
+      "api": "discovery:service:compose.yml:api"
+    },
+    "window_seconds": 60,
+    "emit_seconds": 15,
+    "min_requests": 5,
+    "warning": {"error_rate_pct": 1, "p95_latency_ms": 500},
+    "error": {"error_rate_pct": 5}
+  }
+}

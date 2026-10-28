@@ -101,6 +101,7 @@ def _system(node: dict, labels: dict) -> dict:
     return {"id": node["id"], "label": node["label"], "kind": node["kind"],
             "status": node["status"], "observed_at": node.get("observed_at"),
             "observation_source": node.get("observation_source"),
+            "observation_sources": node.get("observation_sources", []),
             "metrics": node.get("metrics", {}),
             "potentially_impacted_by": [labels.get(i, i) for i in node.get("potentially_impacted_by", [])]}
 

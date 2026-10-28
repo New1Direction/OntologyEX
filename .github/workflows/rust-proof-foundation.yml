@@ -13,6 +13,7 @@ on:
       - 'ontology-extraction/scripts/business_view.py'
       - 'ontology-extraction/scripts/evidence_grade.py'
       - 'ontology-extraction/scripts/link_suggest.py'
+      - 'ontology-extraction/scripts/feeds.py'
       - 'proofs/bend/**'
       - 'tests/conformance.py'
       - 'tests/rust_business_parity.py'

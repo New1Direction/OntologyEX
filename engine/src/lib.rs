@@ -196,7 +196,8 @@ pub fn validate(topology: &Topology, observations: &[Observation]) -> Result<(),
 }
 
 /// Evaluate as-of one explicit time, so replay is deterministic.
-/// The same-latest-time conflicting reports produce Conflicting, never Healthy.
+/// One source reporting different health at its newest time produces Conflicting,
+/// never Healthy. Different sources combine by severity: the worst fresh report wins.
 /// A future-dated sample is ignored and recorded, never used as live evidence.
 pub fn project(
     topology: &Topology,
@@ -227,30 +228,43 @@ pub fn project(
         let reports = events.get(n.id.as_str());
         let newest = reports.and_then(|rows| rows.iter().map(|o| o.observed_at_ms).max());
         let mut sources = BTreeSet::new();
-        let health = match newest {
+        let health = match reports {
             None => DisplayHealth::Unknown,
-            Some(time) => {
-                let newest_events = reports.expect("newest must belong to a report")
-                    .iter().filter(|o| o.observed_at_ms == time);
-                let mut distinct = BTreeSet::new();
-                let mut fresh = 0;
-                for o in newest_events {
-                    if (now_ms - o.observed_at_ms) as u64 <= o.ttl_ms {
-                        fresh += 1;
-                        distinct.insert(o.reported_health as u8);
-                        sources.insert(o.source_id.clone());
+            Some(rows) => {
+                // Newest report per source. A source that disagrees with itself at
+                // its newest time fails closed; different sources combine by severity.
+                let mut per_source: BTreeMap<&str, Vec<&Observation>> = BTreeMap::new();
+                for o in rows {
+                    per_source.entry(o.source_id.as_str()).or_default().push(o);
+                }
+                let mut conflicting = false;
+                let mut worst: Option<u8> = None;
+                for (source, own) in &per_source {
+                    let time = own.iter().map(|o| o.observed_at_ms).max().expect("nonempty");
+                    let latest: BTreeSet<u8> = own.iter().filter(|o| o.observed_at_ms == time)
+                        .map(|o| o.reported_health as u8).collect();
+                    if latest.len() > 1 {
+                        conflicting = true;
+                        continue;
+                    }
+                    let ttl = own.iter().filter(|o| o.observed_at_ms == time)
+                        .map(|o| o.ttl_ms).max().expect("nonempty");
+                    if (now_ms - time) as u64 <= ttl {
+                        sources.insert((*source).to_owned());
+                        let level = *latest.iter().next().expect("one health");
+                        worst = Some(worst.map_or(level, |w| w.max(level)));
                     }
                 }
-                if fresh == 0 {
-                    DisplayHealth::Stale
-                } else if distinct.len() > 1 {
+                if conflicting {
+                    sources.clear();
                     DisplayHealth::Conflicting
                 } else {
                     // Reported only: no transport/source authentication in this engine.
-                    match *distinct.iter().next().expect("fresh nonempty") {
-                        x if x == ReportedHealth::Healthy as u8 => DisplayHealth::Healthy,
-                        x if x == ReportedHealth::Degraded as u8 => DisplayHealth::Degraded,
-                        _ => DisplayHealth::Failed,
+                    match worst {
+                        None => DisplayHealth::Stale,
+                        Some(x) if x == ReportedHealth::Healthy as u8 => DisplayHealth::Healthy,
+                        Some(x) if x == ReportedHealth::Degraded as u8 => DisplayHealth::Degraded,
+                        Some(_) => DisplayHealth::Failed,
                     }
                 }
             }
@@ -389,6 +403,26 @@ mod tests {
         let p = project(&graph(), &rows, 200).unwrap();
         assert_eq!(get(&p, "db").health, DisplayHealth::Conflicting);
         assert!(get(&p, "api").potentially_impacted_by.is_empty());
+    }
+    fn from(source: &str, health: ReportedHealth, t: i64, ttl: u64) -> Observation {
+        Observation { source_id: source.into(), ..event("db", health, t, ttl) }
+    }
+    #[test]
+    fn sources_combine_by_severity() {
+        let rows = [from("otel", ReportedHealth::Failed, 100, 500),
+                    from("probe", ReportedHealth::Healthy, 190, 500)];
+        let p = project(&graph(), &rows, 200).unwrap();
+        assert_eq!(get(&p, "db").health, DisplayHealth::Failed);
+        assert_eq!(get(&p, "db").report_source_ids, vec!["otel", "probe"]);
+        assert_eq!(get(&p, "api").potentially_impacted_by, vec!["db"]);
+    }
+    #[test]
+    fn each_source_expires_on_its_own() {
+        let rows = [from("otel", ReportedHealth::Failed, 100, 10),
+                    from("probe", ReportedHealth::Healthy, 190, 500)];
+        let p = project(&graph(), &rows, 200).unwrap();
+        assert_eq!(get(&p, "db").health, DisplayHealth::Healthy);
+        assert_eq!(get(&p, "db").report_source_ids, vec!["probe"]);
     }
     #[test]
     fn order_independent_and_latest_event_wins() {

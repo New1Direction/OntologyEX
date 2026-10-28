@@ -315,3 +315,101 @@ theorem decisions_keep_links (links : List Link) (suggs : List Suggestion)
   List.mem_append.mpr (Or.inl h)
 
 end OntologyEX.Business
+
+/-!
+# Combining several observation sources (`control_room.build_state`)
+
+Each source contributes its newest sample, which is either fresh or expired.
+The component shows the most severe fresh status; with no fresh sample it is
+stale. (A source that contradicts itself at one timestamp fails closed to
+unknown before this step.)
+-/
+
+namespace OntologyEX.Fusion
+
+inductive Reported where
+  | ok | warning | error
+deriving DecidableEq, Repr
+
+structure Sample where
+  status : Reported
+  fresh : Bool
+deriving DecidableEq, Repr
+
+inductive Shown where
+  | ok | warning | error | stale | unknown
+deriving DecidableEq, Repr
+
+def freshError (s : Sample) : Bool := s.fresh && s.status == Reported.error
+def freshWarning (s : Sample) : Bool := s.fresh && s.status == Reported.warning
+def isFresh (s : Sample) : Bool := s.fresh
+
+def fuse (xs : List Sample) : Shown :=
+  if xs.isEmpty then .unknown
+  else if xs.any freshError then .error
+  else if xs.any freshWarning then .warning
+  else if xs.any isFresh then .ok
+  else .stale
+
+/-- A fresh error from any source shows as error; another source's ok cannot hide it. -/
+theorem fresh_error_dominates (xs : List Sample) (s : Sample) (hs : s ∈ xs)
+    (hf : s.fresh = true) (he : s.status = .error) : fuse xs = .error := by
+  have hany : xs.any freshError = true :=
+    List.any_eq_true.mpr ⟨s, hs, by simp [freshError, hf, he]⟩
+  unfold fuse
+  rw [if_neg (by simp [Business.nonempty_of_mem hs]), if_pos hany]
+
+/-- OK only when some source is fresh and every fresh source reports ok. -/
+theorem fuse_ok_sound (xs : List Sample) (h : fuse xs = .ok) :
+    (∃ s ∈ xs, s.fresh = true) ∧ ∀ s ∈ xs, s.fresh = true → s.status = .ok := by
+  unfold fuse at h
+  by_cases hE : xs.isEmpty = true
+  · rw [if_pos hE] at h; cases h
+  · rw [if_neg hE] at h
+    by_cases h1 : xs.any freshError = true
+    · rw [if_pos h1] at h; cases h
+    · rw [if_neg h1] at h
+      by_cases h2 : xs.any freshWarning = true
+      · rw [if_pos h2] at h; cases h
+      · rw [if_neg h2] at h
+        by_cases h3 : xs.any isFresh = true
+        · obtain ⟨w, hw, hwf⟩ := List.any_eq_true.mp h3
+          refine ⟨⟨w, hw, hwf⟩, ?_⟩
+          intro s hs hf
+          have e1 : freshError s = false := Business.any_false h1 s hs
+          have e2 : freshWarning s = false := Business.any_false h2 s hs
+          cases hst : s.status
+          · rfl
+          · simp [freshWarning, hf, hst] at e2
+          · simp [freshError, hf, hst] at e1
+        · rw [if_neg h3] at h; cases h
+
+/-- Expired samples alone never show ok, warning, or error: the component is stale. -/
+theorem all_expired_is_stale (xs : List Sample) (hne : xs ≠ [])
+    (h : ∀ s ∈ xs, s.fresh = false) : fuse xs = .stale := by
+  have n1 : ¬ xs.any freshError = true := by
+    intro hc
+    obtain ⟨s, hs, hp⟩ := List.any_eq_true.mp hc
+    simp [freshError, h s hs] at hp
+  have n2 : ¬ xs.any freshWarning = true := by
+    intro hc
+    obtain ⟨s, hs, hp⟩ := List.any_eq_true.mp hc
+    simp [freshWarning, h s hs] at hp
+  have n3 : ¬ xs.any isFresh = true := by
+    intro hc
+    obtain ⟨s, hs, hp⟩ := List.any_eq_true.mp hc
+    simp [isFresh, h s hs] at hp
+  have n0 : ¬ xs.isEmpty = true := by
+    cases xs with
+    | nil => exact absurd rfl hne
+    | cons _ _ => simp
+  unfold fuse
+  rw [if_neg n0, if_neg n1, if_neg n2, if_neg n3]
+
+/-- The order of sources (and of lines in the observation file) never matters. -/
+theorem fuse_perm {l₁ l₂ : List Sample} (h : l₁.Perm l₂) : fuse l₁ = fuse l₂ := by
+  unfold fuse
+  rw [Business.isEmpty_perm h, Business.any_perm (p := freshError) h,
+      Business.any_perm (p := freshWarning) h, Business.any_perm (p := isFresh) h]
+
+end OntologyEX.Fusion

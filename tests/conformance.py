@@ -9,6 +9,7 @@ not a refinement proof.
 """
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 import itertools
 import json
 import sys
@@ -17,10 +18,31 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "ontology-extraction/scripts"))
 import business_view
+import control_room
 import evidence_grade
 
 STATUSES = ("ok", "warning", "error", "stale", "unknown")
 VALUES = [(status, impacted) for status in STATUSES for impacted in (False, True)]
+# Source combining: one newest sample per source, (reported status, fresh).
+SAMPLES = [(status, fresh) for status in ("ok", "warning", "error") for fresh in (False, True)]
+SOURCES = ("otel", "health_probe", "prometheus")
+NOW = datetime(2026, 10, 28, 12, 0, tzinfo=timezone.utc)
+COMPONENT = "discovery:service:compose.yml:db"
+
+
+def fused(seq) -> str:
+    """The status build_state shows for one component reported by len(seq) sources."""
+    rows = []
+    for source, i in zip(SOURCES, seq):
+        status, fresh = SAMPLES[i]
+        when = NOW if fresh else NOW - timedelta(hours=1)
+        rows.append({"schema_version": 1, "component_id": COMPONENT, "status": status,
+                     "source": source, "observed_at": when.isoformat().replace("+00:00", "Z"),
+                     "expires_after_seconds": 120, "metrics": {}})
+    topology = {"kind": "UNREVIEWED_BUSINESS_DISCOVERY_PREVIEW", "project": {}, "coverage": {},
+                "source_evidence": [], "unresolved": [], "gaps": [], "edges": [],
+                "nodes": [{"id": COMPONENT, "kind": "declared_service", "label": "db"}]}
+    return control_room.build_state(topology, rows, {}, NOW)["nodes"][0]["status"]
 
 
 def expected() -> dict:
@@ -35,15 +57,18 @@ def expected() -> dict:
     for flags in itertools.product((0, 1), repeat=6):
         grade, reason = evidence_grade.ladder(*(bool(f) for f in flags))
         grades.append([list(flags), grade, reason])
+    fusion = [[list(seq), fused(seq)] for length in range(4)
+              for seq in itertools.product(range(len(SAMPLES)), repeat=length)]
     return {"kind": "BUSINESS_CONFORMANCE_TABLE", "rollup": rollups, "grade": grades,
-            "execution_authorized": False}
+            "fusion": fusion, "execution_authorized": False}
 
 
 def check(path: Path) -> int:
     actual = json.loads(path.read_text(encoding="utf-8"))
     reference = expected()
     failures = 0
-    for section in ("rollup", "grade"):
+    # rollup and grade are required; fusion is compared when the table carries it.
+    for section in ("rollup", "grade", *(["fusion"] if "fusion" in actual else [])):
         want, got = reference[section], actual.get(section)
         if type(got) is not list or len(got) != len(want):
             print(f"{section}: expected {len(want)} rows, got {len(got) if type(got) is list else got!r}")
@@ -57,8 +82,9 @@ def check(path: Path) -> int:
     if actual.get("execution_authorized") is not False:
         print("table must not authorize execution")
         failures += 1
-    print(f"conformance: {len(reference['rollup'])} rollup rows, {len(reference['grade'])} grade rows, "
-          f"{failures} mismatch(es)")
+    fusion = f", {len(reference['fusion'])} fusion rows" if "fusion" in actual else ""
+    print(f"conformance: {len(reference['rollup'])} rollup rows, {len(reference['grade'])} grade rows"
+          f"{fusion}, {failures} mismatch(es)")
     return 1 if failures else 0
 
 

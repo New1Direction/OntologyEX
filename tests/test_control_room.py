@@ -235,6 +235,41 @@ class ControlRoomTests(unittest.TestCase):
         self.assertIn("CONFLICTING_SAME_TIMESTAMP_OBSERVATIONS",
                       [gap["reason"] for gap in a["gaps"]])
 
+    def test_sources_combine_by_severity_in_any_order(self):
+        probe_ok = self.record(status="ok", source="health_probe")
+        otel_error = self.record(status="error", source="otel", metrics={"error_rate_pct": 30})
+        a = self.state([probe_ok, otel_error])
+        b = self.state([otel_error, probe_ok])
+        self.assertEqual(a, b)
+        db = self.node(a, self.db)
+        self.assertEqual(db["status"], "error")
+        self.assertEqual(db["observation_source"], "otel")
+        self.assertEqual(db["metrics"], {"error_rate_pct": 30})
+        self.assertEqual([x["source"] for x in db["observation_sources"]], ["health_probe", "otel"])
+        self.assertEqual(self.node(a, self.api)["potentially_impacted_by"], [self.db])
+        self.assertNotIn("CONFLICTING_SAME_TIMESTAMP_OBSERVATIONS", [g["reason"] for g in a["gaps"]])
+
+    def test_newer_ok_from_another_source_cannot_hide_a_fresh_error(self):
+        error = self.record(status="error", source="otel", date=NOW-timedelta(seconds=30))
+        ok = self.record(status="ok", source="health_probe")
+        self.assertEqual(self.node(self.state([error, ok]), self.db)["status"], "error")
+
+    def test_each_source_expires_on_its_own(self):
+        old_error = self.record(status="error", source="otel", date=NOW-timedelta(minutes=10), ttl=60)
+        ok = self.record(status="ok", source="health_probe")
+        db = self.node(self.state([old_error, ok]), self.db)
+        self.assertEqual(db["status"], "ok")
+        self.assertEqual({x["source"]: x["fresh"] for x in db["observation_sources"]},
+                         {"otel": False, "health_probe": True})
+        both_old = [old_error, self.record(status="ok", source="health_probe",
+                                           date=NOW-timedelta(minutes=10), ttl=60)]
+        self.assertEqual(self.node(self.state(both_old), self.db)["status"], "stale")
+
+    def test_agreeing_sources_with_different_metrics_are_not_a_conflict(self):
+        rows = [self.record(status="ok", source="otel", metrics={"error_rate_pct": 0}),
+                self.record(status="ok", source="health_probe", metrics={"probe_latency_ms": 3})]
+        self.assertEqual(self.node(self.state(rows), self.db)["status"], "ok")
+
     def test_invalid_observation_status_type_rejected(self):
         file = self.root / "bad.jsonl"
         row = self.record()

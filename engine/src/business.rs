@@ -264,7 +264,49 @@ pub fn conformance_table() -> Value {
         grades.push(json!([as_ints, grade, reason]));
     }
     json!({"kind": "BUSINESS_CONFORMANCE_TABLE", "rollup": rollups, "grade": grades,
-           "execution_authorized": false})
+           "fusion": fusion_rows(), "execution_authorized": false})
+}
+
+/// Source combining through the reference core: each sample comes from its own
+/// source, fresh or expired, in the order shared with tests/conformance.py.
+fn fusion_rows() -> Vec<Value> {
+    use crate::{project, DisplayHealth, Node, Observation, ReportedHealth, Topology};
+    let samples = [(ReportedHealth::Healthy, false), (ReportedHealth::Healthy, true),
+                   (ReportedHealth::Degraded, false), (ReportedHealth::Degraded, true),
+                   (ReportedHealth::Failed, false), (ReportedHealth::Failed, true)];
+    let sources = ["otel", "health_probe", "prometheus"];
+    let topology = Topology {
+        schema_version: 1, root_goal_id: "conformance".into(), version_id: "v1".into(),
+        nodes: vec![Node { id: "db".into(), kind: "declared_service".into(),
+                           label: "db".into(), evidence_id: "E-db".into() }],
+        edges: vec![],
+    };
+    let mut sequences: Vec<Vec<usize>> = vec![vec![]];
+    let mut frontier: Vec<Vec<usize>> = vec![vec![]];
+    for _ in 0..3 {
+        let next: Vec<Vec<usize>> = frontier.iter().flat_map(|prefix| (0..samples.len()).map(move |i| {
+            let mut seq = prefix.clone();
+            seq.push(i);
+            seq
+        })).collect();
+        sequences.extend(next.iter().cloned());
+        frontier = next;
+    }
+    sequences.iter().map(|seq| {
+        let rows: Vec<Observation> = seq.iter().zip(sources).map(|(i, source)| {
+            let (health, fresh) = samples[*i];
+            Observation { component_id: "db".into(), source_id: source.into(),
+                          observed_at_ms: if fresh { 10_000 } else { 0 }, ttl_ms: 5_000,
+                          reported_health: health }
+        }).collect();
+        let shown = match project(&topology, &rows, 10_000).map(|p| p.nodes[0].health) {
+            Ok(DisplayHealth::Healthy) => "ok", Ok(DisplayHealth::Degraded) => "warning",
+            Ok(DisplayHealth::Failed) => "error", Ok(DisplayHealth::Stale) => "stale",
+            Ok(DisplayHealth::Unknown) => "unknown", Ok(DisplayHealth::Conflicting) => "conflict",
+            Err(_) => "invalid",
+        };
+        json!([seq, shown])
+    }).collect()
 }
 
 #[cfg(test)]

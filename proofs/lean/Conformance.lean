@@ -21,12 +21,22 @@ def values : List Sys :=
   [⟨.ok, false⟩, ⟨.ok, true⟩, ⟨.warning, false⟩, ⟨.warning, true⟩, ⟨.error, false⟩,
    ⟨.error, true⟩, ⟨.stale, false⟩, ⟨.stale, true⟩, ⟨.unknown, false⟩, ⟨.unknown, true⟩]
 
-/-- Every index sequence of exactly length n, last position varying fastest. -/
-def seqs : Nat → List (List Nat)
-  | 0 => [[]]
-  | n + 1 => (seqs n).foldr (fun p acc => (List.range 10).map (fun i => p ++ [i]) ++ acc) []
-
 def natList (xs : List Nat) : String := "[" ++ ", ".intercalate (xs.map toString) ++ "]"
+
+/-- Every index sequence over `base` values of exactly length n, last position fastest. -/
+def seqs (base : Nat) : Nat → List (List Nat)
+  | 0 => [[]]
+  | n + 1 => (seqs base n).foldr (fun p acc => (List.range base).map (fun i => p ++ [i]) ++ acc) []
+
+def shownName : OntologyEX.Fusion.Shown → String
+  | .ok => "ok" | .warning => "warning" | .error => "error" | .stale => "stale" | .unknown => "unknown"
+
+def samples : List OntologyEX.Fusion.Sample :=
+  [⟨.ok, false⟩, ⟨.ok, true⟩, ⟨.warning, false⟩, ⟨.warning, true⟩, ⟨.error, false⟩, ⟨.error, true⟩]
+
+def fusionRow (seq : List Nat) : String :=
+  let xs := seq.map (fun i => samples.getD i ⟨.ok, false⟩)
+  "[" ++ natList seq ++ ", \"" ++ shownName (OntologyEX.Fusion.fuse xs) ++ "\"]"
 
 def rollupRow (seq : List Nat) : String :=
   let systems := seq.map (fun i => values.getD i ⟨.ok, false⟩)
@@ -40,8 +50,9 @@ def gradeRow (bits : Nat) : String :=
     reasonName r ++ "\"]"
 
 def main : IO Unit := do
-  let rows := (seqs 0 ++ seqs 1 ++ seqs 2 ++ seqs 3).map rollupRow
+  let rows := (seqs 10 0 ++ seqs 10 1 ++ seqs 10 2 ++ seqs 10 3).map rollupRow
   let grades := (List.range 64).map gradeRow
+  let fusion := (seqs 6 0 ++ seqs 6 1 ++ seqs 6 2 ++ seqs 6 3).map fusionRow
   IO.println ("{\"kind\": \"BUSINESS_CONFORMANCE_TABLE\", \"execution_authorized\": false, " ++
     "\"rollup\": [" ++ ", ".intercalate rows ++ "], \"grade\": [" ++
-    ", ".intercalate grades ++ "]}")
+    ", ".intercalate grades ++ "], \"fusion\": [" ++ ", ".intercalate fusion ++ "]}")

@@ -25,6 +25,8 @@ nav a[aria-current="page"]{background:var(--panel2);color:var(--text);box-shadow
 .pulse{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 #34d39966;animation:pulse 2.4s infinite}
 .pulse.off{background:var(--risk);animation:none}
 @keyframes pulse{0%{box-shadow:0 0 0 0 #34d39966}70%{box-shadow:0 0 0 8px #34d39900}100%{box-shadow:0 0 0 0 #34d39900}}
+.feeds{padding:3px 8px;border-radius:999px;border:1px solid var(--line2);white-space:nowrap}
+.feeds.live{color:#7ff0b4;border-color:#2f7d62}.feeds.failing{color:var(--warn);border-color:#5a4a1e}.feeds.none{color:var(--faint)}
 #refresh{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:7px 12px;cursor:pointer}
 #refresh:hover{border-color:var(--accent)}
 #kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--line);border-bottom:1px solid var(--line)}
@@ -103,7 +105,7 @@ footer{padding:8px 18px;border-top:1px solid var(--line);color:var(--faint);font
  <div class="brand"><b>ONTOLOGYEX</b><span>Operating Picture</span></div>
  <nav aria-label="Views"><a href="/business" aria-current="page">Business</a><a href="/">Systems</a></nav>
  <input id="search" type="search" maxlength="90" placeholder="Search actions, objects, systems, rules…  ( / )" aria-label="Search the business ontology"/>
- <div class="fresh"><span id="pulse" class="pulse off" aria-hidden="true"></span><span id="asof">Connecting…</span></div>
+ <div class="fresh"><span id="feeds" class="feeds" title="Live observability feeds"></span><span id="pulse" class="pulse off" aria-hidden="true"></span><span id="asof">Connecting…</span></div>
  <button id="refresh" type="button">Refresh now</button>
 </header>
 <section id="kpis" aria-label="Key indicators"></section>
@@ -299,7 +301,9 @@ function inspector(){const box=$("inspector");box.replaceChildren();
  } else {
   const kv=h("dl",{class:"kv"});const add=(k,v)=>{kv.append(h("dt",{text:k}),h("dd",{text:v}))};
   add("Status",WORD[it.status]||it.status);add("Observed",it.observed_at?`${it.observed_at} (${ago(it.observed_at)})`:"never");
-  add("Reported by",it.observation_source||"no observation source");add("Component",it.id);
+  add("Reported by",it.observation_source||"no observation source");
+  for(const src of it.observation_sources||[])add("· "+src.source,`${(WORD[src.status]||src.status)} · ${ago(src.observed_at)}${src.fresh?"":" (expired)"}`);
+  add("Component",it.id);
   for(const [m,v] of Object.entries(it.metrics||{}))add(m,String(v));
   box.append(h("div",{class:"sec"},h("div",{class:"kind",text:`System · ${it.kind}`}),h("h3",{text:it.label}),
    banner(it.status,it.potentially_impacted_by.length?`Declares a dependency on failing ${it.potentially_impacted_by.join(", ")}. Possible, not confirmed, impact.`:
@@ -352,7 +356,13 @@ function suggestionsPanel(){const box=$("suggestions");box.replaceChildren();con
  if(!all.length)box.append(h("p",{class:"muted",text:"No suggestions. Every binding is linked, rejected, or has no matching name or path."}));
  for(const s of all.slice(0,30))box.append(suggestionCard(s));
  const hidden=data.link_suggestions.rejected_not_shown;if(hidden)box.append(h("p",{class:"muted",style:"font-size:11px",text:`${hidden} rejected suggestion(s) hidden.`}))}
-function render(){if(data)$("mode").textContent=data.link_decisions==="ENABLED_LOCAL_TOKEN"?"READ ONLY EXCEPT LINK DECISIONS":"READ ONLY";IDX=index();if(selected&&!IDX.has(selected))selected=null;kpis();lists();suggestionsPanel();graph();inspector()}
+function feedsChip(){const el=$("feeds"),f=data&&data.feeds;if(!f){el.textContent="";return}
+ if(f.status==="LIVE_FEEDS"){const bad=f.failing.length;el.className="feeds "+(bad?"failing":"live");
+  el.textContent=bad?`${bad} of ${f.feeds} feeds failing`:`${f.feeds} live feeds`+(f.generated_at?" · "+ago(f.generated_at):"");
+  el.title=bad?"Failing: "+f.failing.join(", "):"Feeds report through feeds.py"+(f.otlp_listening?"; OTLP on "+f.otlp_listening:"")}
+ else{el.className="feeds none";el.textContent=f.status==="NO_LIVE_FEEDS"?"no live feeds":"feed status unreadable";
+  el.title="Observations come from the --observations file only"}}
+function render(){feedsChip();if(data)$("mode").textContent=data.link_decisions==="ENABLED_LOCAL_TOKEN"?"READ ONLY EXCEPT LINK DECISIONS":"READ ONLY";IDX=index();if(selected&&!IDX.has(selected))selected=null;kpis();lists();suggestionsPanel();graph();inspector()}
 async function load(){const mine=++epoch;
  try{const r=await fetch("/api/business",{cache:"no-store"});if(!r.ok)throw new Error(String(r.status));const d=await r.json();
   if(mine!==epoch)return;data=d;$("pulse").className="pulse";$("asof").textContent="As of "+new Date(d.generated_at).toLocaleTimeString()+" · refresh 5s";render()}

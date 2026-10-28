@@ -35,6 +35,12 @@ Python code is the reference that the control room runs.
   `added_links_were_confirmed`, `decisions_keep_links`: a suggestion never becomes a
   link without an explicit confirm decision, and a reject never adds one.
 
+**Lean, source combining** (`OntologyEX.Fusion`): `fresh_error_dominates` (an ok from
+one feed cannot hide another feed's fresh error), `fuse_ok_sound`, `all_expired_is_stale`,
+`fuse_perm` (line and source order never matter). The conformance table's `fusion`
+section (259 rows) is computed by Python through `control_room.build_state`, by the
+Rust core's `project`, and by Lean's `fuse`, and all three must agree.
+
 **Bend** (`proofs/bend/business.bend`, checked by `bendlang/bend` at a pinned commit):
 `empty_is_unlinked`, `error_anywhere_is_at_risk`, `unknown_anywhere_is_not_ok`,
 `ladder_never_g4`, `rejection_is_g0`, `inferred_at_most_g1`,

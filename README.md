@@ -154,6 +154,10 @@ and how far each rule's evidence was checked. Health is the source-reported stat
 of operator-linked systems, not proof that an action works. The demo data is
 synthetic. See [operating picture](docs/operating-picture.md).
 
+Live health comes from real telemetry: `feeds.py` receives OpenTelemetry traces and
+polls Prometheus and HTTP health checks (`python examples/operating-picture/live.py`).
+See [live feeds](docs/live-feeds.md).
+
 Links are suggested from names and paths and applied only when a person confirms
 them. The health rollup, grade ladder, and link decisions are implemented in Python
 and Rust, proven in Lean and Bend, and cross-checked in CI. See
