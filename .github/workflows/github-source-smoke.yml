@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'ontology-extraction/scripts/github_discovery.py'
+      - 'ontology-extraction/scripts/code_imports.py'
+      - 'ontology-extraction/scripts/snapshot_store.py'
+      - 'tests/test_code_surface_discovery.py'
       - 'ontology-extraction/scripts/discover_repo.py'
       - 'tests/test_github_discovery.py'
       - '.github/workflows/github-source-smoke.yml'
