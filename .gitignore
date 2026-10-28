@@ -22,3 +22,7 @@ out/
 build/
 workspaces/
 .ontologyex-*/
+
+# Rust build output
+engine/target/
+engine/Cargo.lock

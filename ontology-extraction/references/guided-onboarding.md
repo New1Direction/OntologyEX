@@ -41,6 +41,31 @@ python "$SKILL_ROOT/scripts/onboard.py" start \
   --out /path/to/sessions/reservations-v1 --acknowledge-sources
 ```
 
+### Proposing the source set
+
+`propose_sources.py --repo REPO --goal GOAL` ranks readable files by word overlap with
+the goal and prints a proposed set plus the `onboard.py start` command. It skips
+dependencies, build output, hidden paths, `.env` files, keys, and files with token-like
+text. With the user's consent, `--model-assist` asks their decision model (Jev or Clef)
+to score each shortlisted file from its path and first 60 lines; see
+[decision-models.md](decision-models.md). The output is a proposal: show the exact paths
+and get acknowledgment as usual.
+
+### Alternative: semantic file search with jevgrep
+
+In a large or unfamiliar repository, [jevgrep](https://github.com/dzhng/jevgrep) (`jg`) can
+suggest candidate files for a behavioral question, for example
+`jg "Where is a reservation cancelled and the refund calculated?" REPO`. Use it only when
+`jg` is already installed and the user agrees that eligible source under that root is sent
+to their selected model provider. OntologyEX scripts never call it and make no network
+requests. Run `jg files REPO` first to see what a search can read; narrow the root or use
+`--exclude` to keep unrelated or sensitive paths out.
+
+Its output is a proposal, not the source boundary. Read the returned excerpts, reduce them to
+the smallest useful set, and show the exact paths for acknowledgment as usual. jevgrep does
+not guarantee that every relevant file was found; record gaps as unknowns. On a small
+repository, a direct read or `grep` is usually enough.
+
 `--max-attempts` accepts 1–3 (default 3). It is frozen with the source manifest, identity,
 and toolchain fingerprints. Start returns `AWAITING_AUTHORING`, not extracted/complete.
 Read NEXT.md and workspace/EXTRACT.md. Paths in METHOD.md are relative to SKILL_ROOT.
@@ -72,6 +97,16 @@ contract's evidence array. Repeating an identical add is a no-op; reusing an ID 
 content fails. Lines are inclusive, 1-based, at most 80 per record. Hashes and quotes come
 from the frozen selected files. The agent selects evidence and interprets it; the tool does
 not decide that a quotation proves the claim.
+
+Before submitting, check the wording of rule, unknown, and conflict statements:
+
+```bash
+python "$SKILL_ROOT/scripts/statement_lint.py" SESSION/workspace
+```
+
+Warnings are advisory and never block a build. Fix wording that can be read two ways, then
+re-read the cited evidence, because a new wording is a new interpretation. See
+[rule-wording.md](rule-wording.md).
 
 ## Bounded submission and correction
 
@@ -124,6 +159,13 @@ Use a NEW coding-agent conversation and separately provide its development task 
 execution environment. Do not supply the authoring transcript or hidden evaluation answers.
 Exports remain `HANDOFF_EXPORTED_NOT_RUN`; semantic review is pending. No model invocation,
 installation of a generated candidate, promotion, or production execution is performed here.
+
+## Evidence grades after review
+
+`evidence_grade.py grade SKILL --events FILE` reports an ordinal G0–G4 grade per rule from
+recorded review and behavior-check events. A new candidate is all G0. Only the person who
+reviewed a span or ran a check records its event; the agent does not record events for its
+own work. Grades are not confidence scores or approvals. See [evidence-grades.md](evidence-grades.md).
 
 ## Prove usefulness independently
 

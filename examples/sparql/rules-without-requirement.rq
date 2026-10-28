@@ -1,0 +1,15 @@
+# Rules whose cited evidence includes no requirement span: the rule describes
+# current behavior (code, tests, docs) but no cited source states the intent.
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX kind: <urn:ontologyex:v1:kind:>
+PREFIX attr: <urn:ontologyex:v1:attr:>
+
+SELECT ?rule ?statement WHERE {
+  ?r a kind:rule ; rdfs:label ?rule ; attr:statement ?statement .
+  FILTER NOT EXISTS {
+    ?r prov:wasDerivedFrom ?e .
+    ?e attr:evidence_kind "requirement" .
+  }
+}
+ORDER BY ?rule

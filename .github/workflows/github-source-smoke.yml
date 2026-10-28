@@ -1,0 +1,154 @@
+name: Real GitHub Source Discovery
+on:
+  pull_request:
+    paths:
+      - 'ontology-extraction/scripts/github_discovery.py'
+      - 'ontology-extraction/scripts/graph_view_api.py'
+      - 'tests/test_graph_view_api.py'
+      - 'tests/test_graph_neighborhood.py'
+      - 'ontology-extraction/scripts/code_imports.py'
+      - 'ontology-extraction/scripts/snapshot_store.py'
+      - 'tests/test_code_surface_discovery.py'
+      - 'ontology-extraction/scripts/discover_repo.py'
+      - 'tests/test_github_discovery.py'
+      - '.github/workflows/github-source-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repoing-source-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Install existing parser dependency
+        run: python -m pip install 'PyYAML==6.0.3'
+      - name: Read public repo.ing commit-pinned manifest inventory
+        env:
+          ONTOLOGYEX_GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python ontology-extraction/scripts/github_discovery.py \
+            --repo New1Direction/repo.ing > "$RUNNER_TEMP/repoing-discovery.json"
+      - name: Validate actual source provenance and explicit unknown health
+        run: |
+          python - "$RUNNER_TEMP/repoing-discovery.json" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1]))
+          assert x['kind']=='UNREVIEWED_BUSINESS_DISCOVERY_PREVIEW'
+          assert x['source']['full_name']=='New1Direction/repo.ing'
+          assert len(x['source']['commit_sha'])==40
+          assert x['source']['integrity']=='COMMIT_PINNED_BLOBS_VALIDATED'
+          assert x['coverage']['candidate_manifests']>=3
+          assert x['coverage']['files_with_evidence']>=3
+          assert x['coverage']['api_route_paths_found']>=100
+          assert x['coverage']['db_schema_candidates_found']>=1
+          assert x['coverage']['api_route_source_files_read']==0
+          assert x['coverage']['schema_source_files_read']==1
+          assert x['coverage']['import_route_files_inspected']>=20
+          assert x['coverage']['import_relationships_found']>=10
+          assert x['coverage']['second_hop_modules_read']>=10
+          assert x['coverage']['second_hop_import_edges']>=10
+          assert x['coverage']['second_hop_schema_table_declarations']>=1
+          assert any(e['relation']=='DECLARES_TABLE_CANDIDATE' and
+                     e['state']=='SOURCE_SYNTAX_CANDIDATE'
+                     for e in x['edges'])
+          assert any(e['relation']=='STATIC_IMPORTS' and
+                     e['state']=='SOURCE_SYNTAX_CANDIDATE'
+                     for e in x['edges'])
+          assert x['runtime_health']=='UNKNOWN'
+          assert any(n['kind']=='api_route' for n in x['nodes'])
+          assert any(n['kind']=='declared_db_table' and
+                     n['state']=='SOURCE_SYNTAX_CANDIDATE' for n in x['nodes'])
+          assert x['runtime_health']=='UNKNOWN'
+          assert x['execution_authorized'] is False
+          assert all(e['git_blob_sha'] for e in x['source_evidence'])
+          assert x['ci_source_status']=='GITHUB_ACTIONS_RESPONSE_RECEIVED'
+          assert x['ci_evidence'] and all(
+              c['head_sha']==x['source']['commit_sha'] and
+              c['scope']=='CI_ONLY_NOT_PRODUCTION_HEALTH'
+              for c in x['ci_evidence'])
+          print('CI evidence for pinned commit:',len(x['ci_evidence']),'workflow runs')
+          print('second hop:',x['coverage']['second_hop_modules_read'],
+                'modules,',x['coverage']['second_hop_import_edges'],
+                'imports,',x['coverage']['second_hop_schema_table_declarations'],
+                'schema declaration links')
+          print('repo.ing source discovery validated:',
+                len(x['nodes']), 'nodes,',len(x['edges']), 'edges,',
+                x['coverage']['candidate_manifests'],'manifests; production health UNKNOWN')
+          PY
+      - name: Recover pinned repo.ing graph from private server-side SQLite
+        run: |
+          python - "$RUNNER_TEMP/repoing-discovery.json" "$RUNNER_TEMP" <<'PY'
+          import json, pathlib, sys, tempfile
+          sys.path.insert(0, "ontology-extraction/scripts")
+          import snapshot_store, control_room, github_discovery
+          graph=json.loads(pathlib.Path(sys.argv[1]).read_text())
+          with tempfile.TemporaryDirectory(prefix="ontologyex-cache-",dir=sys.argv[2]) as root:
+              store=snapshot_store.SnapshotStore(pathlib.Path(root)/"private")
+              commit=graph["source"]["commit_sha"]
+              store.save(graph)
+              restored, scanned=store.load("New1Direction/repo.ing")
+              assert restored==graph and restored["source"]["commit_sha"]==commit
+              def unavailable():
+                  raise github_discovery.GitHubDiscoveryError("simulated offline")
+              reader=control_room.RemoteInventory(
+                  unavailable,store=store,repository="New1Direction/repo.ing")
+              old,at,stale=reader.snapshot()
+              assert stale and at==scanned and old==graph
+              assert not reader.refresh()
+              state=control_room.build_state(old,[],{})
+              assert all(n["status"]=="unknown" for n in state["nodes"])
+              assert len(store.history("New1Direction/repo.ing"))==1
+              print("repo.ing durable recovery: valid graph, stale cache, UNKNOWN health")
+          PY
+      - name: Verify bounded browser payload against actual repo.ing graph
+        run: |
+          python - "$RUNNER_TEMP/repoing-discovery.json" <<'PY'
+          import json,sys
+          sys.path.insert(0,'ontology-extraction/scripts')
+          import graph_view_api,control_room
+          graph=json.load(open(sys.argv[1]))
+          full=control_room.build_state(graph,[],{})
+          summary=graph_view_api.summary(full)
+          first=graph_view_api.page(full,lens='all',offset=0)
+          assert len(full['nodes'])>=200
+          assert summary['total_nodes']==len(full['nodes'])
+          assert 'nodes' not in summary and 'edges' not in summary and 'source_evidence' not in summary
+          assert len(first['nodes'])==90 and first['next_offset']==90
+          assert first['total_matches']==len(full['nodes'])
+          assert all(n['status']=='unknown' for n in first['nodes'])
+          total=len(json.dumps(full,sort_keys=True,separators=(',',':')).encode())
+          assert first['summary']==summary
+          delivered=len(json.dumps(first,sort_keys=True,separators=(',',':')).encode())
+          assert delivered < total*0.65,(delivered,total)
+          match=graph_view_api.page(full,lens='api',query='/api/claim')
+          assert match['total_matches']>=1
+          target=match['nodes'][0]
+          detail=graph_view_api.node_detail(full,target['id'])
+          assert detail['node']['id']==target['id']
+          assert len(detail['edges'])<=40
+          import_edge=next(e for e in full['edges'] if e['relation']=='STATIC_IMPORTS'
+              and any(n['id']==e['source'] and n['kind']=='api_route' for n in full['nodes']))
+          neighborhood=graph_view_api.neighborhood(full,import_edge['source'],depth=2)
+          assert neighborhood['kind']=='BOUNDED_GRAPH_NEIGHBORHOOD'
+          assert import_edge['target'] in {n['id'] for n in neighborhood['nodes']}
+          assert len(neighborhood['nodes'])<=90 and len(neighborhood['edges'])<=300
+          assert neighborhood['runtime_discovery']=='NOT_IMPLEMENTED'
+          assert neighborhood['scope']=='BIDIRECTIONAL_GRAPH_NAVIGATION_NOT_CAUSAL_IMPACT'
+          assert all(e['source'] in {n['id'] for n in neighborhood['nodes']}
+                 and e['target'] in {n['id'] for n in neighborhood['nodes']}
+                 for e in neighborhood['edges'])
+          print('repo.ing neighborhood:',len(neighborhood['nodes']),'nodes',
+                len(neighborhood['edges']),'directed source edges',
+                neighborhood['truncated_node_candidates'],'neighbor candidates clipped')
+          print('repo.ing bounded browser payload:',total,'full bytes,',delivered,'atomic summary+first-page bytes; reduction',round(100*(1-delivered/total),2),'percent')
+          PY
+      - name: No persistent artifact upload
+        run: rm -f "$RUNNER_TEMP/repoing-discovery.json"

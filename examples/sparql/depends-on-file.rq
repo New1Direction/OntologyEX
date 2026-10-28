@@ -1,0 +1,13 @@
+# Everything that cites a source file: what to review again when that file
+# changes. Edit the VALUES line to choose the file.
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX attr: <urn:ontologyex:v1:attr:>
+
+SELECT ?path ?kind ?item ?start ?end WHERE {
+  VALUES ?path { "payments.py" }
+  ?e attr:path ?path ; attr:start_line ?start ; attr:end_line ?end .
+  ?n prov:wasDerivedFrom ?e ; a ?k ; rdfs:label ?item .
+  BIND(STRAFTER(STR(?k), "urn:ontologyex:v1:kind:") AS ?kind)
+}
+ORDER BY ?path ?kind ?item

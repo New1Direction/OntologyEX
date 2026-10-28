@@ -1,0 +1,106 @@
+name: Rust + Lean Foundation
+on:
+  pull_request:
+    paths:
+      - 'engine/**'
+      - 'proofs/lean/**'
+      - 'tests/rust_view_parity.py'
+      - 'tests/rust_http_smoke.py'
+      - 'tests/rust_incident_parity.py'
+      - 'tests/test_native_view_bridge.py'
+      - 'ontology-extraction/scripts/native_view_bridge.py'
+      - 'ontology-extraction/scripts/control_room.py'
+      - 'ontology-extraction/scripts/business_view.py'
+      - 'ontology-extraction/scripts/evidence_grade.py'
+      - 'ontology-extraction/scripts/link_suggest.py'
+      - 'ontology-extraction/scripts/feeds.py'
+      - 'proofs/bend/**'
+      - 'tests/conformance.py'
+      - 'tests/rust_business_parity.py'
+      - '.github/workflows/rust-proof-foundation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'engine/**'
+      - 'proofs/lean/**'
+      - 'proofs/bend/**'
+      - '.github/workflows/rust-proof-foundation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  rust-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test core and deny warnings
+        run: RUSTFLAGS='-D warnings' cargo test --manifest-path engine/Cargo.toml --all-targets
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.11'
+      - name: Install existing scanner dependency
+        run: python -m pip install 'PyYAML==6.0.3'
+      - name: Compile native source-view CLI
+        run: cargo build --manifest-path engine/Cargo.toml --bin ontologyex-view
+      - name: Verify Rust/Python graph projection parity
+        run: python tests/rust_view_parity.py
+      - name: Verify native incident timeline and trust parity
+        run: python tests/rust_incident_parity.py
+      - name: Verify opt-in Rust graph queries through real local HTTP
+        run: python tests/rust_http_smoke.py
+      - name: Verify Rust link matcher, rollup and grade ladder against Python
+        run: python tests/rust_business_parity.py
+      - name: Static graph-to-status fixture
+        run: |
+          cargo run --manifest-path engine/Cargo.toml --quiet --bin ontologyex-core --             engine/examples/topology.json engine/examples/observations.jsonl 2000 > /tmp/ontologyex-state.json
+          python -c 'import json; s=json.load(open("/tmp/ontologyex-state.json")); assert not s["execution_authorized"]; assert s["trust"] == "UNAUTHENTICATED_INPUT_NOT_PRODUCTION_HEALTH"; assert any(n["health"] == "failed" for n in s["nodes"])'
+  lean-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: proofs/lean
+          build: true
+          leanchecker: true
+          leanchecker-args: OntologyEXProofs
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.11'
+      - name: Install the scanner dependency the Python reference imports
+        run: python -m pip install 'PyYAML==6.0.3'
+      - name: Print the rollup and ladder tables from the proven Lean definitions
+        working-directory: proofs/lean
+        run: |
+          lake build conformance
+          .lake/build/bin/conformance > "$RUNNER_TEMP/lean-table.json"
+      - name: Compare the Lean tables with the Python reference
+        run: python tests/conformance.py check "$RUNNER_TEMP/lean-table.json"
+  bend-laws:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check out the Bend prover at a pinned commit
+        uses: actions/checkout@v4
+        with:
+          repository: bendlang/bend
+          ref: d0981d46eefc462ce5669a93a915f21c0046bfc0
+          path: .bend
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+      - name: Prove the business laws with Bend
+        run: |
+          set -o pipefail
+          bun .bend/bend2/main.ts proofs/bend/business.bend | tee "$RUNNER_TEMP/bend.txt"
+          grep -qx 'ALL PROOFS CHECK' "$RUNNER_TEMP/bend.txt"

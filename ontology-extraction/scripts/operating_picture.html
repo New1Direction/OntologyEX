@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>OntologyEX / Operating Picture</title>
+<meta name="ontologyex-write-token" content=""/>
+<style>
+:root{color-scheme:dark;--bg:#060b12;--panel:#0b131d;--panel2:#0f1a26;--line:#1d2c3b;--line2:#2a3d50;
+--text:#dbe7f0;--muted:#7f93a6;--faint:#4d6176;--accent:#4cc3d9;
+--risk:#ff5d5d;--impact:#ff9a3c;--warn:#f2c14e;--stale:#a78bfa;--unknown:#7d8fa3;--unlinked:#4f6075;--ok:#34d399;--blocked:#6aa8ff;
+--sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:13px/1.45 var(--sans);display:flex;flex-direction:column;min-height:100vh}
+@media (min-width:761px){body{height:100vh}}
+button{font:inherit;color:inherit}a{color:var(--accent)}
+.mono{font-family:var(--mono)}
+header{display:flex;align-items:center;gap:18px;padding:10px 18px;border-bottom:1px solid var(--line);background:#08101a;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15}
+.brand b{font:600 11px var(--mono);letter-spacing:.22em;color:var(--accent)}
+.brand span{font-weight:600;font-size:15px;letter-spacing:.02em}
+nav{display:flex;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px}
+nav a{padding:6px 12px;border-radius:6px;text-decoration:none;color:var(--muted);font-weight:500}
+nav a[aria-current="page"]{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
+#ask-form{flex:1 1 260px;max-width:440px;margin:0}
+#ask{width:100%;background:#0d1a26;border:1px solid #2f5d73;border-radius:8px;color:var(--text);padding:8px 12px;font:inherit}
+#ask:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.filter{padding:3px 8px;border-radius:999px;border:1px solid var(--accent);color:var(--accent);cursor:pointer;font:11px var(--mono);white-space:nowrap}
+#ask-status{padding:4px 18px;color:var(--muted);font:11px var(--mono);border-bottom:1px solid var(--line);min-height:22px}
+.modelchip{padding:3px 8px;border-radius:999px;border:1px solid #3b4f8a;color:#a5b4fc;white-space:nowrap}
+#search{flex:0 1 180px;max-width:220px;background:var(--panel);border:1px solid var(--line2);border-radius:8px;color:var(--text);padding:8px 12px;font:inherit}
+#search:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.fresh{margin-left:auto;display:flex;align-items:center;gap:10px;color:var(--muted);font:11px var(--mono)}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 #34d39966;animation:pulse 2.4s infinite}
+.pulse.off{background:var(--risk);animation:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 #34d39966}70%{box-shadow:0 0 0 8px #34d39900}100%{box-shadow:0 0 0 0 #34d39900}}
+.feeds{padding:3px 8px;border-radius:999px;border:1px solid var(--line2);white-space:nowrap}
+.feeds.live{color:#7ff0b4;border-color:#2f7d62}.feeds.failing{color:var(--warn);border-color:#5a4a1e}.feeds.none{color:var(--faint)}
+#refresh{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:7px 12px;cursor:pointer}
+#refresh:hover{border-color:var(--accent)}
+#kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--line);border-bottom:1px solid var(--line)}
+.kpi{background:var(--bg);padding:12px 16px;cursor:pointer;border:0;text-align:left;min-width:0}
+.kpi:hover{background:var(--panel)}
+.kpi .k{font:600 10px var(--mono);letter-spacing:.14em;color:var(--muted);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .v{font-size:26px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:8px}
+.kpi .v small{font-size:12px;color:var(--muted);font-weight:400}
+.kpi .bar{display:flex;height:4px;border-radius:2px;overflow:hidden;margin-top:8px;background:var(--panel2)}
+.kpi .bar i{display:block;height:100%}
+main{flex:1;display:grid;grid-template-columns:300px minmax(0,1fr) 420px;min-height:0}
+aside,#inspector{background:var(--panel);min-height:0;overflow:auto}
+aside{border-right:1px solid var(--line)}#inspector{border-left:1px solid var(--line)}
+.sec{padding:14px 16px;border-bottom:1px solid var(--line)}
+.sec h2{margin:0 0 10px;font:600 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between}
+.sec h2 em{font-style:normal;color:var(--faint)}
+.row{display:flex;align-items:center;gap:9px;width:100%;padding:7px 8px;border:0;background:none;border-radius:6px;cursor:pointer;text-align:left;min-width:0}
+.row:hover{background:var(--panel2)}.row[aria-selected="true"]{background:#13283a;box-shadow:inset 2px 0 0 var(--accent)}
+.row .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .sub{color:var(--muted);font-size:11px}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.sug{padding:9px 10px;border-radius:7px;margin-bottom:6px;border:1px dashed var(--line2);background:var(--bg)}
+.sug .t{display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:600;overflow-wrap:anywhere}
+.sug .sig{color:var(--muted);font-size:11.5px;margin-top:4px}
+.sug .act{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line2);background:var(--panel2);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px}
+.btn:hover{border-color:var(--accent)}.btn.yes{border-color:#2f7d62;color:#7ff0b4}.btn.no{color:var(--muted)}
+.btn:disabled{opacity:.5;cursor:default}
+#who{width:100%;margin-bottom:8px;background:var(--panel);border:1px solid var(--line2);border-radius:6px;color:var(--text);padding:6px 8px;font:inherit;font-size:12px}
+.attn{display:block;padding:9px 10px;border-radius:7px;margin-bottom:6px;border:1px solid var(--line);border-left-width:3px;background:var(--bg);cursor:pointer;width:100%;text-align:left}
+.attn:hover{background:var(--panel2)}
+.attn .t{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+.attn .r{color:var(--muted);font-size:12px;margin-top:3px;overflow-wrap:anywhere}
+.sev{font:600 9.5px var(--mono);letter-spacing:.1em;padding:2px 6px;border-radius:4px;white-space:nowrap}
+#stage{position:relative;min-width:0;overflow:auto;background:
+radial-gradient(circle at 1px 1px,#16243299 1px,transparent 0) 0 0/22px 22px,var(--bg)}
+#lanes{position:sticky;top:0;z-index:2;display:grid;grid-template-columns:1fr 1fr 1fr;background:linear-gradient(var(--bg) 70%,transparent);padding:12px 0 8px}
+#lanes div{font:600 10px var(--mono);letter-spacing:.18em;color:var(--muted);text-transform:uppercase;text-align:center}
+#lanes div b{color:var(--faint);font-weight:500;margin-left:6px}
+svg#graph{display:block;width:100%;min-width:720px}
+.node{cursor:pointer}.node:focus{outline:none}.node:focus rect.card{stroke:var(--accent);stroke-width:2}
+.node text{font:12.5px var(--sans);fill:var(--text);pointer-events:none}
+.node text.meta{font:10px var(--mono);fill:var(--muted);letter-spacing:.05em}
+.dim{opacity:.16;transition:opacity .15s}.hl{opacity:1}
+.edge{fill:none;stroke-width:1.4}
+#empty{position:absolute;inset:80px 40px auto;max-width:560px;margin:auto;padding:22px;border:1px dashed var(--line2);border-radius:12px;background:var(--panel);display:none}
+#empty h3{margin:0 0 8px}#empty code{font-family:var(--mono);font-size:12px;color:var(--accent);word-break:break-all}
+#inspector h3{margin:0;font-size:18px;font-weight:600;overflow-wrap:anywhere}
+.kind{font:600 10px var(--mono);letter-spacing:.16em;color:var(--accent);text-transform:uppercase}
+.banner{margin-top:12px;padding:10px 12px;border-radius:8px;border:1px solid;font-size:12.5px}
+.banner b{display:block;font:600 10px var(--mono);letter-spacing:.14em;margin-bottom:3px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border:1px solid var(--line2);border-radius:999px;background:var(--bg);font-size:12px;cursor:pointer}
+.chip:hover{border-color:var(--accent)}.chip.static{cursor:default}.chip.static:hover{border-color:var(--line2)}
+.rule{padding:10px 0;border-top:1px solid var(--line)}.rule:first-of-type{border-top:0;padding-top:0}
+.rule p{margin:6px 0 0;overflow-wrap:anywhere}
+.flags{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.grade{font:700 10px var(--mono);padding:2px 6px;border-radius:4px;letter-spacing:.06em}
+.g0{background:#1c2a38;color:#8fa3b6}.g1{background:#173a52;color:#8cd0ff}.g2{background:#164a4a;color:#7fe6d6}.g3{background:#145037;color:#7ff0b4}.g4{background:#2f5d1f;color:#c4f59a}
+.flag{font:600 9.5px var(--mono);letter-spacing:.08em;color:var(--warn);border:1px solid #5a4a1e;border-radius:4px;padding:1px 5px}
+details.ev{margin-top:6px}details.ev summary{cursor:pointer;color:var(--muted);font:11px var(--mono);list-style:none}
+details.ev summary::before{content:"▸ ";color:var(--faint)}details.ev[open] summary::before{content:"▾ "}
+pre.q{margin:6px 0 0;padding:8px 10px;background:var(--bg);border:1px solid var(--line);border-radius:6px;white-space:pre-wrap;overflow-wrap:anywhere;font:11.5px/1.5 var(--mono);color:#b9c9d6;max-height:180px;overflow:auto}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:4px 10px;font-size:12px}.kv dt{color:var(--muted)}.kv dd{margin:0;overflow-wrap:anywhere}
+.dist{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--panel2);margin:6px 0}
+.dist i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;color:var(--muted);font-size:11px}.legend span{display:inline-flex;align-items:center;gap:5px}
+footer{padding:8px 18px;border-top:1px solid var(--line);color:var(--faint);font:10.5px var(--mono);letter-spacing:.06em;display:flex;gap:16px;flex-wrap:wrap}
+.muted{color:var(--muted)}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (max-width:1180px){main{grid-template-columns:260px minmax(0,1fr)}#inspector{grid-column:1/-1;border-left:0;border-top:1px solid var(--line)}#kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:760px){main{grid-template-columns:1fr}aside{border-right:0;border-bottom:1px solid var(--line)}#stage{min-height:360px;max-height:70vh}#kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.fresh{margin-left:0}}
+@media (prefers-reduced-motion:reduce){.pulse{animation:none}.dim{transition:none}}
+</style></head>
+<body>
+<header>
+ <div class="brand"><b>ONTOLOGYEX</b><span>Operating Picture</span></div>
+ <nav aria-label="Views"><a href="/business" aria-current="page">Business</a><a href="/">Systems</a></nav>
+ <input id="search" type="search" maxlength="90" placeholder="Search…  ( / )" aria-label="Search the business ontology"/>
+ <form id="ask-form" role="search"><input id="ask" type="text" maxlength="200" placeholder="Ask: what is at risk in refunds?" aria-label="Ask the operating picture"/></form>
+ <span id="filter" class="filter" hidden></span>
+ <div class="fresh"><span id="model" class="modelchip" hidden></span><span id="feeds" class="feeds" title="Live observability feeds"></span><span id="pulse" class="pulse off" aria-hidden="true"></span><span id="asof">Connecting…</span></div>
+ <button id="refresh" type="button">Refresh now</button>
+</header>
+<div id="ask-status" aria-live="polite"></div>
+<section id="kpis" aria-label="Key indicators"></section>
+<main>
+ <aside aria-label="Explorer">
+  <div class="sec"><h2>Needs attention <em id="attn-count"></em></h2><div id="attention"></div></div>
+  <div class="sec" id="sug-sec"><h2>Suggested links <em id="sug-count"></em></h2><div id="suggestions"></div></div>
+  <div class="sec"><h2>Actions <em id="n-actions"></em></h2><div id="list-actions" role="listbox" aria-label="Business actions"></div></div>
+  <div class="sec"><h2>Objects <em id="n-objects"></em></h2><div id="list-objects" role="listbox" aria-label="Business objects"></div></div>
+  <div class="sec"><h2>Linked systems <em id="n-systems"></em></h2><div id="list-systems" role="listbox" aria-label="Linked systems"></div></div>
+ </aside>
+ <section id="stage" aria-label="Ontology graph">
+  <div id="lanes"><div>Objects<b id="l-o"></b></div><div>Actions<b id="l-a"></b></div><div>Systems<b id="l-s"></b></div></div>
+  <svg id="graph" role="img" aria-label="Business objects, actions, and the systems they run on"></svg>
+  <div id="empty"><h3>No domain skill loaded</h3>
+   <p class="muted">The operating picture joins a compiled OntologyEX domain skill to the system map. Build one with the guided workflow, then restart the control room with it:</p>
+   <p><code>python ontology-extraction/scripts/control_room.py --repo REPO --skill SKILL --links links.json</code></p>
+   <p class="muted">Or run the complete local demo: <code>python examples/operating-picture/demo.py</code></p></div>
+ </section>
+ <section id="inspector" aria-label="Inspector" aria-live="polite"></section>
+</main>
+<footer><span id="mode">READ ONLY</span><span>LOOPBACK ONLY</span><span>HEALTH = SOURCE-REPORTED STATUS OF LINKED SYSTEMS, NOT ACTION OUTCOMES</span><span>LINKS ARE OPERATOR DECLARATIONS</span><span>NOTHING HERE IS APPROVED OR EXECUTED</span></footer>
+<script>
+"use strict";
+const NS="http://www.w3.org/2000/svg";
+const C={AT_RISK:"var(--risk)",POSSIBLY_IMPACTED:"var(--impact)",DEGRADED:"var(--warn)",STALE:"var(--stale)",UNKNOWN:"var(--unknown)",
+ UNLINKED:"var(--unlinked)",REPORTED_OK:"var(--ok)",REVIEW_BLOCKED:"var(--blocked)",error:"var(--risk)",warning:"var(--warn)",stale:"var(--stale)",unknown:"var(--unknown)",ok:"var(--ok)"};
+const HEX={AT_RISK:"#ff5d5d",POSSIBLY_IMPACTED:"#ff9a3c",DEGRADED:"#f2c14e",STALE:"#a78bfa",UNKNOWN:"#7d8fa3",UNLINKED:"#4f6075",REPORTED_OK:"#34d399",
+ REVIEW_BLOCKED:"#6aa8ff",CHECK_CITATION:"#e879f9",MODELED_NOT_APPROVED:"#8fa3b6",error:"#ff5d5d",warning:"#f2c14e",stale:"#a78bfa",unknown:"#7d8fa3",ok:"#34d399"};
+const WORD={AT_RISK:"AT RISK",POSSIBLY_IMPACTED:"POSSIBLY IMPACTED",DEGRADED:"DEGRADED",STALE:"STALE",UNKNOWN:"UNKNOWN",UNLINKED:"UNLINKED",
+ REPORTED_OK:"REPORTED OK",REVIEW_BLOCKED:"REVIEW BLOCKED",CHECK_CITATION:"CHECK CITATION",MODELED_NOT_APPROVED:"MODELED · NOT APPROVED",error:"ERROR",warning:"WARNING",stale:"STALE",unknown:"UNKNOWN",ok:"OK"};
+const GRADE_HEX=["#8fa3b6","#8cd0ff","#7fe6d6","#7ff0b4","#c4f59a"];
+const MAX_GRAPH=160;
+let data=null,selected=null,query="",epoch=0,sevFilter=null;
+const $=id=>document.getElementById(id);
+function h(tag,props,...kids){const n=document.createElement(tag);
+ for(const [k,v] of Object.entries(props||{})){if(v===undefined||v===null)continue;
+  if(k==="class")n.className=v;else if(k==="text")n.textContent=String(v);else if(k.startsWith("on"))n.addEventListener(k.slice(2),v);
+  else if(k==="style")n.style.cssText=v;else n.setAttribute(k,String(v));}
+ for(const kid of kids.flat()){if(kid===null||kid===undefined||kid===false)continue;n.append(kid instanceof Node?kid:document.createTextNode(String(kid)));}
+ return n}
+function s(tag,attrs,txt){const n=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(attrs||{}))n.setAttribute(k,String(v));
+ if(txt!==undefined)n.textContent=String(txt);return n}
+const sev=(key)=>h("span",{class:"sev",style:`color:${HEX[key]||"#aaa"};background:${(HEX[key]||"#aaa")}1f`,text:WORD[key]||key});
+const dot=(key)=>h("span",{class:"dot",style:`background:${HEX[key]||"#666"}`,"aria-hidden":"true"});
+function index(){const m=new Map();if(!data)return m;
+ for(const a of data.actions)m.set(a.key,{type:"action",item:a});
+ for(const o of data.objects)m.set(o.key,{type:"object",item:o});
+ for(const sy of data.systems)m.set(sy.id,{type:"system",item:sy});return m}
+let IDX=new Map();
+function matches(entry){if(!query)return true;const q=query.toLowerCase(),it=entry.item;
+ const hay=[it.id,it.label,it.verb_phrase,it.definition,it.skill,...(it.rules||[]).map(r=>r.statement+" "+r.id)].filter(Boolean).join(" ").toLowerCase();
+ return hay.includes(q)}
+function select(key){selected=key;try{history.replaceState(null,"",key?"#"+encodeURIComponent(key):"#")}catch(_){ }render()}
+
+function kpis(){const k=$("kpis");k.replaceChildren();if(!data)return;const sm=data.summary,ah=sm.action_health;
+ const tile=(label,value,sub,parts,onclick)=>{const b=h("button",{class:"kpi",type:"button",onclick},
+   h("div",{class:"k",text:label}),h("div",{class:"v"},String(value),sub?h("small",{text:sub}):null));
+  if(parts){const bar=h("div",{class:"bar"});const tot=parts.reduce((a,p)=>a+p[1],0)||1;
+   for(const [c,v] of parts)if(v)bar.append(h("i",{style:`width:${100*v/tot}%;background:${c}`}));b.append(bar)}
+  k.append(b)};
+ const firstAttn=(sevs)=>()=>{const a=data.attention.find(x=>sevs.includes(x.severity));if(a)select(a.key)};
+ tile("Actions at risk",ah.AT_RISK,`of ${sm.actions}`,[[HEX.AT_RISK,ah.AT_RISK],[HEX.REPORTED_OK,ah.REPORTED_OK],[HEX.UNKNOWN,sm.actions-ah.AT_RISK-ah.REPORTED_OK]],firstAttn(["AT_RISK"]));
+ tile("Possibly impacted",ah.POSSIBLY_IMPACTED+ah.DEGRADED,"via dependencies",null,firstAttn(["POSSIBLY_IMPACTED","DEGRADED"]));
+ tile("Health unknown",ah.UNKNOWN+ah.STALE+ah.UNLINKED,`${ah.UNLINKED} unlinked`,null,firstAttn(["STALE","UNLINKED"]));
+ tile("Review blockers",sm.review_blocked_actions,"actions",null,firstAttn(["REVIEW_BLOCKED"]));
+ tile("Rules reviewed",sm.rules_reviewed_or_better,`of ${sm.rules} (G1+)`,[[GRADE_HEX[1],sm.rules_reviewed_or_better],[GRADE_HEX[0],sm.rules-sm.rules_reviewed_or_better]],()=>select(null));
+ const st=sm.system_status;tile("Systems reporting",st.ok+st.warning+st.error,`of ${sm.discovered_components}`,
+  [[HEX.error,st.error],[HEX.warning,st.warning],[HEX.ok,st.ok],[HEX.stale,st.stale],[HEX.unknown,st.unknown]],()=>{location.href="/"});
+}
+
+function passesFilter(it,type){if(!sevFilter)return true;
+ if(sevFilter==="REVIEW_BLOCKED")return type==="action"&&it.readiness==="REVIEW_BLOCKED";
+ if(sevFilter==="CHECK_CITATION")return type==="action"&&(it.rules||[]).some(r=>r.evidence.some(e=>e.model_support!==undefined&&e.model_support<0.5));
+ if(type==="system")return ({AT_RISK:"error",STALE:"stale"})[sevFilter]===it.status||(sevFilter==="POSSIBLY_IMPACTED"&&(it.potentially_impacted_by||[]).length>0);
+ return it.health===sevFilter}
+function setFilter(sev){sevFilter=sev&&sev!=="any"?sev:null;const f=$("filter");
+ if(sevFilter){f.hidden=false;f.textContent="Filter: "+(WORD[sevFilter]||sevFilter)+" ✕";f.style.borderColor=HEX[sevFilter]||"";f.style.color=HEX[sevFilter]||""}else f.hidden=true;render()}
+function lists(){
+ const at=$("attention");at.replaceChildren();
+ const items=(data?data.attention:[]).filter(a=>(!query||(a.label+" "+a.reason).toLowerCase().includes(query.toLowerCase()))&&(!sevFilter||a.severity===sevFilter));
+ $("attn-count").textContent=data?String(data.attention.length):"";
+ if(data&&!data.attention.length)at.append(h("p",{class:"muted",text:"Nothing flagged. Unobserved systems are not confirmed healthy."}));
+ for(const a of items.slice(0,40))at.append(h("button",{class:"attn",type:"button",style:`border-left-color:${HEX[a.severity]}`,onclick:()=>select(a.key)},
+   h("div",{class:"t"},h("span",{text:a.label}),sev(a.severity)),h("div",{class:"r",text:a.reason})));
+ const fill=(id,countId,arr,type)=>{const box=$(id);box.replaceChildren();$(countId).textContent=String(arr.length);
+  for(const it of arr){const key=type==="system"?it.id:it.key;const entry=IDX.get(key);if(!matches(entry)||!passesFilter(it,type))continue;
+   const status=type==="system"?it.status:it.health;
+   box.append(h("button",{class:"row",type:"button",role:"option","aria-selected":String(selected===key),onclick:()=>select(key)},
+    dot(status),h("span",{class:"lbl"},type==="system"?it.label:it.id),h("span",{class:"sub",text:type==="action"&&it.readiness==="REVIEW_BLOCKED"?"blocked":(WORD[status]||"").toLowerCase()})))}};
+ fill("list-actions","n-actions",data?data.actions:[],"action");
+ fill("list-objects","n-objects",data?data.objects:[],"object");
+ fill("list-systems","n-systems",data?data.systems:[],"system");
+}
+
+function graph(){
+ const svg=$("graph");svg.replaceChildren();const st=$("stage");
+ const empty=!data||data.status!=="READY";$("empty").style.display=empty?"block":"none";$("lanes").style.display=empty?"none":"grid";
+ if(empty){svg.setAttribute("height","0");return}
+ const W=Math.max(st.clientWidth,720),laneW=W/3,nodeW=Math.min(230,laneW-56),nodeH=42,gap=16,top=10;
+ const lanes={object:[],action:[],system:[]};
+ for(const n of data.graph.nodes.slice(0,MAX_GRAPH))lanes[n.type].push(n);
+ const rank=k=>["AT_RISK","POSSIBLY_IMPACTED","DEGRADED","STALE","UNKNOWN","UNLINKED","REPORTED_OK","error","warning","stale","unknown","ok"].indexOf(k);
+ for(const L of Object.values(lanes))L.sort((a,b)=>rank(a.health||a.status)-rank(b.health||b.status)||a.label.localeCompare(b.label));
+ $("l-o").textContent=String(lanes.object.length);$("l-a").textContent=String(lanes.action.length);$("l-s").textContent=String(lanes.system.length);
+ const pos=new Map();const col={object:0,action:1,system:2};
+ for(const [type,L] of Object.entries(lanes))L.forEach((n,i)=>pos.set(n.key,{x:col[type]*laneW+(laneW-nodeW)/2,y:top+i*(nodeH+gap),n}));
+ const rows=Math.max(1,...Object.values(lanes).map(L=>L.length));const H=top+rows*(nodeH+gap)+30;
+ svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.setAttribute("height",String(H));
+ const defs=s("defs");for(const [k,c] of Object.entries({def:"#3b5168",hot:"#4cc3d9"})){const m=s("marker",{id:"arr-"+k,viewBox:"0 0 8 8",refX:7,refY:4,markerWidth:7,markerHeight:7,orient:"auto"});
+  m.append(s("path",{d:"M0,0 L8,4 L0,8 z",fill:c}));defs.append(m)}svg.append(defs);
+ const near=new Set();if(selected){near.add(selected);for(const e of data.graph.edges)if(e.source===selected||e.target===selected){near.add(e.source);near.add(e.target)}}
+ const q=query.toLowerCase();const hit=k=>{const e=IDX.get(k);return e?matches(e):true};
+ const eg=s("g");svg.append(eg);
+ for(const e of data.graph.edges){const a=pos.get(e.source),b=pos.get(e.target);if(!a||!b)continue;
+  let d,stroke="#2c4157",dash=null;const hot=selected&&(e.source===selected||e.target===selected);
+  if(e.relation==="RELATION"){const x=a.x,y1=a.y+nodeH/2,y2=b.y+nodeH/2,bend=Math.min(60,24+Math.abs(y2-y1)/4);
+   d=`M${x},${y1} C${x-bend},${y1} ${x-bend},${y2} ${x},${y2}`;stroke="#56708a";dash="2 3"}
+  else if(e.relation==="RUNS_ON"||e.relation==="IMPLEMENTED_BY"){const x1=a.x+nodeW,y1=a.y+nodeH/2,x2=b.x,y2=b.y+nodeH/2,m=(x1+x2)/2;
+   d=`M${x1},${y1} C${m},${y1} ${m},${y2} ${x2},${y2}`;stroke=e.relation==="RUNS_ON"?"#3b6f86":"#2a3d50";if(e.relation==="IMPLEMENTED_BY")dash="4 4"}
+  else{const x1=a.x,y1=a.y+nodeH/2,x2=b.x+nodeW,y2=b.y+nodeH/2,m=(x1+x2)/2;d=`M${x1},${y1} C${m},${y1} ${m},${y2} ${x2},${y2}`;
+   stroke=e.relation==="PRODUCES"?"#3f7a6a":e.relation==="ACTOR"?"#5b5480":"#3b5168"}
+  const p=s("path",{d,class:"edge"+(selected?(hot?" hl":" dim"):""),stroke:hot?"#4cc3d9":stroke,"marker-end":`url(#arr-${hot?"hot":"def"})`});
+  if(dash)p.setAttribute("stroke-dasharray",dash);if(hot)p.setAttribute("stroke-width","2.2");
+  p.append(s("title",{},`${e.relation}${e.label?" · "+e.label:""}`));eg.append(p)}
+ for(const {x,y,n} of pos.values()){const key=n.key,status=n.health||n.status,col=HEX[status]||"#666";
+  const dimmed=(selected&&!near.has(key))||(q&&!hit(key));
+  const g=s("g",{class:"node"+(dimmed?" dim":""),transform:`translate(${x},${y})`,tabindex:0,role:"button","aria-label":`${n.type} ${n.label}, ${WORD[status]||status}`});
+  const isSel=key===selected;
+  g.append(s("rect",{class:"card",width:nodeW,height:nodeH,rx:n.type==="system"?4:9,fill:isSel?"#13283a":"#0d1824",stroke:isSel?"#4cc3d9":"#24374a","stroke-width":isSel?2:1}));
+  g.append(s("rect",{width:3,height:nodeH-12,x:0,y:6,rx:1.5,fill:col}));
+  if(n.type==="action"){g.append(s("path",{d:`M16,${nodeH/2-6} l6,6 l-6,6 l-6,-6 z`,fill:"none",stroke:col,"stroke-width":1.6}))}
+  else if(n.type==="object"){g.append(s("circle",{cx:16,cy:nodeH/2,r:6,fill:"none",stroke:col,"stroke-width":1.6}))}
+  else{g.append(s("rect",{x:10,y:nodeH/2-6,width:12,height:12,rx:2,fill:"none",stroke:col,"stroke-width":1.6}))}
+  const maxChars=Math.floor((nodeW-44)/7.2);const lbl=n.label.length>maxChars?n.label.slice(0,maxChars-1)+"…":n.label;
+  g.append(s("text",{x:32,y:18},lbl));
+  const meta=(WORD[status]||status)+(n.readiness==="REVIEW_BLOCKED"?" · BLOCKED":"");
+  const metaChars=Math.floor((nodeW-40)/6.6);
+  g.append(s("text",{x:32,y:32,class:"meta",fill:col},meta.length>metaChars?meta.slice(0,metaChars-1)+"…":meta));
+  g.append(s("title",{},`${n.label} — ${meta}`));
+  g.addEventListener("click",ev=>{ev.stopPropagation();select(key)});
+  g.addEventListener("keydown",ev=>{if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();select(key)}});
+  svg.append(g)}
+ if(data.graph.nodes.length>MAX_GRAPH){const t=s("text",{x:18,y:H-10,fill:"#7f93a6","font-size":11},`Showing the ${MAX_GRAPH} most urgent of ${data.graph.nodes.length} items. Use search or the explorer for the rest.`);svg.append(t)}
+}
+
+function evidenceList(list){const box=h("div");for(const e of list||[]){
+ const support=e.model_support===undefined?"":` · model support ${e.model_support.toFixed(2)}${e.model_support<0.5?" ⚠":""}`;
+ const d=h("details",{class:"ev"},h("summary",{text:`${e.kind.toUpperCase()} · ${e.path}:${e.start_line}${e.end_line!==e.start_line?"-"+e.end_line:""}${support}`,
+   style:e.model_support!==undefined&&e.model_support<0.5?"color:#e879f9":undefined}),
+  h("pre",{class:"q",text:e.quote+(e.quote_truncated?"\n…":"")}));box.append(d)}return box}
+function section(title,count,...kids){return h("div",{class:"sec"},h("h2",{},h("span",{text:title}),count!==undefined?h("em",{text:String(count)}):null),...kids)}
+function banner(status,reason){const c=HEX[status]||"#888";return h("div",{class:"banner",style:`border-color:${c}55;background:${c}12`},h("b",{style:`color:${c}`,text:WORD[status]||status}),reason)}
+function chipFor(key,label,status){return h("button",{class:"chip",type:"button",onclick:()=>select(key)},dot(status),label)}
+function gradeChip(g,label){const n=Number(g.slice(1));return h("span",{class:"grade g"+n,title:label,text:g})}
+function systemRows(ids){const box=h("div");for(const id of ids){const e=IDX.get(id);if(!e)continue;const sy=e.item;
+ box.append(h("button",{class:"row",type:"button",onclick:()=>select(id)},dot(sy.status),h("span",{class:"lbl"},sy.label),
+  h("span",{class:"sub",text:(WORD[sy.status]||"")+(sy.observed_at?" · "+ago(sy.observed_at):" · never observed")})))}
+ if(!ids.length)box.append(h("p",{class:"muted",text:"No linked system. Add a binding link to see live status."}));return box}
+function ago(ts){const t=Date.parse(ts);if(!Number.isFinite(t))return ts;const s=Math.max(0,(Date.now()-t)/1000);
+ return s<90?Math.round(s)+"s ago":s<5400?Math.round(s/60)+"m ago":s<172800?Math.round(s/3600)+"h ago":Math.round(s/86400)+"d ago"}
+function dist(d){const tot=Object.values(d).reduce((a,b)=>a+b,0)||1;const bar=h("div",{class:"dist"});
+ Object.entries(d).forEach(([g,v],i)=>{if(v)bar.append(h("i",{style:`width:${100*v/tot}%;background:${GRADE_HEX[i]}`,title:`${g}: ${v}`}))});
+ const lg=h("div",{class:"legend"});Object.entries(d).forEach(([g,v],i)=>lg.append(h("span",{},h("i",{class:"dot",style:`background:${GRADE_HEX[i]}`}),`${g} ${v}`)));
+ return h("div",{},bar,lg)}
+
+function inspector(){const box=$("inspector");box.replaceChildren();
+ if(!data){box.append(section("Status",undefined,h("p",{class:"muted",text:"Connecting to the local control room…"})));return}
+ const entry=selected?IDX.get(selected):null;
+ if(!entry){return overview(box)}
+ const it=entry.item;
+ if(entry.type==="action"){
+  box.append(h("div",{class:"sec"},h("div",{class:"kind",text:`Action · ${it.skill}`}),h("h3",{text:it.id}),
+   it.verb_phrase?h("p",{class:"muted",style:"margin:4px 0 0",text:it.verb_phrase}):null,banner(it.health,it.health_reason),
+   h("div",{class:"flags",style:"margin-top:10px"},sev(it.readiness),
+    h("span",{class:"muted",style:"font-size:12px",text:it.readiness==="REVIEW_BLOCKED"?`${it.blockers.length} open item(s) need a decision`:"No open blockers. A person still reviews before use."}))));
+  box.append(section("Runs on",it.systems.length,systemRows(it.systems)));
+  if(it.blockers.length)box.append(section("Open questions",it.blockers.length,...it.blockers.map(b=>h("div",{class:"rule"},
+   h("div",{class:"flags"},h("span",{class:"flag",text:b.type.toUpperCase()}),h("span",{class:"mono muted",style:"font-size:11px",text:b.id})),h("p",{text:b.statement})))));
+  box.append(section("Rules",it.rules.length,it.rules.length?dist(it.grade_distribution):h("p",{class:"muted",style:"margin:0",text:"No rules modeled for this action. See the open questions."}),...it.rules.map(r=>h("div",{class:"rule"},
+   h("div",{class:"flags"},gradeChip(r.grade,r.grade_label),h("span",{class:"mono muted",style:"font-size:11px",text:r.id}),
+    r.status==="inferred"?h("span",{class:"flag",text:"INFERRED"}):null,!r.executable?h("span",{class:"flag",text:"NO CHECK"}):null),
+   h("p",{text:r.statement}),r.held_by&&r.held_by[0]?h("div",{class:"muted",style:"font-size:11px;margin-top:3px",text:"Next grade: "+r.held_by[0]}):null,evidenceList(r.evidence)))));
+  const objChips=(ids,role)=>ids.map(id=>{const k=`${it.skill}:object:${id}`;const o=IDX.get(k);return o?chipFor(k,`${role} ${id}`,o.item.health):h("span",{class:"chip static",text:id})});
+  box.append(section("Objects",undefined,h("div",{class:"chips"},...objChips(it.inputs,"in"),...objChips(it.outputs,"out"),...objChips(it.actor_roles,"by"))));
+  if(it.effects.length)box.append(section("Effects (descriptive, not executed)",undefined,...it.effects.map(e=>h("p",{style:"margin:0 0 6px",text:e}))));
+  {const sg=suggestionsFor(it.bindings.map(b=>it.skill+"\u0000"+b.id));if(sg.length)box.append(section("Suggested links",sg.length,...sg.map(suggestionCard)))}
+  box.append(section("Code bindings",it.bindings.length,...it.bindings.map(b=>h("div",{class:"rule"},h("div",{class:"flags"},
+   h("span",{class:"mono",text:b.id}),h("span",{class:"muted",style:"font-size:11px",text:b.kind||""})),evidenceList(b.evidence)))));
+  box.append(section("Source",undefined,evidenceList(it.evidence)));
+ } else if(entry.type==="object"){
+  box.append(h("div",{class:"sec"},h("div",{class:"kind",text:`Object type · ${it.skill}`}),h("h3",{text:it.id}),
+   it.definition?h("p",{style:"margin:6px 0 0",text:it.definition}):null,banner(it.health,it.health_reason),
+   it.anchor?h("p",{class:"muted",style:"margin:8px 0 0;font-size:12px",text:`Anchored to ${it.anchor}`}):null));
+  box.append(section("Used by actions",it.actions.length,h("div",{class:"chips"},...it.actions.map(u=>{const a=IDX.get(u.action);return chipFor(u.action,`${u.label} · ${u.role}`,a?a.item.health:"UNKNOWN")}))));
+  box.append(section("Relations",it.relations.length,...it.relations.map(r=>{const k=`${it.skill}:object:${r.other}`;const o=IDX.get(k);
+   return h("div",{class:"rule"},h("div",{class:"flags"},h("span",{class:"mono",text:r.direction==="out"?`${it.id} → ${r.id} → ${r.other}`:`${r.other} → ${r.id} → ${it.id}`}),
+    r.cardinality?h("span",{class:"muted",style:"font-size:11px",text:r.cardinality}):null,o?chipFor(k,r.other,o.item.health):null),r.definition?h("p",{class:"muted",text:r.definition}):null)})));
+  box.append(section("Implemented by",it.systems.length,systemRows(it.systems)));
+  {const sg=suggestionsFor(it.bindings.map(b=>it.skill+"\u0000"+b));if(sg.length)box.append(section("Suggested links",sg.length,...sg.map(suggestionCard)))}
+  box.append(section("Source",undefined,evidenceList(it.evidence)));
+ } else {
+  const kv=h("dl",{class:"kv"});const add=(k,v)=>{kv.append(h("dt",{text:k}),h("dd",{text:v}))};
+  add("Status",WORD[it.status]||it.status);add("Observed",it.observed_at?`${it.observed_at} (${ago(it.observed_at)})`:"never");
+  add("Reported by",it.observation_source||"no observation source");
+  for(const src of it.observation_sources||[])add("· "+src.source,`${(WORD[src.status]||src.status)} · ${ago(src.observed_at)}${src.fresh?"":" (expired)"}`);
+  add("Component",it.id);
+  for(const [m,v] of Object.entries(it.metrics||{}))add(m,String(v));
+  box.append(h("div",{class:"sec"},h("div",{class:"kind",text:`System · ${it.kind}`}),h("h3",{text:it.label}),
+   banner(it.status,it.potentially_impacted_by.length?`Declares a dependency on failing ${it.potentially_impacted_by.join(", ")}. Possible, not confirmed, impact.`:
+    it.status==="unknown"?"No current observation. Unknown is not healthy.":"Source-reported status; not independently attested.")));
+  box.append(section("Details",undefined,kv));
+  box.append(section("Serves",it.serves.length,h("div",{class:"chips"},...it.serves.map(k=>{const e=IDX.get(k);return e?chipFor(k,`${e.type==="action"?"◇":"○"} ${e.item.id}`,e.item.health):null}))));
+  box.append(section("Explore",undefined,h("p",{class:"muted",style:"margin:0"},"Open the ",h("a",{href:"/",text:"Systems view"})," to navigate dependencies and investigate observations.")));
+ }}
+function overview(box){
+ box.append(h("div",{class:"sec"},h("div",{class:"kind",text:"Overview"}),h("h3",{text:data.status==="READY"?"Your business at a glance":"Waiting for a domain skill"}),
+  h("p",{class:"muted",style:"margin:6px 0 0",text:"Select an action, object, or system. Health comes from the systems each action is linked to; rule grades show how far each rule's evidence was checked."})));
+ for(const sk of data.skills)box.append(section(sk.name,undefined,h("p",{style:"margin:0 0 6px",text:sk.goal||""}),
+  h("dl",{class:"kv"},h("dt",{text:"Bundle"}),h("dd",{class:"mono",text:sk.bundle_id.slice(0,16)+"…"}),h("dt",{text:"Review"}),h("dd",{text:sk.review_status}),
+   h("dt",{text:"Stale events"}),h("dd",{text:String(sk.stale_events)})),h("div",{style:"margin-top:8px"},dist(sk.grade_distribution))));
+ const g=data.link_gaps||[];if(g.length)box.append(section("Link gaps",g.length,...g.map(x=>h("div",{class:"rule"},h("span",{class:"flag",text:x.reason}),
+  h("p",{class:"mono",style:"font-size:11px",text:`${x.link.skill} · ${x.link.binding} → ${x.link.component}`})))));
+ box.append(section("Legend",undefined,h("div",{class:"legend"},...["AT_RISK","POSSIBLY_IMPACTED","DEGRADED","STALE","UNKNOWN","UNLINKED","REPORTED_OK","REVIEW_BLOCKED","CHECK_CITATION"].map(k=>h("span",{},dot(k),WORD[k]))),
+  h("div",{class:"legend",style:"margin-top:8px"},h("span",{text:"◇ action"}),h("span",{text:"○ object"}),h("span",{text:"□ system"}),h("span",{text:"G0 cited → G4 observed in use"}))));
+ box.append(section("Boundaries",undefined,h("p",{class:"muted",style:"margin:0",text:"Links from code to systems are operator declarations. Status is source-reported and unattested. A declared dependency shows possible impact, not a confirmed outage. Nothing here approves or runs an action."})));
+}
+const TOKEN=(document.querySelector('meta[name="ontologyex-write-token"]')||{}).content||"";
+let who="";try{who=localStorage.getItem("ontologyex-decider")||""}catch(_){}
+const STRENGTH_HEX={STRONG:"#7ff0b4",MODERATE:"#8cd0ff",WEAK:"#8fa3b6"};
+function suggestionsFor(bindingIds){const all=(data&&data.link_suggestions)?data.link_suggestions.suggestions:[];
+ return bindingIds?all.filter(x=>bindingIds.includes(x.skill+"\u0000"+x.binding)):all}
+async function decideLink(s,decision,btns,status){
+ if(!who.trim()){status.textContent="Enter your name above first.";return}
+ btns.forEach(b=>b.disabled=true);status.textContent=decision==="confirm"?"Confirming…":"Rejecting…";
+ try{const r=await fetch("/api/links/decision",{method:"POST",headers:{"Content-Type":"application/json","X-OntologyEX-Token":TOKEN},
+   body:JSON.stringify({id:s.id,decision,by:who.trim().slice(0,120),note:""})});
+  const d=await r.json();if(!r.ok)throw new Error(d.status||String(r.status));status.textContent=d.status==="UNCHANGED"?"Already decided.":"Saved.";await load()}
+ catch(err){status.textContent="Not saved: "+err.message;btns.forEach(b=>b.disabled=false)}}
+function suggestionCard(s){const status=h("div",{class:"sig"});
+ const card=h("div",{class:"sug"},h("div",{class:"t"},h("span",{text:`${s.binding} → ${s.component_label}`}),
+   h("span",{class:"sev",style:`color:${STRENGTH_HEX[s.strength]};background:${STRENGTH_HEX[s.strength]}1f`,text:s.strength})),
+  ...s.signals.map(g=>h("div",{class:"sig",text:`${g.signal.replace(/_/g," ").toLowerCase()}: ${g.detail}`})));
+ if(TOKEN&&data.link_decisions==="ENABLED_LOCAL_TOKEN"){const yes=h("button",{class:"btn yes",type:"button",text:"Confirm link"}),no=h("button",{class:"btn no",type:"button",text:"Reject"});
+  yes.addEventListener("click",()=>decideLink(s,"confirm",[yes,no],status));no.addEventListener("click",()=>decideLink(s,"reject",[yes,no],status));
+  card.append(h("div",{class:"act"},yes,no),status)}
+ else if(s.confirm_command){const copy=h("button",{class:"btn",type:"button",text:"Copy confirm command"});
+  copy.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(s.confirm_command);status.textContent="Copied. Replace YOUR_NAME and run it."}catch(_){status.textContent=s.confirm_command}});
+  card.append(h("div",{class:"act"},copy),status)}
+ else card.append(h("div",{class:"sig",text:"Confirm with link_suggest.py confirm --id "+s.id}));
+ return card}
+function suggestionsPanel(){const box=$("suggestions");box.replaceChildren();const all=suggestionsFor(null);
+ $("sug-count").textContent=String(all.length);$("sug-sec").style.display=data&&data.status==="READY"?"block":"none";
+ if(!data)return;
+ if(TOKEN&&data.link_decisions==="ENABLED_LOCAL_TOKEN"){const inp=h("input",{id:"who",type:"text",maxlength:120,placeholder:"Your name (recorded with each decision)",value:who});
+  inp.addEventListener("input",e=>{who=e.target.value;try{localStorage.setItem("ontologyex-decider",who)}catch(_){}});box.append(inp)}
+ if(!all.length)box.append(h("p",{class:"muted",text:"No suggestions. Every binding is linked, rejected, or has no matching name or path."}));
+ for(const s of all.slice(0,30))box.append(suggestionCard(s));
+ const hidden=data.link_suggestions.rejected_not_shown;if(hidden)box.append(h("p",{class:"muted",style:"font-size:11px",text:`${hidden} rejected suggestion(s) hidden.`}))}
+function feedsChip(){const el=$("feeds"),f=data&&data.feeds;if(!f){el.textContent="";return}
+ if(f.status==="LIVE_FEEDS"){const bad=f.failing.length;el.className="feeds "+(bad?"failing":"live");
+  el.textContent=bad?`${bad} of ${f.feeds} feeds failing`:`${f.feeds} live feeds`+(f.generated_at?" · "+ago(f.generated_at):"");
+  el.title=bad?"Failing: "+f.failing.join(", "):"Feeds report through feeds.py"+(f.otlp_listening?"; OTLP on "+f.otlp_listening:"")}
+ else{el.className="feeds none";el.textContent=f.status==="NO_LIVE_FEEDS"?"no live feeds":"feed status unreadable";
+  el.title="Observations come from the --observations file only"}}
+function modelChip(){const el=$("model"),m=data&&data.decision_model;
+ if(m&&m.status==="ON"){el.hidden=false;el.textContent="model: "+m.model;el.title=`Decision model for link routes, review triage and Ask. ${m.calls} calls, ${m.cache_hits} cached. Proposals only.`}else el.hidden=true}
+async function ask(text){const status=$("ask-status");status.textContent="Routing…";
+ try{const r=await fetch("/api/ask?q="+encodeURIComponent(text),{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.status||r.status);
+  const pr=d.probabilities?` (view ${d.probabilities.view.toFixed(2)}, item ${d.probabilities.focus.toFixed(2)}, filter ${d.probabilities.severity.toFixed(2)})`:"";
+  status.textContent=`Routed by ${d.router}${pr}: ${d.view}${d.focus?" · "+d.focus.split(":").slice(-1)[0]:""}${d.severity&&d.severity!=="any"?" · "+(WORD[d.severity]||d.severity):""}`;
+  if(d.view==="system_map"){location.href="/";return}
+  setFilter(d.severity);if(d.focus)select(d.focus);else if(d.view==="overview")select(null);
+  const target={attention:"attention",actions:"list-actions",objects:"list-objects",systems:"list-systems",suggestions:"sug-sec"}[d.view];
+  if(target){const el=$(target);el.scrollIntoView({block:"nearest"});el.animate([{background:"#13283a"},{background:"transparent"}],{duration:900})}}
+ catch(err){status.textContent="Could not route: "+err.message}}
+$("ask-form").addEventListener("submit",e=>{e.preventDefault();const t=$("ask").value.trim();if(t)ask(t.slice(0,200))});
+$("filter").addEventListener("click",()=>setFilter(null));
+function render(){modelChip();feedsChip();if(data)$("mode").textContent=data.link_decisions==="ENABLED_LOCAL_TOKEN"?"READ ONLY EXCEPT LINK DECISIONS":"READ ONLY";IDX=index();if(selected&&!IDX.has(selected))selected=null;kpis();lists();suggestionsPanel();graph();inspector()}
+async function load(){const mine=++epoch;
+ try{const r=await fetch("/api/business",{cache:"no-store"});if(!r.ok)throw new Error(String(r.status));const d=await r.json();
+  if(mine!==epoch)return;data=d;$("pulse").className="pulse";$("asof").textContent="As of "+new Date(d.generated_at).toLocaleTimeString()+" · refresh 5s";render()}
+ catch(err){if(mine!==epoch)return;$("pulse").className="pulse off";$("asof").textContent="Source unavailable · last data kept";if(!data)render()}}
+$("search").addEventListener("input",e=>{query=e.target.value.slice(0,90);render()});
+$("refresh").addEventListener("click",load);
+document.addEventListener("keydown",e=>{if(e.key==="/"&&document.activeElement!==$("search")){e.preventDefault();$("search").focus()}
+ if(e.key==="Escape"){if(document.activeElement===$("search")&&query){$("search").value="";query="";render()}else select(null)}});
+$("stage").addEventListener("click",()=>select(null));
+window.addEventListener("resize",()=>{if(data)graph()});
+try{const hsh=decodeURIComponent(location.hash.slice(1));if(hsh)selected=hsh}catch(_){}
+load();setInterval(load,5000);
+</script></body></html>

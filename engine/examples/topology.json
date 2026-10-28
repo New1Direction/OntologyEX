@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "root_goal_id": "repoing-demo",
+  "version_id": "fixture-1",
+  "nodes": [
+    {
+      "id": "frontend",
+      "kind": "service",
+      "label": "Web UI",
+      "evidence_id": "E-front"
+    },
+    {
+      "id": "api",
+      "kind": "service",
+      "label": "API",
+      "evidence_id": "E-api"
+    },
+    {
+      "id": "db",
+      "kind": "database",
+      "label": "PostgreSQL",
+      "evidence_id": "E-db"
+    }
+  ],
+  "edges": [
+    {
+      "from": "frontend",
+      "to": "api",
+      "kind": "depends_on",
+      "evidence_id": "E-route"
+    },
+    {
+      "from": "api",
+      "to": "db",
+      "kind": "depends_on",
+      "evidence_id": "E-storage"
+    }
+  ]
+}

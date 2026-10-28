@@ -1,0 +1,33 @@
+# OpenTelemetry Collector: forward server traces to the OntologyEX feed receiver.
+# Applications keep exporting to the Collector as usual; nothing in them changes.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4319
+
+processors:
+  batch: {}
+  # Only server spans are used; dropping the rest saves bandwidth.
+  filter/server_spans:
+    error_mode: ignore
+    traces:
+      span:
+        - kind != SPAN_KIND_SERVER
+
+exporters:
+  otlphttp/ontologyex:
+    traces_endpoint: http://127.0.0.1:4318/v1/traces
+    encoding: proto            # json also works
+    compression: gzip
+    headers:
+      Authorization: "Bearer ${env:ONTOLOGYEX_OTLP_TOKEN}"
+
+service:
+  pipelines:
+    traces/ontologyex:
+      receivers: [otlp]
+      processors: [filter/server_spans, batch]
+      exporters: [otlphttp/ontologyex]
