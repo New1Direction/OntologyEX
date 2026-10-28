@@ -1,7 +1,8 @@
 import OntologyEXProofs
 
-/-! Prints the rollup and ladder tables from the proven definitions, in the format
-of tests/conformance.py, so CI can compare them with Python and Rust. -/
+/-! Prints the rollup, ladder, fusion, and feeds tables from the proven definitions, in
+the formats of tests/conformance.py and tests/feeds_conformance.py, so CI can compare
+them with Python and Rust. -/
 
 open OntologyEX.Business
 
@@ -49,10 +50,31 @@ def gradeRow (bits : Nat) : String :=
   "[" ++ natList (f.map (fun b => if b then 1 else 0)) ++ ", \"" ++ gradeName g ++ "\", \"" ++
     reasonName r ++ "\"]"
 
+def statusName : OntologyEX.Feeds.Status → String
+  | .ok => "ok" | .warning => "warning" | .error => "error"
+
+/-- Index 0..24: each of two metrics absent (0) or value 0..3 (1..4). -/
+def metricPairs (i : Nat) : List (Nat × Nat) :=
+  (if i / 5 = 0 then [] else [(0, i / 5 - 1)]) ++ (if i % 5 = 0 then [] else [(1, i % 5 - 1)])
+
+def classifyRows : List String :=
+  (List.range 25).flatMap fun m => (List.range 25).flatMap fun w => (List.range 25).flatMap fun e =>
+    [false, true].map fun d =>
+      "\"" ++ statusName (OntologyEX.Feeds.classify (metricPairs m) (metricPairs w) (metricPairs e) d) ++ "\""
+
+def retainRows : List String :=
+  (List.range 6).flatMap fun n => (seqs 4 n).flatMap fun xs =>
+    [2, 3, 4].map fun k => natList (OntologyEX.Feeds.keepNewest k xs)
+
+def p95Rows : List String :=
+  (List.range 100000).map fun i => toString (OntologyEX.Feeds.p95Index (i + 1))
+
 def main : IO Unit := do
   let rows := (seqs 10 0 ++ seqs 10 1 ++ seqs 10 2 ++ seqs 10 3).map rollupRow
   let grades := (List.range 64).map gradeRow
   let fusion := (seqs 6 0 ++ seqs 6 1 ++ seqs 6 2 ++ seqs 6 3).map fusionRow
   IO.println ("{\"kind\": \"BUSINESS_CONFORMANCE_TABLE\", \"execution_authorized\": false, " ++
     "\"rollup\": [" ++ ", ".intercalate rows ++ "], \"grade\": [" ++
-    ", ".intercalate grades ++ "], \"fusion\": [" ++ ", ".intercalate fusion ++ "]}")
+    ", ".intercalate grades ++ "], \"fusion\": [" ++ ", ".intercalate fusion ++ "], " ++
+    "\"classify\": [" ++ ", ".intercalate classifyRows ++ "], \"retain\": [" ++
+    ", ".intercalate retainRows ++ "], \"p95\": [" ++ ", ".intercalate p95Rows ++ "]}")

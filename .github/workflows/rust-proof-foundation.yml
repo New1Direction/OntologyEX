@@ -16,7 +16,12 @@ on:
       - 'ontology-extraction/scripts/feeds.py'
       - 'proofs/bend/**'
       - 'tests/conformance.py'
+      - 'tests/feeds_conformance.py'
       - 'tests/rust_business_parity.py'
+      - 'tests/rust_discover_parity.py'
+      - 'tests/rust_feeds_parity.py'
+      - 'tests/test_feeds.py'
+      - 'ontology-extraction/scripts/discover_repo.py'
       - '.github/workflows/rust-proof-foundation.yml'
   push:
     branches: [main]
@@ -39,14 +44,14 @@ jobs:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
       - name: Test core and deny warnings
-        run: RUSTFLAGS='-D warnings' cargo test --manifest-path engine/Cargo.toml --all-targets
+        run: RUSTFLAGS='-D warnings' cargo test --locked --manifest-path engine/Cargo.toml --all-targets
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.11'
       - name: Install existing scanner dependency
         run: python -m pip install 'PyYAML==6.0.3'
-      - name: Compile native source-view CLI
-        run: cargo build --manifest-path engine/Cargo.toml --bin ontologyex-view
+      - name: Compile the native CLIs
+        run: cargo build --locked --manifest-path engine/Cargo.toml --bins
       - name: Verify Rust/Python graph projection parity
         run: python tests/rust_view_parity.py
       - name: Verify native incident timeline and trust parity
@@ -55,6 +60,16 @@ jobs:
         run: python tests/rust_http_smoke.py
       - name: Verify Rust link matcher, rollup and grade ladder against Python
         run: python tests/rust_business_parity.py
+      - name: Verify Rust discovery is byte-identical to Python (edge cases and seeded mutations)
+        run: python tests/rust_discover_parity.py engine/target/debug/ontologyex-discover --seeds 1000
+      - name: Verify the Rust feeds service against Python (config, decoding, window, store, HTTP)
+        run: python tests/rust_feeds_parity.py engine/target/debug/ontologyex-feeds --seeds 600
+      - name: Compare the Rust feeds kernels with Python (classification, retention, p95)
+        run: |
+          engine/target/debug/ontologyex-feeds conformance > "$RUNNER_TEMP/feeds-table.json"
+          python tests/feeds_conformance.py check "$RUNNER_TEMP/feeds-table.json"
+      - name: Verify the control room reads native discovery like Python discovery
+        run: python -m unittest tests.test_native_view_bridge -v
       - name: Static graph-to-status fixture
         run: |
           cargo run --manifest-path engine/Cargo.toml --quiet --bin ontologyex-core --             engine/examples/topology.json engine/examples/observations.jsonl 2000 > /tmp/ontologyex-state.json
@@ -83,7 +98,9 @@ jobs:
           lake build conformance
           .lake/build/bin/conformance > "$RUNNER_TEMP/lean-table.json"
       - name: Compare the Lean tables with the Python reference
-        run: python tests/conformance.py check "$RUNNER_TEMP/lean-table.json"
+        run: |
+          python tests/conformance.py check "$RUNNER_TEMP/lean-table.json"
+          python tests/feeds_conformance.py check "$RUNNER_TEMP/lean-table.json"
   bend-laws:
     runs-on: ubuntu-latest
     timeout-minutes: 10

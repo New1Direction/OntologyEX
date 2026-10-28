@@ -160,6 +160,57 @@ class FeedTests(unittest.TestCase):
             with self.subTest(sections=sections), self.assertRaises(feeds.FeedError):
                 feeds.load_config(write_config(self.root, **sections))
 
+    def test_url_rules_are_strict_and_portable(self):
+        hosts = {"127.0.0.1", "api.internal", "::1", "0x7f.1"}
+        for url in ["http://api.internal/healthz", "HTTPS://API.internal:8443/x?y=1", "http://[::1]:9090/",
+                    "http://127.0.0.1:0080/"]:
+            with self.subTest(url=url):
+                self.assertEqual(feeds._url(url, hosts, "t"), url)
+        for url in ["http://api.internal/#x", "http://api.internal/ x", "http://api.internal/é",
+                    "http://api.internal:8a/", "http://api.internal:70000/", "http://[127.0.0.1]/",
+                    "http://[fe80::1%25eth0]/", "http://0x7f.1/", "http://127.000.0.1/", "http://api.internal/a[b]",
+                    "http:api.internal/", "http://[::1"]:
+            with self.subTest(url=url), self.assertRaises(feeds.FeedError):
+                feeds._url(url, hosts, "t")
+
+    def test_otlp_bind_must_be_a_plain_address(self):
+        for bind in ["127.0.0.1%1", 2130706433, "localhost", "::ffff:127.0.0.1"]:
+            with self.subTest(bind=bind), self.assertRaises(feeds.FeedError):
+                feeds.load_config(write_config(self.root, otlp={"bind": bind, "services": {"payments": PAYMENTS}}))
+        config = feeds.load_config(write_config(self.root, otlp={"bind": "::1", "services": {"payments": PAYMENTS}}))
+        self.assertEqual(config["otlp"]["bind"], "::1")
+
+    def test_config_json_is_strict(self):
+        path = self.root / "feeds.json"
+        for raw in [b"\xff\xfe{}", '{"schema_version": 1, "kind": "ONTOLOGYEX_FEEDS", "output": "o.jsonl", '
+                    '"probes": [], "x": NaN}'.encode(), b'{"schema_version": 1, "schema_version": 1}']:
+            path.write_bytes(raw)
+            with self.subTest(raw=raw), self.assertRaises(feeds.FeedError):
+                feeds.load_config(path)
+
+    def test_decode_request_is_strict(self):
+        proto = proto_request("payments", [(2, 0, 1)])
+        self.assertEqual(feeds.decode_request(proto, "application/x-protobuf", "")[0], 201)
+        self.assertEqual(feeds.decode_request(gzip.compress(proto)[:-4], "application/x-protobuf", "gzip")[0], 400)
+        self.assertEqual(feeds.decode_request(gzip.compress(proto) + b"x", "application/x-protobuf", "gzip")[0], 201)
+        for body in [b'{"resourceSpans": [5]}', b'{"resourceSpans": [{"scopeSpans": [{"spans": [{"kind": 2.0}]}]}]}',
+                     b'{"resourceSpans": [{"scopeSpans": [{"spans": [{"startTimeUnixNano": "-1"}]}]}]}',
+                     b'{"resourceSpans": [], "x": 1e400}', b'{"resourceSpans": [], "x": "\\ud800"}',
+                     b'{"resourceSpans": []' + b', "x": ' + b"[" * 64 + b"]" * 64 + b"}"]:
+            with self.subTest(body=body[:60]):
+                self.assertEqual(feeds.decode_request(body, "application/json", ""), (400, []))
+
+    def test_prometheus_numbers_are_strings_in_prometheus_format(self):
+        good = {"status": "success", "data": {"resultType": "scalar", "result": [1, "2.5"]}}
+        self.assertEqual(feeds.prometheus_number(json.dumps(good).encode()), 2.5)
+        for value in [2.5, " 1", "1_0", "NaN", "+Inf"]:
+            body = {"status": "success", "data": {"resultType": "scalar", "result": [1, value]}}
+            with self.subTest(value=value), self.assertRaises(feeds.FeedError):
+                feeds.prometheus_number(json.dumps(body).encode())
+        for raw in [b"[]", b"null", b'{"status": "success", "data": []}']:
+            with self.subTest(raw=raw), self.assertRaises(feeds.FeedError):
+                feeds.prometheus_number(raw)
+
     def test_non_loopback_otlp_is_allowed_with_a_token(self):
         config = feeds.load_config(write_config(self.root, otlp={
             "bind": "0.0.0.0", "token_env": "OTLP_TOKEN", "services": {"payments": PAYMENTS}}))
@@ -286,6 +337,15 @@ class FeedTests(unittest.TestCase):
                                    "application/x-protobuf", auth), 404)
         self.assertEqual(self.post(url, body, "application/x-protobuf", auth), 200)
         self.assertEqual(window.accepted, 1)
+
+    def test_otlp_token_compare_survives_non_ascii_headers(self):
+        _, url = self.otlp_server(token="t0ken")
+        body = proto_request("payments", [(2, 0, 1)])
+        request = urllib.request.Request(url, data=body, method="POST", headers={
+            "Content-Type": "application/x-protobuf", "Authorization": "Bearer t\xf6ken"})
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(request, timeout=5)
+        self.assertEqual(caught.exception.code, 401)
 
     def test_otlp_window_needs_traffic_and_expires(self):
         window = feeds.SpanWindow({"services": {"payments": PAYMENTS}, "min_requests": 2,
