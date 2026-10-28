@@ -1,0 +1,48 @@
+name: Native Rust Graph API Integration
+on:
+  pull_request:
+    paths:
+      - 'engine/python/**'
+      - 'engine/src/view.rs'
+      - 'ontology-extraction/scripts/graph_view_api.py'
+      - 'ontology-extraction/scripts/control_room.py'
+      - 'tests/rust_view_extension_parity.py'
+      - 'tests/rust_view_parity.py'
+      - 'tests/layout_browser_smoke.py'
+      - '.github/workflows/rust-native-view.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'engine/python/**'
+      - 'ontology-extraction/scripts/graph_view_api.py'
+      - '.github/workflows/rust-native-view.yml'
+permissions:
+  contents: read
+jobs:
+  in-process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install test tooling
+        run: python -m pip install 'maturin==1.9.6' 'PyYAML==6.0.3' 'selenium==4.35.0'
+      - name: Compile native Rust PyO3 ABI3 wheel
+        run: maturin build --release --manifest-path engine/python/Cargo.toml -o "$RUNNER_TEMP/native-wheels"
+      - name: Install compiled local native view
+        run: python -m pip install "$RUNNER_TEMP"/native-wheels/*.whl
+      - name: Verify native cross-language equivalence
+        run: python tests/rust_view_extension_parity.py
+      - name: Real browser on opt-in native Rust query backend
+        env:
+          ONTOLOGYEX_VIEW_BACKEND: rust
+        run: python tests/layout_browser_smoke.py
