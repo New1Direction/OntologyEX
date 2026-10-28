@@ -936,7 +936,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 except (graph_view_api.ViewError, incident_view.IncidentError, ValueError, UnicodeError):
                     payload, code = b'{"status":"INVALID_QUERY"}', 400
                 except (RoomError, discover_repo.DiscoveryError, github_discovery.GitHubDiscoveryError,
-                        OSError, TypeError):
+                        OSError, TypeError, RuntimeError):
                     payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
             else:
                 payload, mime, code = b"Not found", "text/plain", 404
