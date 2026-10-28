@@ -39,6 +39,8 @@ class GraphViewTests(unittest.TestCase):
 
     def test_page_is_bounded_and_contains_only_referenced_evidence(self):
         p=api.page(self.full)
+        self.assertEqual(p["summary"],api.summary(self.full))
+        self.assertNotIn("nodes",p["summary"])
         self.assertLessEqual(len(p["nodes"]),90)
         self.assertLessEqual(len(p["edges"]),300)
         ids={n["id"] for n in p["nodes"]}
