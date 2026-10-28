@@ -162,7 +162,10 @@ python ontology-extraction/scripts/dependency_suggest.py confirm --repo REPO \
   --calls observations.calls.json --dependencies dependencies.json --id ID --by "Your Name"
 ```
 
-Each decision records who made it (not verified) and the evidence at that moment.
+Pick several on the page (or pass `--id` more than once) to decide them together, and
+use **Undo** (or `dependency_suggest.py undo --id ID`) to take a decision back. Each
+decision records who made it (not verified) and the evidence at that moment, and
+every change is logged to `dependencies.history.jsonl`.
 Strength is by count (STRONG from 20 calls, MODERATE from 5), not a probability. A call
 seen is evidence, not proof that one service needs the other: a retry, a health check,
 or a one-off job looks the same, which is why a person decides.

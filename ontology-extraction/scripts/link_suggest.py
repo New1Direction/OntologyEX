@@ -10,15 +10,14 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from pathlib import Path, PurePosixPath
 import re
-import tempfile
 
 import business_view
+import decisions
 import decide as decision_model
 import evidence_grade
-from policy_check import DomainError, MAX_TOTAL, canonical, digest, parse_json, require, safe_file
+from policy_check import DomainError, require
 
 KINDS = ("declared_service", "source_module", "api_route", "declared_db_table")
 STRENGTH = ("STRONG", "MODERATE", "WEAK")
@@ -85,7 +84,7 @@ def prepare(skills: list[Path], state: dict, links: list[dict], rejected: list[d
 
 
 def suggestion_id(skill: str, binding: str, component: str) -> str:
-    return digest(canonical([skill, binding, component]))[:24]
+    return decisions.decision_id(skill, binding, component)
 
 
 def suggest_from(data: dict) -> dict:
@@ -239,55 +238,30 @@ def suggest(skills: list[Path], state: dict, links: list[dict], rejected: list[d
             "model_assist": {**decision_model.describe(client), "routes_proposed": len(routes)}}
 
 
-def replace_checked(target: Path, data: bytes, before: bytes | None, name: str) -> None:
-    """Write a decisions file atomically, refusing if it changed since it was read."""
-    require(len(data) <= MAX_TOTAL, f"{name} byte budget exceeded")
-    target.parent.mkdir(parents=True, exist_ok=True)
-    temporary = None
-    try:
-        with tempfile.NamedTemporaryFile(dir=target.parent, prefix=f".{name}-", delete=False) as handle:
-            temporary = Path(handle.name)
-            handle.write(data)
-            handle.flush()
-            os.fsync(handle.fileno())
-        now = safe_file(target.parent, target.name, MAX_TOTAL) if target.exists() else None
-        require(now == before, f"{name} file changed during write")
-        temporary.replace(target)
-        temporary = None
-    finally:
-        if temporary is not None and temporary.exists():
-            temporary.unlink()
+def link_key(row: dict) -> tuple[str, str, str]:
+    return (row["skill"], row["binding"], row["component"])
+
+
+def apply_decisions(links_path: Path, by: str, note: str = "", confirm: list[dict] = (),
+                    reject: list[dict] = (), undo: list[str] = ()) -> dict:
+    """Confirm or reject proposed suggestions and undo decided links, in one atomic write."""
+    for suggestion in (*confirm, *reject):
+        require(suggestion.get("status") == "PROPOSED", "only a proposed suggestion can be decided")
+    row = lambda s: {"skill": s["skill"], "binding": s["binding"], "component": s["component"]}
+    return decisions.apply(links_path, read=business_view.read_link_document, kind=business_view.LINK_KIND,
+                           confirmed_field="links", key=link_key, name="links",
+                           max_rows=business_view.MAX_LINKS, by=by, note=note,
+                           confirm=[row(s) for s in confirm], reject=[row(s) for s in reject], undo=list(undo))
 
 
 def decide(links_path: Path, suggestion: dict, decision: str, by: str, note: str = "") -> dict:
-    """Append one confirmed link or one rejection. Atomic, append-only, idempotent."""
+    """Append one confirmed link or one rejection. Atomic and idempotent."""
     require(decision in ("confirm", "reject"), "decision must be confirm or reject")
-    require(type(by) is str and 0 < len(by.strip()) <= 120, "a decision needs the deciding person")
-    require(type(note) is str and len(note) <= 500, "invalid note")
-    require(suggestion.get("status") == "PROPOSED", "only a proposed suggestion can be decided")
-    target = links_path.absolute()
-    if target.exists():
-        before = safe_file(target.parent, target.name, MAX_TOTAL)
-        links, rejected = business_view.read_link_document(target)
-    else:
-        before, links, rejected = None, [], []
-    row = {"skill": suggestion["skill"], "binding": suggestion["binding"],
-           "component": suggestion["component"], "declared_by": by.strip(), "note": note}
-    key = (row["skill"], row["binding"], row["component"])
-    existing = {(r["skill"], r["binding"], r["component"]) for r in links + rejected}
-    if key in existing:
-        return {"status": "UNCHANGED", "decision": decision, "link": row}
-    if decision == "confirm":
-        links = [*links, row]
-    else:
-        rejected = [*rejected, row]
-    document = {"schema_version": 1, "kind": business_view.LINK_KIND, "links": links}
-    if rejected:
-        document["rejected"] = rejected
-    replace_checked(target, canonical(document), before, "links")
-    business_view.read_link_document(target)  # the written file must load back
+    result = apply_decisions(links_path, by, note, **{decision: [suggestion]})
+    if not result["applied"]:
+        return {"status": "UNCHANGED", "decision": decision, "link": result["unchanged"][0]}
     return {"status": "CONFIRMED" if decision == "confirm" else "REJECTED",
-            "decision": decision, "link": row, "authenticated": False}
+            "decision": decision, "link": result["applied"][0]["row"], "authenticated": False}
 
 
 def main() -> int:
@@ -296,7 +270,7 @@ def main() -> int:
 
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("suggest", "confirm", "reject"):
+    for name in ("suggest", "confirm", "reject", "undo"):
         p = commands.add_parser(name)
         p.add_argument("--repo", type=Path, required=True)
         p.add_argument("--skill", type=Path, action="append", required=True)
@@ -304,9 +278,12 @@ def main() -> int:
         p.add_argument("--model-assist", action="store_true",
                        help="also ask the configured decision model (sends binding source to it)")
         if name != "suggest":
-            p.add_argument("--id", required=True, help="suggestion ID from `suggest`")
+            p.add_argument("--id", action="append", default=[],
+                           help="suggestion ID from `suggest` (or, for undo, a decided link's ID); repeatable")
             p.add_argument("--by", required=True, help="who decided (not verified)")
             p.add_argument("--note", default="")
+        if name in ("confirm", "reject"):
+            p.add_argument("--all-strong", action="store_true", help="decide every STRONG suggestion")
     args = parser.parse_args()
     try:
         state = control_room.build_state(discover_repo.discover(args.repo), [], {})
@@ -314,10 +291,14 @@ def main() -> int:
                            if args.links.exists() else ([], []))
         client = decision_model.DecisionClient() if args.model_assist else None
         result = suggest(args.skill, state, links, rejected, client=client)
-        if args.command != "suggest":
-            match = [s for s in result["suggestions"] if s["id"] == args.id]
-            require(len(match) == 1, "no current suggestion has that ID; run suggest again")
-            result = decide(args.links, match[0], args.command, args.by, args.note)
+        if args.command == "undo":
+            require(args.id, "pass --id for each decided link to undo (see `suggest`'s decided list)")
+            result = apply_decisions(args.links, args.by, args.note, undo=args.id)
+        elif args.command != "suggest":
+            chosen = decisions.select(result["suggestions"], args.id, args.all_strong)
+            result = apply_decisions(args.links, args.by, args.note, **{args.command: chosen})
+        else:
+            result["decided"] = decisions.decided(links, rejected, link_key)
         print(json.dumps(result, sort_keys=True, indent=2))
         return 0
     except (DomainError, decision_model.DecisionError, OSError, ValueError, KeyError, TypeError) as exc:

@@ -26,9 +26,13 @@ python "$SKILL_ROOT/scripts/link_suggest.py" reject  --repo REPO --skill SKILL -
 ```
 
 Show the user each suggestion with its signals and let them choose. Never run
-`confirm` or `reject` for a suggestion the user did not decide. To let the user
-click Confirm/Reject in the page instead, add `--links links.json
---allow-link-decisions` to `control_room.py`.
+`confirm` or `reject` for a suggestion the user did not decide. When they decide
+several, pass `--id` once per suggestion (one atomic write); use `--all-strong` only
+when they asked for every STRONG suggestion. If they change their mind, `undo --id
+DECIDED_ID --by NAME` removes a decision (`suggest` lists decided rows with their
+IDs). To let the user click Confirm/Reject (one at a time or selected together, with
+Undo) in the page instead, add `--links links.json --allow-link-decisions` to
+`control_room.py`.
 
 ## 3. Add live health (optional)
 
@@ -78,6 +82,9 @@ python "$SKILL_ROOT/scripts/dependency_suggest.py" suggest --repo REPO \
 python "$SKILL_ROOT/scripts/dependency_suggest.py" confirm --repo REPO \
   --calls OBSERVATIONS.calls.json --dependencies dependencies.json --id ID --by "THEIR NAME"
 ```
+
+`--id` repeats, `--all-strong` and `undo` work as for links, under the same rule:
+only what the user decided.
 
 A confirmed dependency becomes a CALLS edge in the map and carries possible impact
 like a declared `depends_on`. `operate.py up` passes `dependencies.json` beside
