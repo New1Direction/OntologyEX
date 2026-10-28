@@ -170,7 +170,10 @@ Live health comes from real telemetry: `feeds.py` receives OpenTelemetry traces 
 polls Prometheus and HTTP health checks (`python examples/operating-picture/live.py`).
 For your own repository, `feed_setup.py propose` lists the feeds its compose files
 declare, with the line for each; you accept the ones to watch, and `operate.py up`
-starts the feeds and the business screen together. See [live feeds](docs/live-feeds.md).
+starts the feeds and the business screen together. When services send traces, calls
+between them that the repository does not declare show up as suggested dependencies;
+a confirmed one carries possible impact on the map like a declared one. See
+[live feeds](docs/live-feeds.md).
 
 The same jobs also run on an optional Rust engine: live feeds with about 18× the
 trace throughput in a fifth of the memory, and repository discovery about 15× faster,

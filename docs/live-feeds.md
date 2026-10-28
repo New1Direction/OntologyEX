@@ -120,8 +120,52 @@ export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer%20${ONTOLOGYEX_OTLP_TOKE
 ```
 
 Or through an existing Collector: `examples/feeds/otelcol.yaml` adds a pipeline that
-forwards server spans with the `otlphttp` exporter. `service.name` must match a key in
-`otlp.services`; other services are counted in the status file as unmapped and ignored.
+forwards the spans of calls between services (server, client, producer, consumer) with
+the `otlphttp` exporter. `service.name` must match a key in `otlp.services`; other
+services are counted in the status file as unmapped and left out of health.
+
+### Calls between services become suggested dependencies
+
+When a client span in one service is the parent of a server span in another (the same
+trace, which is what OpenTelemetry's context propagation produces for every HTTP or
+gRPC call), the feeds count one call from the first service to the second. Producer
+and consumer spans pair the same way for messaging. The counts per service pair go to
+`observations.calls.json` beside the observations, with first and last seen, and
+survive restarts.
+
+The business page lists each call the repository does not already declare as a
+suggested dependency, with how often it was seen and how many calls failed:
+
+```text
+checkout → payments    STRONG
+Called 1,240 times in traces, 3 failed · last seen 2m ago
+```
+
+Confirm it and the system map shows a violet arrow from checkout to payments, and a
+failing payments marks checkout (and whatever depends on it) **possibly impacted**,
+exactly like a declared `depends_on`. Reject it and it is not suggested again. Calls
+the repository already declares are counted as corroborated; calls from services not
+in `otlp.services` are listed so you can map them.
+
+```bash
+python ontology-extraction/scripts/operate.py up --repo /path/to/repo --feeds feeds.json --allow-link-decisions
+```
+
+`operate.py` keeps decisions in `dependencies.json` beside `feeds.json` (change it with
+`--dependencies`). Without `--allow-link-decisions` the page is read-only and offers the
+command instead; with the control room alone, pass `--dependencies FILE` and run:
+
+```bash
+python ontology-extraction/scripts/dependency_suggest.py suggest --repo REPO \
+  --calls observations.calls.json --dependencies dependencies.json
+python ontology-extraction/scripts/dependency_suggest.py confirm --repo REPO \
+  --calls observations.calls.json --dependencies dependencies.json --id ID --by "Your Name"
+```
+
+Each decision records who made it (not verified) and the evidence at that moment.
+Strength is by count (STRONG from 20 calls, MODERATE from 5), not a probability. A call
+seen is evidence, not proof that one service needs the other: a retry, a health check,
+or a one-off job looks the same, which is why a person decides.
 
 ### Writing Prometheus queries
 
@@ -138,6 +182,9 @@ no sample, and the feed is marked failing in the status file.
   feed that goes quiet turns its component **STALE**, then **UNKNOWN**, never ok.
 - **Low traffic.** OTLP needs at least `min_requests` server spans in the window;
   otherwise it reports nothing rather than guessing.
+- **Calls.** A half of a call waits one window (`window_seconds`) for the other half,
+  at most 100,000 halves per side; at most 1,024 service pairs are counted. What does
+  not fit is counted as dropped, never guessed. Calls within one service are not edges.
 - **Several sources for one component** combine by severity: each source's newest
   sample counts while fresh, and the worst fresh status is shown. An ok from one feed
   cannot hide an error from another, and line order never matters. A source that
@@ -154,15 +201,17 @@ no sample, and the feed is marked failing in the status file.
   credentials in URLs, no redirects, no proxies, a timeout, and a 1 MB response cap.
 - The OTLP receiver binds to loopback by default. A non-loopback bind requires a bearer
   token. Bodies are capped at 4 MB (16 MB after gzip). Only `/v1/traces` is accepted.
-- Only span kind, status code, duration, and `service.name` are read. Span names,
-  attributes, events, and payloads are not stored.
+- Only span kind, status code, duration, trace, span and parent IDs, and
+  `service.name` are read. IDs wait in memory for one window to pair a call, then are
+  dropped; only the per-service-pair counts are written. Span names, attributes,
+  events, and payloads are not stored.
 - Telemetry is **source-reported**: a 200 from a health check is one answer, not proof
   of health. Nothing here changes or repairs a system.
 
 ## Tests
 
 ```bash
-python -m unittest tests.test_feeds -v
+python -m unittest tests.test_feeds tests.test_dependency_suggest -v
 ```
 
 These run against real local HTTP servers: a health endpoint, a Prometheus-shaped API,

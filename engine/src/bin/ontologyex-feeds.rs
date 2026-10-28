@@ -9,7 +9,8 @@
 //!
 //! Diagnostics (pure functions, used by the parity tests):
 //!   validate --config C | decode --content-type T --content-encoding E < BODY |
-//!   prom-value < BODY | window-replay < SCENARIO | store-add --output F --keep K < ROWS
+//!   prom-value < BODY | window-replay < SCENARIO | store-add --output F --keep K < ROWS |
+//!   calls-replay [--path CALLS.json] < STEPS
 use chrono::DateTime;
 use ontologyex_core::feeds::{self, Otlp, SpanWindow};
 use ontologyex_core::feeds_net::Runner;
@@ -51,13 +52,40 @@ fn window_replay(input: &Value) -> Result<Value, String> {
             emitted.push(json!(rows));
         } else {
             let spans: Vec<feeds::Span> = step["spans"].as_array().ok_or("spans")?.iter().map(|s| {
-                (s[0].as_str().unwrap_or("").to_string(), s[1].as_u64().unwrap_or(0) as u128,
-                 s[2].as_u64().unwrap_or(0) as u128, s[3].as_f64().unwrap_or(0.0))
+                let text = |i: usize| s.get(i).and_then(Value::as_str).unwrap_or("").to_string();
+                (text(0), s[1].as_u64().unwrap_or(0) as u128, s[2].as_u64().unwrap_or(0) as u128,
+                 s[3].as_f64().unwrap_or(0.0), text(4), text(5), text(6))
             }).collect();
             window.ingest(&spans, at);
         }
     }
-    Ok(json!({"emitted": emitted, "accepted": window.accepted, "unmapped": window.unmapped}))
+    Ok(json!({"emitted": emitted, "accepted": window.accepted, "unmapped": window.unmapped,
+              "calls": window.call_counts(), "pending": [window.callers.len(), window.callees.len()],
+              "calls_dropped": window.calls_dropped}))
+}
+
+fn pairs(value: &Value) -> Result<Vec<(String, String, u64, u64)>, String> {
+    value.as_array().ok_or("expected [[caller, callee, calls, errors], ...]")?.iter().map(|r| {
+        Ok((r[0].as_str().ok_or("caller")?.to_owned(), r[1].as_str().ok_or("callee")?.to_owned(),
+            r[2].as_u64().ok_or("calls")?, r[3].as_u64().ok_or("errors")?))
+    }).collect()
+}
+
+/// `feeds.read_calls` on --path, then `merge_calls` and `calls_document` for each step.
+fn calls_replay(input: &Value, path: Option<&Path>) -> Result<Value, String> {
+    let mut totals = match path {
+        Some(p) => feeds::read_calls(p)?,
+        None => feeds::CallTotals::new(),
+    };
+    let services: BTreeMap<String, String> = serde_json::from_value(input["services"].clone()).map_err(|e| e.to_string())?;
+    let mut seen = BTreeMap::new();
+    let mut documents = Vec::new();
+    for step in input["steps"].as_array().ok_or("steps")? {
+        let moment = DateTime::from_timestamp(step["moment"].as_i64().ok_or("moment")?, 0).ok_or("bad moment")?;
+        feeds::merge_calls(&mut totals, &mut seen, &pairs(&step["current"])?, moment);
+        documents.push(feeds::calls_document(&totals, &services, moment));
+    }
+    Ok(json!({"documents": documents}))
 }
 
 fn run() -> Result<i32, String> {
@@ -83,14 +111,14 @@ fn run() -> Result<i32, String> {
                 }
                 "once" => {
                     let output = config.output.to_string_lossy().into_owned();
-                    let mut runner = Runner::new(config);
+                    let mut runner = Runner::new(config)?;
                     let written = runner.poll_once()?;
                     println!("{{\n  \"written\": {written},\n  \"output\": {},\n  \"feeds\": {}\n}}",
                              pyjson::dumps(&Value::String(output), None, true), runner.status.ordered_json(1));
                 }
                 _ => {
                     println!("OntologyEX feeds writing {}", config.output.display());
-                    let mut runner = Runner::new(config);
+                    let mut runner = Runner::new(config)?;
                     if runner.window.is_some() {
                         println!("OTLP/HTTP traces: http://{}/v1/traces", runner.start_otlp()?);
                     }
@@ -102,7 +130,10 @@ fn run() -> Result<i32, String> {
         "decode" => {
             let (code, spans) = feeds::decode_request(&stdin()?, &option(&args, "--content-type").unwrap_or_default(),
                                                       &option(&args, "--content-encoding").unwrap_or_default());
-            let spans: Vec<Value> = spans.iter().map(|(s, k, c, d)| json!([s, *k == feeds::SERVER_KIND, *c == feeds::ERROR_CODE, d])).collect();
+            let spans: Vec<Value> = spans.iter().map(|(s, k, c, d, t, i, p)| {
+                let kind = if *k <= 5 { *k as i64 } else { -1 };
+                json!([s, kind, *c == feeds::ERROR_CODE, d, t, i, p])
+            }).collect();
             println!("{}", pyjson::dumps(&json!({"code": code, "spans": spans}), None, true));
             Ok(0)
         }
@@ -117,6 +148,12 @@ fn run() -> Result<i32, String> {
         "window-replay" => {
             let input: Value = serde_json::from_slice(&stdin()?).map_err(|e| e.to_string())?;
             println!("{}", pyjson::dumps(&window_replay(&input)?, None, true));
+            Ok(0)
+        }
+        "calls-replay" => {
+            let input: Value = serde_json::from_slice(&stdin()?).map_err(|e| e.to_string())?;
+            let path = option(&args, "--path").ok().map(PathBuf::from);
+            println!("{}", pyjson::dumps(&calls_replay(&input, path.as_deref())?, None, true));
             Ok(0)
         }
         "conformance" => {

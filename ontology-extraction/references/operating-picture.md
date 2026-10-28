@@ -66,6 +66,23 @@ python "$SKILL_ROOT/scripts/control_room.py" --repo REPO --skill SKILL --links l
 
 Health is what linked systems report. It never proves that an action works.
 
+When services send traces, the feeds also count calls between them (a client span
+in one service and the server span it caused in another). The business page lists
+each call the repository does not declare as a suggested dependency, with counts
+and first and last seen. Show these to the user like link suggestions; never
+confirm one for them. A call can be a retry, a health check, or a one-off job.
+
+```bash
+python "$SKILL_ROOT/scripts/dependency_suggest.py" suggest --repo REPO \
+  --calls OBSERVATIONS.calls.json --dependencies dependencies.json
+python "$SKILL_ROOT/scripts/dependency_suggest.py" confirm --repo REPO \
+  --calls OBSERVATIONS.calls.json --dependencies dependencies.json --id ID --by "THEIR NAME"
+```
+
+A confirmed dependency becomes a CALLS edge in the map and carries possible impact
+like a declared `depends_on`. `operate.py up` passes `dependencies.json` beside
+`feeds.json`; with `control_room.py`, pass `--dependencies`.
+
 For more traffic, `ontologyex-feeds run --config feeds.json` does the same job in
 Rust with the same files. If the user agrees to download it,
 `python "$SKILL_ROOT/scripts/fetch_engine.py"` installs the prebuilt binaries into

@@ -8,7 +8,7 @@
 use crate::pyjson::{self, as_int, as_number, py_round};
 use chrono::{DateTime, Datelike, Duration as ChronoDuration, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use serde_json::{json, Map, Value};
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::fs;
 use std::io::{Read, Write};
 use std::net::Ipv6Addr;
@@ -164,6 +164,11 @@ pub fn component_ok(id: &str) -> bool {
     let kind_len = rest.bytes().take_while(|b| b.is_ascii_lowercase() || *b == b'_').count();
     // [a-z_]+ is greedy but the tail may also hold [a-z_:]: try every split.
     (1..=kind_len).any(|i| rest.as_bytes().get(i) == Some(&b':') && tail_ok(&rest[i + 1..]))
+}
+
+/// `feeds.SERVICE.fullmatch`: a plain service.name.
+pub fn service_ok(name: &str) -> bool {
+    (1..=200).contains(&name.len()) && name.bytes().all(|b| b.is_ascii_alphanumeric() || b"_.:/@-".contains(&b))
 }
 
 fn component(value: Option<&Value>, where_: &str) -> Res<String> {
@@ -395,8 +400,7 @@ pub fn load_config(path: &Path) -> Res<Config> {
         let services_map = o["services"].as_object().filter(|s| (1..=MAX_TARGETS).contains(&s.len())).ok_or("invalid otlp.services")?;
         let mut services = BTreeMap::new();
         for (name, comp) in services_map {
-            check((1..=200).contains(&name.len()) && name.bytes().all(|b| b.is_ascii_alphanumeric() || b"_.:/@-".contains(&b)),
-                  format!("otlp.services: invalid service.name {name:?}"))?;
+            check(service_ok(name), format!("otlp.services: invalid service.name {name:?}"))?;
             services.insert(name.clone(), component(Some(comp), &format!("otlp.services[{name}]"))?);
         }
         let window = seconds(o.get("window_seconds"), 60, 10, 3600, "otlp.window_seconds")?;
@@ -439,6 +443,10 @@ impl Config {
 
     pub fn status_path(&self) -> PathBuf {
         self.output.with_extension("status.json")
+    }
+
+    pub fn calls_path(&self) -> PathBuf {
+        self.output.with_extension("calls.json")
     }
 }
 
@@ -783,9 +791,17 @@ fn index(value: &Value, i: usize) -> Res<Value> {
 
 pub const SERVER_KIND: u128 = 2;
 pub const ERROR_CODE: u128 = 2;
+const CALLER_KINDS: [u128; 2] = [3, 4]; // CLIENT, PRODUCER
+const CALLEE_KINDS: [u128; 2] = [2, 5]; // SERVER, CONSUMER
+pub const MAX_PENDING_CALLS: usize = 100_000;
+pub const MAX_CALL_PAIRS: usize = 1024;
+pub const MAX_CALLS_BYTES: usize = 1024 * 1024;
+pub const MAX_COUNT: u64 = (1 << 63) - 1;
+pub const CALLS_KIND: &str = "ONTOLOGYEX_OBSERVED_CALLS";
 
-/// (service.name, kind, status code, duration ms); kind and code are wide like Python ints.
-pub type Span = (String, u128, u128, f64);
+/// (service.name, kind, status code, duration ms, trace ID, span ID, parent span ID);
+/// kind and code are wide like Python ints, IDs are lowercase hex or empty.
+pub type Span = (String, u128, u128, f64, String, String, String);
 
 enum Field<'a> {
     Varint(u128),
@@ -866,6 +882,14 @@ fn first_fixed64(fields: &[(u128, Field)], number: u128) -> u64 {
     }).unwrap_or(0)
 }
 
+/// `feeds._proto_id`: the first bytes field `number` as hex if it is `size` bytes and not all zero.
+fn proto_id(fields: &[(u128, Field)], number: u128, size: usize) -> String {
+    match sub(fields, number).first() {
+        Some(raw) if raw.len() == size && raw.iter().any(|b| *b != 0) => raw.iter().map(|b| format!("{b:02x}")).collect(),
+        _ => String::new(),
+    }
+}
+
 fn duration_ms(start: u64, end: u64) -> f64 {
     if end > start { (end - start) as f64 / 1e6 } else { 0.0 }
 }
@@ -898,7 +922,8 @@ pub fn spans_from_protobuf(body: &[u8]) -> Res<Vec<Span>> {
                 for status in sub(&sf, 15) {
                     code = first_varint(&proto_fields(status)?, 3);
                 }
-                out.push((service.clone(), kind, code, duration_ms(start, end)));
+                out.push((service.clone(), kind, code, duration_ms(start, end),
+                          proto_id(&sf, 1, 16), proto_id(&sf, 2, 8), proto_id(&sf, 4, 8)));
             }
         }
     }
@@ -945,6 +970,13 @@ fn enum_field(value: &Value, key: &str, names: &[(&str, u128)]) -> Res<u128> {
     }
 }
 
+/// `feeds._json_id`: a hex ID string of `size` bytes, not all zero, lowercased; else empty.
+fn json_id(span: &Value, key: &str, size: usize) -> Res<String> {
+    let text = string_field(span, key)?;
+    let valid = text.len() == 2 * size && text.bytes().all(|b| b.is_ascii_hexdigit()) && text.bytes().any(|b| b != b'0');
+    Ok(if valid { text.to_ascii_lowercase() } else { String::new() })
+}
+
 fn nanos(value: Option<&Value>) -> Res<u64> {
     match value {
         None => Ok(0),
@@ -978,11 +1010,108 @@ pub fn spans_from_json(body: &[u8]) -> Res<Vec<Span>> {
                 let code = enum_field(object_field(span, "status", &empty)?, "code", &CODES)?;
                 let start = nanos(field(span, "startTimeUnixNano")?)?;
                 let end = nanos(field(span, "endTimeUnixNano")?)?;
-                out.push((service.clone(), kind, code, duration_ms(start, end)));
+                out.push((service.clone(), kind, code, duration_ms(start, end), json_id(span, "traceId", 16)?,
+                          json_id(span, "spanId", 8)?, json_id(span, "parentSpanId", 8)?));
             }
         }
     }
     Ok(out)
+}
+
+// ---------------------------------------------------------------- observed calls file
+
+/// Running totals per (caller, callee) service pair.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CallTotal {
+    pub calls: u64,
+    pub errors: u64,
+    pub first_seen: String,
+    pub last_seen: String,
+}
+
+pub type CallTotals = BTreeMap<(String, String), CallTotal>;
+
+fn stamp_ok(value: &Value) -> bool {
+    value.as_str().is_some_and(|s| {
+        let b = s.as_bytes();
+        b.len() == 20 && b.iter().enumerate().all(|(i, c)| match i {
+            4 | 7 => *c == b'-',
+            10 => *c == b'T',
+            13 | 16 => *c == b':',
+            19 => *c == b'Z',
+            _ => c.is_ascii_digit(),
+        })
+    })
+}
+
+fn count_ok(value: &Value) -> Option<u64> {
+    value.as_u64().filter(|n| *n <= MAX_COUNT && !value.is_f64())
+}
+
+/// `feeds.read_calls`: the totals in a calls file, checked strictly.
+pub fn read_calls(path: &Path) -> Res<CallTotals> {
+    let document = json_document(&safe_read(path, MAX_CALLS_BYTES)?, "calls file", true)?;
+    let top = document.as_object().filter(|m| {
+        let keys: BTreeSet<&str> = m.keys().map(String::as_str).collect();
+        keys == BTreeSet::from(["schema_version", "kind", "generated_at", "calls", "semantics"])
+    }).ok_or("calls file: unexpected fields")?;
+    check(as_int(&top["schema_version"]) == Some(1) && top["kind"] == CALLS_KIND, "unsupported calls file")?;
+    check(stamp_ok(&top["generated_at"]), "calls file: invalid generated_at")?;
+    let rows = top["calls"].as_array().filter(|r| r.len() <= MAX_CALL_PAIRS).ok_or("calls file: too many rows")?;
+    let mut totals = CallTotals::new();
+    for row in rows {
+        let m = row.as_object().filter(|m| {
+            let keys: BTreeSet<&str> = m.keys().map(String::as_str).collect();
+            keys == BTreeSet::from(["caller_service", "callee_service", "caller", "callee", "calls", "errors",
+                                    "first_seen", "last_seen"])
+        }).ok_or("calls file: unexpected row fields")?;
+        let (a, b) = (m["caller_service"].as_str().unwrap_or(""), m["callee_service"].as_str().unwrap_or(""));
+        let key = (a.to_owned(), b.to_owned());
+        check(service_ok(a) && service_ok(b) && a != b && !totals.contains_key(&key),
+              "calls file: invalid or repeated service pair")?;
+        for name in ["caller", "callee"] {
+            check(m[name].is_null() || m[name].as_str().is_some_and(component_ok), "calls file: invalid component")?;
+        }
+        let (n, e) = (count_ok(&m["calls"]), count_ok(&m["errors"]));
+        check(n.is_some_and(|n| n > 0) && e.is_some_and(|e| e <= n.unwrap()), "calls file: invalid counts")?;
+        let (first, last) = (m["first_seen"].as_str().unwrap_or(""), m["last_seen"].as_str().unwrap_or(""));
+        check(stamp_ok(&m["first_seen"]) && stamp_ok(&m["last_seen"]) && first <= last, "calls file: invalid times")?;
+        totals.insert(key, CallTotal { calls: n.unwrap(), errors: e.unwrap(), first_seen: first.to_owned(),
+                                       last_seen: last.to_owned() });
+    }
+    Ok(totals)
+}
+
+/// `feeds.merge_calls`: add what the window counted since the last merge to the totals.
+pub fn merge_calls(totals: &mut CallTotals, seen: &mut BTreeMap<(String, String), (u64, u64)>,
+                   current: &[(String, String, u64, u64)], moment: DateTime<Utc>) {
+    let now = stamp(moment);
+    for (caller, callee, calls, errors) in current {
+        let key = (caller.clone(), callee.clone());
+        let before = seen.insert(key.clone(), (*calls, *errors)).unwrap_or((0, 0));
+        if *calls <= before.0 {
+            continue;
+        }
+        if !totals.contains_key(&key) {
+            if totals.len() >= MAX_CALL_PAIRS {
+                continue;
+            }
+            totals.insert(key.clone(), CallTotal { calls: 0, errors: 0, first_seen: now.clone(), last_seen: now.clone() });
+        }
+        let row = totals.get_mut(&key).unwrap();
+        row.calls = MAX_COUNT.min(row.calls.saturating_add(calls - before.0));
+        row.errors = row.calls.min(row.errors.saturating_add(errors.saturating_sub(before.1)));
+        row.last_seen = now.clone();
+    }
+}
+
+/// `feeds.calls_document`.
+pub fn calls_document(totals: &CallTotals, services: &BTreeMap<String, String>, moment: DateTime<Utc>) -> Value {
+    let rows: Vec<Value> = totals.iter().map(|((a, b), t)| json!({
+        "caller_service": a, "callee_service": b, "caller": services.get(a), "callee": services.get(b),
+        "calls": t.calls, "errors": t.errors, "first_seen": t.first_seen, "last_seen": t.last_seen})).collect();
+    json!({"schema_version": 1, "kind": CALLS_KIND, "generated_at": stamp(moment), "calls": rows,
+           "semantics": "OBSERVED_IN_TRACES_NOT_CONFIRMED_DEPENDENCIES"})
 }
 
 /// `feeds.decode_request`: (200, or 201 for protobuf, spans), or (400 or 415, []).
@@ -1089,7 +1218,45 @@ pub fn conformance_table() -> Value {
            "p95": p95_rows, "execution_authorized": false})
 }
 
-/// Server spans per service over a sliding window, timed by arrival (not span clocks).
+/// Unmatched halves of calls in arrival order, like Python's OrderedDict: a key map
+/// plus an insertion sequence, so the oldest is found and any key removed cheaply.
+pub struct Pending<V> {
+    entries: HashMap<(String, String), (u64, f64, V)>,
+    order: BTreeMap<u64, (String, String)>,
+    next: u64,
+}
+
+impl<V> Pending<V> {
+    fn new() -> Self {
+        Pending { entries: HashMap::new(), order: BTreeMap::new(), next: 0 }
+    }
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+    fn expire(&mut self, cutoff: f64) {
+        while let Some((&seq, key)) = self.order.first_key_value() {
+            if self.entries[key].1 >= cutoff {
+                break;
+            }
+            let key = key.clone();
+            self.order.remove(&seq);
+            self.entries.remove(&key);
+        }
+    }
+    fn take(&mut self, key: &(String, String)) -> Option<V> {
+        let (seq, _, value) = self.entries.remove(key)?;
+        self.order.remove(&seq);
+        Some(value)
+    }
+    fn insert(&mut self, key: (String, String), arrived: f64, value: V) {
+        self.order.insert(self.next, key.clone());
+        self.entries.insert(key, (self.next, arrived, value));
+        self.next += 1;
+    }
+}
+
+/// Server spans per service over a sliding window, timed by arrival (not span clocks),
+/// and calls between services from client and server spans that pair up.
 pub struct SpanWindow {
     pub services: BTreeMap<String, String>,
     pub window: f64,
@@ -1100,18 +1267,49 @@ pub struct SpanWindow {
     spans: BTreeMap<String, VecDeque<(f64, bool, f64)>>,
     pub unmapped: BTreeMap<String, u64>,
     pub accepted: u64,
+    pub callers: Pending<String>,
+    pub callees: Pending<(String, bool)>,
+    calls: BTreeMap<(String, String), (u64, u64)>,
+    pub calls_dropped: u64,
 }
 
 impl SpanWindow {
     pub fn new(otlp: &Otlp) -> Self {
         SpanWindow { services: otlp.services.clone(), window: otlp.window as f64, emit: otlp.emit,
                      min_requests: otlp.min_requests, warning: otlp.warning.clone(), error: otlp.error.clone(),
-                     spans: BTreeMap::new(), unmapped: BTreeMap::new(), accepted: 0 }
+                     spans: BTreeMap::new(), unmapped: BTreeMap::new(), accepted: 0,
+                     callers: Pending::new(), callees: Pending::new(), calls: BTreeMap::new(), calls_dropped: 0 }
     }
 
     pub fn ingest(&mut self, spans: &[Span], arrived: f64) -> usize {
         let mut count = 0;
-        for (service, kind, code, duration) in spans {
+        self.callers.expire(arrived - self.window);
+        self.callees.expire(arrived - self.window);
+        for (service, kind, code, duration, trace, span_id, parent) in spans {
+            let failed = *code == ERROR_CODE;
+            if !trace.is_empty() && !span_id.is_empty() && CALLER_KINDS.contains(kind) {
+                let key = (trace.clone(), span_id.clone());
+                if let Some((callee, callee_failed)) = self.callees.take(&key) {
+                    self.pair(service, &callee, callee_failed);
+                } else if !self.callers.entries.contains_key(&key) {
+                    if self.callers.len() >= MAX_PENDING_CALLS {
+                        self.calls_dropped += 1;
+                    } else {
+                        self.callers.insert(key, arrived, service.clone());
+                    }
+                }
+            } else if !trace.is_empty() && !parent.is_empty() && CALLEE_KINDS.contains(kind) {
+                let key = (trace.clone(), parent.clone());
+                if let Some(caller) = self.callers.take(&key) {
+                    self.pair(&caller, service, failed);
+                } else if !self.callees.entries.contains_key(&key) {
+                    if self.callees.len() >= MAX_PENDING_CALLS {
+                        self.calls_dropped += 1;
+                    } else {
+                        self.callees.insert(key, arrived, (service.clone(), failed));
+                    }
+                }
+            }
             if *kind != SERVER_KIND {
                 continue;
             }
@@ -1125,11 +1323,31 @@ impl SpanWindow {
             if queue.len() == MAX_SPANS_PER_SERVICE {
                 queue.pop_front();
             }
-            queue.push_back((arrived, *code == ERROR_CODE, *duration));
+            queue.push_back((arrived, failed, *duration));
             count += 1;
         }
         self.accepted += count as u64;
         count
+    }
+
+    /// One observed call. Calls within one service, or from an unnamed one, are not edges.
+    fn pair(&mut self, caller: &str, callee: &str, failed: bool) {
+        if caller == callee || !service_ok(caller) || !service_ok(callee) {
+            return;
+        }
+        let key = (caller.to_owned(), callee.to_owned());
+        if !self.calls.contains_key(&key) && self.calls.len() >= MAX_CALL_PAIRS {
+            self.calls_dropped += 1;
+            return;
+        }
+        let row = self.calls.entry(key).or_insert((0, 0));
+        row.0 += 1;
+        row.1 += failed as u64;
+    }
+
+    /// (caller, callee, calls, errors) since start, sorted.
+    pub fn call_counts(&self) -> Vec<(String, String, u64, u64)> {
+        self.calls.iter().map(|((a, b), (n, e))| (a.clone(), b.clone(), *n, *e)).collect()
     }
 
     pub fn observations(&mut self, arrived: f64, moment: DateTime<Utc>) -> Vec<Row> {
@@ -1210,7 +1428,8 @@ mod tests {
                           port: 0, token_env: String::new(), window: 60, emit: 15, min_requests: 2,
                           warning: Thresholds([("p95_latency_ms".to_string(), 100.0)].into()), error: Thresholds::default() };
         let mut w = SpanWindow::new(&otlp);
-        let spans: Vec<Span> = (0..20).map(|i| ("api".to_string(), 2, if i == 0 { 2 } else { 0 }, i as f64 * 10.0)).collect();
+        let spans: Vec<Span> = (0..20).map(|i| ("api".to_string(), 2, if i == 0 { 2 } else { 0 }, i as f64 * 10.0,
+                                                 String::new(), String::new(), String::new())).collect();
         assert_eq!(w.ingest(&spans, 0.0), 20);
         let rows = w.observations(1.0, DateTime::from_timestamp(0, 0).unwrap());
         assert_eq!(rows[0].status, "warning");

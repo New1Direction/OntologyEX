@@ -109,21 +109,26 @@ def _field(number, wire, payload):
     return key + payload
 
 
-def proto_request(service, spans):
-    """spans: (kind, status code, duration ms)."""
-    value = _field(1, 2, service.encode())                      # AnyValue.string_value
-    kv = _field(1, 2, b"service.name") + _field(2, 2, value)    # KeyValue
-    resource = _field(1, 2, kv)                                 # Resource.attributes
-    encoded_spans = b""
-    for kind, code, ms in spans:
-        start = 1_761_652_800_000_000_000
-        span = (_field(5, 2, b"GET /refund") + _field(6, 0, _varint(kind)) +
-                _field(7, 1, struct.pack("<Q", start)) +
-                _field(8, 1, struct.pack("<Q", start + int(ms * 1e6))) +
-                _field(15, 2, _field(3, 0, _varint(code))))
-        encoded_spans += _field(2, 2, span)
-    scope = _field(2, 2, encoded_spans)                         # ResourceSpans.scope_spans
-    return _field(1, 2, _field(1, 2, resource) + scope)         # request.resource_spans
+def proto_request(service, spans, *more):
+    """spans: (kind, status code, duration ms[, trace ID, span ID, parent span ID]), IDs as
+    bytes (b"" leaves one out). `more`: further (service, spans) resources in the request."""
+    request = b""
+    for name, rows in ((service, spans), *more):
+        value = _field(1, 2, name.encode())                         # AnyValue.string_value
+        kv = _field(1, 2, b"service.name") + _field(2, 2, value)    # KeyValue
+        resource = _field(1, 2, kv)                                 # Resource.attributes
+        encoded_spans = b""
+        for kind, code, ms, *ids in rows:
+            start = 1_761_652_800_000_000_000
+            span = b"".join(_field(number, 2, raw) for number, raw in zip((1, 2, 4), ids) if raw)
+            span += (_field(5, 2, b"GET /refund") + _field(6, 0, _varint(kind)) +
+                     _field(7, 1, struct.pack("<Q", start)) +
+                     _field(8, 1, struct.pack("<Q", start + int(ms * 1e6))) +
+                     _field(15, 2, _field(3, 0, _varint(code))))
+            encoded_spans += _field(2, 2, span)
+        scope = _field(2, 2, encoded_spans)                         # ResourceSpans.scope_spans
+        request += _field(1, 2, _field(1, 2, resource) + scope)     # request.resource_spans
+    return request
 
 
 class FeedTests(unittest.TestCase):
@@ -350,9 +355,9 @@ class FeedTests(unittest.TestCase):
     def test_otlp_window_needs_traffic_and_expires(self):
         window = feeds.SpanWindow({"services": {"payments": PAYMENTS}, "min_requests": 2,
                                    "window_seconds": 10})
-        window.ingest([("payments", 2, 0, 5.0)], arrived=100.0)
+        window.ingest([("payments", 2, 0, 5.0, "", "", "")], arrived=100.0)
         self.assertEqual(window.observations(100.0, NOW), [])
-        window.ingest([("payments", 2, 0, 5.0)], arrived=101.0)
+        window.ingest([("payments", 2, 0, 5.0, "", "", "")], arrived=101.0)
         self.assertEqual(len(window.observations(101.0, NOW)), 1)
         self.assertEqual(window.observations(200.0, NOW), [])
 

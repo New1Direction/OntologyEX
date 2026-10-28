@@ -6,10 +6,13 @@ Same inputs, same answers, for every part of the feeds service:
 1. configuration validation (and the effective configuration with defaults),
 2. OTLP request decoding (protobuf and JSON, gzip, seeded byte mutations),
 3. Prometheus response parsing,
-4. the span window (seeded replays: error rate, p95, thresholds, expiry),
+4. the span window (seeded replays: error rate, p95, thresholds, expiry, and the calls
+   paired from client and server spans),
 5. the observation store (merging with existing files, byte for byte),
-6. `once` end to end against a local HTTP fixture (rows, masking timestamps),
-7. the OTLP/HTTP receiver: status codes for the same requests, and the rows it emits.
+6. the observed-calls file (reading seeded mutations, merging counts across emits),
+7. `once` end to end against a local HTTP fixture (rows, masking timestamps),
+8. the OTLP/HTTP receiver: status codes for the same requests, the rows it emits, and
+   the calls file it writes.
 
     python tests/rust_feeds_parity.py BINARY [--seeds N]
 """
@@ -36,6 +39,7 @@ from http.server import ThreadingHTTPServer
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "ontology-extraction" / "scripts"))
 sys.path.insert(0, str(ROOT / "tests"))
+import control_room  # noqa: E402
 import feeds  # noqa: E402
 from test_feeds import Fixture, proto_request  # noqa: E402
 
@@ -183,20 +187,27 @@ class Harness:
     # 2 ------------------------------------------------------------ OTLP decoding
     def decode_case(self, body: bytes, mime: str, encoding: str, label: str) -> None:
         code, spans = feeds.decode_request(body, mime, encoding)
-        py = {"code": code, "spans": [[s, k == 2, c == 2, d] for s, k, c, d in spans]}
+        py = {"code": code, "spans": [[s, k if 0 <= k <= 5 else -1, c == 2, d, t, i, p]
+                                      for s, k, c, d, t, i, p in spans]}
         _, out = self.rust("decode", "--content-type", mime, "--content-encoding", encoding, data=body)
         rs = json.loads(out)
         self.expect(py == rs, f"decode {label}", f"python: {json.dumps(py)[:400]}\n  rust:   {json.dumps(rs)[:400]}")
 
     def decoding(self, seeds: int) -> None:
-        proto = proto_request("payments", [(2, 0, 12.5), (2, 2, 40.0), (3, 0, 1.0), (2, 1, 0.0)])
+        trace, a, b = bytes(range(1, 17)), bytes(range(1, 9)), bytes(range(9, 17))
+        proto = proto_request("payments", [(2, 0, 12.5, trace, b, a), (2, 2, 40.0), (3, 0, 1.0, trace, a, b""),
+                                           (2, 1, 0.0, b"\0" * 16, a, b), (5, 0, 1.0, trace[:15], a, b),
+                                           (4, 0, 1.0, trace, a + b"\0", b"\0" * 8)], ("api", [(3, 0, 2.0, trace, a)]))
         js = json.dumps({"resourceSpans": [{"resource": {"attributes": [
             {"key": "service.name", "value": {"stringValue": "api"}}]},
             "scopeSpans": [{"spans": [
                 {"kind": "SPAN_KIND_SERVER", "startTimeUnixNano": "1761652800000000000",
-                 "endTimeUnixNano": "1761652800012500000", "status": {"code": "STATUS_CODE_ERROR"}},
-                {"kind": 2, "startTimeUnixNano": 5, "endTimeUnixNano": 3},
-                {"kind": "SPAN_KIND_CLIENT"}]}]}]}).encode()
+                 "endTimeUnixNano": "1761652800012500000", "status": {"code": "STATUS_CODE_ERROR"},
+                 "traceId": "0102030405060708090A0B0C0D0E0F10", "spanId": "0102030405060708",
+                 "parentSpanId": "090a0b0c0d0e0f10"},
+                {"kind": 2, "startTimeUnixNano": 5, "endTimeUnixNano": 3, "traceId": "0" * 32, "spanId": "01" * 8},
+                {"kind": "SPAN_KIND_CLIENT", "traceId": "0102030405060708090a0b0c0d0e0f1", "spanId": "zz" * 8,
+                 "parentSpanId": ""}]}]}]}).encode()
         fixed = [
             (proto, "application/x-protobuf", ""), (proto, "application/x-protobuf; charset=x", " Identity "),
             (gzip.compress(proto), "application/x-protobuf", "gzip"), (gzip.compress(proto)[:-3], "application/x-protobuf", "gzip"),
@@ -221,6 +232,13 @@ class Harness:
             (b'{"resourceSpans": [], "resourceSpans": [{"resource": {"attributes": [{"key": "service.name", "value": {"stringValue": 5}}]}}]}',
              "application/json", ""),
             ("\ufeff{}".encode(), "application/json", ""), (b"\xff\xfe{\x00}\x00", "application/json", ""),
+            (b'{"resourceSpans": [{"scopeSpans": [{"spans": [{"traceId": 5}]}]}]}', "application/json", ""),
+            (b'{"resourceSpans": [{"scopeSpans": [{"spans": [{"spanId": null}]}]}]}', "application/json", ""),
+            (b'{"resourceSpans": [{"scopeSpans": [{"spans": [{"parentSpanId": ["01"]}]}]}]}', "application/json", ""),
+            ('{"resourceSpans": [{"scopeSpans": [{"spans": [{"spanId": "\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668'
+             '0102030405060708"}]}]}]}'.encode(), "application/json", ""),
+            (proto_request("api", [(3, 0, 1.0, bytes(16), bytes(8), b""), (3, 0, 1.0, b"\xff" * 16, b"\xff" * 8, b"\xff" * 9)]),
+             "application/x-protobuf", ""),
         ]
         for i, (body, mime, enc) in enumerate(fixed):
             self.decode_case(body, mime, enc, f"fixed {i}")
@@ -282,8 +300,10 @@ class Harness:
                 if rng.random() < 0.3:
                     steps.append({"at": at, "emit": True})
                     continue
-                spans = [[rng.choice(["payments", "api", "ghost", ""]), rng.choice([2, 2, 2, 1, 3]),
-                          rng.choice([0, 0, 1, 2]), round(rng.uniform(0, 2000), rng.choice([0, 3, 9]))]
+                ids = [f"{i:016x}" for i in range(1, 7)]
+                spans = [[rng.choice(["payments", "api", "ghost", "", "bad name", "web"]), rng.choice([2, 2, 2, 1, 3, 3, 4, 5]),
+                          rng.choice([0, 0, 1, 2]), round(rng.uniform(0, 2000), rng.choice([0, 3, 9])),
+                          rng.choice(["", f"{1:032x}", f"{2:032x}"]), rng.choice(["", *ids]), rng.choice(["", "", *ids])]
                          for _ in range(rng.randint(0, 40))]
                 steps.append({"at": at, "spans": spans})
             steps.append({"at": at, "emit": True})
@@ -296,7 +316,9 @@ class Harness:
                                     for r in window.observations(step["at"], stamp_at)])
                 else:
                     window.ingest([tuple(x) for x in step["spans"]], step["at"])
-            py = {"emitted": emitted, "accepted": window.accepted, "unmapped": dict(sorted(window.unmapped.items()))}
+            py = {"emitted": emitted, "accepted": window.accepted, "unmapped": dict(sorted(window.unmapped.items())),
+                  "calls": [list(c) for c in window.call_counts()], "pending": [len(window.callers), len(window.callees)],
+                  "calls_dropped": window.calls_dropped}
             _, out = self.rust("window-replay", data=json.dumps({"otlp": otlp, "moment": moment, "steps": steps}).encode())
             rs = json.loads(out)
             self.expect(py == rs, f"window seed {s}", f"python: {json.dumps(py)[:700]}\n  rust:   {json.dumps(rs)[:700]}")
@@ -335,6 +357,69 @@ class Harness:
             self.expect(outs[0] == outs[1], f"store seed {s}", f"python: {outs[0][:600]}\n  rust:   {outs[1][:600]}")
 
     # 6 ------------------------------------------------------------ once, end to end
+    # 6 ------------------------------------------------------------ observed calls file
+    def calls_case(self, text: bytes | None, services: dict, steps: list, label: str) -> None:
+        path = self.tmp / "calls.json"
+        if text is not None:
+            path.write_bytes(text)
+        try:
+            totals = {(r["caller_service"], r["callee_service"]): {k: r[k] for k in (
+                "calls", "errors", "first_seen", "last_seen")} for r in feeds.read_calls(path)} if text is not None else {}
+            seen, documents = {}, []
+            for step in steps:
+                moment = datetime.fromtimestamp(step["moment"], timezone.utc)
+                feeds.merge_calls(totals, seen, [tuple(x) for x in step["current"]], moment)
+                documents.append(feeds.calls_document(totals, services, moment))
+            py = {"documents": documents}
+        except (feeds.FeedError, control_room.RoomError):
+            py = "ERROR"
+        _, out = self.rust("calls-replay", *(["--path", str(path)] if text is not None else []),
+                           data=json.dumps({"services": services, "steps": steps}).encode())
+        rs = json.loads(out)
+        rs = "ERROR" if rs.get("status") == "ERROR" else rs
+        self.expect(py == rs, f"calls {label}", f"python: {json.dumps(py)[:600]}\n  rust:   {json.dumps(rs)[:600]}")
+        if text is not None:
+            path.unlink()
+
+    def calls(self, seeds: int) -> None:
+        services = {"payments": PAY, "api": API}
+        valid = {"schema_version": 1, "kind": "ONTOLOGYEX_OBSERVED_CALLS", "generated_at": "2026-10-28T08:00:00Z",
+                 "calls": [{"caller_service": "api", "callee_service": "payments", "caller": API, "callee": PAY,
+                            "calls": 40, "errors": 2, "first_seen": "2026-10-27T08:00:00Z", "last_seen": "2026-10-28T08:00:00Z"},
+                           {"caller_service": "web", "callee_service": "api", "caller": None, "callee": API,
+                            "calls": 1, "errors": 0, "first_seen": "2026-10-28T07:00:00Z", "last_seen": "2026-10-28T07:00:00Z"}],
+                 "semantics": "OBSERVED_IN_TRACES_NOT_CONFIRMED_DEPENDENCIES"}
+        row_values = [None, True, 0, 1, -1, 1.0, 2 ** 63 - 1, 2 ** 63, 2 ** 64, "", "api", "bad name", "payments",
+                      "2026-10-28T08:00:00Z", "2026-10-28T08:00:00", "2026-10-28T08:00:00.5Z", "2026-13-99T99:99:99Z",
+                      "discovery:service:x", "Discovery:service:x", [], {}]
+        steps = [{"moment": 1761638400, "current": [["api", "payments", 3, 1], ["web", "api", 2, 0]]},
+                 {"moment": 1761638460, "current": [["api", "payments", 3, 1], ["web", "api", 5, 4], ["api", "web", 1, 0]]}]
+        self.calls_case(None, services, steps, "no file")
+        self.calls_case(json.dumps(valid).encode(), services, steps, "valid file")
+        for i, text in enumerate([b"", b"[]", b"{", json.dumps({**valid, "x": 1}).encode(),
+                                  json.dumps(valid)[:-1].encode() + b', "kind": "ONTOLOGYEX_OBSERVED_CALLS"}',
+                                  json.dumps({**valid, "calls": valid["calls"] * 2}).encode(),
+                                  json.dumps({**valid, "calls": [valid["calls"][0]] * 1025}).encode(),
+                                  json.dumps({**valid, "schema_version": 1.0}).encode(),
+                                  json.dumps({**valid, "schema_version": True}).encode()]):
+            self.calls_case(text, services, steps, f"fixed file {i}")
+        for s in range(seeds):
+            rng = random.Random(f"calls:{s}")
+            document = copy.deepcopy(valid)
+            row = rng.choice(document["calls"])
+            for _ in range(rng.choice([0, 1, 1, 2])):  # a quarter stay valid, to exercise merging onto them
+                key = rng.choice([*row, "extra"])
+                if rng.random() < 0.15 and key != "extra":
+                    del row[key]
+                else:
+                    row[key] = rng.choice(row_values)
+            current = [[rng.choice(["api", "web", "payments"]), rng.choice(["api", "payments", "db"]),
+                        rng.randint(0, 9), rng.randint(0, 9)] for _ in range(rng.randint(0, 4))]
+            current = [c for c in current if c[0] != c[1]]
+            merge = [{"moment": 1761638400 + 60 * i, "current": [[a, b, n + i * rng.randint(0, 3), e] for a, b, n, e in current]}
+                     for i in range(rng.randint(1, 3))]
+            self.calls_case(json.dumps(document).encode(), services, merge, f"seed {s}")
+
     def once(self) -> None:
         class Server(ThreadingHTTPServer):
             # ontologyex-feeds polls up to 16 targets at once; socketserver's default
@@ -414,7 +499,11 @@ class Harness:
                 return exc.code
 
         proto = proto_request("payments", [(2, 0, 10.0), (2, 2, 30.0), (2, 0, 20.0), (3, 0, 5.0)])
+        trace, client = bytes(range(1, 17)), bytes(range(1, 9))
+        call = proto_request("payments", [(2, 2, 7.0, trace, bytes(range(9, 17)), client)],
+                             ("checkout", [(3, 0, 9.0, trace, client, b"")]))
         requests = [
+            ("/v1/traces", call, {"Content-Type": "application/x-protobuf", "Authorization": "Bearer tok"}),
             ("/v1/traces", proto, {"Content-Type": "application/x-protobuf", "Authorization": "Bearer tok"}),
             ("/v1/traces?x=1", proto, {"Content-Type": "application/x-protobuf", "Authorization": "Bearer tok"}),
             ("/v1/traces", gzip.compress(proto), {"Content-Type": "application/x-protobuf", "Content-Encoding": "gzip",
@@ -427,14 +516,14 @@ class Harness:
             ("/v1/traces", proto, {"Content-Type": "application/x-protobuf", "Content-Encoding": "br", "Authorization": "Bearer tok"}),
             ("/v1/traces", b"x" * (4 * 1024 * 1024 + 1), {"Content-Type": "application/x-protobuf", "Authorization": "Bearer tok"}),
         ]
-        codes, emitted = {}, {}
+        codes, emitted, calls = {}, {}, {}
         for impl in ("python", "rust"):
             port = free_port()
             d = self.tmp / f"otlp-{impl}"
             d.mkdir()
             config = {"schema_version": 1, "kind": "ONTOLOGYEX_FEEDS", "output": "obs.jsonl",
                       "otlp": {"bind": "127.0.0.1", "port": port, "token_env": "PARITY_OTLP_TOKEN",
-                               "services": {"payments": PAY}, "emit_seconds": 1, "min_requests": 3,
+                               "services": {"payments": PAY, "checkout": API}, "emit_seconds": 1, "min_requests": 3,
                                "error": {"error_rate_pct": 20}}}
             (d / "feeds.json").write_text(json.dumps(config))
             env = {**os.environ, "PARITY_OTLP_TOKEN": "tok"}
@@ -460,12 +549,23 @@ class Harness:
                 for r in rows:
                     r["observed_at"] = "T"
                 emitted[impl] = rows
+                document = {}
+                while time.time() < deadline and not document.get("calls"):
+                    path = d / "obs.calls.json"
+                    document = json.loads(path.read_text()) if path.exists() else {}
+                    time.sleep(0.2)
+                document["generated_at"] = "T"
+                for row in document.get("calls", []):
+                    row["first_seen"] = row["last_seen"] = "T"
+                calls[impl] = document
             finally:
                 process.terminate()
                 process.wait(timeout=10)
         self.expect(codes["python"] == codes["rust"], "receiver status codes", f"python: {codes['python']}\n  rust: {codes['rust']}")
         self.expect(emitted["python"] == emitted["rust"] and emitted["rust"], "receiver rows",
                     f"python: {emitted['python']}\n  rust: {emitted['rust']}")
+        self.expect(calls["python"] == calls["rust"] and calls["rust"].get("calls"), "receiver calls file",
+                    f"python: {calls['python']}\n  rust: {calls['rust']}")
 
 
 def main() -> int:
@@ -476,7 +576,8 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         h = Harness(args.binary.resolve(), Path(tmp))
         for part in (lambda: h.configs(args.seeds), lambda: h.decoding(args.seeds), h.prometheus,
-                     lambda: h.windows(args.seeds), lambda: h.stores(args.seeds // 3), h.once, h.receiver):
+                     lambda: h.windows(args.seeds), lambda: h.stores(args.seeds // 3), lambda: h.calls(args.seeds),
+                     h.once, h.receiver):
             part()
     print(json.dumps({"cases": h.cases, "mismatches": h.failures}))
     return 1 if h.failures else 0

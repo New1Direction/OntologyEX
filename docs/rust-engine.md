@@ -7,7 +7,7 @@ on every change.
 
 | Binary | Replaces | Use it for |
 |---|---|---|
-| `ontologyex-feeds` | `feeds.py` | The live-feeds service: HTTP probes, Prometheus queries, and the OTLP/HTTP trace receiver. Same config, same observations file. |
+| `ontologyex-feeds` | `feeds.py` | The live-feeds service: HTTP probes, Prometheus queries, and the OTLP/HTTP trace receiver, including calls observed between services. Same config, same observations and calls files. |
 | `ontologyex-discover` | `discover_repo.py` | Repository scanning. Byte-identical JSON. `control_room.py --view-engine rust` uses it. |
 | `ontologyex-view` | graph views in `control_room.py` | Graph pages, neighborhoods, node detail, incidents, link suggestions (`--view-engine rust`). |
 | `ontologyex-core` | — | The offline projection kernel (topology + observations → health). |
@@ -80,10 +80,11 @@ workflow runs them again on each native build:
   accepts and rejects exactly what PyYAML does (tabs, `U+0085` line breaks, YAML 1.1
   scalars such as `1:30`).
 - **Feeds** (`tests/rust_feeds_parity.py`): configuration validation over ~60 URL
-  shapes and 600 seeded config mutations; OTLP decoding of protobuf and JSON with
-  gzip and 600 byte-mutated bodies; Prometheus responses; 600 span-window replays;
-  store merges byte for byte; `once` end to end; and the live receiver's status
-  codes and emitted rows.
+  shapes and 600 seeded config mutations; OTLP decoding of protobuf and JSON (with
+  trace, span, and parent IDs) with gzip and 600 byte-mutated bodies; Prometheus
+  responses; 600 span-window replays, including the calls paired from client and
+  server spans; store merges byte for byte; 600 mutated calls files read and merged;
+  `once` end to end; and the live receiver's status codes, emitted rows, and calls file.
 - **Kernels** (`tests/feeds_conformance.py`): classification (31,250 cases), store
   retention (4,095), and the p95 rank for every sample count up to 100,000, compared
   across Python, Rust, and Lean.

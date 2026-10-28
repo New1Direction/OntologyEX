@@ -15,6 +15,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"ontology-extraction/scripts"))
 import control_room
+import dependency_suggest
 import discover_repo
 import graph_view_api
 
@@ -51,6 +52,13 @@ def scenario(n=120):
         (root/"compose.yml").write_text(manifests)
         (root/"package.json").write_text('{"name":"parity"}')
         topo=discover_repo.discover(root)
+        # A dependency seen in traces and confirmed by a person: s000 calls api.
+        evidence={"caller_services":["s000 -> api"],"calls":30,"errors":0,
+                  "first_seen":"2026-10-27T20:00:00Z","last_seen":"2026-10-27T22:00:00Z"}
+        topo=dependency_suggest.with_confirmed(topo,[{
+            "source":discover_repo.canonical_id("service","compose.yml","s000"),
+            "target":discover_repo.canonical_id("service","compose.yml","api"),
+            "declared_by":"parity","note":"","evidence":evidence}],"dependencies.json")
         db=discover_repo.canonical_id("service","compose.yml","db")
         rows=[{
             "schema_version":1,"component_id":db,
@@ -73,6 +81,8 @@ def scenario(n=120):
 def run():
     full,db=scenario()
     assert len(full["nodes"])>=123
+    caller=discover_repo.canonical_id("service","compose.yml","s000")
+    assert next(n for n in full["nodes"] if n["id"]==caller)["potentially_impacted_by"]==[db]
     equivalent("summary",graph_view_api.summary(full),native(full,"summary"))
     for lens,q,off in [
         ("all","",0),("all","",90),("all","",180),
@@ -87,7 +97,7 @@ def run():
         (db,1),(db,2),
         (discover_repo.canonical_id("service","compose.yml","web"),1),
         (discover_repo.canonical_id("service","compose.yml","web"),2),
-        (full["project"],1),(full["project"],2),
+        (full["project"],1),(full["project"],2),(caller,1),(caller,2),
     ]:
         equivalent(f"neighborhood({center},{depth})",
                    graph_view_api.neighborhood(full,center,depth=depth),
@@ -108,7 +118,7 @@ def run():
                               input=json.dumps(full).encode(),
                               capture_output=True,timeout=10)
         assert result.returncode!=0,args
-    print("Rust/Python parity: summary + 9 pages + 6 neighborhoods + 2 node details; "
+    print("Rust/Python parity: summary + 9 pages + 8 neighborhoods (one over a confirmed CALLS edge) + 2 node details; "
           "invalid inputs refused; no production calls")
 
 

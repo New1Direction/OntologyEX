@@ -8,7 +8,10 @@ otherwise `feeds.py`) and the control room reading the observations it writes,
 then waits. Ctrl-C stops both; if either stops on its own, the other is stopped
 too and its exit code is returned. Without --feeds only the control room runs.
 
-Make feeds.json with `feed_setup.py propose` and `feed_setup.py init`.
+Make feeds.json with `feed_setup.py propose` and `feed_setup.py init`. Calls the feeds
+see in traces are suggested as dependencies on the business screen; confirmed ones go
+to --dependencies (default: dependencies.json beside feeds.json), and the screen
+records decisions only with --allow-link-decisions.
 Nothing here changes a system: feeds only read health, and the control room
 listens on 127.0.0.1.
 """
@@ -46,6 +49,9 @@ def control_room_command(args, observations: Path | None) -> list[str]:
     command = [sys.executable, str(HERE / "control_room.py"), "--repo", str(args.repo), "--port", str(args.port)]
     if observations is not None:
         command += ["--observations", str(observations)]
+    dependencies = args.dependencies or (args.feeds.parent / "dependencies.json" if args.feeds else None)
+    if dependencies is not None:
+        command += ["--dependencies", str(dependencies)]
     for skill in args.skill:
         command += ["--skill", str(skill)]
     if args.links is not None:
@@ -76,6 +82,9 @@ def up(args) -> int:
     if args.feeds is not None:
         config = feeds.load_config(args.feeds)  # refuse a bad config before starting anything
         observations = feeds.output_path(config)
+        # The control room refuses a missing file; with traces only, none is written before traffic.
+        observations.parent.mkdir(parents=True, exist_ok=True)
+        observations.touch(exist_ok=True)
         command, engine = feeds_command(args.feeds, args.engine)
         processes.append(subprocess.Popen(command))
     processes.append(subprocess.Popen(control_room_command(args, observations)))
@@ -109,6 +118,8 @@ def main() -> int:
     u.add_argument("--skill", type=Path, action="append", default=[])
     u.add_argument("--links", type=Path)
     u.add_argument("--events", type=Path)
+    u.add_argument("--dependencies", type=Path,
+                   help="dependencies confirmed from observed calls (default: beside --feeds)")
     u.add_argument("--port", type=int, default=8765)
     u.add_argument("--allow-link-decisions", action="store_true")
     u.add_argument("--engine", choices=("auto", "python", "rust"), default="auto",

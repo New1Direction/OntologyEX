@@ -1,4 +1,5 @@
-# OpenTelemetry Collector: forward server traces to the OntologyEX feed receiver.
+# OpenTelemetry Collector: forward the spans of calls between services to the OntologyEX
+# feed receiver (server spans for health, client and server spans for observed calls).
 # Applications keep exporting to the Collector as usual; nothing in them changes.
 receivers:
   otlp:
@@ -10,12 +11,15 @@ receivers:
 
 processors:
   batch: {}
-  # Only server spans are used; dropping the rest saves bandwidth.
-  filter/server_spans:
+  # Server spans give health; client and producer spans pair with server and consumer
+  # spans into observed calls. Spans inside one service are not used; dropping them
+  # saves bandwidth.
+  filter/call_spans:
     error_mode: ignore
     traces:
       span:
-        - kind != SPAN_KIND_SERVER
+        - kind == SPAN_KIND_INTERNAL
+        - kind == SPAN_KIND_UNSPECIFIED
 
 exporters:
   otlphttp/ontologyex:
@@ -29,5 +33,5 @@ service:
   pipelines:
     traces/ontologyex:
       receivers: [otlp]
-      processors: [filter/server_spans, batch]
+      processors: [filter/call_spans, batch]
       exporters: [otlphttp/ontologyex]

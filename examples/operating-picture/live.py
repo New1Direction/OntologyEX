@@ -3,9 +3,12 @@
 
 Starts small HTTP services (api, ledger, payments, web) with /healthz endpoints,
 probes them through feeds.py, and, when the OpenTelemetry SDK and OTLP/HTTP exporter
-are installed, sends server spans from `api` and `payments` to the feed's OTLP
-receiver with the standard exporter. The control room then shows health that came
-from those feeds, not from a prepared file.
+are installed, sends real traces to the feed's OTLP receiver with the standard
+exporter: `api` and `worker` call `payments`, with the trace context passed the way
+HTTP instrumentation passes it. The control room then shows health that came from
+those feeds, not from a prepared file, and suggests worker → payments as a
+dependency, because the demo's compose file does not declare it (api → payments it
+does). `--allow-decisions` lets you confirm it on the page.
 
     python -m pip install 'opentelemetry-sdk==1.44.0' 'opentelemetry-exporter-otlp-proto-http==1.44.0'
     python examples/operating-picture/live.py
@@ -72,24 +75,38 @@ def traffic(endpoint: str, failing: set[str], stop: Event) -> bool:
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.propagate import extract, inject
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
     from opentelemetry.trace import SpanKind, Status, StatusCode
 
     tracers = {}
-    for name in ("api", "payments"):
+    for name in ("api", "payments", "worker"):
         provider = TracerProvider(resource=Resource.create({"service.name": name}))
         provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint),
                                                        schedule_delay_millis=1000))
         tracers[name] = (provider, provider.get_tracer("ontologyex-live-demo"))
 
+    def call_payments(caller: str, rng: random.Random) -> None:
+        with tracers[caller][1].start_as_current_span("POST /pay", kind=SpanKind.CLIENT):
+            headers: dict = {}
+            inject(headers)  # traceparent, as an HTTP client sends it
+            with tracers["payments"][1].start_as_current_span(
+                    "POST /pay", kind=SpanKind.SERVER, context=extract(headers)) as span:
+                time.sleep(rng.uniform(0.002, 0.12))
+                if "payments" in failing and rng.random() < 0.3:
+                    span.set_status(Status(StatusCode.ERROR))
+
     def loop():
         rng = random.Random(7)
         while not stop.is_set():
-            for name, (_, tracer) in tracers.items():
-                with tracer.start_as_current_span("POST /refund", kind=SpanKind.SERVER) as span:
-                    time.sleep(rng.uniform(0.002, 0.03 if name == "api" else 0.12))
-                    if name in failing and rng.random() < 0.3:
-                        span.set_status(Status(StatusCode.ERROR))
+            with tracers["api"][1].start_as_current_span("POST /refund", kind=SpanKind.SERVER) as span:
+                time.sleep(rng.uniform(0.002, 0.03))
+                call_payments("api", rng)
+                if "api" in failing and rng.random() < 0.3:
+                    span.set_status(Status(StatusCode.ERROR))
+            if rng.random() < 0.3:
+                with tracers["worker"][1].start_as_current_span("settle batch"):
+                    call_payments("worker", rng)
             stop.wait(0.05)
         for provider, _ in tracers.values():
             provider.shutdown()
@@ -104,6 +121,8 @@ def main() -> int:
     parser.add_argument("--out", type=Path, default=ROOT / "build/operating-picture-live")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--fail", action="append", choices=SERVICES, default=None)
+    parser.add_argument("--allow-decisions", action="store_true",
+                        help="let the page confirm or reject suggested links and dependencies")
     args = parser.parse_args()
     failing = set(args.fail or ["payments"])
     built = demo.build(args.out)
@@ -117,7 +136,8 @@ def main() -> int:
                     "interval_seconds": 5, "timeout_seconds": 2}
                    for name, server in sorted(services.items())],
         "otlp": {"port": otlp_port, "window_seconds": 30, "emit_seconds": 5, "min_requests": 5,
-                 "services": {"api": demo.SERVICE + "api", "payments": demo.SERVICE + "payments"},
+                 "services": {"api": demo.SERVICE + "api", "payments": demo.SERVICE + "payments",
+                              "worker": demo.SERVICE + "worker"},
                  "warning": {"error_rate_pct": 2, "p95_latency_ms": 100},
                  "error": {"error_rate_pct": 10}},
     }
@@ -137,7 +157,8 @@ def main() -> int:
     try:
         control_room.serve(Path(built["repo"]), feeds.output_path(runner.config), None, args.port,
                            skills=[Path(built["skill"])], links=Path(built["links"]),
-                           events=Path(built["events"]))
+                           events=Path(built["events"]), dependencies=args.out / "dependencies.json",
+                           allow_link_decisions=args.allow_decisions)
     except KeyboardInterrupt:
         pass
     finally:
