@@ -12,7 +12,7 @@ data only for the active search/lens/selection.
 | Endpoint | Response | Limits |
 | --- | --- | --- |
 | `GET /api/state` | Small health/coverage summary and up to 18 alerts | No entire nodes, edges, or raw source-evidence inventory |
-| `GET /api/view?lens=all&q=&offset=0` | Selected lens/search page with internal links and needed evidence | <=90 nodes, <=300 edges, bounded page offset |
+| `GET /api/view?lens=all&q=&offset=0` | Atomic status summary plus selected lens/search page with internal links and needed evidence | <=90 nodes, <=300 edges, bounded page offset |
 | `GET /api/node?id=...` | One verified source-backed node with linked evidence | <=40 adjacent edges; explicit omitted count |
 
 Supported lenses: all, api, database, services. Search is ASCII-only and
@@ -33,7 +33,7 @@ paths and relations are sensitive even without source-code bodies.
 ## Client behavior
 
 One screen uses the preexisting adaptive mathematical layout engine.
-Map My Business loads a small summary and page in parallel.
+Map My Business loads one atomic summary-and-graph page response, avoiding source-version mismatch between separate requests.
 Search/lens changes execute on the server. Out-of-order replies cannot
 overwrite newer selections. Previous/Next controls page through results.
 Requesting detail never requires the full graph.
@@ -52,7 +52,7 @@ In the same CI run, byte counts of compact JSON responses were:
 | Payload | UTF-8 bytes |
 | --- | ---: |
 | Previous entire computed control-room graph state | 659,045 |
-| New summary plus first 90-node graph page | 85,932 |
+| New atomic summary and first 90-node graph page | 85,932 (pre-atomic split-response measurement; CI reruns with the atomic envelope) |
 | Reduction in this initial response comparison | 86.96% |
 
 This is a measured **initial payload reduction**, not a claim of
