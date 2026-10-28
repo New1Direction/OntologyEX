@@ -52,7 +52,7 @@ In the same CI run, byte counts of compact JSON responses were:
 | Payload | UTF-8 bytes |
 | --- | ---: |
 | Previous entire computed control-room graph state | 659,045 |
-| New atomic summary and first 90-node graph page | 85,932 (pre-atomic split-response measurement; CI reruns with the atomic envelope) |
+| New atomic summary and first 90-node graph page | 85,943 |
 | Reduction in this initial response comparison | 86.96% |
 
 This is a measured **initial payload reduction**, not a claim of
