@@ -1,0 +1,370 @@
+{
+  "schema_version": 1,
+  "id": "New1Direction/OntologyEX",
+  "name": "OntologyEX",
+  "purpose": "Source-linked four-layer modeling kit that helps agents understand tasks and rules before changing unfamiliar systems.",
+  "stage": "Portable extraction and deterministic compiler; native-agent comparative quality not proven",
+  "audiences": [
+    {
+      "id": "builder",
+      "name": "Coding agent operator",
+      "description": "Needs a reliable domain model to safely edit unfamiliar code.",
+      "evidence": [
+        "onboard"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "reviewer",
+      "name": "Policy reviewer",
+      "description": "Checks evidence, conflicts, unknowns and changes.",
+      "evidence": [
+        "value",
+        "safety"
+      ],
+      "basis": "derived_from_source"
+    }
+  ],
+  "value": [
+    {
+      "id": "skill",
+      "name": "Reusable business skill",
+      "description": "Outputs source-linked rules, implementation mappings and handoff.",
+      "evidence": [
+        "value"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "control",
+      "name": "Checks without permission",
+      "description": "Deterministic diagnostics never authorize actions.",
+      "evidence": [
+        "safety"
+      ],
+      "basis": "derived_from_source"
+    }
+  ],
+  "money_flows": [],
+  "journeys": [
+    {
+      "id": "onboard",
+      "name": "Unknown repo → reusable skill",
+      "actor": "Builder",
+      "outcome": "Versioned reviewable domain skill",
+      "steps": [
+        {
+          "id": "select",
+          "name": "Select workflow and sources",
+          "description": "Agent proposes small source set; operator acknowledges it.",
+          "evidence": [
+            "onboard"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": []
+        },
+        {
+          "id": "extract",
+          "name": "Construct four-layer domain",
+          "description": "Identify concepts, actions, rules and code bindings.",
+          "evidence": [
+            "onboard",
+            "value"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "model_incorrect"
+          ]
+        },
+        {
+          "id": "compile",
+          "name": "Verify artifact",
+          "description": "Check source bytes, structure and typed rules, not semantics.",
+          "evidence": [
+            "cases",
+            "safety"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "model_incorrect",
+            "stale"
+          ]
+        },
+        {
+          "id": "review",
+          "name": "Human review",
+          "description": "Review unknowns/conflicts and test behavior.",
+          "evidence": [
+            "onboard",
+            "safety"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "activation"
+          ]
+        },
+        {
+          "id": "handoff",
+          "name": "Use portable skill",
+          "description": "New agent session gets reviewed context for task.",
+          "evidence": [
+            "value"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "value_missing"
+          ]
+        }
+      ],
+      "evidence": [
+        "onboard"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "change",
+      "name": "Source changes → safe update",
+      "actor": "Reviewer",
+      "outcome": "Reviewed updated ontology",
+      "steps": [
+        {
+          "id": "freshness",
+          "name": "Detect drift",
+          "description": "Compare selected snapshots to current files.",
+          "evidence": [
+            "value"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "stale"
+          ]
+        },
+        {
+          "id": "compare",
+          "name": "Compare versions",
+          "description": "Highlight changed rules, sources and impacted tasks.",
+          "evidence": [
+            "value"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "model_incorrect"
+          ]
+        },
+        {
+          "id": "approve",
+          "name": "External acceptance",
+          "description": "No automatic policy promotion or tool execution.",
+          "evidence": [
+            "safety"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "activation"
+          ]
+        }
+      ],
+      "evidence": [
+        "value"
+      ],
+      "basis": "derived_from_source"
+    }
+  ],
+  "systems": [
+    {
+      "id": "compiler",
+      "name": "Four-layer compiler",
+      "description": "Validates L0/L1/L2/L3 and bundles skills.",
+      "evidence": [
+        "onboard",
+        "value"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "evidence",
+      "name": "Evidence and provenance tools",
+      "description": "Stable source line refs, hashes, correlated-origin declarations.",
+      "evidence": [
+        "value"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "trace",
+      "name": "Experimental trace extractor",
+      "description": "Offline draft observations, never automatically promoted.",
+      "evidence": [
+        "traces"
+      ],
+      "basis": "derived_from_source"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "intro",
+      "repo": "New1Direction/OntologyEX",
+      "commit": "2a0b1e9b205ca265063ae32f794327901c2274f3",
+      "path": "README.md",
+      "start": 1,
+      "end": 12
+    },
+    {
+      "id": "onboard",
+      "repo": "New1Direction/OntologyEX",
+      "commit": "2a0b1e9b205ca265063ae32f794327901c2274f3",
+      "path": "README.md",
+      "start": 13,
+      "end": 44
+    },
+    {
+      "id": "value",
+      "repo": "New1Direction/OntologyEX",
+      "commit": "2a0b1e9b205ca265063ae32f794327901c2274f3",
+      "path": "README.md",
+      "start": 45,
+      "end": 57
+    },
+    {
+      "id": "cases",
+      "repo": "New1Direction/OntologyEX",
+      "commit": "2a0b1e9b205ca265063ae32f794327901c2274f3",
+      "path": "README.md",
+      "start": 58,
+      "end": 92
+    },
+    {
+      "id": "pilot",
+      "repo": "New1Direction/OntologyEX",
+      "commit": "2a0b1e9b205ca265063ae32f794327901c2274f3",
+      "path": "README.md",
+      "start": 94,
+      "end": 115
+    },
+    {
+      "id": "safety",
+      "repo": "New1Direction/OntologyEX",
+      "commit": "2a0b1e9b205ca265063ae32f794327901c2274f3",
+      "path": "README.md",
+      "start": 161,
+      "end": 171
+    },
+    {
+      "id": "traces",
+      "repo": "New1Direction/OntologyEX",
+      "commit": "2a0b1e9b205ca265063ae32f794327901c2274f3",
+      "path": "README.md",
+      "start": 193,
+      "end": 207
+    }
+  ],
+  "risks": [
+    {
+      "id": "model_incorrect",
+      "name": "Model invents a business rule",
+      "description": "Successful compilation is structural proof only, not semantic truth.",
+      "evidence": [
+        "safety"
+      ],
+      "basis": "proposed",
+      "severity": "critical",
+      "signal": "unknown/conflict/contradiction retention",
+      "category": "POTENTIAL_BREAKPOINT"
+    },
+    {
+      "id": "stale",
+      "name": "Source changes after snapshot",
+      "description": "Compiled business skill may not match current code.",
+      "evidence": [
+        "value"
+      ],
+      "basis": "proposed",
+      "severity": "high",
+      "signal": "source hash freshness",
+      "category": "POTENTIAL_BREAKPOINT"
+    },
+    {
+      "id": "activation",
+      "name": "Unreviewed model used as authorization",
+      "description": "Checker explicitly leaves execution_authorized false.",
+      "evidence": [
+        "safety"
+      ],
+      "basis": "proposed",
+      "severity": "critical",
+      "signal": "enforced external approval",
+      "category": "POTENTIAL_BREAKPOINT"
+    },
+    {
+      "id": "value_missing",
+      "name": "Model does not improve real tasks",
+      "description": "Fresh-agent comparative benchmarks are not yet run.",
+      "evidence": [
+        "cases",
+        "pilot"
+      ],
+      "basis": "proposed",
+      "severity": "high",
+      "signal": "held-out agent task success, time, cost",
+      "category": "POTENTIAL_BREAKPOINT"
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "pricing",
+      "name": "Who is willing to pay and what outcome is measurable?",
+      "description": "No commercialization model in README.",
+      "evidence": [
+        "intro"
+      ],
+      "basis": "unknown"
+    },
+    {
+      "id": "success",
+      "name": "Does skill outperform raw-source model on held-out tasks?",
+      "description": "README marks comparative quality not run.",
+      "evidence": [
+        "cases"
+      ],
+      "basis": "unknown"
+    }
+  ],
+  "improvements": [
+    {
+      "id": "business_loop",
+      "name": "Extend extraction to full business outcomes",
+      "description": "Model actors, value flow, revenue, critical workflows and failure consequences, then bind code.",
+      "evidence": [
+        "intro",
+        "value"
+      ],
+      "basis": "proposed",
+      "addresses": [
+        "value_missing",
+        "model_incorrect"
+      ],
+      "priority": "P0"
+    },
+    {
+      "id": "benchmark",
+      "name": "Run held-out downstream task evaluations",
+      "description": "Measure usefulness over raw-source and markdown baselines.",
+      "evidence": [
+        "cases"
+      ],
+      "basis": "proposed",
+      "addresses": [
+        "value_missing"
+      ],
+      "priority": "P0"
+    }
+  ]
+}

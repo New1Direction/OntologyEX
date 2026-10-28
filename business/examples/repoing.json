@@ -1,0 +1,557 @@
+{
+  "schema_version": 1,
+  "id": "New1Direction/repo.ing",
+  "name": "repo.ing",
+  "purpose": "Markets for public repositories and models; trades create fees claimable by verified builders.",
+  "stage": "Source describes public live product; production health not independently checked",
+  "audiences": [
+    {
+      "id": "discoverer",
+      "name": "Discoverer",
+      "description": "Finds and launches eligible repository markets.",
+      "evidence": [
+        "roles"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "trader",
+      "name": "Trader",
+      "description": "Uses markets to trade and track performance.",
+      "evidence": [
+        "roles"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "builder",
+      "name": "Builder",
+      "description": "Verifies admin authority, binds wallet, claims fees.",
+      "evidence": [
+        "roles"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "backer",
+      "name": "Backer",
+      "description": "Funds group launch and receives eligible fee share.",
+      "evidence": [
+        "roles"
+      ],
+      "basis": "derived_from_source"
+    }
+  ],
+  "value": [
+    {
+      "id": "market_layer",
+      "name": "Open-source project market",
+      "description": "Turns repository/model identity into a tradeable market and builder-fee channel.",
+      "evidence": [
+        "intro"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "payout",
+      "name": "Builder earnings",
+      "description": "Converts eligible trade fees into claims for verified maintainers.",
+      "evidence": [
+        "roles",
+        "fees"
+      ],
+      "basis": "derived_from_source"
+    }
+  ],
+  "money_flows": [
+    {
+      "id": "dbc_fees",
+      "name": "DBC fee split",
+      "description": "Nominal pre-graduation total 1.75%: 0.994% builders, 0.406% partner, 0.350% Meteora. Variants and ramp differ.",
+      "evidence": [
+        "fees"
+      ],
+      "basis": "derived_from_source",
+      "state": "described"
+    },
+    {
+      "id": "protocol_allocations",
+      "name": "Platform revenue policy",
+      "description": "Eligible settled platform claims: 60% buyback reserve, 20% protocol liquidity, 20% treasury. Manual execution, not automatic.",
+      "evidence": [
+        "revenue"
+      ],
+      "basis": "derived_from_source",
+      "state": "gated"
+    },
+    {
+      "id": "discoverer_reward",
+      "name": "Discoverer fee share",
+      "description": "Discoverer receives 50% of eligible partner DBC fees within cap/window.",
+      "evidence": [
+        "discover"
+      ],
+      "basis": "derived_from_source",
+      "state": "described"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "market",
+      "name": "Repository → tradeable market",
+      "actor": "Discoverer / trader",
+      "outcome": "Tradeable market created and traded",
+      "steps": [
+        {
+          "id": "find",
+          "name": "Find eligible repository",
+          "description": "Discover the project to launch.",
+          "evidence": [
+            "roles"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": []
+        },
+        {
+          "id": "resolve",
+          "name": "Resolve canonical identity",
+          "description": "Find existing canonical repository/model market before launch.",
+          "evidence": [
+            "intro"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": []
+        },
+        {
+          "id": "review",
+          "name": "Launch review",
+          "description": "Review wallet transaction and optional initial buy.",
+          "evidence": [
+            "launch"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "gate"
+          ]
+        },
+        {
+          "id": "trade",
+          "name": "Trade DBC market",
+          "description": "Buy/sell on bonding curve; record receipts.",
+          "evidence": [
+            "market"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "quote_freshness"
+          ]
+        },
+        {
+          "id": "index",
+          "name": "Index settled activity",
+          "description": "PostgreSQL and worker record settlement and derived accounting.",
+          "evidence": [
+            "arch"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "indexer_lag",
+            "payout_reconcile"
+          ]
+        },
+        {
+          "id": "graduate",
+          "name": "Graduation when eligible",
+          "description": "Verify reserve threshold and migration to DAMM v2.",
+          "evidence": [
+            "market"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "migration"
+          ]
+        }
+      ],
+      "evidence": [
+        "journey"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "claim",
+      "name": "Builder earns and claims",
+      "actor": "Builder",
+      "outcome": "Builder receives eligible fees",
+      "steps": [
+        {
+          "id": "accrue",
+          "name": "Fees accrue",
+          "description": "Trades produce account-able eligible fees.",
+          "evidence": [
+            "fees"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "indexer_lag"
+          ]
+        },
+        {
+          "id": "verify",
+          "name": "Verify GitHub admin",
+          "description": "Check current admin access before claim authorization.",
+          "evidence": [
+            "roles"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "gate"
+          ]
+        },
+        {
+          "id": "wallet",
+          "name": "Bind wallet",
+          "description": "Signed wallet binding establishes payout destination.",
+          "evidence": [
+            "fees"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "gate"
+          ]
+        },
+        {
+          "id": "reconcile",
+          "name": "Check claim eligibility",
+          "description": "Reconcile ledger with chain and pending payouts.",
+          "evidence": [
+            "arch"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "payout_reconcile"
+          ]
+        },
+        {
+          "id": "claim",
+          "name": "Claim SOL",
+          "description": "Submit/confirm eligible claim and receipt.",
+          "evidence": [
+            "roles"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "payout_reconcile"
+          ]
+        }
+      ],
+      "evidence": [
+        "roles"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "treasury",
+      "name": "Settled platform fees → allocation",
+      "actor": "Operator",
+      "outcome": "Recorded platform allocation",
+      "steps": [
+        {
+          "id": "settle",
+          "name": "Collect platform share",
+          "description": "Distinguish accrued fees from claimed spendable revenue.",
+          "evidence": [
+            "revenue"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "payout_reconcile"
+          ]
+        },
+        {
+          "id": "allocate",
+          "name": "Allocate 60/20/20",
+          "description": "Record buyback/liquidity/treasury amounts separately.",
+          "evidence": [
+            "revenue"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "payout_reconcile"
+          ]
+        },
+        {
+          "id": "execute",
+          "name": "Manual controlled transactions",
+          "description": "In-app buyback/liquidity executors remain disabled; team actions with receipts.",
+          "evidence": [
+            "revenue"
+          ],
+          "basis": "derived_from_source",
+          "state": "gated",
+          "risk_ids": [
+            "gate"
+          ]
+        }
+      ],
+      "evidence": [
+        "revenue"
+      ],
+      "basis": "derived_from_source"
+    }
+  ],
+  "systems": [
+    {
+      "id": "frontend",
+      "name": "Web + quote UI",
+      "description": "User journeys, quotes and protected signing flow.",
+      "evidence": [
+        "arch"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "indexer",
+      "name": "Worker and indexers",
+      "description": "Finalized events, settlement and reconciliation.",
+      "evidence": [
+        "arch"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "db",
+      "name": "PostgreSQL",
+      "description": "Durable intents, indexed evidence and accounting.",
+      "evidence": [
+        "arch"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "solana",
+      "name": "Solana / Meteora",
+      "description": "Settlement and AMM market state.",
+      "evidence": [
+        "arch"
+      ],
+      "basis": "derived_from_source"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "intro",
+      "repo": "New1Direction/repo.ing",
+      "commit": "2c4cea701fae1954f2638d98f4e946b7ed6515c7",
+      "path": "README.md",
+      "start": 16,
+      "end": 20
+    },
+    {
+      "id": "roles",
+      "repo": "New1Direction/repo.ing",
+      "commit": "2c4cea701fae1954f2638d98f4e946b7ed6515c7",
+      "path": "README.md",
+      "start": 22,
+      "end": 30
+    },
+    {
+      "id": "journey",
+      "repo": "New1Direction/repo.ing",
+      "commit": "2c4cea701fae1954f2638d98f4e946b7ed6515c7",
+      "path": "README.md",
+      "start": 37,
+      "end": 47
+    },
+    {
+      "id": "launch",
+      "repo": "New1Direction/repo.ing",
+      "commit": "2c4cea701fae1954f2638d98f4e946b7ed6515c7",
+      "path": "README.md",
+      "start": 49,
+      "end": 66
+    },
+    {
+      "id": "fees",
+      "repo": "New1Direction/repo.ing",
+      "commit": "2c4cea701fae1954f2638d98f4e946b7ed6515c7",
+      "path": "README.md",
+      "start": 92,
+      "end": 107
+    },
+    {
+      "id": "discover",
+      "repo": "New1Direction/repo.ing",
+      "commit": "2c4cea701fae1954f2638d98f4e946b7ed6515c7",
+      "path": "README.md",
+      "start": 108,
+      "end": 119
+    },
+    {
+      "id": "referrals",
+      "repo": "New1Direction/repo.ing",
+      "commit": "2c4cea701fae1954f2638d98f4e946b7ed6515c7",
+      "path": "README.md",
+      "start": 120,
+      "end": 123
+    },
+    {
+      "id": "revenue",
+      "repo": "New1Direction/repo.ing",
+      "commit": "2c4cea701fae1954f2638d98f4e946b7ed6515c7",
+      "path": "README.md",
+      "start": 124,
+      "end": 139
+    },
+    {
+      "id": "states",
+      "repo": "New1Direction/repo.ing",
+      "commit": "2c4cea701fae1954f2638d98f4e946b7ed6515c7",
+      "path": "README.md",
+      "start": 148,
+      "end": 165
+    },
+    {
+      "id": "arch",
+      "repo": "New1Direction/repo.ing",
+      "commit": "2c4cea701fae1954f2638d98f4e946b7ed6515c7",
+      "path": "README.md",
+      "start": 167,
+      "end": 178
+    },
+    {
+      "id": "market",
+      "repo": "New1Direction/repo.ing",
+      "commit": "2c4cea701fae1954f2638d98f4e946b7ed6515c7",
+      "path": "README.md",
+      "start": 84,
+      "end": 91
+    }
+  ],
+  "risks": [
+    {
+      "id": "indexer_lag",
+      "name": "Worker/indexer falls behind",
+      "description": "Market or accounting data can stop reflecting finalized chain events.",
+      "evidence": [
+        "arch"
+      ],
+      "basis": "proposed",
+      "severity": "high",
+      "signal": "last processed slot, job heartbeat, backlog",
+      "category": "POTENTIAL_BREAKPOINT"
+    },
+    {
+      "id": "payout_reconcile",
+      "name": "Payout reconciliation mismatch",
+      "description": "Accrued fees, claims and actual settlement must reconcile exactly.",
+      "evidence": [
+        "fees",
+        "arch"
+      ],
+      "basis": "proposed",
+      "severity": "critical",
+      "signal": "ledger totals vs transaction receipts",
+      "category": "POTENTIAL_BREAKPOINT"
+    },
+    {
+      "id": "quote_freshness",
+      "name": "Stale or non-executable quote",
+      "description": "Trade preview can differ from currently executable state.",
+      "evidence": [
+        "launch"
+      ],
+      "basis": "proposed",
+      "severity": "high",
+      "signal": "quote expiry, slippage failure, RPC latency",
+      "category": "POTENTIAL_BREAKPOINT"
+    },
+    {
+      "id": "migration",
+      "name": "Graduation / migration mismatch",
+      "description": "Reserve threshold and verified DAMM migration are distinct events.",
+      "evidence": [
+        "market"
+      ],
+      "basis": "proposed",
+      "severity": "high",
+      "signal": "graduation state and on-chain pool match",
+      "category": "POTENTIAL_BREAKPOINT"
+    },
+    {
+      "id": "gate",
+      "name": "Unsafe signing/authority boundary",
+      "description": "Source describes protected payout signing and independent administrator verification.",
+      "evidence": [
+        "arch",
+        "launch"
+      ],
+      "basis": "proposed",
+      "severity": "critical",
+      "signal": "authorization refusals and audit events",
+      "category": "POTENTIAL_BREAKPOINT"
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "health",
+      "name": "Are all indexing queues currently advancing?",
+      "description": "Static source cannot answer.",
+      "evidence": [
+        "arch"
+      ],
+      "basis": "unknown"
+    },
+    {
+      "id": "breakpoint",
+      "name": "Does every failed claim produce a recoverable actionable incident?",
+      "description": "Needs telemetry evidence.",
+      "evidence": [
+        "arch"
+      ],
+      "basis": "unknown"
+    }
+  ],
+  "improvements": [
+    {
+      "id": "pipeline_telemetry",
+      "name": "Correlate quote → transaction → indexed event → claim",
+      "description": "Assign the same correlation lineage across all five stages and alert on missing outcomes.",
+      "evidence": [
+        "arch"
+      ],
+      "basis": "proposed",
+      "addresses": [
+        "indexer_lag",
+        "payout_reconcile",
+        "quote_freshness"
+      ],
+      "priority": "P0"
+    },
+    {
+      "id": "graduation_trace",
+      "name": "Visualize real graduation state transitions",
+      "description": "Pin target pool and chain receipts to avoid mistaking threshold crossing for completion.",
+      "evidence": [
+        "market"
+      ],
+      "basis": "proposed",
+      "addresses": [
+        "migration"
+      ],
+      "priority": "P1"
+    }
+  ]
+}
