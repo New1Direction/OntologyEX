@@ -5,7 +5,6 @@
 //! The Python endpoint remains the default until cross-language parity gates pass.
 
 use serde_json::{json, Value};
-use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 const MAX_NODES: usize = 10_000;
