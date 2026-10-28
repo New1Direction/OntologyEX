@@ -4,6 +4,8 @@
 //! health. Possible dependent impacts are *not* proven outages or causal roots.
 //! No network, execution, writing, or credentials are used by this library.
 
+pub mod view;
+
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
