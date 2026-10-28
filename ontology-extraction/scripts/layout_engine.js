@@ -41,6 +41,7 @@
 
   function targetHeight(p, width, height, density) {
     const min = p.minHeight;
+    if (p.collapsed && !p.critical && p.id !== "map") return px(min);
     if (p.id === "map") {
       return px(Math.max(min, clamp(height * 0.72 + Math.log2(1 + density) * 18, 320, 840)));
     }
@@ -70,13 +71,14 @@
       mapW = available;
     } else if (columns === 2) {
       const minimumRight = Math.max(240, ...others.map(p => p.minWidth));
-      mapW = px(clamp((available - GAP) * (prefs.focusGraph ? 0.7 : 0.63),
+      mapW = px(clamp((available - GAP) * (prefs.focusGraph ? 0.72 : prefs.mapShare),
                       map.minWidth, available - GAP - minimumRight));
       sideW = px(available - GAP - mapW);
       if (sideW < minimumRight || mapW < map.minWidth) return null;
     } else {
       const sideMinimum = Math.max(230, ...others.map(p => p.minWidth));
-      mapW = px(clamp((available - 2 * GAP) * (prefs.focusGraph ? 0.54 : 0.47),
+      mapW = px(clamp((available - 2 * GAP) * clamp(
+                        prefs.focusGraph ? 0.55 : prefs.mapShare, 0.40, 0.56),
                       map.minWidth, available - 2 * GAP - sideMinimum * 2));
       sideW = px((available - 2 * GAP - mapW) / 2);
       thirdW = px(available - 2 * GAP - mapW - sideW);
@@ -143,7 +145,7 @@
     plan.constraints = validation;
     plan.decisions = {
       objective: "SCROLL_PLUS_PRIORITY_LATENCY_PLUS_GEOMETRY",
-      focusGraph: !!prefs.focusGraph,
+      focusGraph: !!prefs.focusGraph, mapShare:prefs.mapShare,
       density, scrollOverflowPx: px(over),
       chosenColumns: columns,
       fixedBreakpointsUsed: false,
@@ -154,7 +156,8 @@
 
   function optimize(input) {
     validateInput(input);
-    const prefs = {focusGraph: !!input.focusGraph};
+    const prefs = {focusGraph: !!input.focusGraph,
+                   mapShare:sane(input.mapShare,0.63,0.48,0.76)};
     const candidates = [1, 2, 3]
       .map(columns => buildCandidate(input, columns, prefs))
       .filter(Boolean).sort((a, b) => a.score - b.score || a.columns - b.columns);
