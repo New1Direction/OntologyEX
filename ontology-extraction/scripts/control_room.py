@@ -533,12 +533,24 @@ function draw(s){
  for(let i=0;i<3;i++){svg.append(el("text",{x:starts[i],y:45,fill:"#679baa","font-size":12,"letter-spacing":3},
  ["BUSINESS","WORKFLOWS / SOURCES","SERVICES / DATA"][i]));
  cols[i].forEach((n,j)=>pos[n.id]={x:starts[i],y:75+j*rowH})}
+ // Arrowheads show the stored source -> target direction, even though
+ // neighborhood navigation can traverse an edge from either endpoint.
+ const defs=el("defs");
+ for(const [id,fill] of [["dependency-arrow","#e5b66f"],["source-arrow","#2e8297"]]){
+   const marker=el("marker",{id,viewBox:"0 0 10 10",refX:9,refY:5,
+     markerWidth:6,markerHeight:6,orient:"auto",markerUnits:"strokeWidth"});
+   marker.append(el("path",{d:"M 0 0 L 10 5 L 0 10 z",fill}));
+   defs.append(marker);
+ }
+ svg.append(defs);
  for(const e of s.edges){const a=pos[e.source],b=pos[e.target];if(!a||!b)continue;
  const x1=a.x+nodeW,y1=a.y+nodeH/2,x2=b.x,y2=b.y+nodeH/2;
  const d="M"+x1+","+y1+" C"+(x1+38)+","+y1+" "+(x2-38)+","+y2+" "+x2+","+y2;
  svg.append(el("path",{d,stroke:e.relation==="DEPENDS_ON"?"#e5b66f":"#2e8297",
  "stroke-opacity":.65,"stroke-width":e.relation==="DEPENDS_ON"?2:1.35,
- "stroke-dasharray":e.relation==="DEPENDS_ON"?"":"5 6",fill:"none"}))}
+ "stroke-dasharray":e.relation==="DEPENDS_ON"?"":"5 6",
+ "marker-end":e.relation==="DEPENDS_ON"?"url(#dependency-arrow)":"url(#source-arrow)",
+ fill:"none"}))}
  for(const n of visible){const p=pos[n.id],g=el("g",{role:"button",tabindex:0,
  "aria-label":n.label+" "+n.status,style:"cursor:pointer"});
  const active=selected===n.id,stroke=active?"#d6f6ef":color[n.status];
