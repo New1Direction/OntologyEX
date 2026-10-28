@@ -1,0 +1,128 @@
+"""Opt-in, bounded execution bridge to the existing Rust graph-view binary.
+
+The installed native binary is a *local developer artifact*, not an isolated
+sandbox, credential boundary, hosted worker or authenticated telemetry source.
+There is deliberately no fallback to Python when the native command fails:
+an error must be visible rather than silently changing graph semantics.
+"""
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+import stat
+import subprocess
+from threading import BoundedSemaphore
+
+MAX_INPUT_BYTES = 16 * 1024 * 1024
+MAX_OUTPUT_BYTES = 8 * 1024 * 1024
+MAX_BINARY_BYTES = 64 * 1024 * 1024
+MAX_CONCURRENT = 2
+TIMEOUT_SECONDS = 5.0
+COMMANDS = frozenset({"summary", "page", "neighborhood", "node"})
+KINDS = {
+    "summary": "LOCAL_CONTROL_ROOM_SUMMARY",
+    "page": "BOUNDED_GRAPH_PAGE",
+    "neighborhood": "BOUNDED_GRAPH_NEIGHBORHOOD",
+    "node": "BOUNDED_NODE_DETAIL",
+}
+
+
+class NativeViewError(RuntimeError):
+    """Read-only native projection is unavailable or violates its contract."""
+
+
+def no_duplicates(pairs):
+    value = {}
+    for key, entry in pairs:
+        if key in value:
+            raise NativeViewError("native JSON response contains duplicate fields")
+        value[key] = entry
+    return value
+
+
+class NativeView:
+    def __init__(self, binary: Path | None = None):
+        root = Path(__file__).resolve().parents[2]
+        self.binary = Path(binary) if binary is not None else (
+            root / "engine" / "target" / "debug" / "ontologyex-view"
+        )
+        if self.binary.is_symlink():
+            raise NativeViewError("native binary symlink not allowed")
+        try:
+            st = os.stat(self.binary, follow_symlinks=False)
+        except OSError as exc:
+            raise NativeViewError(
+                "Rust binary missing: compile ontologyex-view first"
+            ) from exc
+        if not (stat.S_ISREG(st.st_mode) and 0 < st.st_size <= MAX_BINARY_BYTES
+                and os.access(self.binary, os.X_OK)):
+            raise NativeViewError("invalid or non-executable Rust view binary")
+        self._slots = BoundedSemaphore(MAX_CONCURRENT)
+
+    def execute(self, full: dict, command: str, *args: str) -> dict:
+        if command not in COMMANDS or any(type(arg) is not str for arg in args):
+            raise NativeViewError("invalid native view invocation")
+        expected_args = {"summary": 0, "page": 3, "neighborhood": 2, "node": 1}
+        if len(args) != expected_args[command] or any(
+            len(arg) > 1024 or (not arg and (command != "page" or i != 1))
+            for i, arg in enumerate(args)
+        ):
+            raise NativeViewError("invalid native view arguments")
+        if full.get("execution_authorized") is not False:
+            raise NativeViewError("native input cannot authorize execution")
+        try:
+            payload = json.dumps(
+                full, ensure_ascii=False, allow_nan=False, sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        except (TypeError, ValueError, RecursionError) as exc:
+            raise NativeViewError("unable to serialize source-backed graph") from exc
+        if len(payload) > MAX_INPUT_BYTES:
+            raise NativeViewError("native graph input byte budget exceeded")
+        if not self._slots.acquire(blocking=False):
+            raise NativeViewError("native graph query concurrency limit reached")
+        try:
+            # The server's GitHub token, credentials and session environment are
+            # NEVER inherited by a native view subprocess. No shell is used.
+            process = subprocess.run(
+                [str(self.binary), command, *args],
+                input=payload, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                timeout=TIMEOUT_SECONDS, check=False,
+                env={"PATH": "/usr/bin:/bin", "LANG": "C", "LC_ALL": "C"},
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise NativeViewError("native view process unavailable or timed out") from exc
+        finally:
+            self._slots.release()
+        if process.returncode != 0:
+            # Never reflect raw command stderr into the browser: it could
+            # contain source names, paths or information from a broken binary.
+            raise NativeViewError("native view rejected source/query")
+        if len(process.stdout) > MAX_OUTPUT_BYTES:
+            raise NativeViewError("native view output byte budget exceeded")
+        try:
+            result = json.loads(
+                process.stdout.decode("utf-8"), object_pairs_hook=no_duplicates,
+                parse_constant=lambda _: (_ for _ in ()).throw(
+                    NativeViewError("nonfinite native JSON value")),
+            )
+        except (UnicodeError, ValueError, TypeError) as exc:
+            raise NativeViewError("native view returned invalid JSON") from exc
+        if (type(result) is not dict or result.get("kind") != KINDS[command]
+                or result.get("execution_authorized") is not False):
+            raise NativeViewError("native response violates trust contract")
+        if command in {"page", "neighborhood"}:
+            nodes, edges = result.get("nodes"), result.get("edges")
+            if (type(nodes) is not list or type(edges) is not list
+                    or len(nodes) > 90 or len(edges) > 300
+                    or type(result.get("summary")) is not dict
+                    or result["summary"].get("execution_authorized") is not False):
+                raise NativeViewError("native graph projection budget violated")
+        elif command == "node":
+            edges = result.get("edges")
+            if type(edges) is not list or len(edges) > 40:
+                raise NativeViewError("native detail budget violated")
+        elif "nodes" in result or "edges" in result or "source_evidence" in result:
+            raise NativeViewError("native summary contains full graph")
+        return result

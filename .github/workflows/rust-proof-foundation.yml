@@ -5,6 +5,10 @@ on:
       - 'engine/**'
       - 'proofs/lean/**'
       - 'tests/rust_view_parity.py'
+      - 'tests/rust_http_smoke.py'
+      - 'tests/test_native_view_bridge.py'
+      - 'ontology-extraction/scripts/native_view_bridge.py'
+      - 'ontology-extraction/scripts/control_room.py'
       - '.github/workflows/rust-proof-foundation.yml'
   push:
     branches: [main]
@@ -36,6 +40,8 @@ jobs:
         run: cargo build --manifest-path engine/Cargo.toml --bin ontologyex-view
       - name: Verify Rust/Python graph projection parity
         run: python tests/rust_view_parity.py
+      - name: Verify opt-in Rust graph queries through real local HTTP
+        run: python tests/rust_http_smoke.py
       - name: Static graph-to-status fixture
         run: |
           cargo run --manifest-path engine/Cargo.toml --quiet --bin ontologyex-core --             engine/examples/topology.json engine/examples/observations.jsonl 2000 > /tmp/ontologyex-state.json

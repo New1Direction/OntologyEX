@@ -23,6 +23,7 @@ import github_discovery
 import snapshot_store
 import graph_view_api
 import incident_view
+import native_view_bridge
 from urllib.parse import parse_qs, urlsplit
 
 MAX_OBSERVATION_BYTES = 1024 * 1024
@@ -818,8 +819,11 @@ class RemoteInventory:
 
 def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
           port: int, github: str | None = None, github_refresh_seconds: int = 300,
-          github_client=None, snapshot_dir: Path | None = None) -> None:
+          github_client=None, snapshot_dir: Path | None = None,
+          view_engine: str = "python") -> None:
     check(0 <= port <= 65535, "invalid port")
+    check(view_engine in ("python", "rust"), "unsupported graph view backend")
+    native_view = native_view_bridge.NativeView() if view_engine == "rust" else None
     rules = read_thresholds(thresholds)
     check(60 <= github_refresh_seconds <= 3600, "invalid GitHub refresh interval")
     check((repo is None) != (github is None), "configure exactly one source")
@@ -907,20 +911,25 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                     if route.path == "/api/state":
                         if params:
                             raise graph_view_api.ViewError("summary takes no query parameters")
-                        result = graph_view_api.summary(full)
+                        result = (native_view.execute(full, "summary") if native_view
+                                  else graph_view_api.summary(full))
                     elif route.path == "/api/view":
                         if not set(params).issubset({"lens", "q", "offset"}):
                             raise graph_view_api.ViewError("unsupported view parameter")
-                        result = graph_view_api.page(
-                            full, lens=params.get("lens", ["all"])[0],
-                            query=params.get("q", [""])[0],
-                            offset=graph_view_api.parse_offset(params.get("offset", ["0"])[0]))
+                        lens = graph_view_api.valid_lens(params.get("lens", ["all"])[0])
+                        q = graph_view_api.valid_query(params.get("q", [""])[0])
+                        off = graph_view_api.parse_offset(params.get("offset", ["0"])[0])
+                        result = (native_view.execute(full, "page", lens, q, str(off))
+                                  if native_view else graph_view_api.page(
+                                      full, lens=lens, query=q, offset=off))
                     elif route.path == "/api/neighborhood":
                         if set(params) != {"id", "depth"}:
                             raise graph_view_api.ViewError("neighborhood requires id and depth")
-                        result = graph_view_api.neighborhood(
-                            full, params["id"][0],
-                            depth=graph_view_api.valid_depth(params["depth"][0]))
+                        node_id = params["id"][0]
+                        depth = graph_view_api.valid_depth(params["depth"][0])
+                        result = (native_view.execute(full, "neighborhood", node_id, str(depth))
+                                  if native_view else graph_view_api.neighborhood(
+                                      full, node_id, depth=depth))
                     elif route.path == "/api/incident":
                         if set(params) != {"id"}:
                             raise graph_view_api.ViewError("incident requires exact node id")
@@ -930,13 +939,14 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                     else:
                         if set(params) != {"id"}:
                             raise graph_view_api.ViewError("node requires an exact id")
-                        result = graph_view_api.node_detail(full, params["id"][0])
+                        result = (native_view.execute(full, "node", params["id"][0])
+                                  if native_view else graph_view_api.node_detail(full, params["id"][0]))
                     payload = json.dumps(result, sort_keys=True).encode()
                     code = 200
                 except (graph_view_api.ViewError, incident_view.IncidentError, ValueError, UnicodeError):
                     payload, code = b'{"status":"INVALID_QUERY"}', 400
                 except (RoomError, discover_repo.DiscoveryError, github_discovery.GitHubDiscoveryError,
-                        OSError, TypeError):
+                        native_view_bridge.NativeViewError, OSError, TypeError):
                     payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
             else:
                 payload, mime, code = b"Not found", "text/plain", 404
@@ -981,6 +991,8 @@ def main():
     parser.add_argument("--thresholds", type=Path, default=None)
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--state-only", action="store_true")
+    parser.add_argument("--view-engine", choices=("python", "rust"), default="python",
+                        help="read-only projection backend; rust requires compiled ontologyex-view")
     args = parser.parse_args()
     try:
         if args.repo is not None:
@@ -1002,11 +1014,12 @@ def main():
         else:
             serve(args.repo, args.observations, args.thresholds, args.port,
                   github=args.github, github_refresh_seconds=args.github_refresh_seconds,
-                  snapshot_dir=args.snapshot_dir)
+                  snapshot_dir=args.snapshot_dir, view_engine=args.view_engine)
         return 0
     except (OSError, RoomError, discover_repo.DiscoveryError,
             github_discovery.GitHubDiscoveryError, snapshot_store.SnapshotError,
-            ValueError, TypeError, RecursionError) as exc:
+            native_view_bridge.NativeViewError, ValueError, TypeError,
+            RecursionError) as exc:
         print(json.dumps({"status": "ERROR", "reason": str(exc)}))
         return 1
 
