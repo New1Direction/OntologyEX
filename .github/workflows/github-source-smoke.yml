@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'ontology-extraction/scripts/github_discovery.py'
+      - 'ontology-extraction/scripts/code_imports.py'
+      - 'ontology-extraction/scripts/snapshot_store.py'
+      - 'tests/test_code_surface_discovery.py'
       - 'ontology-extraction/scripts/discover_repo.py'
       - 'tests/test_github_discovery.py'
       - '.github/workflows/github-source-smoke.yml'
@@ -47,6 +50,12 @@ jobs:
           assert x['coverage']['schema_source_files_read']==1
           assert x['coverage']['import_route_files_inspected']>=20
           assert x['coverage']['import_relationships_found']>=10
+          assert x['coverage']['second_hop_modules_read']>=10
+          assert x['coverage']['second_hop_import_edges']>=10
+          assert x['coverage']['second_hop_schema_table_declarations']>=1
+          assert any(e['relation']=='DECLARES_TABLE_CANDIDATE' and
+                     e['state']=='SOURCE_SYNTAX_CANDIDATE'
+                     for e in x['edges'])
           assert any(e['relation']=='STATIC_IMPORTS' and
                      e['state']=='SOURCE_SYNTAX_CANDIDATE'
                      for e in x['edges'])
@@ -63,6 +72,10 @@ jobs:
               c['scope']=='CI_ONLY_NOT_PRODUCTION_HEALTH'
               for c in x['ci_evidence'])
           print('CI evidence for pinned commit:',len(x['ci_evidence']),'workflow runs')
+          print('second hop:',x['coverage']['second_hop_modules_read'],
+                'modules,',x['coverage']['second_hop_import_edges'],
+                'imports,',x['coverage']['second_hop_schema_table_declarations'],
+                'schema declaration links')
           print('repo.ing source discovery validated:',
                 len(x['nodes']), 'nodes,',len(x['edges']), 'edges,',
                 x['coverage']['candidate_manifests'],'manifests; production health UNKNOWN')

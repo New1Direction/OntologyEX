@@ -16,6 +16,10 @@ MAX_IMPORT_BYTES = 768 * 1024
 MAX_LINKS = 512
 MAX_MODULES = 256
 MAX_UNRESOLVED = 256
+MAX_SECOND_HOP_MODULES = 48
+MAX_SECOND_HOP_BYTES = 2 * 1024 * 1024
+MAX_SECOND_HOP_LINKS = 384
+MAX_MODULE_BYTES = 96 * 1024
 EXTENSIONS = (".js", ".mjs", ".ts", ".jsx", ".tsx")
 IMPORT = re.compile(
     r"""(?m)^[ \t]*import[ \t]+(?:[^\r\n;'"]{1,500}?[ \t]+from[ \t]+)?(?P<q>['"])(?P<path>\.[^'"\r\n]{1,180})(?P=q)"""
@@ -49,6 +53,143 @@ def resolve_import(source: str, specifier: str, known: dict):
     return None
 
 
+def scan_module_imports(mapped, known, unique_modules, inbound,
+                        client, api, commit, repo_id, read_blob, link_node, require,
+                        evidence_ids):
+    """One additional import hop from *existing* source modules, bounded.
+
+    STATIC_IMPORTS means source-text import declaration; it does not claim a
+    runtime invocation, an observed database query or execution authority.
+    """
+    # Prioritize commonly imported files, plus a spread of business modules.
+    ranked = sorted(unique_modules, key=lambda path: (-inbound.get(path, 0), path))
+    chosen = ranked[:32]
+    chosen += [path for path in sorted(unique_modules)
+               if path.startswith("src/") and path not in chosen][:16]
+    chosen = chosen[:MAX_SECOND_HOP_MODULES]
+    modules_read = 0
+    module_bytes = 0
+    relationships = 0
+    unresolved = 0
+    limits = 0
+    target_modules = set(unique_modules)
+    schema_module_id = "discovery:source_module:gh" + str(repo_id) + "/src/db/schema.mjs"
+    for source in chosen:
+        entry = known[source]
+        size = entry.get("size")
+        # Only explicit tracked application modules, not deps, vendored code or arbitrary files.
+        if (not (source.startswith("app/") or source.startswith("src/"))
+                or type(size) is not int or size < 0 or size > MAX_MODULE_BYTES):
+            mapped["gaps"].append({
+                "source": source, "reason": "SECOND_HOP_MODULE_UNSUPPORTED"})
+            continue
+        if module_bytes + size > MAX_SECOND_HOP_BYTES:
+            limits += 1
+            continue
+        try:
+            raw = read_blob(client, api, entry["sha"], size)
+            content = raw.decode("utf-8")
+        except (ValueError, TypeError, UnicodeError):
+            mapped["gaps"].append({
+                "source": source, "reason": "SECOND_HOP_SOURCE_UNAVAILABLE"})
+            continue
+        modules_read += 1
+        module_bytes += len(raw)
+        evidence_id = hashlib.sha256(
+            (str(repo_id) + "\0" + commit + "\0" + source +
+             "\0" + hashlib.sha256(raw).hexdigest() +
+             "\0second-hop-static-imports").encode("utf-8")
+        ).hexdigest()
+        require(evidence_id not in evidence_ids, "duplicate module evidence")
+        evidence_ids.add(evidence_id)
+        mapped["source_evidence"].append({
+            "id": evidence_id, "path": source,
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "source_kind": "STATIC_IMPORT_SYNTAX",
+            "authenticity": "GIT_BLOB_VERIFIED_SYNTAX_UNREVIEWED",
+            "origin": "GITHUB_COMMIT_PINNED_BLOB",
+            "repository_id": repo_id, "commit_sha": commit,
+            "git_blob_sha": entry["sha"],
+        })
+        module_id = "discovery:source_module:gh" + str(repo_id) + "/" + quote(source, safe="/-._~")
+        for match in IMPORT.finditer(content):
+            specifier = match.group("path")
+            target = resolve_import(source, specifier, known)
+            if target is None:
+                unresolved += 1
+                if len(mapped["unresolved"]) < MAX_UNRESOLVED:
+                    mapped["unresolved"].append({
+                        "source": module_id, "target_name": specifier,
+                        "relation": "STATIC_IMPORT_UNRESOLVED",
+                        "evidence_id": evidence_id,
+                    })
+                else:
+                    limits += 1
+                continue
+            if target not in target_modules:
+                if len(target_modules) >= MAX_MODULES:
+                    limits += 1
+                    continue
+                target_entry = known[target]
+                sha = target_entry.get("sha")
+                if (type(sha) is not str or
+                        re.fullmatch(r"[0-9a-f]{40}", sha) is None):
+                    limits += 1
+                    continue
+                digest = hashlib.sha256(
+                    (commit + "\0" + target + "\0" + sha).encode("utf-8")
+                ).hexdigest()
+                link_node(target, "source_module", target, "GITHUB_TREE_ENTRY_METADATA",
+                          digest, sha, "TREE_PATH_ONLY_SOURCE_BYTES_NOT_READ",
+                          "GITHUB_REPOSITORY_TREE_ENTRY")
+                target_modules.add(target)
+            if relationships >= MAX_SECOND_HOP_LINKS:
+                limits += 1
+                continue
+            mapped["edges"].append({
+                "source": module_id,
+                "target": "discovery:source_module:gh" + str(repo_id) +
+                          "/" + quote(target, safe="/-._~"),
+                "relation": "STATIC_IMPORTS",
+                "evidence_id": evidence_id,
+                "state": "SOURCE_SYNTAX_CANDIDATE",
+                "source_line": content.count("\n", 0, match.start()) + 1,
+            })
+            relationships += 1
+
+    # The schema module owns these *source-syntax candidates*. This edge never
+    # means a table is deployed or queried, and only appears if that exact
+    # module was actually found in the static import graph.
+    declared_tables = 0
+    if "src/db/schema.mjs" in target_modules:
+        for table in [node for node in mapped["nodes"]
+                      if node["kind"] == "declared_db_table" and
+                      node["state"] == "SOURCE_SYNTAX_CANDIDATE"]:
+            mapped["edges"].append({
+                "source": schema_module_id, "target": table["id"],
+                "relation": "DECLARES_TABLE_CANDIDATE",
+                "evidence_id": table["evidence_id"],
+                "state": "SOURCE_SYNTAX_CANDIDATE",
+                "source_line": table["source_line"],
+            })
+            declared_tables += 1
+    if limits:
+        mapped["gaps"].append({
+            "source": "github_second_hop_imports",
+            "reason": "SECOND_HOP_RELATIONSHIPS_BOUNDED",
+        })
+    mapped["coverage"].update({
+        "second_hop_modules_selected": len(chosen),
+        "second_hop_modules_read": modules_read,
+        "second_hop_modules_not_read": len(unique_modules) - modules_read,
+        "second_hop_source_bytes_read": module_bytes,
+        "second_hop_import_edges": relationships,
+        "second_hop_unresolved_imports": unresolved,
+        "second_hop_limited_links": limits,
+        "second_hop_schema_table_declarations": declared_tables,
+    })
+
+
 def attach(mapped, selected_routes, entries, client, api, commit, repo_id,
            read_blob, link_node, require):
     known = {
@@ -61,6 +202,7 @@ def attach(mapped, selected_routes, entries, client, api, commit, repo_id,
     inspected = 0
     links = 0
     unique_modules = set()
+    inbound = {}
     unrecognized = 0
     skipped = 0
     gaps = 0
@@ -151,7 +293,11 @@ def attach(mapped, selected_routes, entries, client, api, commit, repo_id,
                 "state": "SOURCE_SYNTAX_CANDIDATE", "source_line": line,
             })
             links += 1
+            inbound[target] = inbound.get(target, 0) + 1
 
+    scan_module_imports(mapped, known, unique_modules, inbound,
+                        client, api, commit, repo_id, read_blob, link_node,
+                        require, evidence_ids)
     if skipped:
         gap("github_static_imports", "IMPORT_RELATIONSHIPS_BOUNDED")
     mapped["unresolved"].sort(key=lambda x: (
