@@ -2,7 +2,7 @@
 //! This does not connect to GitHub/cloud, run a daemon or collect telemetry.
 use ontologyex_core::{project, Observation, Topology};
 use std::env;
-use std::fs::{self, File};
+use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
