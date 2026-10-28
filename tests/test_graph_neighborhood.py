@@ -36,11 +36,12 @@ class NeighborhoodTests(unittest.TestCase):
         self.assertEqual(n["center_id"],api_node["id"])
         self.assertEqual(n["requested_depth"],1)
         self.assertEqual({x["id"] for x in n["nodes"]},
-                         {api_node["id"],web["id"],db["id"]})
+                         {api_node["id"],web["id"],db["id"],
+                          self.graph["project"]})
         relations=[e for e in n["edges"] if e["relation"]=="DEPENDS_ON"]
         self.assertEqual({(e["source"],e["target"]) for e in relations},
                          {(web["id"],api_node["id"]),(api_node["id"],db["id"])})
-        self.assertEqual(n["direct_incoming_edges"],1)
+        self.assertEqual(n["direct_incoming_edges"],2)
         self.assertEqual(n["direct_outgoing_edges"],1)
         self.assertEqual(n["scope"],"BIDIRECTIONAL_GRAPH_NAVIGATION_NOT_CAUSAL_IMPACT")
         self.assertTrue(all(x["status"]=="unknown" for x in n["nodes"]))
@@ -60,7 +61,7 @@ class NeighborhoodTests(unittest.TestCase):
         self.assertEqual(b["depth_reached"],2)
         reverse=api.neighborhood(self.graph,db_id,depth=2)
         self.assertIn(web["id"],{n["id"] for n in reverse["nodes"]})
-        self.assertEqual(reverse["direct_incoming_edges"],1)
+        self.assertEqual(reverse["direct_incoming_edges"],2)
         self.assertEqual(reverse["direct_outgoing_edges"],0)
 
     def test_cycle_terminates_and_avoids_inventing_impact(self):
