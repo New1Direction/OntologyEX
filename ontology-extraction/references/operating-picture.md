@@ -144,6 +144,19 @@ Rust automatically; `--view-engine rust` also moves the graph views to Rust.
   adds model link routes, review triage, and the page's Ask box.
   See [decision models](decision-models.md).
 
+## Background scans
+
+The slow reads of a repository (the code surface, suppliers, a year of git history for
+owners, compliance evidence) run on a background thread, and pages read the last result,
+so a page never waits for them; only the very first request waits for the first result.
+A scan notes the repository's revision (every file's path, size and modification time,
+and git's HEAD and index) before and after it runs and keeps its result only if nothing
+changed in between: a result that finished while files moved under it is discarded and
+read again. `/api/scans` says, per scan, when it last committed, for which revision,
+how long it took, how many runs were discarded, and whether it still describes the
+repository as it is now. On documenso (about 3,000 files, 720 commits in a year) the
+slowest page answer after the first fell from 4.2 s to 0.19 s.
+
 ## Rules
 
 The control room binds to loopback only. Links, health, and model answers are

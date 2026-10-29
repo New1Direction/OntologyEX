@@ -52,6 +52,7 @@ on:
       - 'ontology-extraction/scripts/ownership.py'
       - 'ontology-extraction/scripts/compliance.py'
       - 'ontology-extraction/scripts/stale_view.py'
+      - 'ontology-extraction/scripts/background_scans.py'
       - '.github/workflows/rust-proof-foundation.yml'
   push:
     branches: [main]
