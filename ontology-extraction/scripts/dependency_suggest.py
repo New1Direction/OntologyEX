@@ -254,14 +254,16 @@ def dependency_key(row: dict) -> tuple[str, str, str]:
 
 
 def apply_decisions(path: Path, by: str, note: str = "", confirm: list[dict] = (),
-                    reject: list[dict] = (), undo: list[str] = ()) -> dict:
-    """Confirm or reject proposed dependencies and undo decided ones, in one atomic write."""
+                    reject: list[dict] = (), undo: list[str] = (), **options) -> dict:
+    """Confirm or reject proposed dependencies and undo decided ones, in one atomic write.
+    `options` go to decisions.apply: preview, plan_digests, expect, undo_batch, engine."""
     for suggestion in (*confirm, *reject):
         require(suggestion.get("status") == "PROPOSED", "only a proposed suggestion can be decided")
     row = lambda s: {"source": s["source"], "target": s["target"], "evidence": s["evidence"]}
     return decisions.apply(path, read=read_dependency_document, kind=DEPENDENCY_KIND, confirmed_field="confirmed",
                            key=dependency_key, name="dependencies", max_rows=MAX_DEPENDENCIES, by=by, note=note,
-                           confirm=[row(s) for s in confirm], reject=[row(s) for s in reject], undo=list(undo))
+                           confirm=[row(s) for s in confirm], reject=[row(s) for s in reject], undo=list(undo),
+                           **options)
 
 
 def decide(path: Path, suggestion: dict, decision: str, by: str, note: str = "") -> dict:

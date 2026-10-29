@@ -20,7 +20,7 @@ MAX_BINARY_BYTES = 64 * 1024 * 1024
 MAX_CONCURRENT = 2
 TIMEOUT_SECONDS = 5.0
 COMMANDS = frozenset({"summary", "page", "neighborhood", "node", "incident", "suggest-links",
-                      "context", "explain", "search", "change-impact"})
+                      "context", "explain", "search", "change-impact", "decide"})
 CONTEXT_COMMANDS = frozenset({"context", "explain", "search", "change-impact"})  # read a bundle: {"state", "business", ...}
 KINDS = {
     "summary": "LOCAL_CONTROL_ROOM_SUMMARY",
@@ -33,6 +33,7 @@ KINDS = {
     "explain": "RELATIONSHIP_EXPLANATION",
     "search": "ENTITY_SEARCH",
     "change-impact": "CHANGE_IMPACT",
+    "decide": "DECISION_COMMIT",
 }
 
 
@@ -136,7 +137,7 @@ class NativeView:
             raise NativeViewError("invalid native view invocation")
         expected_args = {"summary": 0, "page": 3, "neighborhood": 2,
                          "node": 1, "incident": 1, "suggest-links": 0,
-                         "context": 1, "explain": 2, "search": 1, "change-impact": 0}
+                         "context": 1, "explain": 2, "search": 1, "change-impact": 0, "decide": 0}
         if len(args) != expected_args[command] or any(
             len(arg) > 1024 or (not arg and (command != "page" or i != 1))
             for i, arg in enumerate(args)

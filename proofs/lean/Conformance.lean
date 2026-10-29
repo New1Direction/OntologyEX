@@ -1,6 +1,6 @@
 import OntologyEXProofs
 
-/-! Prints the rollup, ladder, fusion, path-standing, impact and feeds tables from the proven definitions, in
+/-! Prints the rollup, ladder, fusion, path-standing, impact, decisions and feeds tables from the proven definitions, in
 the formats of tests/conformance.py and tests/feeds_conformance.py, so CI can compare
 them with Python and Rust. -/
 
@@ -111,6 +111,37 @@ def impactRow (i : Nat) : String :=
     | none => natList [v]
   "[[" ++ ", ".intercalate edges ++ "], [" ++ ", ".intercalate found ++ "]]"
 
+/-! Decisions: 300 generated batches over five items whose entries are 0..3 (or not decided),
+and what `Model.Decisions.commit` gives: the five entries after, or a refusal. -/
+
+def optJ : Option Nat → String
+  | some n => toString n
+  | none => "null"
+
+def decisionCase : StateM Nat (List (Option Nat) × List (OntologyEX.Model.Decisions.Op Nat Nat)) := do
+  let mut st : List (Option Nat) := []
+  for _ in [0:5] do
+    let r ← draw 5
+    st := st ++ [if r = 4 then none else some r]
+  let n := 1 + (← draw 4)
+  let mut ops : List (OntologyEX.Model.Decisions.Op Nat Nat) := []
+  for _ in [0:n] do
+    let k ← draw 5
+    let e ← draw 20
+    let w ← draw 5
+    let expect := if e ≥ 5 then st.getD k none else if e = 4 then none else some e
+    ops := ops ++ [⟨k, expect, if w = 4 then none else some w⟩]
+  pure (st, ops)
+
+def decisionRow (i : Nat) : String :=
+  let (st, ops) := (decisionCase.run (i + 1)).1
+  let shown (xs : List (Option Nat)) := "[" ++ ", ".intercalate (xs.map optJ) ++ "]"
+  let opsJ := ops.map fun op => "[" ++ toString op.key ++ ", " ++ optJ op.expect ++ ", " ++ optJ op.set ++ "]"
+  let result := match OntologyEX.Model.Decisions.commit (fun k => st.getD k none) ops with
+    | some s' => shown ((List.range 5).map s')
+    | none => "\"refused\""
+  "[" ++ shown st ++ ", [" ++ ", ".intercalate opsJ ++ "], " ++ result ++ "]"
+
 def main : IO Unit := do
   let rows := (seqs 10 0 ++ seqs 10 1 ++ seqs 10 2 ++ seqs 10 3).map rollupRow
   let grades := (List.range 64).map gradeRow
@@ -118,11 +149,13 @@ def main : IO Unit := do
   let paths := (seqs 4 0 ++ seqs 4 1 ++ seqs 4 2 ++ seqs 4 3 ++ seqs 4 4).map pathRow
   let marks := [(0, 0), (0, 1), (1, 0), (1, 1), (2, 0), (2, 1)].map watermarkRow
   let impact := (List.range 300).map impactRow
+  let decided := (List.range 300).map decisionRow
   IO.println ("{\"kind\": \"BUSINESS_CONFORMANCE_TABLE\", \"execution_authorized\": false, " ++
     "\"rollup\": [" ++ ", ".intercalate rows ++ "], \"grade\": [" ++
     ", ".intercalate grades ++ "], \"fusion\": [" ++ ", ".intercalate fusion ++ "], " ++
     "\"path_standing\": [" ++ ", ".intercalate paths ++ "], " ++
     "\"watermark\": [" ++ ", ".intercalate marks ++ "], " ++
     "\"impact\": [" ++ ", ".intercalate impact ++ "], " ++
+    "\"decisions\": [" ++ ", ".intercalate decided ++ "], " ++
     "\"classify\": [" ++ ", ".intercalate classifyRows ++ "], \"retain\": [" ++
     ", ".intercalate retainRows ++ "], \"p95\": [" ++ ", ".intercalate p95Rows ++ "]}")

@@ -147,7 +147,9 @@ class EndToEndTests(unittest.TestCase):
                              "RECONFIRMED")
 
             self.assertEqual(decide([other["id"]], "reject")[0], 200)  # scripts that send no fingerprints still work
-            self.assertEqual(decide([refund["id"]], "undo", {"anything": "x"})[0], 200)  # undo needs no view
+            entry = get("/api/views")["links"]["entry"]  # an undo applies only to the row version the page showed
+            self.assertEqual(decide([refund["id"]], "undo", {refund["id"]: "0" * 24})[1]["status"], "STALE_VIEW")
+            self.assertEqual(decide([refund["id"]], "undo", {refund["id"]: entry[refund["id"]]})[0], 200)
             self.assertEqual(decide([], "", raw={"ids": [refund["id"]], "decision": "confirm", "by": "Dana",
                                                  "note": "", "seen": ["not", "a", "map"]})[0], 400)
             with self.assertRaises(urllib.error.HTTPError) as caught:

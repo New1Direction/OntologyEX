@@ -308,8 +308,9 @@ def link_key(row: dict) -> tuple[str, str, str]:
 
 
 def apply_decisions(links_path: Path, by: str, note: str = "", confirm: list[dict] = (),
-                    reject: list[dict] = (), undo: list[str] = ()) -> dict:
-    """Confirm or reject proposed suggestions and undo decided links, in one atomic write."""
+                    reject: list[dict] = (), undo: list[str] = (), **options) -> dict:
+    """Confirm or reject proposed suggestions and undo decided links, in one atomic write.
+    `options` go to decisions.apply: preview, plan_digests, expect, undo_batch, engine."""
     for suggestion in (*confirm, *reject):
         require(suggestion.get("status") == "PROPOSED", "only a proposed suggestion can be decided")
     # A confirmation records the evidence it rested on (watermark.py), when the caller has it.
@@ -319,16 +320,16 @@ def apply_decisions(links_path: Path, by: str, note: str = "", confirm: list[dic
                            confirmed_field="links", key=link_key, name="links",
                            max_rows=business_view.MAX_LINKS, by=by, note=note,
                            confirm=[row(s, True) for s in confirm], reject=[row(s, False) for s in reject],
-                           undo=list(undo))
+                           undo=list(undo), **options)
 
 
-def reconfirm(links_path: Path, by: str, note: str, rows: list[dict]) -> dict:
+def reconfirm(links_path: Path, by: str, note: str, rows: list[dict], **options) -> dict:
     """A person confirms again links whose evidence changed, recording the evidence now."""
     return decisions.apply(links_path, read=business_view.read_link_document, kind=business_view.LINK_KIND,
                            confirmed_field="links", key=link_key, name="links",
                            max_rows=business_view.MAX_LINKS, by=by, note=note,
                            reconfirm=[{"skill": r["skill"], "binding": r["binding"], "component": r["component"],
-                                       "evidence": r["evidence"]} for r in rows])
+                                       "evidence": r["evidence"]} for r in rows], **options)
 
 
 def decide(links_path: Path, suggestion: dict, decision: str, by: str, note: str = "") -> dict:

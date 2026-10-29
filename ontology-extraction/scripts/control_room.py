@@ -894,6 +894,25 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
     check(0 <= port <= 65535, "invalid port")
     check(view_engine in ("python", "rust"), "unsupported graph view backend")
     native_view = native_view_bridge.NativeView() if view_engine == "rust" else None
+
+    def rust_commit(entries: list[dict], ops: list[dict]) -> dict:
+        """decisions.commit computed by `ontologyex-view decide` (tests/rust_decide_parity.py checks they agree)."""
+        answer = native_view.execute({"execution_authorized": False, "entries": entries, "ops": ops}, "decide")
+        if answer.get("refused"):
+            raise decisions.Refused(answer["refused"], answer["ids"])
+        return {"entries": answer["entries"], "changes": answer["changes"]}
+
+    def rust_decides() -> bool:
+        """Whether the installed ontologyex-view has the decision kernel (engine releases before it do not)."""
+        try:
+            native_view.execute({"execution_authorized": False, "entries": [],
+                                 "ops": [{"id": "probe", "expect": None, "set": None}]}, "decide")
+            return True
+        except native_view_bridge.NativeViewError:
+            return False
+
+    # A capability check at start, not a fallback: once the Rust kernel decides, a failure is an error.
+    native_commit = rust_commit if native_view is not None and rust_decides() else None
     native_discovery = view_engine == "rust" or native_view_bridge.discovery_engine(discovery_engine) == "rust"
     rules = read_thresholds(thresholds)
     skills = list(skills or [])
@@ -927,6 +946,19 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                            str(repo), "--calls", str(calls_path), "--dependencies",
                            str(dependencies) if dependencies is not None else "DEPENDENCIES.json"]
                           if repo is not None and calls_path is not None else None)
+
+    def page_views(picture: dict, full: dict) -> dict:
+        """The fingerprints of what a page lets a person decide, and the version of every decided
+        row (what an undo or a re-confirm sends back, so it applies only to the row the page showed)."""
+        views = stale_view.views(picture, watermark.Marks(repo_files, skills, full), repo_files)
+        for kind, path, read, key in (
+                ("links", links, business_view.read_link_document, link_suggest.link_key),
+                ("dependencies", dependencies, dependency_suggest.read_dependency_document,
+                 dependency_suggest.dependency_key),
+                ("rules", rules_file, rule_suggest.read_rule_document, rule_suggest.rule_key)):
+            rows = read(path) if path is not None and path.exists() else ([], [])
+            views[kind]["entry"] = {e["id"]: decisions.version(e) for e in decisions.entries_of(*rows, key)}
+        return views
 
     def dependency_documents() -> tuple[list[dict], list[dict]]:
         return (dependency_suggest.read_dependency_document(dependencies)
@@ -1192,7 +1224,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                         raise graph_view_api.ViewError("business view takes no parameters")
                     full = snapshot()
                     answer = business(full)  # with the fingerprints of what it lets a person decide, from the same state
-                    answer["views"] = stale_view.views(answer, watermark.Marks(repo_files, skills, full), repo_files)
+                    answer["views"] = page_views(answer, full)
                     payload, code = json.dumps(answer, sort_keys=True).encode(), 200
                 except graph_view_api.ViewError:
                     payload, code = b'{"status":"INVALID_QUERY"}', 400
@@ -1207,13 +1239,27 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                     payload, code = b'{"status":"NO_LOCAL_REPOSITORY","scans":[]}', 200
                 else:
                     payload, code = json.dumps(scanner.status(), sort_keys=True).encode(), 200
+            elif route.path in ("/api/links/batches", "/api/dependencies/batches", "/api/rules/batches"):
+                # The recorded decision batches, newest first: who, when, what, and whether undone.
+                mime = "application/json; charset=utf-8"
+                path = {"links": links, "dependencies": dependencies, "rules": rules_file}[route.path.split("/")[2]]
+                if route.query:
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                else:
+                    try:
+                        found = decisions.batches(path) if path is not None else []
+                        payload, code = json.dumps({"schema_version": 1, "kind": "DECISION_BATCHES",
+                                                    "batches": found[:50], "execution_authorized": False},
+                                                   sort_keys=True).encode(), 200
+                    except OSError:
+                        payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
             elif route.path == "/api/views":  # fingerprints of what a page lets a person decide; read before the page
                 mime = "application/json; charset=utf-8"
                 try:
                     if route.query:
                         raise graph_view_api.ViewError("views takes no parameters")
                     full = snapshot()
-                    answer = stale_view.views(business(full), watermark.Marks(repo_files, skills, full), repo_files)
+                    answer = page_views(business(full), full)
                     payload, code = json.dumps(answer, sort_keys=True).encode(), 200
                 except graph_view_api.ViewError:
                     payload, code = b'{"status":"INVALID_QUERY"}', 400
@@ -1519,19 +1565,35 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                         raise ValueError("invalid body length")
                     request = json.loads(self.rfile.read(length),
                                          object_pairs_hook=no_duplicates)
-                    # One suggestion ("id") or a batch ("ids"); undo takes decided IDs. "seen" carries the
-                    # fingerprints the page showed, so a decision applies only to what the person saw.
+                    # One suggestion ("id") or a batch ("ids"); undo takes decided IDs; "undo_batch" takes
+                    # a recorded batch ID. "seen" carries the fingerprints the page showed (for undo, the
+                    # versions of the decided rows), so a decision applies only to what the person saw.
+                    # "preview": true computes the batch and writes nothing; "plan" (the preview's digests)
+                    # applies it only if it is still exactly that batch.
                     seen = request.pop("seen", None) if type(request) is dict else None
+                    preview = request.pop("preview", False) if type(request) is dict else False
+                    plan = request.pop("plan", None) if type(request) is dict else None
                     if type(request) is not dict or set(request) not in (
-                            {"id", "decision", "by", "note"}, {"ids", "decision", "by", "note"}):
-                        raise ValueError("expected id or ids, decision, by and note")
+                            {"id", "decision", "by", "note"}, {"ids", "decision", "by", "note"},
+                            {"batch", "decision", "by", "note"}):
+                        raise ValueError("expected id, ids or batch, decision, by and note")
                     if seen is not None and not stale_view.valid_seen(seen):
                         raise ValueError("seen maps IDs to the fingerprints the page showed")
-                    ids = [request["id"]] if "id" in request else request["ids"]
-                    if (type(ids) is not list or not 0 < len(ids) <= decisions.MAX_BATCH
-                            or not all(type(i) is str for i in ids)
-                            or request["decision"] not in ("confirm", "reject", "undo", "reconfirm")):
-                        raise ValueError("invalid IDs or decision")
+                    if preview is not False and preview is not True:
+                        raise ValueError("preview is true or absent")
+                    if plan is not None and not (stale_view.valid_seen(plan) and plan and not preview):
+                        raise ValueError("plan maps IDs to the digests a preview returned")
+                    if "batch" in request:
+                        if request["decision"] != "undo_batch" or type(request["batch"]) is not str \
+                                or not 0 < len(request["batch"]) <= 64:
+                            raise ValueError("a batch can only be undone, by its ID")
+                        ids = []
+                    else:
+                        ids = [request["id"]] if "id" in request else request["ids"]
+                        if (type(ids) is not list or not 0 < len(ids) <= decisions.MAX_BATCH
+                                or not all(type(i) is str for i in ids)
+                                or request["decision"] not in ("confirm", "reject", "undo", "reconfirm")):
+                            raise ValueError("invalid IDs or decision")
                     links_route = route.path == "/api/links/decision"
                     rules_route = route.path == "/api/rules/decision"
                     if request["decision"] == "reconfirm" and not (links_route or rules_route):
@@ -1540,22 +1602,27 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                              rule_suggest.apply_decisions if rules_route else dependency_suggest.apply_decisions)
                     target = links if links_route else rules_file if rules_route else dependencies
                     kind = "links" if links_route else "rules" if rules_route else "dependencies"
+                    options = {"preview": preview, "plan_digests": plan, "engine": native_commit}
                     with decision_lock:
                         # One reading of the state, for the stale-view check and for what the decision records.
                         full = snapshot()
                         picture = business(full) if request["decision"] in ("confirm", "reject") or seen else None
                         marks = watermark.Marks(repo_files, skills, full)
-                        if seen is not None and request["decision"] != "undo":
+                        if seen is not None and request["decision"] in ("undo", "undo_batch"):
+                            options["expect"] = seen  # the versions of the decided rows the page showed
+                        elif seen is not None:
                             stale_view.check(seen, ids, stale_view.views(picture, marks, repo_files)[kind][
                                 "decided" if request["decision"] == "reconfirm" else "suggestion"])
-                        if request["decision"] == "undo":
-                            body = apply(target, request["by"], request["note"], undo=ids)
+                        if request["decision"] == "undo_batch":
+                            body = apply(target, request["by"], request["note"], undo_batch=request["batch"], **options)
+                        elif request["decision"] == "undo":
+                            body = apply(target, request["by"], request["note"], undo=ids, **options)
                         elif request["decision"] == "reconfirm" and rules_route:
                             confirmed_rules = (rule_suggest.read_rule_document(rules_file)[0]
                                                if rules_file.exists() else [])
                             body = rule_suggest.apply_decisions(target, request["by"], request["note"],
                                                                 reconfirm=rule_suggest.reconfirm_rows(
-                                                                    confirmed_rules, ids, repo_files))
+                                                                    confirmed_rules, ids, repo_files), **options)
                         elif request["decision"] == "reconfirm":  # a person confirms again what changed
                             confirmed = {decisions.decision_id(*link_suggest.link_key(r)): r
                                          for r in business_view.read_link_document(links)[0]}
@@ -1563,7 +1630,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                                 raise ValueError("no confirmed link has that ID")
                             body = link_suggest.reconfirm(target, request["by"], request["note"], [
                                 {**confirmed[i], "evidence": marks.now(*link_suggest.link_key(confirmed[i]))}
-                                for i in dict.fromkeys(ids)])
+                                for i in dict.fromkeys(ids)], **options)
                         else:
                             current = {x["id"]: x for x in picture[
                                 "link_suggestions" if links_route else "rule_suggestions" if rules_route
@@ -1574,11 +1641,18 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                             if links_route and request["decision"] == "confirm":  # record what it rested on
                                 chosen = [{**c, "evidence": marks.now(c["skill"], c["binding"], c["component"])}
                                           for c in chosen]
-                            body = apply(target, request["by"], request["note"], **{request["decision"]: chosen})
+                            body = apply(target, request["by"], request["note"], **{request["decision"]: chosen},
+                                         **options)
                     code = 200
                 except stale_view.StaleView as exc:  # nothing written: the person decides again on what is there now
                     code, body = 409, {"status": "STALE_VIEW", "changed": exc.changed[:50],
                                        "detail": "What you saw changed since the page loaded. Reload and decide again."}
+                except native_view_bridge.NativeViewError:  # the Rust kernel failed: nothing written
+                    code, body = 503, {"status": "ENGINE_UNAVAILABLE"}
+                except decisions.Refused as exc:  # a stale approval or preview: nothing written
+                    code, body = 409, {"status": "STALE_VIEW", "changed": exc.ids[:50], "reason": exc.reason,
+                                       "detail": "What you approved changed since you saw it. Nothing was saved. "
+                                                 "Look again, then decide."}
                 except (ValueError, TypeError, KeyError, UnicodeError, RoomError, DomainError):
                     code, body = 400, {"status": "INVALID_DECISION"}
                 except OSError:
@@ -1614,6 +1688,10 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                   flush=True)
             if repo is not None:
                 print(f"Repository discovery: {'rust' if native_discovery else 'python'}", flush=True)
+            if native_view is not None and (links is not None or dependencies is not None or rules_file is not None):
+                print("Decisions: " + ("rust (ontologyex-view decide)" if native_commit else
+                                       "python (this ontologyex-view predates the decision kernel; "
+                                       "update it with fetch_engine.py)"), flush=True)
             if scanner is not None:
                 scanner.start()
             if recorder is not None:
