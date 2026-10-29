@@ -24,6 +24,8 @@ PROJECT = re.compile(r'^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')
 KINDS = {'observed_in_source', 'derived_from_source', 'operator_declared', 'proposed', 'unknown'}
 ACTOR_ROLES = {'customer', 'creator', 'owner', 'operator', 'builder', 'trader', 'participant', 'agent', 'team', 'external', 'user'}
 FLOW_STATES = {'described', 'deployed_claim', 'gated', 'planned', 'unknown'}
+SEVERITIES = ('critical', 'high', 'medium', 'low')
+PRIORITY = re.compile(r'P[0-3]')
 LOCAL = 'local'
 MAX_SOURCE_FILE = 2 * 1024 * 1024
 
@@ -139,6 +141,16 @@ def validate(p):
             check(item.get('state','described') in FLOW_STATES,'unknown step state')
         elif field in ('money_flows','systems','risks','improvements'):
             require_string(item.get('name'),f'{uid}.name')
+        # The page shows these fields; a missing or wrong one would break its tab.
+        if field=='money_flows':
+            check(item.setdefault('state','described') in FLOW_STATES,f'{uid}.state must be one of {sorted(FLOW_STATES)}')
+        elif field=='risks':
+            check(item.get('severity') in SEVERITIES,f'{uid}.severity must be one of {list(SEVERITIES)}')
+            check(type(item.get('signal','')) is str,f'{uid}.signal must be text')
+        elif field=='improvements':
+            check(type(item.setdefault('priority','P2')) is str and PRIORITY.fullmatch(item['priority']) is not None,
+                  f'{uid}.priority must be P0, P1, P2 or P3')
+            check(type(item.setdefault('addresses',[])) is list,f'{uid}.addresses must be a list of risk IDs')
     for j in p['journeys']:
         require_string(j.get('name'),'journey.name')
         require_string(j.get('outcome'),'journey.outcome')
