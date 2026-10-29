@@ -37,6 +37,7 @@ import suppliers
 import command_center
 import digest
 import ownership
+import compliance
 import github_discovery
 import snapshot_store
 import graph_view_api
@@ -1090,6 +1091,10 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                             state_cache["ownership"] = ownership.scan_repo(repo, current)
                         except (ValueError, OSError):
                             state_cache["ownership"] = None
+                        try:
+                            state_cache["compliance"] = compliance.scan_repo(repo)
+                        except (ValueError, OSError):
+                            state_cache["compliance"] = None
                         state_cache["ownership_scanned"] = current
                     state_cache["topology"] = topology
                     state_cache["last_success"] = current
@@ -1137,6 +1142,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         """The model, with who owns each part of it."""
         data = model()
         data["ownership"] = ownership.report(data, state_cache.get("ownership") if remote is None else None)
+        data["compliance"] = compliance.report(data, state_cache.get("compliance") if remote is None else None)
         return data
 
     if print_bundle:  # the same assembly the server answers from, for tests, parity and agents offline
@@ -1242,6 +1248,31 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                         raise graph_view_api.ViewError("command takes no parameters")
                     payload, code = json.dumps(command_center.report(bundle()), sort_keys=True).encode(), 200
                 except (graph_view_api.ViewError, entity_context.ContextError):
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, DomainError, discover_repo.DiscoveryError,
+                        github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
+            elif route.path == "/compliance":  # the pack in the query is read by the page
+                page = (Path(__file__).resolve().parent / "compliance_page.html").read_bytes()
+                payload, mime, code = page, "text/html; charset=utf-8", 200
+            elif route.path == "/api/compliance":  # what each pack asks for and what the sources show
+                mime = "application/json; charset=utf-8"
+                try:
+                    params = parse_qs(route.query, strict_parsing=True, max_num_fields=2) if route.query else {}
+                    pack, shape = params.get("pack", [None]), params.get("format", ["json"])
+                    if not set(params) <= {"pack", "format"} or len(pack) != 1 or len(shape) != 1 \
+                            or (pack[0] is not None and pack[0] not in compliance.PACKS) \
+                            or shape[0] not in ("json", "markdown"):
+                        raise graph_view_api.ViewError("compliance takes pack and format")
+                    answer = bundle()["compliance"]
+                    if shape[0] == "markdown":
+                        payload, mime, code = (compliance.markdown(answer, pack[0]).encode(),
+                                               "text/markdown; charset=utf-8", 200)
+                    else:
+                        if pack[0]:
+                            answer = {**answer, "packs": [p for p in answer["packs"] if p["id"] == pack[0]]}
+                        payload, code = json.dumps(answer, sort_keys=True).encode(), 200
+                except graph_view_api.ViewError:
                     payload, code = b'{"status":"INVALID_QUERY"}', 400
                 except (RoomError, DomainError, discover_repo.DiscoveryError,
                         github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):

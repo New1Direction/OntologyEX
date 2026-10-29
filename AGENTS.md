@@ -51,7 +51,8 @@ Then offer what fits:
 - **Their systems, live:** `KIT/.venv/bin/python KIT/ontology-extraction/scripts/operate.py up --repo REPO`
   opens a local map: `/command` ranks everything that needs attention with why, and `/digest`
   says what moved since last week (it records history in `REPO/.ontologyex`), and `/owners` says
-  who answers for each part (CODEOWNERS, then git history);
+  who answers for each part (CODEOWNERS, then git history), and `/compliance` maps SOC 2, PCI DSS,
+  HIPAA and GDPR to the evidence in the code;
   `feed_setup.py` adds health checks and `otel_setup.py` adds
   traces between services, one command per service with no code change (see
   [operating picture](ontology-extraction/references/operating-picture.md)).

@@ -201,7 +201,9 @@ to see. The **weekly digest** (`/digest`) says what moved since last week: new, 
 worse, better and longest open, the decisions people made, and the code shipped with the
 business it touched, ready to paste as Markdown. **Owners** (`/owners`) says who answers for each
 business action, system and supplier: declared in CODEOWNERS (line cited) or inferred from
-who changes the code, with the gaps nobody owns and the code only one person knows. Every business object, action and system also has an **entity page** (`/entity`): why
+who changes the code, with the gaps nobody owns and the code only one person knows. **Compliance** (`/compliance`) maps SOC 2, PCI DSS,
+HIPAA and GDPR to what the code shows, control by control with lines cited, and says what
+only a person can provide; an evidence map for preparing an audit, not an audit. Every business object, action and system also has an **entity page** (`/entity`): why
 it exists, what a person confirmed and what is only inferred, what relies on it, and
 the files behind each relationship. A confirmation records the hashes of the files it
 rested on; when one changes, the link waits for a person to re-confirm it. Before a change

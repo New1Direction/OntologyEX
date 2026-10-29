@@ -19,7 +19,7 @@ Every tool declares its kind, and the kind decides what it may do:
 
 - READ_ONLY tools (search, context, explain, impact, recent decisions, open
   suggestions, decisions whose evidence changed, change impact, suppliers, what needs
-  attention, the weekly digest, who owns what) change nothing.
+  attention, the weekly digest, who owns what, compliance evidence) change nothing.
 - ADDITIVE tools (propose_link, propose_dependency, propose_rule) append a proposal to
   a proposals file and nothing else. A proposal is a suggestion: it shows in the control room beside the ranked
   ones, and only a person confirms or rejects it there, through the existing decision
@@ -159,6 +159,13 @@ TOOLS = {
                        "CODEOWNERS with the line cited, else who changed its code most in the last year (inferred), "
                        "plus business actions nobody owns and code only one person has changed.",
         "input": _schema({}, {"id": _text("id", "an entity ID from search_entities", 1024)})},
+    "compliance_status": {
+        "kind": READ_ONLY, "title": "Compliance evidence",
+        "description": "What SOC 2, PCI DSS, HIPAA and GDPR ask for, whether each applies, and for each control "
+                       "whether the sources show it (SHOWN, PARTLY_SHOWN, NOT_SHOWN_IN_SOURCES) with the lines cited, "
+                       "or whether only a person can provide it (NEEDS_A_PERSON). An evidence map for preparing an "
+                       "audit, not an audit or legal advice. Optional pack: soc2, pci, hipaa or gdpr.",
+        "input": _schema({}, {"pack": _text("pack", "soc2, pci, hipaa or gdpr", 10)})},
     "list_stale_decisions": {
         "kind": READ_ONLY, "title": "Decisions to re-check",
         "description": "Confirmed links whose evidence (the file hashes recorded when a person confirmed them) "
@@ -517,6 +524,15 @@ class Tools:
                 raise ToolError("NOT_FOUND", "no entity has that ID; use search_entities")
             found = {**found, "entities": rows, "people": []}
         return self._out({**found, "execution_authorized": False}, hidden)
+
+    def compliance_status(self, args: dict) -> dict:
+        pack = args.get("pack")
+        if pack is not None and pack not in ("soc2", "pci", "hipaa", "gdpr"):
+            raise ToolError("INVALID_ARGUMENTS", "pack is soc2, pci, hipaa or gdpr")
+        bundle, hidden = self._model()
+        found = dict(bundle.get("compliance") or {"status": "NOT_SCANNED", "packs": []})
+        found["packs"] = [p for p in found.get("packs", []) if pack is None or p["id"] == pack]
+        return self._out({**found, "execution_authorized": False}, hidden)  # cited paths pass the file policy too
 
     def list_stale_decisions(self, args: dict) -> dict:
         bundle, hidden = self._model()
