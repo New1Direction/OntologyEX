@@ -141,7 +141,7 @@ class Scan(unittest.TestCase):
             write(repo, ".cursor/rules/architecture.mdc", "# How the pieces fit\n")
             result = overview.scan(repo)
             apps = {a["folder"]: (a["service"], a.get("role", "")[:7]) for a in result["apps"]}
-            self.assertEqual(apps["."], ("app (tooling)", "tooling"))
+            self.assertEqual(apps["."], (f"{repo.name} (tooling)", "tooling"))  # a root app takes the repo name
             self.assertEqual(apps["backend"], ("backend", ""))  # the compose service builds backend/
             self.assertEqual([s["name"] for s in result["services"]], ["backend", "mailpit"])  # one backend, not its override
             self.assertEqual([f["name"] for f in result["apps"][1]["frameworks"]], ["fastapi"])

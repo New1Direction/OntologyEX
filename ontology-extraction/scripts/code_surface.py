@@ -11,8 +11,9 @@ file and line of each:
   routes, Express/Fastify/Koa/Hono, Flask, FastAPI, Django urls.py, Go (net/http, chi, gin, echo, gorilla), Spring, Rails, Laravel;
 - operations: GraphQL Query/Mutation/Subscription fields, tRPC procedures;
 - tables: Prisma models, SQL CREATE TABLE, Django, SQLAlchemy and SQLModel models, Drizzle,
-  TypeORM, Mongoose, Sequelize, Rails schema.rb, JPA @Table;
-- jobs: Celery tasks and beat schedules, Rails ActiveJob and Sidekiq jobs, sidekiq-cron style
+  TypeORM, Mongoose, Sequelize, Rails schema.rb, Laravel migrations, JPA @Table;
+- jobs: Celery tasks and beat schedules, Rails ActiveJob and Sidekiq jobs, Laravel queued jobs
+  and schedules, sidekiq-cron style
   schedule.yml entries, BullMQ queues, node-cron, Inngest functions.
 
 Each finding is a candidate from syntax, not a verified endpoint or table: a route
@@ -54,7 +55,12 @@ DJANGO_PATH = re.compile(r"\b(?:re_)?path\s*\(\s*r?['\"]([^'\"]*)['\"]")
 GO_ROUTE = re.compile(r"\.\s*(GET|POST|PUT|PATCH|DELETE|Get|Post|Put|Patch|Delete|Handle|HandleFunc|Any|Method)\s*\(\s*"
                       r"(?:\"(GET|POST|PUT|PATCH|DELETE)\"\s*,\s*)?\"((?:(?:GET|POST|PUT|PATCH|DELETE)\s+)?/[^\"]*)\"")
 SPRING_ROUTE = re.compile(r"@(Get|Post|Put|Delete|Patch|Request)Mapping\s*\(\s*(?:(?:value|path)\s*=\s*)?\{?\s*\"(/[^\"]*)\"")
-LARAVEL_ROUTE = re.compile(r"Route::(get|post|put|patch|delete|any)\s*\(\s*['\"]([^'\"]*)['\"]")
+LARAVEL_ROUTE = re.compile(r"(?:Route::|\$router->|->)(get|post|put|patch|delete|any|options|resource|apiResource)"
+                           r"\s*\(\s*['\"]([^'\"]*)['\"]")
+LARAVEL_TABLE = re.compile(r"Schema::create\s*\(\s*['\"](\w+)['\"]")
+LARAVEL_JOB = re.compile(r"^[ \t]*(?:final\s+)?class\s+(\w+)[^{]*\bimplements\b[^{]*\bShouldQueue\b", re.M)
+LARAVEL_SCHEDULE = re.compile(r"(?:Schedule::|\$schedule->)(command|job|call|exec)\s*\(\s*(?:new\s+)?['\"]?([\w:\\ -]+?)"
+                              r"(?:::class|['\"])")
 GRAPHQL_BLOCK = re.compile(r"^(?:extend\s+)?type\s+(Query|Mutation|Subscription)\b[^{]*\{", re.M)
 GRAPHQL_FIELD = re.compile(r"^\s{1,8}(\w+)\s*[(:]")
 TRPC = re.compile(r"(?:\bconst\s+(\w+)\s*=|^[ \t]*(\w+)\s*:)\s*(\w*[pP]rocedure)\b", re.M)
@@ -157,6 +163,39 @@ def _rails_routes(text: str):
             yield "ANY", m.group(1), at
         if opens:
             stack.append(pushed)
+
+
+def _laravel_routes(rel: str, text: str):
+    """(method, path, offset) for Laravel routes, with prefix(...)->group(...) blocks followed.
+
+    routes/api.php is served under /api by Laravel's default route setup.
+    """
+    if "Route::" not in text and "$router->" not in text:
+        return
+    base = "/api" if PurePosixPath(rel).name == "api.php" and "routes" in PurePosixPath(rel).parts else ""
+    stack: list[tuple[int, str]] = []  # (brace depth when the group opened, its prefix)
+    depth, statement, start = 0, "", 0
+    for match in re.finditer(r"[^\n]*\n?", text):
+        line = match.group(0)
+        if not statement:
+            start = match.start()
+        statement += line
+        code = line.split("//", 1)[0]
+        if re.search(r"->group\s*\(|Route::group\s*\(", statement) and "{" in code:
+            prefix = re.search(r"prefix\s*\(\s*['\"]([^'\"]*)['\"]|['\"]prefix['\"]\s*=>\s*['\"]([^'\"]*)['\"]", statement)
+            stack.append((depth, "/" + (prefix.group(1) or prefix.group(2)).strip("/") if prefix else ""))
+            statement = ""
+        prefix = base + "".join(p for _, p in stack if p != "/")
+        complete = not statement.strip().endswith(("(", ",")) and re.search(r"Route::|\$router->", statement)
+        for route in LARAVEL_ROUTE.finditer(statement if complete else ""):
+            verb = "ANY" if route.group(1) in ("any", "resource", "apiResource") else route.group(1).upper()
+            path = route.group(2).strip("/")
+            yield verb, (f"{prefix}/{path}" if path else prefix or "/").replace("//", "/"), start + route.start()
+        if not statement.strip().endswith(("(", ",", "[")):
+            statement = ""
+        depth += code.count("{") - code.count("}")
+        while stack and depth <= stack[-1][0]:
+            stack.pop()
 
 
 def _remix_route(rel: str) -> str | None:
@@ -304,8 +343,16 @@ def scan_file(rel: str, text: str) -> dict[str, list[dict]]:
             for match in RAILS_TABLE.finditer(text):
                 table(match.group(1), match.start(), "rails")
     elif suffix == ".php":
-        for match in LARAVEL_ROUTE.finditer(text):
-            route(match.group(1), "/" + match.group(2).lstrip("/"), match.start(), "laravel")
+        for method, path, offset in _laravel_routes(rel, text):
+            route(method, path, offset, "laravel")
+        for match in LARAVEL_TABLE.finditer(text):
+            table(match.group(1), match.start(), "laravel")
+        for match in LARAVEL_JOB.finditer(text):
+            found["jobs"].append({"name": match.group(1), "file": rel, "line": _line(text, match.start()),
+                                  "kind": "laravel job"})
+        for match in LARAVEL_SCHEDULE.finditer(text):
+            found["jobs"].append({"name": match.group(2).strip().rsplit("\\", 1)[-1], "file": rel,
+                                  "line": _line(text, match.start()), "kind": "laravel schedule"})
     elif suffix == ".prisma":
         for match in PRISMA_MODEL.finditer(text):
             table(match.group(1), match.start(), "prisma")

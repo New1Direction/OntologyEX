@@ -50,7 +50,17 @@ FILES = {
     "rb/config/schedule.yml": "clean_syncs:\n  cron: \"0 * * * *\" # hourly\n  class: \"SyncCleanerJob\"\n\n"
                               "not_a_job:\n  queue: default\n",
     "rb/db/schema.rb": "ActiveRecord::Schema.define do\n  create_table \"invoices\" do |t|\n  end\nend\n",
-    "php/routes/web.php": "<?php\nRoute::get('/plans', [PlanController::class, 'index']);\n",
+    "php/routes/web.php": "<?php\nRoute::get('/plans', [PlanController::class, 'index']);\n"
+                          "Route::middleware(['auth'])->group(function () {\n"
+                          "    Route::prefix('vaults')->group(function () {\n"
+                          "        Route::get('{vault}', [VaultController::class, 'show']);\n"
+                          "        Route::post(\n            '{vault}/contacts',\n            [ContactController::class, 'store']\n        );\n"
+                          "    });\n});\nRoute::get('after', [X::class, 'y']);\n",
+    "php/routes/api.php": "<?php\nRoute::apiResource('vaults', VaultController::class);\n",
+    "php/app/Providers/FortifyServiceProvider.php": "<?php\n$name = $request->get('login.id');\n",
+    "php/database/migrations/2024_01_01_create_vaults_table.php": "<?php\nSchema::create('vaults', function (Blueprint $table) {});\n",
+    "php/app/Jobs/PushVCard.php": "<?php\nclass PushVCard implements ShouldQueue\n{\n}\n",
+    "php/routes/console.php": "<?php\nSchedule::command('model:prune', 'daily');\nSchedule::job(UpdateAddressBooks::class, 'hourly');\n",
     "gql/schema.graphql": "type Query {\n  order(id: ID!): Order\n  orders(\n    first: Int\n  ): [Order]\n}\n"
                           "type Mutation {\n  checkoutComplete(id: ID!): Order\n}\n",
     "trpc/router.ts": "export const appRouter = router({\n  getPlan: publicProcedure.query(() => 1),\n});\n",
@@ -108,7 +118,8 @@ class Scan(unittest.TestCase):
             ("ANY", "/api/v1/categories"), ("ANY", "/api/v1/categories/:category_id/deletions"), ("ANY", "/invoices"),
             ("ANY", "/sidekiq"), ("GET", "/api/v1/categories/:id/export"), ("POST", "/api/v1/categories/bootstrap"),
             ("POST", "/pay")])
-        self.assertEqual(self.routes("laravel"), [("GET", "/plans")])
+        self.assertEqual(self.routes("laravel"), [("ANY", "/api/vaults"), ("GET", "/after"), ("GET", "/plans"),
+                                                  ("GET", "/vaults/{vault}"), ("POST", "/vaults/{vault}/contacts")])
         refund = next(r for r in self.result["routes"] if r["path"] == "/orders/:id/refund")
         self.assertEqual((refund["file"], refund["line"]), ("api/server.js", 3))
 
@@ -126,7 +137,7 @@ class Scan(unittest.TestCase):
         self.assertFalse({"UserBase", "Token"} & set(tables))
         for name, source in (("plans", "drizzle"), ("subscriptions", "typeorm"), ("Coupon", "mongoose"),
                              ("payouts", "sequelize"), ("refunds", "sqlalchemy"), ("Order", "django"),
-                             ("invoices", "rails"), ("orders", "jpa")):
+                             ("invoices", "rails"), ("orders", "jpa"), ("vaults", "laravel")):
             self.assertEqual(tables[name][0], source, name)
         self.assertNotIn("Meta", tables)
         self.assertNotIn("Helper", tables)
@@ -136,7 +147,8 @@ class Scan(unittest.TestCase):
         self.assertEqual(jobs, [("bullmq queue", "emails"), ("celery beat schedule", "expire-carts -> shop.tasks.expire"),
                                 ("celery task", "retry_charge"), ("celery task", "send_receipt"),
                                 ("cron schedule", "0 * * * *"), ("cron schedule", "clean_syncs -> SyncCleanerJob"),
-                                ("rails job", "HardWorker"), ("rails job", "SyncJob")])
+                                ("laravel job", "PushVCard"), ("laravel schedule", "UpdateAddressBooks"),
+                                ("laravel schedule", "model:prune"), ("rails job", "HardWorker"), ("rails job", "SyncJob")])
 
     def test_skips_dependencies_and_bounds_output(self):
         self.assertFalse(any("node_modules" in r["file"] for r in self.result["routes"]))
@@ -183,7 +195,7 @@ class Attach(unittest.TestCase):
                                  capture_output=True, text=True, check=True)
             kinds = [n["kind"] for n in json.loads(run.stdout)["nodes"]]
             self.assertGreater(kinds.count("api_route"), 20)
-            self.assertEqual(kinds.count("declared_db_table"), 11)
+            self.assertEqual(kinds.count("declared_db_table"), 12)
 
 
 if __name__ == "__main__":

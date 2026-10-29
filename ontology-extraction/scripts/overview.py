@@ -48,7 +48,8 @@ INTEGRATIONS = {
                  "@paddle/paddle-js", "@paddle/paddle-node-sdk", "paddle", "lemonsqueezy", "@lemonsqueezy/lemonsqueezy.js",
                  "chargebee", "recurly", "adyen", "@adyen/api-library", "square", "paypal", "@paypal/checkout-server-sdk",
                  "razorpay", "mollie", "@mollie/api-client", "avalara", "avatax", "stripe-rails", "laravel/cashier",
-                 "dj-stripe", "@polar-sh/sdk", "@revenuecat/purchases-js", "stripe-ruby-mock", "pay"),
+                 "dj-stripe", "@polar-sh/sdk", "@revenuecat/purchases-js", "stripe-ruby-mock", "pay",
+                 "stripe/stripe-php", "laravel/cashier-paddle", "mollie/*", "paypal/*", "braintree/braintree_php"),
     "banking and finance data": ("plaid", "plaid-python", "plaid-node", "react-plaid-link", "@plaid/*", "teller",
                                  "yodlee", "mx-platform-ruby", "mx-platform-node", "gocardless*", "truelayer*",
                                  "@finicity/*", "github.com/plaid/plaid-go*", "alpaca*", "yfinance"),
@@ -60,19 +61,24 @@ INTEGRATIONS = {
              "github.com/pquerna/otp", "golang.org/x/oauth2", "@workos-inc/node", "@kinde-oss/*", "@hcaptcha/*",
              "hcaptcha", "altcha", "github.com/altcha-org/*", "doorkeeper", "jwt", "rotp", "pundit", "cancancan",
              "rack-attack", "passlib", "pwdlib", "bcrypt", "argon2-cffi", "itsdangerous", "omniauth-*",
-             "django-guardian", "casbin", "oso"),
+             "django-guardian", "casbin", "oso", "laravel/socialite", "laravel/fortify", "laravel/jetstream",
+             "laravel/breeze", "laravel/passport", "tymon/jwt-auth", "web-auth/*", "pragmarx/google2fa*",
+             "spatie/laravel-permission"),
     "email and messaging": ("nodemailer", "@sendgrid/mail", "sendgrid", "postmark", "resend", "mailgun.js", "mailgun",
                             "twilio", "@slack/*", "slack-sdk", "pusher", "@novu/*", "onesignal", "@react-email/*",
                             "react-email", "django-anymail", "@aws-sdk/client-ses", "@aws-sdk/client-sns",
                             "github.com/knadh/smtppool*", "gopkg.in/gomail*", "github.com/wneessen/go-mail",
                             "@mailchimp/*", "mailchimp-marketing", "@vonage/*", "firebase-messaging", "emails",
                             "fastapi-mail", "flask-mail", "postmark-rails", "sendgrid-ruby", "mailgun-ruby",
-                            "intercom-rails", "intercom", "intercom-client", "@intercom/*", "octokit"),
+                            "intercom-rails", "intercom", "intercom-client", "@intercom/*", "octokit",
+                            "pusher/pusher-php-server", "symfony/mailgun-mailer", "symfony/postmark-mailer",
+                            "symfony/*-mailer", "resend/resend-php", "twilio/sdk", "laravel/reverb",
+                            "laravel-notification-channels/*"),
     "AI": ("openai", "@anthropic-ai/sdk", "anthropic", "langchain", "@langchain/*", "llama-index", "llamaindex",
            "cohere", "cohere-ai", "@google/generative-ai", "@google/genai", "google-generativeai", "google-genai",
            "@google-cloud/vertexai", "google-cloud-aiplatform", "replicate", "transformers", "ai", "@ai-sdk/*",
            "mistralai", "@mistralai/mistralai", "groq-sdk", "groq", "ollama", "litellm", "github.com/sashabaranov/go-openai",
-           "ruby-openai", "anthropic-sdk-ruby", "langchainrb", "openai-ruby"),
+           "ruby-openai", "anthropic-sdk-ruby", "langchainrb", "openai-ruby", "openai-php/*", "prism-php/*"),
     "data and queues": ("@prisma/client", "prisma", "sequelize", "typeorm", "mongoose", "drizzle-orm", "knex", "kysely",
                         "sqlalchemy", "psycopg", "psycopg2", "psycopg2-binary", "asyncpg", "pg", "postgres", "mysql2",
                         "mysqlclient", "pymysql", "redis", "ioredis", "@upstash/*", "kafkajs", "celery", "kombu", "rq",
@@ -81,18 +87,21 @@ INTEGRATIONS = {
                         "pymongo", "motor", "mongodb", "@neondatabase/serverless", "@planetscale/database",
                         "google-cloud-pubsub", "@google-cloud/pubsub", "sidekiq", "github.com/jackc/pgx*",
                         "github.com/lib/pq", "github.com/jmoiron/sqlx", "gorm.io/gorm", "github.com/redis/go-redis*",
-                        "github.com/go-redis/redis*", "github.com/go-sql-driver/mysql", "better-sqlite3", "sqlite3"),
+                        "github.com/go-redis/redis*", "github.com/go-sql-driver/mysql", "better-sqlite3", "sqlite3",
+                        "predis/predis", "laravel/horizon", "laravel/scout", "meilisearch/*", "doctrine/dbal"),
     "cloud": ("aws-sdk", "@aws-sdk/*", "boto3", "github.com/aws/aws-sdk-go*", "@google-cloud/*", "google-cloud-*",
               "@azure/*", "azure-*", "firebase", "@vercel/blob", "@vercel/kv", "@vercel/edge-config", "cloudinary",
               "minio", "github.com/minio/minio-go*", "github.com/rhnvrm/simples3", "@cloudflare/*", "cloudflare",
-              "django-storages", "aws-sdk-*", "google-cloud-*", "azure-storage-*"),
+              "django-storages", "aws-sdk-*", "google-cloud-*", "azure-storage-*", "aws/aws-sdk-php",
+              "league/flysystem-aws-s3-v3", "google/cloud-*"),
     "analytics and monitoring": ("posthog-js", "posthog-node", "posthog", "@segment/*", "analytics-node", "mixpanel",
                                  "@amplitude/*", "@sentry/*", "sentry-sdk", "github.com/getsentry/sentry-go",
                                  "dd-trace", "ddtrace", "newrelic", "@opentelemetry/*", "opentelemetry-*",
                                  "go.opentelemetry.io/otel*", "@vercel/analytics", "prom-client",
                                  "prometheus-client", "github.com/prometheus/client_golang", "sentry-*",
                                  "skylight", "logtail*", "@logtail/*", "scout_apm", "honeybadger", "rollbar",
-                                 "bugsnag", "appsignal", "ahoy_matey", "lograge"),
+                                 "bugsnag", "appsignal", "ahoy_matey", "lograge", "sentry/*", "laravel/telescope",
+                                 "laravel/pulse", "bugsnag/*"),
 }
 # Libraries that show a datastore even when no compose file runs one.
 DRIVERS = {
@@ -101,7 +110,7 @@ DRIVERS = {
     "mysql": ("mysql2", "mysqlclient", "pymysql", "@planetscale/database", "github.com/go-sql-driver/mysql"),
     "mongodb": ("mongoose", "mongodb", "pymongo", "motor"),
     "redis": ("redis", "ioredis", "@upstash/redis", "github.com/redis/go-redis*", "github.com/go-redis/redis*",
-              "django-redis", "bullmq", "bull", "rq"),
+              "django-redis", "bullmq", "bull", "rq", "predis/predis"),
     "sqlite": ("better-sqlite3", "sqlite3"),
 }
 # Words that show a file is about what the business itself charges for (in a finance app, "money"
@@ -132,11 +141,12 @@ READ_FIRST = [
                                 r"^main\.go$|(^|/)Program\.cs$|(^|/)src/main\.rs$|(^|/)config\.ru$|"
                                 r"(^|/)(src/)?app/(layout|page)\.(tsx|jsx|ts|js)$|(^|/)(src/)?middleware\.(ts|js)$|"
                                 r"(^|/)pages/_app\.(tsx|jsx|ts|js)$|(^|/)app/(root|entry\.server|entry\.client)\.(tsx|jsx|ts|js)$|"
-                                r"(^|/)server/(router|main|index|app)\.(ts|js|mjs)$|(^|/)celery(conf)?\.py$")),
+                                r"(^|/)server/(router|main|index|app)\.(ts|js|mjs)$|(^|/)celery(conf)?\.py$|"
+                                r"(^|/)public/index\.php$|(^|/)bootstrap/app\.php$|^artisan$")),
     ("routes and APIs", re.compile(r"(^|/)(routes?|controllers?|handlers?|endpoints|resolvers|views)(/|\.py$|\.ts$|\.js$|\.go$)|"
                                    r"(^|/)urls\.py$|\.controller\.ts$|(^|/)pages/api/|(^|/)app/api/.*route\.(ts|js)$|"
                                    r"(^|/)(openapi|swagger)[^/]*\.(ya?ml|json)$|\.proto$|\.graphql$")),
-    ("data model", re.compile(r"(^|/)schema\.prisma$|(^|/)models?(/|\.py$|\.ts$|\.rb$|\.go$)|(^|/)entities/|"
+    ("data model", re.compile(r"(^|/)schema\.prisma$|(^|/)[Mm]odels?(/|\.py$|\.ts$|\.rb$|\.go$)|(^|/)[Ee]ntities/|"
                               r"(^|/)schema\.(rb|sql|ts)$|(^|/)migrations?/[^/]+$|\.sql$")),
     ("money", re.compile(r"(^|[/_.-])(billing|payments?|pricing|prices|checkout|subscriptions?|invoices?|stripe|"
                          r"refunds?|orders?|cart|wallets?|payouts?|plans|giftcards?|gift_cards?|discounts?|vouchers?|"
@@ -153,9 +163,9 @@ CONFIG = re.compile(r"(^|/)\.env\.(example|sample|template|dist)$|(^|/)settings(
 CODE = re.compile(r"\.(py|js|jsx|ts|tsx|mjs|cjs|go|rb|java|kt|cs|php|rs|sql|prisma|proto|graphql|ya?ml|json)$")
 TEMPLATES = re.compile(r"\.(erb|haml|slim|vue|svelte|astro|hbs|jinja2?|j2|twig|blade\.php|heex|eex)$")
 NOT_SOURCE = re.compile(r"(^|/)(tests?|__tests__|spec|e2e|cypress|playwright|fixtures?|mocks?|__mocks__|stories|"
-                        r"storybook|i18n|locales?|translations|generated|__generated__|development|seeds?)(/|$)|\.(test|spec|stories|d|gen)\."
+                        r"storybook|i18n|locales?|lang|translations|generated|__generated__|development|seeds?)(/|$)|\.(test|spec|stories|d|gen)\."
                         r"[jt]sx?$|_pb2\.py$|\.pb\.go$|(^|/)test_[^/]+\.py$|_test\.go$|(^|/)(package-lock|yarn\.lock|pnpm-lock)|"
-                        r"\.lock$|(^|/)package\.json$|(^|/)tsconfig[^/]*\.json$", re.I)
+                        r"\.lock$|(^|/)(package|composer)\.json$|(^|/)tsconfig[^/]*\.json$", re.I)
 # Words that, several at once, show a file is about money or about access.
 TOPIC_WORDS = {
     "money": re.compile(r"\b(price|pricing|amount|currency|invoice|billing|payment|payout|refund|charge|checkout|"
@@ -439,6 +449,10 @@ def scan(repo: Path) -> dict:
                      **({"role": "tooling only: no runtime dependencies or framework"}
                         if runtime == 0 and not frameworks else {})})
 
+    # An app at the root with no declared name takes the repository's name, not "app".
+    for app in apps:
+        if app["folder"] == "." and re.fullmatch(r"app(-\d+)?", app["service"]):
+            app["service"] = repo.name + (f" ({app['language']})" if sum(a["folder"] == "." for a in apps) > 1 else "")
     # A tooling-only package.json at the root should not take the project's name from the real app.
     for app in apps:
         if app.get("role"):
@@ -510,11 +524,14 @@ def scan(repo: Path) -> dict:
         declared = by_file.get({"routes and APIs": "routes", "data model": "tables",
                                 "background jobs": "jobs"}.get(label, ""), {})
         declared = {f: n for f, n in declared.items() if not NOT_SOURCE.search(f)}
-        ranked = sorted(declared, key=lambda f: (-declared[f], f))
+        # One-table-per-file migrations (Laravel, Rails) go after the models that describe the same tables.
+        migration = re.compile(r"(^|/)(migrations?|migrate)/")
+        ranked = sorted((f for f in declared if not migration.search(f)), key=lambda f: (-declared[f], f))
+        later = sorted((f for f in declared if migration.search(f)), key=lambda f: (-declared[f], f))
         # Then names that suggest the topic, larger files (more of the logic) first.
         rest = sorted((p for p in hits if p not in declared),
                       key=lambda p: (-min((repo / p).stat().st_size // 4096, 8), p.count("/"), p))
-        read_first[label] = (ranked + rest)[:MAX_LIST]
+        read_first[label] = (ranked + rest + later)[:MAX_LIST]
     deploys = [n["id"].split(":", 2)[2].rstrip(":") for n in discovery["nodes"] if n["kind"] == "workflow"
                and re.search(r"deploy|release|publish|prod|cd\b", f"{n['id']} {n.get('label', '')}", re.I)]
     read_first["configuration"] = (sorted((p for p in paths if p in nonempty and CONFIG.search(p)
