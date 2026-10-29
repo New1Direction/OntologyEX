@@ -50,7 +50,8 @@ INTEGRATIONS = {
                  "chargebee", "recurly", "adyen", "@adyen/api-library", "square", "paypal", "@paypal/checkout-server-sdk",
                  "razorpay", "mollie", "@mollie/api-client", "avalara", "avatax", "stripe-rails", "laravel/cashier",
                  "dj-stripe", "@polar-sh/sdk", "@revenuecat/purchases-js", "stripe-ruby-mock", "pay",
-                 "stripe/stripe-php", "laravel/cashier-paddle", "mollie/*", "paypal/*", "braintree/braintree_php"),
+                 "stripe/stripe-php", "laravel/cashier-paddle", "mollie/*", "paypal/*", "braintree/braintree_php",
+                 "stripe-java", "com.stripe:*", "@getalby/*", "@paypal/*"),
     "banking and finance data": ("plaid", "plaid-python", "plaid-node", "react-plaid-link", "@plaid/*", "teller",
                                  "yodlee", "mx-platform-ruby", "mx-platform-node", "gocardless*", "truelayer*",
                                  "@finicity/*", "github.com/plaid/plaid-go*", "alpaca*", "yfinance"),
@@ -64,7 +65,8 @@ INTEGRATIONS = {
              "rack-attack", "passlib", "pwdlib", "bcrypt", "argon2-cffi", "itsdangerous", "omniauth-*",
              "django-guardian", "casbin", "oso", "laravel/socialite", "laravel/fortify", "laravel/jetstream",
              "laravel/breeze", "laravel/passport", "tymon/jwt-auth", "web-auth/*", "pragmarx/google2fa*",
-             "spatie/laravel-permission"),
+             "spatie/laravel-permission", "spring-boot-starter-security", "spring-boot-starter-oauth2-*",
+             "spring-security-*", "keycloak-*", "jjwt*", "java-jwt"),
     "email and messaging": ("nodemailer", "@sendgrid/mail", "sendgrid", "postmark", "resend", "mailgun.js", "mailgun",
                             "twilio", "@slack/*", "slack-sdk", "pusher", "@novu/*", "onesignal", "@react-email/*",
                             "react-email", "django-anymail", "@aws-sdk/client-ses", "@aws-sdk/client-sns",
@@ -74,7 +76,8 @@ INTEGRATIONS = {
                             "intercom-rails", "intercom", "intercom-client", "@intercom/*", "octokit",
                             "pusher/pusher-php-server", "symfony/mailgun-mailer", "symfony/postmark-mailer",
                             "symfony/*-mailer", "resend/resend-php", "twilio/sdk", "laravel/reverb",
-                            "laravel-notification-channels/*"),
+                            "laravel-notification-channels/*", "spring-boot-starter-mail", "jakarta.mail",
+                            "twilio", "sendgrid-java", "@sendgrid/*", "svix", "@novu/*"),
     "AI": ("openai", "@anthropic-ai/sdk", "anthropic", "langchain", "@langchain/*", "llama-index", "llamaindex",
            "cohere", "cohere-ai", "@google/generative-ai", "@google/genai", "google-generativeai", "google-genai",
            "@google-cloud/vertexai", "google-cloud-aiplatform", "replicate", "transformers", "ai", "@ai-sdk/*",
@@ -89,12 +92,17 @@ INTEGRATIONS = {
                         "google-cloud-pubsub", "@google-cloud/pubsub", "sidekiq", "github.com/jackc/pgx*",
                         "github.com/lib/pq", "github.com/jmoiron/sqlx", "gorm.io/gorm", "github.com/redis/go-redis*",
                         "github.com/go-redis/redis*", "github.com/go-sql-driver/mysql", "better-sqlite3", "sqlite3",
-                        "predis/predis", "laravel/horizon", "laravel/scout", "meilisearch/*", "doctrine/dbal"),
+                        "predis/predis", "laravel/horizon", "laravel/scout", "meilisearch/*", "doctrine/dbal",
+                        "spring-boot-starter-data-*", "spring-kafka", "spring-boot-starter-amqp", "hibernate-core",
+                        "postgresql", "mysql-connector-j", "mysql-connector-java", "h2", "flyway-*", "liquibase-core",
+                        "jedis", "lettuce-core", "mongodb-driver-*"),
     "cloud": ("aws-sdk", "@aws-sdk/*", "boto3", "github.com/aws/aws-sdk-go*", "@google-cloud/*", "google-cloud-*",
               "@azure/*", "azure-*", "firebase", "@vercel/blob", "@vercel/kv", "@vercel/edge-config", "cloudinary",
               "minio", "github.com/minio/minio-go*", "github.com/rhnvrm/simples3", "@cloudflare/*", "cloudflare",
               "django-storages", "aws-sdk-*", "google-cloud-*", "azure-storage-*", "aws/aws-sdk-php",
-              "league/flysystem-aws-s3-v3", "google/cloud-*"),
+              "league/flysystem-aws-s3-v3", "google/cloud-*", "aws-java-sdk-*", "software.amazon.awssdk:*",
+              "spring-cloud-*", "googleapis", "@googleapis/*", "@hubspot/api-client", "tsdav",
+              "ews-javascript-api", "@daily-co/*", "dub", "@microsoft/microsoft-graph-client"),
     "analytics and monitoring": ("posthog-js", "posthog-node", "posthog", "@segment/*", "analytics-node", "mixpanel",
                                  "@amplitude/*", "@sentry/*", "sentry-sdk", "github.com/getsentry/sentry-go",
                                  "dd-trace", "ddtrace", "newrelic", "@opentelemetry/*", "opentelemetry-*",
@@ -102,17 +110,21 @@ INTEGRATIONS = {
                                  "prometheus-client", "github.com/prometheus/client_golang", "sentry-*",
                                  "skylight", "logtail*", "@logtail/*", "scout_apm", "honeybadger", "rollbar",
                                  "bugsnag", "appsignal", "ahoy_matey", "lograge", "sentry/*", "laravel/telescope",
-                                 "laravel/pulse", "bugsnag/*"),
+                                 "laravel/pulse", "bugsnag/*", "spring-boot-starter-actuator", "micrometer-*",
+                                 "opentelemetry-*", "@axiomhq/*", "@unkey/*"),
 }
 # Libraries that show a datastore even when no compose file runs one.
 DRIVERS = {
     "postgres": ("psycopg", "psycopg2", "psycopg2-binary", "asyncpg", "pg", "postgres", "@neondatabase/serverless",
+                 "org.postgresql:postgresql",
                  "github.com/jackc/pgx*", "github.com/lib/pq", "pg-boss", "graphile-worker"),
-    "mysql": ("mysql2", "mysqlclient", "pymysql", "@planetscale/database", "github.com/go-sql-driver/mysql"),
+    "mysql": ("mysql2", "mysqlclient", "pymysql", "@planetscale/database", "github.com/go-sql-driver/mysql",
+              "mysql-connector-j", "mysql-connector-java"),
     "mongodb": ("mongoose", "mongodb", "pymongo", "motor"),
     "redis": ("redis", "ioredis", "@upstash/redis", "github.com/redis/go-redis*", "github.com/go-redis/redis*",
               "django-redis", "bullmq", "bull", "rq", "predis/predis"),
     "sqlite": ("better-sqlite3", "sqlite3"),
+    "h2 (embedded)": ("com.h2database:h2",),
 }
 # Words that show a file is about what the business itself charges for (in a finance app, "money"
 # is also the product's own domain; these come first).
@@ -121,9 +133,11 @@ REVENUE = {"price", "pricing", "plan", "trial", "subscription", "checkout", "inv
 APP_CONSTRUCTOR = re.compile(r"\bFastAPI\s*\(|\bFlask\s*\(\s*__name__|\bexpress\s*\(\s*\)|\bnew\s+Hono\s*\(|"
                              r"\b[Ff]astify\s*\(|NestFactory\.create|http\.ListenAndServe|\becho\.New\(\)|"
                              r"\bgin\.(?:Default|New)\(\)|\bStarlette\s*\(|uvicorn\.run\s*\(|\bcreateServer\s*\(|"
-                             r"get_wsgi_application\(|get_asgi_application\(|class\s+Application\s*<\s*Rails::Application")
+                             r"get_wsgi_application\(|get_asgi_application\(|class\s+Application\s*<\s*Rails::Application|"
+                             r"@SpringBootApplication\b|@QuarkusMain\b|Micronaut\.run\(")
 CONSTRUCTOR_HINTS = ("FastAPI", "Flask", "express", "Hono", "astify", "NestFactory", "ListenAndServe", "echo.New",
-                     "gin.", "Starlette", "uvicorn.run", "createServer", "_application(", "Rails::Application")
+                     "gin.", "Starlette", "uvicorn.run", "createServer", "_application(", "Rails::Application",
+                     "@SpringBootApplication", "@QuarkusMain", "Micronaut.run")
 APP_FRAMEWORKS = {
     "node": ("next", "express", "fastify", "koa", "@nestjs/core", "@hapi/hapi", "hono", "react-router",
              "@remix-run/node", "@remix-run/react", "nuxt", "@sveltejs/kit", "astro", "@trpc/server", "@ts-rest/core",
@@ -135,6 +149,8 @@ APP_FRAMEWORKS = {
            "github.com/gorilla/mux", "google.golang.org/grpc", "connectrpc.com/connect"),
     "ruby": ("rails", "sinatra", "hanami", "sidekiq"),
     "php": ("laravel/framework", "symfony/framework-bundle", "slim/slim"),
+    "java": ("spring-boot-starter-web", "spring-boot-starter-webmvc", "spring-boot-starter-webflux", "quarkus-*",
+             "micronaut-*", "javalin", "spring-boot-starter-thymeleaf", "spring-boot-starter-data-jpa"),
     "rust": ("axum", "actix-web", "rocket", "warp", "poem", "tonic"),
 }
 READ_FIRST = [
@@ -148,6 +164,7 @@ READ_FIRST = [
                                    r"(^|/)urls\.py$|\.controller\.ts$|(^|/)pages/api/|(^|/)app/api/.*route\.(ts|js)$|"
                                    r"(^|/)(openapi|swagger)[^/]*\.(ya?ml|json)$|\.proto$|\.graphql$")),
     ("data model", re.compile(r"(^|/)schema\.prisma$|(^|/)[Mm]odels?(/|\.py$|\.ts$|\.rb$|\.go$)|(^|/)[Ee]ntities/|"
+                              r"\w+Repository\.(java|kt)$|"
                               r"(^|/)schema\.(rb|sql|ts)$|(^|/)migrations?/[^/]+$|\.sql$")),
     ("money", re.compile(r"(^|[/_.-])(billing|payments?|pricing|prices|checkout|subscriptions?|invoices?|stripe|"
                          r"refunds?|orders?|cart|wallets?|payouts?|plans|giftcards?|gift_cards?|discounts?|vouchers?|"
@@ -160,7 +177,8 @@ READ_FIRST = [
 CONFIG = re.compile(r"(^|/)\.env\.(example|sample|template|dist)$|(^|/)settings(/[^/]+)?\.py$|(^|/)(core/)?config\.py$|(^|/)(docker-)?compose(\.[\w-]+)*\.ya?ml$|(^|/)supabase/config\.toml$|"
                     r"(^|/)(vercel|netlify|render|fly|app|railway|now)\.(json|toml|ya?ml)$|(^|/)Procfile$|"
                     r"(^|/)(Dockerfile|Containerfile)$|(^|/)config/[^/]+\.(ya?ml|toml|json|ts|js|php|rb)$|"
-                    r"(^|/)config\.(toml|ya?ml)(\.sample|\.example)?$|(^|/)(next|nuxt|vite|remix)\.config\.(js|mjs|ts)$")
+                    r"(^|/)config\.(toml|ya?ml)(\.sample|\.example)?$|(^|/)application(-[\w-]+)?\.(properties|ya?ml)$|"
+                    r"(^|/)(pom\.xml|build\.gradle(\.kts)?)$|(^|/)(k8s|kubernetes|kube|manifests)/[^/]+\.ya?ml$|(^|/)(next|nuxt|vite|remix)\.config\.(js|mjs|ts)$")
 CODE = re.compile(r"\.(py|js|jsx|ts|tsx|mjs|cjs|go|rb|java|kt|cs|php|rs|sql|prisma|proto|graphql|ya?ml|json)$")
 PROSE = re.compile(r"\.(md|mdx|rst|txt)$", re.I)
 TEMPLATES = re.compile(r"\.(erb|haml|slim|vue|svelte|astro|hbs|jinja2?|j2|twig|blade\.php|heex|eex)$")
@@ -168,7 +186,9 @@ NOT_SOURCE = re.compile(r"(^|/)(tests?|__tests__|spec|e2e|cypress|playwright|fix
                         r"storybook|i18n|locales?|lang|translations|generated|__generated__|development|seeds?)(/|$)|\.(test|spec|stories|d|gen)\."
                         r"[jt]sx?$|_pb2\.py$|\.pb\.go$|(^|/)test_[^/]+\.py$|_test\.go$|(^|/)(package-lock|yarn\.lock|pnpm-lock)|"
                         r"\.lock$|(^|/)(package|composer)\.json$|(^|/)tsconfig[^/]*\.json$|"
-                        r"(^|/)(LICEN[CS]E|COPYING|NOTICE|CODE_OF_CONDUCT|CONTRIBUTORS|AUTHORS)[^/]*$", re.I)
+                        r"(^|/)(LICEN[CS]E|COPYING|NOTICE|CODE_OF_CONDUCT|CONTRIBUTORS|AUTHORS)[^/]*$|"
+                        r"(^|/)package-info\.java$|(^|/)(data|seeds?|import|user)\.sql$|"
+                        r"\.(integration-test|e2e-spec|e2e|test-d)\.[jt]sx?$", re.I)
 # Words that, several at once, show a file is about money or about access.
 TOPIC_WORDS = {
     "money": re.compile(r"\b(price|pricing|amount|currency|invoice|billing|payment|payout|refund|charge|checkout|"
@@ -180,6 +200,30 @@ TOPIC_WORDS = {
                                    r"api_?key|invite|member)s?\b", re.I),
 }
 TOPIC_AREA = {"money": "payments", "users and access": "auth"}
+
+
+KUBE = re.compile(r"(^|/)(k8s|kubernetes|kube|manifests|deploy)/([^/]+/)*[^/]+\.ya?ml$")
+
+
+def _kube_documents(data: bytes) -> list:
+    """The documents of a multi-document Kubernetes YAML file, bounded like compose files."""
+    if len(data) > 1024 * 1024:
+        raise ValueError("manifest too large")
+    return [otel_setup.load_compose(part.encode()) for part in re.split(r"(?m)^---\s*$", data.decode("utf-8", "replace"))
+            if part.strip()]
+
+
+def _discovery(repo: Path, paths: list[str]) -> tuple[dict, str | None]:
+    """Repository discovery, or for a repository past its map budget (a large monorepo) the two
+    things the overview needs from it, read from the files directly: compose files and CI workflows."""
+    try:
+        return discover_repo.discover(repo), None
+    except discover_repo.DiscoveryError as exc:
+        workflows = sorted(p.relative_to(repo).as_posix() for p in (repo / ".github" / "workflows").glob("*.y*ml")
+                           if p.is_file() and not p.is_symlink())
+        return ({"nodes": [{"id": f"discovery:workflow:{w}:", "kind": "workflow", "label": w} for w in workflows],
+                 "source_evidence": [{"path": p} for p in paths if Path(p).name in discover_repo.COMPOSE_FILES]},
+                f"{exc}; the overview read compose files and workflows directly (the live map needs a smaller --repo)")
 
 
 def _matches(entry: str, name: str) -> bool:
@@ -207,7 +251,9 @@ def _evidence(repo: Path, rel: str, needle: str | None = None) -> dict:
 def _dependency_evidence(repo: Path, rel: str, library: str) -> dict:
     """The manifest line that declares `library` itself, not one that only contains its name."""
     text = (repo / rel).read_text("utf-8", "replace")
-    token = re.compile(r"(?<![\w@/.-])" + re.escape(library) + r"(?![\w.-])", re.I)
+    library = library.rsplit(":", 1)[-1] if Path(rel).name in ("pom.xml", "build.gradle", "build.gradle.kts") else library
+    token = (re.compile(r'"' + re.escape(library) + r'"\s*:\s*"') if rel.endswith(".json") else
+             re.compile(r"(?<![\w@/.-])" + re.escape(library) + r"(?![\w.-])", re.I))
     for number, line in enumerate(text.splitlines(), 1):
         if token.search(line) and "// indirect" not in line and not line.lstrip().startswith(("#", "//")):
             return {"path": rel, "line": number, "text": line.strip()[:200]}
@@ -229,6 +275,18 @@ def _dependency_names(repo: Path, rel: str) -> set[str]:
             return set(re.findall(r"^\s*(?:require\s+)?([\w.\-/]+)\s+v\d[^\n/]*$", text, re.M))  # not // indirect
         if name == "Gemfile":
             return set(re.findall(r"""^\s*gem\s+['"]([^'"]+)['"]""", text, re.M))
+        if name == "pom.xml":  # Maven: artifactId and groupId:artifactId of each dependency
+            found = set()
+            for group, artifact in re.findall(r"<dependency>\s*<groupId>([^<]+)</groupId>\s*<artifactId>([^<]+)</artifactId>",
+                                              text):
+                found |= {artifact.strip(), f"{group.strip()}:{artifact.strip()}"}
+            return found
+        if name in ("build.gradle", "build.gradle.kts"):
+            found = set()
+            for group, artifact in re.findall(r"^\s*(?:implementation|api|runtimeOnly|compileOnly|kapt|annotationProcessor)"
+                                              r"\s*\(?\s*[\"']([\w.-]+):([\w.-]+)", text, re.M):
+                found |= {artifact, f"{group}:{artifact}"}
+            return found
         if name == "composer.json":
             data = json.loads(text)
             return set(data.get("require", {})) | set(data.get("require-dev", {})) if isinstance(data, dict) else set()
@@ -359,7 +417,7 @@ def _topic_scores(repo: Path, paths: list[str], libraries: dict[str, list[str]])
     budget = MAX_READ_TOTAL
     for rel in paths:
         if not (CODE.search(rel) or TEMPLATES.search(rel) or PROSE.search(rel)) or NOT_SOURCE.search(rel) or re.search(
-                r"\.(ya?ml)$|(^|/)(migrations?|migrate)/", rel):
+                r"\.(ya?ml)$|(^|/)(migrations?|migrate)/|(^|/)[\w.-]+\.config\.[cm]?[jt]s$", rel):
             continue
         try:
             size = (repo / rel).stat().st_size
@@ -395,7 +453,7 @@ def scan(repo: Path) -> dict:
     repo = repo.resolve()
     otel_setup.check(repo.is_dir(), f"{repo} is not a directory")
     paths = _walk(repo)
-    discovery = discover_repo.discover(repo)
+    discovery, limited = _discovery(repo, paths)
 
     services, datastores, unread = [], [], []
     # Discovery reads the standard compose names; overrides and examples (compose.override.yml,
@@ -417,17 +475,41 @@ def scan(repo: Path) -> dict:
             folder = Path(rel).parent
             if any(r["name"] == str(name) and Path(r["compose"]).parent == folder for r in services + datastores):
                 continue  # an override of a service the base file in this folder declares
+            if re.search(r"is[_-]?ready|wait[_-]?for|healthcheck|migrat", str(name), re.I):
+                continue  # a one-shot helper container, not a service
             image = spec.get("image") if isinstance(spec, dict) else None
             row = {"name": str(name), "image": image if type(image) is str else None, "compose": rel,
                    "evidence": _evidence(repo, rel, f"{name}:")}
             (datastores if type(image) is str and DATASTORES.search(image.lower()) else services).append(row)
 
+    for rel in paths:
+        if not KUBE.search(rel) or NOT_SOURCE.search(rel):
+            continue
+        try:
+            documents = _kube_documents((repo / rel).read_bytes())
+        except (ValueError, OSError, otel_setup.yaml.YAMLError):
+            continue  # a Helm template or another file that is not plain YAML
+        for doc in documents:
+            if not isinstance(doc, dict) or doc.get("kind") not in ("Deployment", "StatefulSet", "DaemonSet", "CronJob"):
+                continue
+            name = (doc.get("metadata") or {}).get("name") if isinstance(doc.get("metadata"), dict) else None
+            spec = doc.get("spec") or {}
+            pod = ((spec.get("jobTemplate") or {}).get("spec") or spec) if isinstance(spec, dict) else {}
+            containers = ((((pod.get("template") or {}).get("spec") or {}).get("containers")) or []) if isinstance(pod, dict) else []
+            image = next((c.get("image") for c in containers if isinstance(c, dict) and type(c.get("image")) is str), None)
+            if type(name) is not str or any(r["name"] == name for r in services + datastores):
+                continue
+            row = {"name": name, "image": image, "compose": rel, "evidence": _evidence(repo, rel, f"name: {name}")}
+            (datastores if image and DATASTORES.search(image.lower()) else services).append(row)
+
     manifests = [p for p in paths if Path(p).name in ("package.json", "pyproject.toml", "requirements.txt", "go.mod",
-                                                         "Cargo.toml", "Gemfile", "composer.json")]
+                                                         "Cargo.toml", "Gemfile", "composer.json", "pom.xml",
+                                                         "build.gradle", "build.gradle.kts")]
     dependencies = {rel: _dependency_names(repo, rel) for rel in manifests}
     dev_only = {rel: _dev_only(repo, rel) for rel in manifests}
     integrations: dict[str, list[dict]] = {}
-    for rel in sorted(manifests, key=lambda rel: (bool(NOT_SOURCE.search(rel) or re.search(r"(^|/)(scripts?|tools?|docs?)/",
+    for rel in sorted(manifests, key=lambda rel: (bool(NOT_SOURCE.search(rel) or re.search(
+            r"(^|/)(scripts?|tools?|docs?|examples?|example-apps|samples?|demos?)/",
                                                                                          rel)), rel.count("/"), rel)):
         for area, entries in INTEGRATIONS.items():
             for library in sorted(dependencies[rel] - dev_only[rel]):
@@ -460,6 +542,16 @@ def scan(repo: Path) -> dict:
                      **({"role": "tooling only: no runtime dependencies or framework"}
                         if runtime == 0 and not frameworks else {})})
 
+    families: dict[str, list[dict]] = {}
+    for app in apps:
+        families.setdefault(Path(app["folder"]).parent.as_posix(), []).append(app)
+    for parent, members in families.items():
+        if parent != "." and len(members) >= 12 and len(apps) > 30:
+            first = members[0]
+            apps = [a for a in apps if a not in members] + [{
+                **{k: first[k] for k in ("language", "evidence", "status")}, "folder": f"{parent}/*",
+                "service": f"{Path(parent).name} ({len(members)} packages)", "frameworks": [],
+                "members": len(members)}]
     # An app at the root with no declared name takes the repository's name, not "app".
     for app in apps:
         if app["folder"] == "." and re.fullmatch(r"app(-\d+)?", app["service"]):
@@ -547,12 +639,13 @@ def scan(repo: Path) -> dict:
         declared = by_file.get({"routes and APIs": "routes", "data model": "tables",
                                 "background jobs": "jobs"}.get(label, ""), {})
         declared = {f: n for f, n in declared.items() if not NOT_SOURCE.search(f)}
-        # One-table-per-file migrations (Laravel, Rails) go after the models that describe the same tables.
-        migration = re.compile(r"(^|/)(migrations?|migrate)/")
+        # Migrations (one table per file, or ALTERs) go after the models that describe the same tables.
+        migration = re.compile(r"(^|/)(migrations?|migrate|scripts?)/")
         ranked = sorted((f for f in declared if not migration.search(f)), key=lambda f: (-declared[f], f))
         later = sorted((f for f in declared if migration.search(f)), key=lambda f: (-declared[f], f))
         # Then names that suggest the topic, larger files (more of the logic) first.
-        rest = sorted((p for p in hits if p not in declared),
+        later += sorted(p for p in hits if p not in declared and migration.search(p))
+        rest = sorted((p for p in hits if p not in declared and not migration.search(p)),
                       key=lambda p: (-min((repo / p).stat().st_size // 4096, 8), p.count("/"), p))
         read_first[label] = (ranked + rest + later)[:MAX_LIST]
     deploys = [n["id"].split(":", 2)[2].rstrip(":") for n in discovery["nodes"] if n["kind"] == "workflow"
@@ -564,7 +657,8 @@ def scan(repo: Path) -> dict:
                                    + deploys)[:MAX_LIST]
     # Agent and editor notes live in dot folders the walk skips; they are often the best architecture docs.
     notes = sorted(p.relative_to(repo).as_posix() for pattern in (".cursor/rules/*.md*", ".github/copilot-instructions.md")
-                   for p in repo.glob(pattern) if p.is_file() and not p.is_symlink() and p.stat().st_size > 0)
+                   for p in repo.glob(pattern) if p.is_file() and not p.is_symlink() and p.stat().st_size > 0
+                   and not p.name.startswith("_"))[:5]
     # The order the README links its own pages in is the author's reading order.
     readme = next((p for p in paths if re.fullmatch(r"README\.(md|mdx|rst|txt)", p, re.I)), None)
     linked = []
@@ -573,7 +667,7 @@ def scan(repo: Path) -> dict:
             if target in paths and target not in linked:
                 linked.append(target)
     ranked_docs = sorted([(2 if p in linked else rank, p) for p in paths if p in nonempty
-                          and (rank := _doc_rank(p)) is not None] + [(1, p) for p in notes],
+                          and (rank := _doc_rank(p)) is not None] + [(3, p) for p in notes],
                          key=lambda x: (x[0], linked.index(x[1]) if x[1] in linked else len(linked),
                                         x[1].count("/"), x[1]))
     docs = [p for _, p in ranked_docs][:MAX_DOCS]
@@ -585,6 +679,7 @@ def scan(repo: Path) -> dict:
             languages[suffix] = languages.get(suffix, 0) + 1
     return {"schema_version": 1, "kind": "ONTOLOGYEX_REPOSITORY_SCAN", "repo": str(repo), "name": repo.name,
             "commit": business_xray.git_head(repo),
+            **({"discovery_limited": limited} if limited else {}),
             **({"history": "shallow clone: older commits are not in this checkout"}
                if (repo / ".git" / "shallow").is_file() else {}),
             "files": len(paths),
@@ -597,9 +692,9 @@ def scan(repo: Path) -> dict:
                          code["routes"], key=lambda r: r["method"] == "PAGE")[:60]],
                      "operations": [f"{o['kind']} {o['name']}  ({o['file']}:{o['line']})" for o in code["operations"][:40]],
                      "tables": [f"{t['name']}  ({t['file']}:{t['line']}{', ' + t['note'] if t.get('note') else ''})"
-                                for t in code["tables"][:80]],
+                                for t in sorted(code["tables"], key=lambda t: bool(t.get("note")))[:80]],
                      "jobs": [f"{j['kind']} {j['name']}  ({j['file']}:{j['line']})" for j in code["jobs"][:30]],
-                     "full_list": f"python {Path(code_surface.__file__).resolve()} --repo {repo}",
+                     "full_list": f"{sys.executable} {Path(code_surface.__file__).resolve()} --repo {repo}",
                      "semantics": code["semantics"]}, "docs": docs, "read_first": read_first,
             "not_assessed": ["what the code does at runtime", "production data, money, and users",
                              "anything outside this repository"],
@@ -722,7 +817,8 @@ def summary(result: dict) -> dict:
             "integrations": {area: [h["library"] for h in hits] for area, hits in result["integrations"].items()},
             "code_found": result["code"]["found"],
             "docs": result["docs"][:8] + ([f"... {len(result['docs']) - 8} more in scan.json"] if len(result["docs"]) > 8 else []),
-            "read_first": {label: paths[:5] for label, paths in result["read_first"].items()}}
+            "read_first": {label: paths[:5] + ([f"... {len(paths) - 5} more in scan.json"] if len(paths) > 5 else [])
+                           for label, paths in result["read_first"].items()}}
 
 
 def build(repo: Path, blueprint: Path, out: Path, json_out: Path | None = None, github: str | None = None) -> dict:
@@ -732,8 +828,18 @@ def build(repo: Path, blueprint: Path, out: Path, json_out: Path | None = None, 
     checkout's commit instead of to the local file, for a page that is shared.
     """
     project = business_xray.read(blueprint)
-    left = _placeholders(project)
+    left = _placeholders({k: v for k, v in project.items() if k != "evidence"})
     otel_setup.check(not left, f"fill in or remove the {PLACEHOLDER} placeholders first: {', '.join(left[:8])}")
+    # Every range past the end of its file at once, not one per build.
+    bad = []
+    for ev in project.get("evidence", []) if isinstance(project.get("evidence"), list) else []:
+        rel = ev.get("path") if isinstance(ev, dict) and ev.get("repo") == business_xray.LOCAL else None
+        if type(rel) is not str or rel.startswith("/") or ".." in rel.split("/") or not (repo / rel).is_file():
+            continue  # unsafe or missing paths get the compiler's own message
+        count = len((repo / rel).read_text("utf-8", "replace").splitlines())
+        if type(ev.get("end")) is int and ev["end"] > count:
+            bad.append(f"{ev.get('id')}: {rel} has {count} lines, not {ev['end']}")
+    otel_setup.check(not bad, "citations past the end of their file: " + "; ".join(bad[:20]))
     compiled = business_xray.compile_blueprints([project], None, repo)
     if github is not None:
         otel_setup.check(re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", github) is not None,

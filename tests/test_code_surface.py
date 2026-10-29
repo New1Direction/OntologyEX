@@ -39,7 +39,14 @@ FILES = {
     "fa/app/routes/items.py": "router = APIRouter(prefix=\"/items\", tags=[\"items\"])\n\n\n"
                               "@router.get(\"/{id}\")\ndef read(id):\n    pass\n",
     "go/main.go": "r.Get(\"/users\", list)\nmux.HandleFunc(\"POST /users/{id}\", update)\ne.DELETE(\"/users/:id\", del)\n",
-    "java/OrderController.java": "@GetMapping(\"/orders\")\npublic List<Order> all() {}\n@Table(name = \"orders\")\n",
+    "java/OrderController.java": "@GetMapping(\"/orders\")\npublic List<Order> all() {}\n",
+    "java/Order.java": "@Entity\n@Table(name = \"orders\")\npublic class Order {}\n",
+    # A class-level @RequestMapping prefixes the methods; a mention in a comment is not a route.
+    "java/PetController.java": "/**\n * Runs before each @RequestMapping method.\n */\n@Controller\n@RequestMapping(\"/owners/{ownerId}\")\n"
+                               "class PetController {\n  @GetMapping(\"/pets/new\")\n  String form() {}\n"
+                               "  @GetMapping({ \"/vets\", \"/vets.html\" })\n  String vets() {}\n"
+                               "  @Scheduled(cron = \"0 0 * * * *\")\n  public void evictCaches() {}\n}\n",
+    "java/Owner.java": "@Entity\npublic class Owner extends Person {}\n",
     "rb/config/routes.rb": "Rails.application.routes.draw do\n  resources :invoices\n  post '/pay', to: 'pay#create'\n"
                            "  namespace :api do\n    namespace :v1 do\n      resources :categories do\n"
                            "        resources :deletions, only: :create\n        post :bootstrap, on: :collection\n"
@@ -63,7 +70,10 @@ FILES = {
     "php/routes/console.php": "<?php\nSchedule::command('model:prune', 'daily');\nSchedule::job(UpdateAddressBooks::class, 'hourly');\n",
     "gql/schema.graphql": "type Query {\n  order(id: ID!): Order\n  orders(\n    first: Int\n  ): [Order]\n}\n"
                           "type Mutation {\n  checkoutComplete(id: ID!): Order\n}\n",
-    "trpc/router.ts": "export const appRouter = router({\n  getPlan: publicProcedure.query(() => 1),\n});\n",
+    "trpc/router.ts": "export const authedProcedure = t.procedure.use(auth);\n"
+                      "export const appRouter = router({\n  getPlan: publicProcedure.query(() => 1),\n});\n",
+    "web/vercel.json": "{\n  \"crons\": [\n    { \"path\": \"/api/cron/reminders\", \"schedule\": \"*/15 * * * *\" }\n  ]\n}\n",
+    "jobs/trigger.ts": "export const sendDigest = schedules.task({ id: \"send-digest\", run: async () => {} });\n",
     "db/schema.prisma": "model Customer {\n  id Int @id\n}\n",
     "db/migrations/001_init.sql": "CREATE TABLE IF NOT EXISTS \"customer\" (id int);\nCREATE TABLE legacy_audit (id int);\n",
     "db/drizzle.ts": "export const plans = pgTable('plans', {});\n",
@@ -113,7 +123,8 @@ class Scan(unittest.TestCase):
         self.assertEqual((prefixed["path"], prefixed["line"]), ("/items/{id}", 4))
         self.assertEqual(self.routes("django"), [("ANY", "/api/"), ("ANY", "/checkout/")])
         self.assertEqual(self.routes("go"), [("DELETE", "/users/:id"), ("GET", "/users"), ("POST", "/users/{id}")])
-        self.assertEqual(self.routes("spring"), [("GET", "/orders")])
+        self.assertEqual(self.routes("spring"), [("GET", "/orders"), ("GET", "/owners/{ownerId}/pets/new"),
+                                                 ("GET", "/owners/{ownerId}/vets"), ("GET", "/owners/{ownerId}/vets.html")])
         self.assertEqual(self.routes("rails"), [
             ("ANY", "/api/v1/categories"), ("ANY", "/api/v1/categories/:category_id/deletions"), ("ANY", "/invoices"),
             ("ANY", "/sidekiq"), ("GET", "/api/v1/categories/:id/export"), ("POST", "/api/v1/categories/bootstrap"),
@@ -137,7 +148,7 @@ class Scan(unittest.TestCase):
         self.assertFalse({"UserBase", "Token"} & set(tables))
         for name, source in (("plans", "drizzle"), ("subscriptions", "typeorm"), ("Coupon", "mongoose"),
                              ("payouts", "sequelize"), ("refunds", "sqlalchemy"), ("Order", "django"),
-                             ("invoices", "rails"), ("orders", "jpa"), ("vaults", "laravel")):
+                             ("invoices", "rails"), ("orders", "jpa"), ("vaults", "laravel"), ("Owner", "jpa")):
             self.assertEqual(tables[name][0], source, name)
         self.assertNotIn("Meta", tables)
         self.assertNotIn("Helper", tables)
@@ -148,7 +159,9 @@ class Scan(unittest.TestCase):
                                 ("celery task", "retry_charge"), ("celery task", "send_receipt"),
                                 ("cron schedule", "0 * * * *"), ("cron schedule", "clean_syncs -> SyncCleanerJob"),
                                 ("laravel job", "PushVCard"), ("laravel schedule", "UpdateAddressBooks"),
-                                ("laravel schedule", "model:prune"), ("rails job", "HardWorker"), ("rails job", "SyncJob")])
+                                ("laravel schedule", "model:prune"), ("rails job", "HardWorker"), ("rails job", "SyncJob"),
+                                ("spring scheduled", "evictCaches"), ("trigger.dev task", "send-digest"),
+                                ("vercel cron", "/api/cron/reminders (*/15 * * * *)")])
 
     def test_skips_dependencies_and_bounds_output(self):
         self.assertFalse(any("node_modules" in r["file"] for r in self.result["routes"]))
@@ -195,7 +208,7 @@ class Attach(unittest.TestCase):
                                  capture_output=True, text=True, check=True)
             kinds = [n["kind"] for n in json.loads(run.stdout)["nodes"]]
             self.assertGreater(kinds.count("api_route"), 20)
-            self.assertEqual(kinds.count("declared_db_table"), 12)
+            self.assertEqual(kinds.count("declared_db_table"), 13)
 
 
 if __name__ == "__main__":

@@ -173,6 +173,56 @@ class Scan(unittest.TestCase):
                 [sys.executable, str(SCRIPTS / "overview.py"), "scan", "--repo", str(repo), "--out", str(repo / "ov")],
                 capture_output=True, text=True, check=True).stdout)
 
+    def test_a_spring_app_from_maven(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            write(repo, "pom.xml", "<project><artifactId>clinic</artifactId><dependencies>\n"
+                                   "<dependency>\n<groupId>org.springframework.boot</groupId>\n"
+                                   "<artifactId>spring-boot-starter-webmvc</artifactId>\n</dependency>\n"
+                                   "<dependency>\n<groupId>org.postgresql</groupId>\n<artifactId>postgresql</artifactId>\n"
+                                   "</dependency>\n</dependencies></project>\n")
+            write(repo, "src/main/java/clinic/ClinicApplication.java", "@SpringBootApplication\npublic class ClinicApplication {}\n")
+            write(repo, "src/main/resources/application.properties", "spring.datasource.url=jdbc:postgresql://db/clinic\n")
+            write(repo, "k8s/app.yml", "apiVersion: v1\nkind: Service\nmetadata:\n  name: clinic\n---\n"
+                                       "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: clinic\nspec:\n"
+                                       "  template:\n    spec:\n      containers:\n      - name: app\n"
+                                       "        image: example/clinic\n---\napiVersion: apps/v1\nkind: StatefulSet\n"
+                                       "metadata:\n  name: clinic-db\nspec:\n  template:\n    spec:\n      containers:\n"
+                                       "      - image: postgres:18\n")
+            write(repo, "src/main/java/clinic/OwnerRepository.java", "interface OwnerRepository extends JpaRepository {}\n")
+            result = overview.scan(repo)
+            self.assertEqual([f["name"] for f in result["apps"][0]["frameworks"]], ["spring-boot-starter-webmvc"])
+            self.assertEqual([(s["name"], s["evidence"]["line"]) for s in result["services"]], [("clinic", 4)])
+            self.assertEqual([d["name"] for d in result["datastores"]], ["clinic-db"])  # k8s runs postgres; nothing inferred
+            self.assertIn("src/main/java/clinic/OwnerRepository.java", result["read_first"]["data model"])
+            self.assertIn("k8s/app.yml", result["read_first"]["configuration"])
+            self.assertEqual(result["read_first"]["entry points"], ["src/main/java/clinic/ClinicApplication.java"])
+            self.assertIn("src/main/resources/application.properties", result["read_first"]["configuration"])
+
+    def test_a_monorepo_past_the_discovery_budget(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            write(repo, "package.json", json.dumps({"name": "mono", "devDependencies": {"turbo": "2"}}))
+            write(repo, "apps/web/package.json", json.dumps({"name": "web", "dependencies": {"next": "15", "stripe": "1"},
+                                                             "scripts": {"stripe:listen": "stripe listen"}}))
+            for n in range(40):
+                write(repo, f"packages/app-store/app{n}/package.json", json.dumps({"name": f"app{n}"}))
+            write(repo, "docker-compose.yml", "services:\n  db:\n    image: postgres:18\n  db_is_ready:\n"
+                                              "    image: postgres:18\n")
+            budget = overview.discover_repo.MAX_MANIFESTS
+            overview.discover_repo.MAX_MANIFESTS = 10
+            try:
+                result = overview.scan(repo)
+            finally:
+                overview.discover_repo.MAX_MANIFESTS = budget
+            self.assertIn("compose files and workflows directly", result["discovery_limited"])
+            self.assertEqual([d["name"] for d in result["datastores"]], ["db"])  # not the readiness helper
+            family = next(a for a in result["apps"] if a.get("members"))
+            self.assertEqual((family["folder"], family["service"]), ("packages/app-store/*", "app-store (40 packages)"))
+            self.assertEqual(len(result["apps"]), 3)
+            stripe = result["integrations"]["payments"][0]["evidence"]
+            self.assertIn('"stripe": "1"', stripe["text"])  # the dependency, not the stripe:listen script
+
     def test_the_default_database_in_env_example(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -326,6 +376,15 @@ class Build(unittest.TestCase):
         self.assertNotIn("file://", (self.root / "s.html").read_text())
         with self.assertRaisesRegex(overview.otel_setup.SetupError, "OWNER/NAME"):
             overview.build(self.repo, self.save(self.filled()), self.root / "s.html", github="https://x/y")
+
+    def test_every_range_past_its_file_is_named_and_labels_may_quote_todo(self):
+        blueprint = self.filled()
+        blueprint["evidence"][-1]["label"] = "TODO: team bookings with PayPal"  # quoting a code comment is fine
+        blueprint["evidence"].append({"id": "a", "repo": "local", "path": "README.md", "start": 1, "end": 40})
+        blueprint["evidence"].append({"id": "b", "repo": "local", "path": "apps/web/pages/api/checkout.ts",
+                                      "start": 1, "end": 30})
+        with self.assertRaisesRegex(overview.otel_setup.SetupError, "a: README.md has 3 lines, not 40; b: "):
+            overview.build(self.repo, self.save(blueprint), self.root / "x.html")
 
     def test_a_symlink_out_of_the_repository_is_refused(self):
         (self.root / "secret.txt").write_text("token\n")
