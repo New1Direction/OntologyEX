@@ -42,3 +42,9 @@ here with its reason, or CI fails.
 - `demo/command_center.json`
 - `demo/digest.json`
 - `demo/operations.json`
+
+## 2026-10-29: Written operations: the demo's refund policy, terms of service (Word), support page, finance policy and a supplier order form, read for their commitments and held to the records: an unkept support promise, overdue bills against the payment terms, a refund window written as 14 days in the terms and 30 in the policy, and no written procedure for disputes or payouts.
+
+- `demo/command_center.json`
+- `demo/digest.json`
+- `demo/operations.json`

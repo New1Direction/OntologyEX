@@ -1325,6 +1325,22 @@
     "backlog_before": 12,
     "bad_share": 0.314,
     "bad_share_before": 0.087,
+    "hours_bins": [
+     0,
+     0,
+     0,
+     13,
+     19,
+     20,
+     40,
+     40,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
     "median_hours": 16.2,
     "median_hours_before": 8.6,
     "mentions": {
@@ -2408,6 +2424,30 @@
    "stream": "deals"
   },
   {
+   "detail": "contracts/datadog-order-form.txt:4 says \"Payment terms: Net 30.\"; 1 bill(s) are past their due date and not marked paid",
+   "level": "HIGH",
+   "signal": "WRITTEN_PROMISE_NOT_KEPT",
+   "stream": "written"
+  },
+  {
+   "detail": "docs/finance-policy.md:3 says \"We pay supplier invoices within 30 days of receiving them.\"; 1 bill(s) are past their due date and not marked paid",
+   "level": "HIGH",
+   "signal": "WRITTEN_PROMISE_NOT_KEPT",
+   "stream": "written"
+  },
+  {
+   "detail": "docs/support.md:3 says \"We resolve every support ticket within 8 hours.\"; 24% of the tickets solved in the last 4 complete weeks took 8 hours or less",
+   "level": "HIGH",
+   "signal": "WRITTEN_PROMISE_NOT_KEPT",
+   "stream": "written"
+  },
+  {
+   "detail": "refund window is written as 14 days and 30 days in different documents: docs/refund-policy.md:3; docs/terms-of-service.docx:3",
+   "level": "HIGH",
+   "signal": "WRITTEN_RULES_CONFLICT",
+   "stream": "written"
+  },
+  {
    "detail": "33 tickets open at the end of the last complete week, 12 four weeks earlier",
    "level": "MEDIUM",
    "signal": "BACKLOG_GROWING",
@@ -2439,6 +2479,20 @@
    "level": "MEDIUM",
    "signal": "NEW_SUPPLIER_PAID",
    "stream": "transactions"
+  },
+  {
+   "detail": "the records show disputes happening, and no document here describes how disputes are handled",
+   "level": "MEDIUM",
+   "signal": "PROCEDURE_NOT_WRITTEN",
+   "stream": "written",
+   "topic": "disputes"
+  },
+  {
+   "detail": "the records show payouts happening, and no document here describes how payouts are handled",
+   "level": "MEDIUM",
+   "signal": "PROCEDURE_NOT_WRITTEN",
+   "stream": "written",
+   "topic": "payouts"
   },
   {
    "detail": "the median ticket took 16.2 hours to solve in the last 4 weeks, 8.6 in the 4 before",
@@ -2637,6 +2691,17 @@
    "stream": "cloud_costs"
   },
   {
+   "bytes": 185,
+   "commitments": 2,
+   "file": "contracts/datadog-order-form.txt",
+   "kind": "contract",
+   "lines": 5,
+   "procedures": [],
+   "read_as": "text",
+   "sha256": "87727d2e65637eca27a1ad3de799d933a31c49d8949a9c75470fa0a2198672a2",
+   "status": "READ"
+  },
+  {
    "bytes": 18112,
    "columns_matched_only": [],
    "columns_not_read": 4,
@@ -2656,6 +2721,57 @@
    "sha256": "2577dda10e31f9109cfd7015dbfbb139b74d30d935ac0ff9db96cc6d5b34c17a",
    "status": "READ",
    "stream": "deals"
+  },
+  {
+   "bytes": 77,
+   "commitments": 1,
+   "file": "docs/finance-policy.md",
+   "kind": "policy",
+   "lines": 4,
+   "procedures": [],
+   "read_as": "text",
+   "sha256": "41b931f4667f85a64f7fa31ed64c88a0c89d7f67c767821e744aceff01e0dc50",
+   "status": "READ"
+  },
+  {
+   "bytes": 208,
+   "commitments": 2,
+   "file": "docs/refund-policy.md",
+   "kind": "policy",
+   "lines": 8,
+   "procedures": [
+    "refunds",
+    "support"
+   ],
+   "read_as": "text",
+   "sha256": "aad11cbfad3296bc7335cdd90a3bce30773091708bfeb105d4f497c9d2bddecb",
+   "status": "READ"
+  },
+  {
+   "bytes": 88,
+   "commitments": 1,
+   "file": "docs/support.md",
+   "kind": "policy",
+   "lines": 4,
+   "procedures": [
+    "support"
+   ],
+   "read_as": "text",
+   "sha256": "77768d86f7374fe679b31bae2a149fd83bbc09b0d37f254547b2841da1ac4ebc",
+   "status": "READ"
+  },
+  {
+   "bytes": 756,
+   "commitments": 1,
+   "file": "docs/terms-of-service.docx",
+   "kind": "terms",
+   "lines": 5,
+   "procedures": [
+    "refunds"
+   ],
+   "read_as": "Word",
+   "sha256": "147e7459bf185d5a53954dfc2a594cca76fde20a3bcb15a53cb2a2b3b4beddae",
+   "status": "READ"
   },
   {
    "bytes": 77581,
@@ -3165,5 +3281,213 @@
   "subscriptions"
  ],
  "unrecognized": [],
- "week_in_progress": "2026-W40"
+ "week_in_progress": "2026-W40",
+ "written": {
+  "commitments": [
+   {
+    "business_days": false,
+    "detail": "the records hold no contract dates; put the last day to give notice in a calendar",
+    "file": "contracts/datadog-order-form.txt",
+    "kind": "RENEWAL_NOTICE",
+    "line": 3,
+    "status": "NEEDS_A_PERSON",
+    "text": "This order renews automatically for another 12 months unless either party gives 60 days' written notice.",
+    "unit": "days",
+    "value": 60.0
+   },
+   {
+    "business_days": false,
+    "detail": "1 bill(s) are past their due date and not marked paid",
+    "file": "contracts/datadog-order-form.txt",
+    "kind": "PAYMENT_TERMS",
+    "line": 4,
+    "status": "NOT_MET",
+    "text": "Payment terms: Net 30.",
+    "unit": "days",
+    "value": 30.0
+   },
+   {
+    "business_days": false,
+    "detail": "1 bill(s) are past their due date and not marked paid",
+    "file": "docs/finance-policy.md",
+    "kind": "PAYMENT_TERMS",
+    "line": 3,
+    "status": "NOT_MET",
+    "text": "We pay supplier invoices within 30 days of receiving them.",
+    "unit": "days",
+    "value": 30.0
+   },
+   {
+    "business_days": false,
+    "detail": "the records hold refunds by week, not how long after its purchase each came; check a sample of recent refunds in the processor's dashboard",
+    "file": "docs/refund-policy.md",
+    "kind": "REFUND_WINDOW",
+    "line": 3,
+    "status": "NEEDS_A_PERSON",
+    "text": "Customers can ask for a refund within 30 days of purchase.",
+    "unit": "days",
+    "value": 30.0
+   },
+   {
+    "business_days": false,
+    "detail": "the business model has an approval step or a rule with this amount",
+    "file": "docs/refund-policy.md",
+    "kind": "REFUND_APPROVAL",
+    "line": 5,
+    "status": "IN_THE_MODEL",
+    "text": "Refunds over $500 need a manager's approval before they are issued.",
+    "unit": "amount",
+    "value": 500.0
+   },
+   {
+    "business_days": false,
+    "detail": "24% of the tickets solved in the last 4 complete weeks took 8 hours or less",
+    "file": "docs/support.md",
+    "kind": "RESOLUTION_TIME",
+    "line": 3,
+    "status": "NOT_MET",
+    "text": "We resolve every support ticket within 8 hours.",
+    "unit": "hours",
+    "value": 8.0
+   },
+   {
+    "business_days": false,
+    "detail": "the records hold refunds by week, not how long after its purchase each came; check a sample of recent refunds in the processor's dashboard",
+    "file": "docs/terms-of-service.docx",
+    "kind": "REFUND_WINDOW",
+    "line": 3,
+    "status": "NEEDS_A_PERSON",
+    "text": "Refunds are available within 14 days of purchase.",
+    "unit": "days",
+    "value": 14.0
+   }
+  ],
+  "conflicts": [
+   {
+    "citations": [
+     {
+      "file": "docs/refund-policy.md",
+      "line": 3,
+      "text": "Customers can ask for a refund within 30 days of purchase."
+     },
+     {
+      "file": "docs/terms-of-service.docx",
+      "line": 3,
+      "text": "Refunds are available within 14 days of purchase."
+     }
+    ],
+    "detail": "refund window is written as 14 days and 30 days in different documents",
+    "kind": "REFUND_WINDOW",
+    "unit": "days",
+    "values": [
+     14.0,
+     30.0
+    ]
+   }
+  ],
+  "documents": [
+   {
+    "commitments": 2,
+    "file": "contracts/datadog-order-form.txt",
+    "kind": "contract",
+    "lines": 5,
+    "procedures": [],
+    "read_as": "text",
+    "status": "READ"
+   },
+   {
+    "commitments": 1,
+    "file": "docs/finance-policy.md",
+    "kind": "policy",
+    "lines": 4,
+    "procedures": [],
+    "read_as": "text",
+    "status": "READ"
+   },
+   {
+    "commitments": 2,
+    "file": "docs/refund-policy.md",
+    "kind": "policy",
+    "lines": 8,
+    "procedures": [
+     "refunds",
+     "support"
+    ],
+    "read_as": "text",
+    "status": "READ"
+   },
+   {
+    "commitments": 1,
+    "file": "docs/support.md",
+    "kind": "policy",
+    "lines": 4,
+    "procedures": [
+     "support"
+    ],
+    "read_as": "text",
+    "status": "READ"
+   },
+   {
+    "commitments": 1,
+    "file": "docs/terms-of-service.docx",
+    "kind": "terms",
+    "lines": 5,
+    "procedures": [
+     "refunds"
+    ],
+    "read_as": "Word",
+    "status": "READ"
+   }
+  ],
+  "signals": [
+   {
+    "detail": "contracts/datadog-order-form.txt:4 says \"Payment terms: Net 30.\"; 1 bill(s) are past their due date and not marked paid",
+    "level": "HIGH",
+    "signal": "WRITTEN_PROMISE_NOT_KEPT",
+    "stream": "written"
+   },
+   {
+    "detail": "docs/finance-policy.md:3 says \"We pay supplier invoices within 30 days of receiving them.\"; 1 bill(s) are past their due date and not marked paid",
+    "level": "HIGH",
+    "signal": "WRITTEN_PROMISE_NOT_KEPT",
+    "stream": "written"
+   },
+   {
+    "detail": "docs/support.md:3 says \"We resolve every support ticket within 8 hours.\"; 24% of the tickets solved in the last 4 complete weeks took 8 hours or less",
+    "level": "HIGH",
+    "signal": "WRITTEN_PROMISE_NOT_KEPT",
+    "stream": "written"
+   },
+   {
+    "detail": "refund window is written as 14 days and 30 days in different documents: docs/refund-policy.md:3; docs/terms-of-service.docx:3",
+    "level": "HIGH",
+    "signal": "WRITTEN_RULES_CONFLICT",
+    "stream": "written"
+   },
+   {
+    "detail": "the records show disputes happening, and no document here describes how disputes are handled",
+    "level": "MEDIUM",
+    "signal": "PROCEDURE_NOT_WRITTEN",
+    "stream": "written",
+    "topic": "disputes"
+   },
+   {
+    "detail": "the records show payouts happening, and no document here describes how payouts are handled",
+    "level": "MEDIUM",
+    "signal": "PROCEDURE_NOT_WRITTEN",
+    "stream": "written",
+    "topic": "payouts"
+   }
+  ],
+  "unwritten": [
+   {
+    "detail": "the records show disputes happening, and no document here describes how disputes are handled",
+    "procedure": "disputes"
+   },
+   {
+    "detail": "the records show payouts happening, and no document here describes how payouts are handled",
+    "procedure": "payouts"
+   }
+  ]
+ }
 }

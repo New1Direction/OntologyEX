@@ -59,7 +59,7 @@ class DemoTests(Folder):
 
     def test_each_export_is_recognized_and_only_its_columns_read(self):
         by_file = {s["file"]: s for s in self.answer["sources"]}
-        self.assertEqual({f: s.get("stream") for f, s in by_file.items() if s["status"] == "READ"},
+        self.assertEqual({f: s.get("stream") for f, s in by_file.items() if s["status"] == "READ" and "stream" in s},
                          {"payments.csv": "payments", "refunds.csv": "refunds", "disputes.csv": "disputes",
                           "payouts.csv": "payouts", "subscriptions.csv": "subscriptions", "invoices.csv": "invoices",
                           "bank/business-account.csv": "transactions", "bills.csv": "bills",
@@ -381,6 +381,65 @@ class CustomerPullTests(Folder):
         deals = ops.report(self.dir, min_cell=1, now=NOW)["customers"]["totals"]["deals"]
         self.assertEqual((deals["won"], deals["lost"], deals["won_amount"], deals["lost_reasons"], deals["open"]),
                          (1, 1, {"eur": 1000.0}, {"price": 1}, 1))
+
+
+class WrittenTests(Folder):
+    ENTITIES = [{"id": "s:approve", "label": "ApproveException", "layer": "business"},
+                {"id": "s:refund", "label": "Refund", "layer": "business"}]
+
+    def test_the_demo_documents_held_to_the_records(self):
+        demo.write_operations(self.dir / "ops", NOW)
+        answer = ops.report(self.dir / "ops", self.ENTITIES, now=NOW)
+        w = answer["written"]
+        got = {(c["kind"], c["value"], c["file"], c["status"]) for c in w["commitments"]}
+        self.assertEqual(got, {
+            ("RENEWAL_NOTICE", 60.0, "contracts/datadog-order-form.txt", "NEEDS_A_PERSON"),
+            ("PAYMENT_TERMS", 30.0, "contracts/datadog-order-form.txt", "NOT_MET"),
+            ("PAYMENT_TERMS", 30.0, "docs/finance-policy.md", "NOT_MET"),
+            ("REFUND_WINDOW", 30.0, "docs/refund-policy.md", "NEEDS_A_PERSON"),
+            ("REFUND_APPROVAL", 500.0, "docs/refund-policy.md", "IN_THE_MODEL"),
+            ("RESOLUTION_TIME", 8.0, "docs/support.md", "NOT_MET"),
+            ("REFUND_WINDOW", 14.0, "docs/terms-of-service.docx", "NEEDS_A_PERSON")})
+        self.assertEqual([(c["kind"], c["values"]) for c in w["conflicts"]], [("REFUND_WINDOW", [14.0, 30.0])])
+        self.assertEqual([u["procedure"] for u in w["unwritten"]], ["disputes", "payouts"])
+        docx = next(d for d in w["documents"] if d["file"].endswith(".docx"))
+        self.assertEqual((docx["kind"], docx["read_as"]), ("terms", "Word"))
+        items = command_center.report({"state": {"nodes": [], "edges": []}, "operations": answer})["items"]
+        self.assertEqual({i["kind"] for i in items if i["category"] == "Written"},
+                         {"WRITTEN_PROMISE_NOT_KEPT", "WRITTEN_RULES_CONFLICT", "PROCEDURE_NOT_WRITTEN"})
+        no_model = ops.report(self.dir / "ops", [{"id": "x", "label": "Refund", "layer": "business"}], now=NOW)
+        approval = next(c for c in no_model["written"]["commitments"] if c["kind"] == "REFUND_APPROVAL")
+        self.assertEqual(approval["status"], "NOT_IN_THE_MODEL")
+
+    def test_phrasings_units_and_masking(self):
+        write(self.dir, "policy.md", "Every order has a 30-day money-back guarantee. Supplier invoices are net 45.\n"
+              "We respond to chargebacks within 7 days. Tickets are resolved within 2 business days.\n"
+              "The service is available 99.9% of the time, with 99.9% uptime promised.\n"
+              "This plan renews automatically unless you give 3 months' notice.\n"
+              "Refunds over EUR 1,200 need sign-off from finance (ask jo@x.test or +44 20 7946 0958) within 5 days.\n")
+        found = {(c["kind"], c["value"], c["unit"]) for c in ops.report(self.dir, now=NOW)["written"]["commitments"]}
+        self.assertEqual(found, {("REFUND_WINDOW", 30.0, "days"), ("PAYMENT_TERMS", 45.0, "days"),
+                                 ("DISPUTE_RESPONSE", 7.0, "days"), ("RESOLUTION_TIME", 48.0, "hours"),
+                                 ("UPTIME", 99.9, "percent"), ("RENEWAL_NOTICE", 90.0, "days"),
+                                 ("REFUND_APPROVAL", 1200.0, "amount")})
+        text = json.dumps(ops.report(self.dir, now=NOW)["written"])
+        self.assertNotIn("jo@x.test", text)
+        self.assertNotIn("7946", text)
+
+    def test_html_and_pdf(self):
+        write(self.dir, "terms.html", "<html><body><h1>Terms</h1><p>Refunds are possible within 21 days.</p>"
+              "<script>var refund='within 99 days'</script></body></html>")
+        import zlib
+        stream = zlib.compress(b"BT /F1 12 Tf (Refunds are possible) Tj ( within 10 days.) Tj ET")
+        pdf = (b"%PDF-1.4\n1 0 obj << /Length " + str(len(stream)).encode() + b" /Filter /FlateDecode >>\nstream\n"
+               + stream + b"\nendstream\nendobj\n%%EOF\n")
+        (self.dir / "returns.pdf").write_bytes(pdf)
+        (self.dir / "scan.pdf").write_bytes(b"%PDF-1.4\n1 0 obj << >>\nstream\n\x00\x01binary\nendstream\n%%EOF")
+        w = ops.report(self.dir, now=NOW)["written"]
+        self.assertEqual(sorted((c["file"], c["value"]) for c in w["commitments"]),
+                         [("returns.pdf", 10.0), ("terms.html", 21.0)])  # nothing from the script
+        scan = next(d for d in w["documents"] if d["file"] == "scan.pdf")
+        self.assertEqual(scan["status"], "UNREADABLE")
 
 
 class AgentToolTests(Folder):

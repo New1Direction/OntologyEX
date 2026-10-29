@@ -315,7 +315,8 @@ def section(desk: Desk, current: str, min_cell: int, weeks_between) -> dict | No
                                         "bad_share_before": round(bad_before, 3) if bad_before is not None else None,
                                         "mentions": mentions if opened >= min_cell else None,
                                         "mentions_before": mentions_before if opened_before >= min_cell else None,
-                                        "topics": topics_now if opened >= min_cell else None}
+                                        "topics": topics_now if opened >= min_cell else None,
+                                        "hours_bins": total_bins(now, "hours") if opened >= min_cell else None}
             if before and opened >= 20 and opened >= 1.5 * max(opened_before, 1):
                 signals.append({"signal": "TICKETS_RISING", "level": "HIGH", "stream": "tickets",
                                 "detail": f"{opened} tickets opened in the last 4 weeks, {opened_before} in the 4 before"})
