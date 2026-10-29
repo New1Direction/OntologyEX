@@ -11,7 +11,9 @@ too and its exit code is returned. Without --feeds only the control room runs.
 Make feeds.json with `feed_setup.py propose` and `feed_setup.py init`. Calls the feeds
 see in traces are suggested as dependencies on the business screen; confirmed ones go
 to --dependencies (default: dependencies.json beside feeds.json), and the screen
-records decisions only with --allow-link-decisions.
+records decisions only with --allow-link-decisions. The command-center ranking is
+recorded to REPO/.ontologyex/history.jsonl when it changes (and once a day), for the
+weekly digest at /digest; --no-history turns that off, --history FILE moves it.
 Nothing here changes a system: feeds only read health, and the control room
 listens on 127.0.0.1.
 """
@@ -60,7 +62,16 @@ def control_room_command(args, observations: Path | None) -> list[str]:
         command += ["--events", str(args.events)]
     if args.allow_link_decisions:
         command.append("--allow-link-decisions")
+    history = history_path(args)
+    if history is not None:
+        command += ["--history", str(history)]
     return command
+
+
+def history_path(args) -> Path | None:
+    if args.no_history:
+        return None
+    return args.history or args.repo / ".ontologyex" / "history.jsonl"
 
 
 def stop(processes: list[subprocess.Popen]) -> None:
@@ -88,7 +99,11 @@ def up(args) -> int:
         command, engine = feeds_command(args.feeds, args.engine)
         processes.append(subprocess.Popen(command))
     processes.append(subprocess.Popen(control_room_command(args, observations)))
-    print(json.dumps({"status": "UP", "business": f"http://127.0.0.1:{args.port}/business",
+    history = history_path(args)
+    print(json.dumps({"status": "UP", "command": f"http://127.0.0.1:{args.port}/command",
+                      "digest": f"http://127.0.0.1:{args.port}/digest",
+                      "history": str(history) if history else None,
+                      "business": f"http://127.0.0.1:{args.port}/business",
                       "system_map": f"http://127.0.0.1:{args.port}/",
                       "feeds_engine": engine, "observations": str(observations) if observations else None,
                       "stop": "Ctrl-C"}, indent=2), flush=True)
@@ -122,6 +137,8 @@ def main() -> int:
                    help="dependencies confirmed from observed calls (default: beside --feeds)")
     u.add_argument("--port", type=int, default=8765)
     u.add_argument("--allow-link-decisions", action="store_true")
+    u.add_argument("--history", type=Path, help="where to record the ranking (default: REPO/.ontologyex/history.jsonl)")
+    u.add_argument("--no-history", action="store_true", help="do not record the ranking for the weekly digest")
     u.add_argument("--engine", choices=("auto", "python", "rust"), default="auto",
                    help="feeds engine: auto uses ontologyex-feeds when it is installed")
     args = parser.parse_args()

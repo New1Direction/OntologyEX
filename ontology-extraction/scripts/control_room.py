@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import argparse
 from collections import defaultdict, deque
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Event, Lock, RLock, Thread
@@ -35,6 +35,7 @@ import link_suggest
 import rule_suggest
 import suppliers
 import command_center
+import digest
 import github_discovery
 import snapshot_store
 import graph_view_api
@@ -883,7 +884,8 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
           links: Path | None = None, events: Path | None = None,
           allow_link_decisions: bool = False, decision_model: bool = False,
           discovery_engine: str = "python", dependencies: Path | None = None,
-          print_bundle: bool = False, proposals: Path | None = None, rules_file: Path | None = None) -> None:
+          print_bundle: bool = False, proposals: Path | None = None, rules_file: Path | None = None,
+          history: Path | None = None, history_seconds: int = 300) -> None:
     check(0 <= port <= 65535, "invalid port")
     check(view_engine in ("python", "rust"), "unsupported graph view backend")
     native_view = native_view_bridge.NativeView() if view_engine == "rust" else None
@@ -896,6 +898,8 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
     if dependencies is not None and dependencies.exists():
         dependency_suggest.read_dependency_document(dependencies)
     check(len(skills) <= business_view.MAX_SKILLS, "too many skills")
+    check(history is None or not history.is_symlink(), "--history must not be a symlink")
+    check(10 <= history_seconds <= 86_400, "--history-seconds is 10..86400")
     check(not allow_link_decisions or (links is not None and skills) or dependencies is not None or rules_file is not None,
           "decisions need --links and at least one --skill, --dependencies, or --rules")
     if rules_file is not None and rules_file.exists():
@@ -1227,6 +1231,36 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 except (RoomError, DomainError, discover_repo.DiscoveryError,
                         github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
                     payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
+            elif route.path == "/digest":  # days in the query are read by the page
+                page = (Path(__file__).resolve().parent / "digest_page.html").read_bytes()
+                payload, mime, code = page, "text/html; charset=utf-8", 200
+            elif route.path == "/api/digest":  # what moved since the window began, from the --history file
+                mime = "application/json; charset=utf-8"
+                try:
+                    params = parse_qs(route.query, strict_parsing=True, max_num_fields=2) if route.query else {}
+                    days = params.get("days", ["7"])
+                    shape = params.get("format", ["json"])
+                    if not set(params) <= {"days", "format"} or len(days) != 1 or len(shape) != 1 \
+                            or not days[0].isdigit() or not 1 <= int(days[0]) <= digest.MAX_DAYS \
+                            or shape[0] not in ("json", "markdown"):
+                        raise graph_view_api.ViewError(f"digest takes days 1..{digest.MAX_DAYS} and format")
+                    data, now = bundle(), datetime.now(timezone.utc)
+                    window = int(days[0])
+                    answer = digest.build(
+                        digest.read_history(history), command_center.report(data), now, window,
+                        digest.decision_logs(links, dependencies, rules_file),
+                        digest._code(repo.resolve(), data, now - timedelta(days=window)) if repo is not None else None,
+                        digest.labels(data))
+                    answer["recording"] = str(history.name) if history is not None else None
+                    if shape[0] == "markdown":
+                        payload, mime, code = digest.markdown(answer).encode(), "text/markdown; charset=utf-8", 200
+                    else:
+                        payload, code = json.dumps(answer, sort_keys=True).encode(), 200
+                except (graph_view_api.ViewError, entity_context.ContextError):
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, DomainError, discover_repo.DiscoveryError,
+                        github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
             elif route.path == "/impact":  # base and head in the query are read by the page
                 page = (Path(__file__).resolve().parent / "impact_page.html").read_bytes()
                 payload, mime, code = page, "text/html; charset=utf-8", 200
@@ -1464,18 +1498,34 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         def log_message(self, *args):
             return  # No user-supplied paths or request logs persisted.
 
-    # No external listener. The only writes are the opt-in decisions above.
+    recorder = None
+    if history is not None:  # opt-in: the ranking over time, for the weekly digest
+        def record_loop():
+            while not stop_worker.is_set():
+                try:
+                    digest.record(history, command_center.report(bundle()), datetime.now(timezone.utc))
+                except (RoomError, DomainError, discover_repo.DiscoveryError, github_discovery.GitHubDiscoveryError,
+                        OSError, TypeError, KeyError, ValueError):
+                    pass  # a source that is down now is recorded on the next round
+                stop_worker.wait(history_seconds)
+        recorder = Thread(target=record_loop, name="ontologyex-history", daemon=True)
+
+    # No external listener. The only writes are the opt-in decisions and history above.
     try:
         with ThreadingHTTPServer(("127.0.0.1", port), Handler) as server:
             print(f"OntologyEX local control room: http://127.0.0.1:{server.server_port}",
                   flush=True)
             if repo is not None:
                 print(f"Repository discovery: {'rust' if native_discovery else 'python'}", flush=True)
+            if recorder is not None:
+                recorder.start()
+                print(f"Recording the ranking for the weekly digest: {history}", flush=True)
             server.serve_forever()
     finally:
         stop_worker.set()
-        if worker is not None:
-            worker.join(timeout=2)
+        for thread in (worker, recorder):
+            if thread is not None and thread.is_alive():
+                thread.join(timeout=2)
 
 
 def main():
@@ -1509,6 +1559,10 @@ def main():
                         help="business rules a person decided from agent proposals (JSON; see rule_suggest.py)")
     parser.add_argument("--proposals", type=Path, default=None,
                         help="agent link proposals (JSON lines written by agent_tools.py); shown as suggestions")
+    parser.add_argument("--history", type=Path, default=None,
+                        help="append the command-center ranking to this JSON-lines file when it changes "
+                             "(and once a day), for the weekly digest at /digest")
+    parser.add_argument("--history-seconds", type=int, default=300, help="how often to check the ranking")
     parser.add_argument("--allow-link-decisions", action="store_true",
                         help="let the local business page confirm or reject link and dependency suggestions")
     parser.add_argument("--decision-model", action="store_true",
@@ -1556,7 +1610,8 @@ def main():
                   skills=args.skill, links=args.links, events=args.events,
                   allow_link_decisions=args.allow_link_decisions,
                   decision_model=args.decision_model, dependencies=args.dependencies,
-                  print_bundle=args.bundle_only, proposals=args.proposals, rules_file=args.rules)
+                  print_bundle=args.bundle_only, proposals=args.proposals, rules_file=args.rules,
+                  history=args.history, history_seconds=args.history_seconds)
         return 0
     except (OSError, RoomError, discover_repo.DiscoveryError,
             github_discovery.GitHubDiscoveryError, snapshot_store.SnapshotError,
