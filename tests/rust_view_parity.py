@@ -14,6 +14,7 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"ontology-extraction/scripts"))
+import code_surface
 import control_room
 import dependency_suggest
 import discover_repo
@@ -51,7 +52,10 @@ def scenario(n=120):
         manifests+="".join(f"  s{i:03d}: {{}}\n" for i in range(n))
         (root/"compose.yml").write_text(manifests)
         (root/"package.json").write_text('{"name":"parity"}')
-        topo=discover_repo.discover(root)
+        (root/"server.js").write_text("app.get('/orders', list);\napp.post('/orders/:id/refund', refund);\n")
+        (root/"schema.prisma").write_text("model Order {\n  id Int @id\n}\n")
+        # Routes and tables the code declares, each under the app that holds it.
+        topo=code_surface.attach(discover_repo.discover(root),root)
         # A dependency seen in traces and confirmed by a person: s000 calls api.
         evidence={"caller_services":["s000 -> api"],"calls":30,"errors":0,
                   "first_seen":"2026-10-27T20:00:00Z","last_seen":"2026-10-27T22:00:00Z"}
@@ -102,7 +106,12 @@ def run():
         equivalent(f"neighborhood({center},{depth})",
                    graph_view_api.neighborhood(full,center,depth=depth),
                    native(full,"neighborhood",center,depth))
-    for id in (db,full["project"]):
+    route=next(n["id"] for n in full["nodes"] if n["kind"]=="api_route")
+    table=next(n["id"] for n in full["nodes"] if n["kind"]=="declared_db_table")
+    for center in (route,table):
+        equivalent(f"neighborhood({center},1)",graph_view_api.neighborhood(full,center,depth=1),
+                   native(full,"neighborhood",center,1))
+    for id in (db,full["project"],route,table):
         equivalent("node("+id+")",graph_view_api.node_detail(full,id),
                    native(full,"node",id))
     # Both implementations must reject a source state that grants execution.
@@ -118,7 +127,8 @@ def run():
                               input=json.dumps(full).encode(),
                               capture_output=True,timeout=10)
         assert result.returncode!=0,args
-    print("Rust/Python parity: summary + 9 pages + 8 neighborhoods (one over a confirmed CALLS edge) + 2 node details; "
+    print("Rust/Python parity: summary + 9 pages + 10 neighborhoods (one over a confirmed CALLS edge, two from code) "
+          "+ 4 node details; "
           "invalid inputs refused; no production calls")
 
 

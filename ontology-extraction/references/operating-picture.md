@@ -15,6 +15,12 @@ python "$SKILL_ROOT/scripts/control_room.py" --repo REPO --skill SKILL [--skill 
 Open `http://127.0.0.1:8765/business` (system map at `/`). Without links, every
 action is `UNLINKED`: health cannot be shown until a person links code to systems.
 
+For a local repository the map also draws the API routes, GraphQL and RPC
+operations, and tables the code declares (the `api` and `database` lenses), each
+under the app whose folder holds it, from `code_surface.py`. They are syntax
+candidates, not verified endpoints: up to 256 of each kind, API before pages, and a
+gap names how many more were left out.
+
 ## 2. Link code to systems (a person decides)
 
 ```bash

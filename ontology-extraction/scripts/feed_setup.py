@@ -161,8 +161,8 @@ def propose(repo: Path) -> dict:
     for rel in compose_files:
         data = (repo / rel).read_bytes()
         try:
-            doc = discover_repo.load_yaml(data)
-            root = yaml.compose(data, Loader=discover_repo.StrictLoader)
+            doc = otel_setup.load_compose(data)
+            root = yaml.compose(data, Loader=yaml.SafeLoader)
         except (yaml.YAMLError, ValueError) as exc:
             gaps.append({"source": rel, "reason": f"compose file could not be read ({type(exc).__name__})"})
             continue

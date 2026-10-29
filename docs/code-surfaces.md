@@ -30,9 +30,24 @@ Using the already pinned GitHub commit and tree, the scanner additionally:
 - Adds API and Database graph lenses so the browser need not show every
   node simultaneously.
 
+## Local repositories
+
+For a local checkout, `ontology-extraction/scripts/code_surface.py` reads every source
+file (bounded: 1 MiB per file, 4 MiB per schema file, 96 MiB in all) and recognizes
+declarations by syntax across common frameworks: Next.js app and pages routers,
+Remix / React Router file routes, Express-style routers, Flask, FastAPI, Django,
+Go (net/http, chi, gin, echo), Spring, Rails and Laravel routes; GraphQL operations
+and tRPC procedures; Prisma, SQL, Django, SQLAlchemy, Drizzle, TypeORM, Mongoose,
+Sequelize, Rails and JPA tables; Celery, BullMQ, cron and Inngest jobs. The control
+room draws routes, operations and tables under the app whose folder holds them (256
+per kind, API before pages; a gap counts the rest), and `overview.py scan` lists them
+for the agent. Each is a SOURCE_SYNTAX_CANDIDATE with its file and line, never a
+verified endpoint or table: a route may be disabled, a table dropped by a later
+migration, and anything built at runtime is not seen.
+
 ## Scope limitations
 
-Only this explicit Next.js/Drizzle source shape is currently supported.
+In GitHub mode, only this explicit Next.js/Drizzle source shape is currently supported.
 Do not infer router methods, SQL foreign keys, database migrations,
 services, business processes, dependency paths or production health
 from filename proximity or an unreviewed regex match.

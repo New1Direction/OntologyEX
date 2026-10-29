@@ -9,7 +9,7 @@ domain skills with exact evidence before your agent changes a workflow.
 [![Validator](https://github.com/New1Direction/OntologyEX/actions/workflows/validator.yml/badge.svg)](https://github.com/New1Direction/OntologyEX/actions/workflows/validator.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-13846f)](LICENSE)
 
-**[Guided onboarding](ontology-extraction/references/guided-onboarding.md) · [Real-source case](examples/cachetools-domain/README.md) · [Payments report](https://new1direction.github.io/OntologyEX/docs/payments-demo.html) · [Contract](ontology-extraction/references/domain-skill.md)**
+**[Example overview](https://new1direction.github.io/OntologyEX/docs/examples/nextjs-subscription-payments.html) · [Guided onboarding](ontology-extraction/references/guided-onboarding.md) · [Real-source case](examples/cachetools-domain/README.md) · [Payments report](https://new1direction.github.io/OntologyEX/docs/payments-demo.html) · [Contract](ontology-extraction/references/domain-skill.md)**
 
 ## Give this repository to your agent
 
@@ -23,6 +23,13 @@ main journeys, where it breaks, and what nobody wrote down, with every claim lin
 to the lines it rests on. Then it can show your systems live, trace the calls between
 your services, or build a domain skill before you change a workflow.
 Instructions for the agent: [AGENTS.md](AGENTS.md).
+
+**Example:** [Vercel's Next.js subscription starter, explained](https://new1direction.github.io/OntologyEX/docs/examples/nextjs-subscription-payments.html), written by an
+agent from the public repository. Every claim links to its lines at commit `bdd0813`;
+the risks are the agent's reading, not observed incidents.
+([blueprint](examples/overview/nextjs-subscription-payments.blueprint.json))
+
+[![Where it breaks, in the example overview: each risk with its cited source lines](docs/images/overview-example.jpg)](https://new1direction.github.io/OntologyEX/docs/examples/nextjs-subscription-payments.html)
 
 ## Onboard your repository from one request
 

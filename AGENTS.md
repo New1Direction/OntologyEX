@@ -28,7 +28,8 @@ tools only read their repository; they run and change nothing in it.
    [business overview](ontology-extraction/references/business-overview.md): read the
    docs and the `read_first` files the scan lists, then fill in
    `REPO/.ontologyex/overview/blueprint.json`: purpose, audiences, value, money flows,
-   journeys, risks, unknowns, improvements, each with citations and a basis.
+   journeys, risks, unknowns, improvements, each with citations and a basis. The
+   reference lists every field and shows one item of each kind.
 
 4. **Build the page**:
 
@@ -37,9 +38,13 @@ tools only read their repository; they run and change nothing in it.
      --blueprint REPO/.ontologyex/overview/blueprint.json --out REPO/.ontologyex/overview/business.html
    ```
 
-5. **Tell them**: the page path, then what it is, how money moves, the main
-   journeys, where it breaks, and what is unknown, with a file reference or two each.
-   Say it is your reading of the sources, linked so they can check it.
+   Read the `check_citations` it prints (the first cited line of each) and fix any
+   range that is off.
+
+5. **Tell them**: the page path (one offline file; they open it in a browser), then
+   what it is, how money moves, the main journeys, where it breaks, and what is
+   unknown, with a file reference or two each. Say it is your reading of the sources,
+   linked so they can check it.
 
 Then offer what fits:
 

@@ -42,6 +42,8 @@ import sys
 import tempfile
 import tomllib
 
+import yaml
+
 import discover_repo
 import feeds
 
@@ -168,6 +170,36 @@ def _service_name(text: str | None, folder: str, taken: set[str]) -> str:
     return unique
 
 
+def load_compose(data: bytes):
+    """A compose file, anchors and `<<` merges allowed (compose files lean on them).
+
+    Discovery refuses anchors outright; here they are allowed, with tags still refused
+    and the expanded document bounded in size and nesting, so an alias bomb or a
+    self-referencing anchor stops early instead of growing.
+    """
+    for i, token in enumerate(yaml.scan(data)):
+        if i >= discover_repo.MAX_YAML_TOKENS or isinstance(token, yaml.tokens.TagToken):
+            raise SetupError("compose YAML exceeds the token limit or contains tags")
+    budget = [discover_repo.MAX_YAML_TOKENS]
+
+    def walk(node, depth):
+        budget[0] -= 1
+        if budget[0] < 0 or depth > discover_repo.MAX_YAML_NESTING:
+            raise SetupError("compose YAML expands beyond the size or nesting limit")
+        if isinstance(node, yaml.SequenceNode):
+            for child in node.value:
+                walk(child, depth + 1)
+        elif isinstance(node, yaml.MappingNode):
+            for key, value in node.value:
+                walk(key, depth + 1)
+                walk(value, depth + 1)
+
+    root = yaml.compose(data, Loader=yaml.SafeLoader)
+    if root is not None:
+        walk(root, 0)
+    return yaml.load(data, Loader=yaml.SafeLoader)
+
+
 def _compose_builds(repo: Path, discovery: dict) -> dict[str, tuple[str, str]]:
     """app folder -> (compose service name, its component ID), from `build:` contexts."""
     builds = {}
@@ -176,8 +208,8 @@ def _compose_builds(repo: Path, discovery: dict) -> dict[str, tuple[str, str]]:
         if Path(rel).name not in discover_repo.COMPOSE_FILES:
             continue
         try:
-            doc = discover_repo.load_yaml((repo / rel).read_bytes())
-        except (ValueError, OSError):
+            doc = load_compose((repo / rel).read_bytes())
+        except (ValueError, OSError, yaml.YAMLError):
             continue
         services = doc.get("services") if isinstance(doc, dict) else None
         for name, spec in (services.items() if isinstance(services, dict) else []):

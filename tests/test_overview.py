@@ -34,11 +34,21 @@ def make_shop(root: Path) -> Path:
     write(repo, "apps/web/pages/api/checkout.ts", "import Stripe from 'stripe';\n// Pro plan, $29/month.\n"
                                                   "export default async function handler(req, res) {}\n")
     write(repo, "apps/web/prisma/schema.prisma", "model User {\n  id String @id\n}\n")
-    write(repo, "apps/web/src/lib/auth.ts", "export {};\n")
+    write(repo, "apps/web/src/lib/auth.ts", "import NextAuth from 'next-auth';\nexport const session = NextAuth({});\n")
     write(repo, "apps/web/src/components/Border.tsx", "export {};\n")  # not money, despite "order"
     write(repo, "services/api/pyproject.toml", '[project]\nname = "shop-api"\ndependencies = ["django>=5", "openai"]\n')
     write(repo, "services/api/api/urls.py", "urlpatterns = []\n")
-    write(repo, "services/api/billing/models.py", "class Invoice:\n    pass\n")
+    write(repo, "services/api/billing/models.py", "class Invoice:\n    amount = 0\n    currency = 'usd'\n")
+    write(repo, "services/api/lists/subscriptions.py", "def subscriptions(list_id):\n    return subscription_rows\n")
+    write(repo, "services/api/Dockerfile", "FROM python:3.12\nCMD [\"uvicorn\", \"api.asgi:application\"]\n")
+    write(repo, "services/api/api/asgi.py", "application = None\n")
+    write(repo, "apps/web/app/layout.tsx", "export default function Layout() {}\n")
+    write(repo, "apps/web/src/components/ui/Card/index.ts", "export {};\n")  # a barrel, not an entry point
+    write(repo, "docs/adr/0001-preorders-are-paid-upfront.md", "# Preorders are paid upfront\n")
+    write(repo, "AGENTS.md", "# Notes for agents\n")
+    write(repo, "LICENSE.md", "MIT\n")
+    write(repo, ".env.example", "STRIPE_SECRET_KEY=\n")
+    write(repo, "tools/package.json", json.dumps({"name": "release-tools", "devDependencies": {"release-it": "1"}}))
     write(repo, "services/api/manage.py", "")
     write(repo, "services/api/tests/test_orders.py", "")  # tests are not read-first material
     return repo
@@ -56,7 +66,9 @@ class Scan(unittest.TestCase):
         cls.tmp.cleanup()
 
     def test_apps_services_and_datastores(self):
-        self.assertEqual([(a["service"], a["language"]) for a in self.result["apps"]], [("web", "node"), ("api", "python")])
+        apps = [(a["service"], a["language"], a.get("role", "")[:7]) for a in self.result["apps"]]
+        self.assertEqual(apps, [("web", "node", ""), ("api", "python", ""), ("release-tools (tooling)", "node", "tooling")])
+        self.assertEqual([f["name"] for f in self.result["apps"][0]["frameworks"]], ["next"])
         self.assertEqual([s["name"] for s in self.result["services"]], ["api", "web"])
         self.assertEqual([(d["name"], d["image"]) for d in self.result["datastores"]],
                          [("cache", "redis:7"), ("db", "postgres:16")])
@@ -75,11 +87,51 @@ class Scan(unittest.TestCase):
         read = self.result["read_first"]
         self.assertIn("apps/web/pages/api/checkout.ts", read["routes and APIs"])
         self.assertIn("apps/web/prisma/schema.prisma", read["data model"])
-        self.assertEqual(sorted(read["money"]), ["apps/web/pages/api/checkout.ts", "services/api/billing/models.py"])
-        self.assertIn("apps/web/src/lib/auth.ts", read["users and access"])
-        self.assertIn("services/api/manage.py", read["entry points"])
+        # Money by what a file says and imports, not its name: list subscriptions are not payments.
+        self.assertEqual(read["money"], ["apps/web/pages/api/checkout.ts", "services/api/billing/models.py"])
+        self.assertEqual(read["users and access"], ["apps/web/src/lib/auth.ts"])
+        # The Dockerfile's command names the real entry point; a UI barrel file is not one.
+        self.assertEqual(read["entry points"][:2], ["services/api/api/asgi.py", "services/api/Dockerfile"])
+        self.assertIn("apps/web/app/layout.tsx", read["entry points"])
+        self.assertNotIn("apps/web/src/components/ui/Card/index.ts", read["entry points"])
+        self.assertEqual(read["configuration"], [".env.example", "services/api/Dockerfile"])
         self.assertFalse(any("tests/" in p for paths in read.values() for p in paths))
-        self.assertEqual(self.result["docs"], ["README.md"])
+        self.assertEqual(self.result["docs"], ["README.md", "AGENTS.md", "docs/adr/0001-preorders-are-paid-upfront.md"])
+
+    def test_datastores_inferred_from_drivers_and_schemas_without_compose(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            write(repo, "pyproject.toml", '[project]\nname = "store"\ndependencies = [\n  "django-celery-beat",\n'
+                                          '  "celery[redis]>=5",\n  "psycopg[binary]",\n]\n')
+            write(repo, "prisma/schema.prisma", 'datasource db {\n  provider = "mysql"\n}\nmodel User {\n  id Int @id\n}\n')
+            result = overview.scan(repo)
+            self.assertEqual([(d["name"], d["inferred_from"], d["evidence"]["line"]) for d in result["datastores"]],
+                             [("postgres", "the psycopg library", 6)])
+            celery = next(h for h in result["integrations"]["data and queues"] if h["library"] == "celery")
+            self.assertEqual(celery["evidence"]["line"], 5)  # not django-celery-beat on line 4
+            draft = overview.draft(result)
+            self.assertEqual([(s["name"], s["basis"]) for s in draft["systems"] if s["kind"] == "datastore"],
+                             [("postgres", "derived_from_source")])
+
+    def test_compose_anchors_and_names_repeated_across_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            write(repo, "docker-compose.yml", "x-env: &env\n  POSTGRES_USER: app\nservices:\n  db:\n"
+                                              "    image: postgres:17\n    environment:\n      <<: *env\n")
+            write(repo, "dev/docker-compose.yml", "services:\n  db:\n    image: postgres:18\n")
+            result = overview.scan(repo)
+            self.assertEqual([(d["name"], d["compose"]) for d in result["datastores"]],
+                             [("db", "docker-compose.yml"), ("db", "dev/docker-compose.yml")])
+            names = [s["name"] for s in overview.draft(result)["systems"]]
+            self.assertEqual(names, ["db", "db (dev/docker-compose.yml)"])
+
+    def test_an_alias_bomb_in_compose_is_refused_not_expanded(self):
+        bomb = "a: &a [x, x, x, x, x, x, x, x, x, x]\n" + "".join(
+            f"{chr(98 + i)}: &{chr(98 + i)} [{', '.join(['*' + chr(97 + i)] * 10)}]\n" for i in range(8))
+        with self.assertRaisesRegex(overview.otel_setup.SetupError, "expands beyond"):
+            overview.otel_setup.load_compose(bomb.encode())
+        with self.assertRaisesRegex(overview.otel_setup.SetupError, "tags"):
+            overview.otel_setup.load_compose(b"services: !!python/object:os.system {}\n")
 
     def test_the_draft_has_cited_systems_and_placeholders(self):
         draft = overview.draft(self.result)
@@ -158,6 +210,37 @@ class Build(unittest.TestCase):
             with self.assertRaisesRegex((overview.otel_setup.SetupError, business_xray.BlueprintError), message):
                 overview.build(self.repo, self.save(blueprint), self.root / "x.html")
         self.assertFalse((self.root / "x.html").exists())
+
+    def test_the_fields_the_page_shows_are_checked_or_defaulted(self):
+        blueprint = self.filled()
+        blueprint["risks"] = [{"id": "r1", "name": "Webhook missed", "description": "No retry", "basis": "proposed"}]
+        with self.assertRaisesRegex(business_xray.BlueprintError, "r1.severity must be one of"):
+            overview.build(self.repo, self.save(blueprint), self.root / "x.html")
+        blueprint["risks"][0]["severity"] = "high"
+        blueprint["improvements"] = [{"id": "i1", "name": "Retry webhooks", "basis": "proposed", "priority": "urgent"}]
+        with self.assertRaisesRegex(business_xray.BlueprintError, "priority must be P0"):
+            overview.build(self.repo, self.save(blueprint), self.root / "x.html")
+        del blueprint["improvements"][0]["priority"]
+        blueprint["purpose"] += " It has a TODO list for bakers."  # only a value that starts with TODO is a placeholder
+        result = overview.build(self.repo, self.save(blueprint), self.root / "x.html", self.root / "x.json")
+        project = json.loads((self.root / "x.json").read_text())["projects"][0]
+        self.assertEqual((project["money_flows"][0]["state"], project["improvements"][0]["priority"],
+                          project["improvements"][0]["addresses"]), ("described", "P2", []))
+        self.assertTrue(result["open"].startswith("file://"))
+        self.assertIn("checkout apps/web/pages/api/checkout.ts:2  // Pro plan, $29/month.", result["check_citations"])
+        page = (self.root / "x.html").read_text()
+        self.assertIn("renderSystems", page)
+
+    def test_a_shared_page_links_to_github_at_the_commit(self):
+        overview.build(self.repo, self.save(self.filled()), self.root / "s.html", self.root / "s.json",
+                       github="bakery/shop")
+        checkout = next(e for e in json.loads((self.root / "s.json").read_text())["projects"][0]["evidence"]
+                        if e["id"] == "checkout")
+        self.assertEqual(checkout["url"], f"https://github.com/bakery/shop/blob/{self.head}/"
+                                          "apps/web/pages/api/checkout.ts#L2-L3")
+        self.assertNotIn("file://", (self.root / "s.html").read_text())
+        with self.assertRaisesRegex(overview.otel_setup.SetupError, "OWNER/NAME"):
+            overview.build(self.repo, self.save(self.filled()), self.root / "s.html", github="https://x/y")
 
     def test_a_symlink_out_of_the_repository_is_refused(self):
         (self.root / "secret.txt").write_text("token\n")

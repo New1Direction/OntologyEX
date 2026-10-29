@@ -22,6 +22,7 @@ import shlex
 import stat
 
 import business_view
+import code_surface
 import decide
 import discover_repo
 import evidence_grade
@@ -162,6 +163,18 @@ def read_thresholds(path: Path | None) -> dict:
         if metric in PERCENT_METRICS:
             check(threshold <= 100, "percentage threshold exceeds 100")
     return rules
+
+
+CODE_SURFACE_SECONDS = 60
+
+
+def with_code_surface(topology: dict, repo: Path, surface: dict | None = None) -> dict:
+    """A local topology plus the routes and tables its code declares; a gap, not a failure, if unreadable."""
+    try:
+        return code_surface.attach(topology, repo, surface=surface)
+    except (ValueError, OSError) as exc:
+        return {**topology, "gaps": [*topology.get("gaps", []),
+                                     {"source": "code", "reason": f"code not scanned ({type(exc).__name__})"}]}
 
 
 def build_state(topology: dict, observations: list[dict], thresholds: dict,
@@ -997,6 +1010,15 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                     state_cache["last_attempt"] = current
                     topology = (native_view_bridge.native_discover(repo) if native_discovery
                                 else discover_repo.discover(repo))
+                    scanned = state_cache.get("code_scanned")
+                    if scanned is None or (current - scanned).total_seconds() > CODE_SURFACE_SECONDS:
+                        try:
+                            state_cache["code"] = code_surface.scan(repo)
+                        except (ValueError, OSError):
+                            state_cache["code"] = None
+                        state_cache["code_scanned"] = current
+                    topology = (with_code_surface(topology, repo, state_cache["code"])
+                                if state_cache["code"] is not None else with_code_surface(topology, repo))
                     state_cache["topology"] = topology
                     state_cache["last_success"] = current
                 topology = state_cache["topology"]
@@ -1269,6 +1291,8 @@ def main():
                         if args.view_engine == "rust" or
                         native_view_bridge.discovery_engine(args.discovery_engine) == "rust"
                         else discover_repo.discover(args.repo))
+            if not args.github:
+                topology = with_code_surface(topology, args.repo)
             if args.dependencies is not None and args.dependencies.exists():
                 topology = dependency_suggest.with_confirmed(
                     topology, dependency_suggest.read_dependency_document(args.dependencies)[0],
