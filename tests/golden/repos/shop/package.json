@@ -1,0 +1,11 @@
+{
+  "name": "shop",
+  "private": true,
+  "workspaces": ["api", "web"],
+  "dependencies": {
+    "@sentry/node": "^8.0.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.0.0"
+  }
+}

@@ -1,0 +1,5 @@
+fastapi==0.110.0
+sqlalchemy==2.0.29
+twilio==9.0.0
+boto3==1.34.0
+argon2-cffi==23.1.0

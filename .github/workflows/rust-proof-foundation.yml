@@ -5,6 +5,11 @@ on:
       - 'engine/**'
       - 'proofs/lean/**'
       - 'tests/rust_view_parity.py'
+      - 'tests/golden.py'
+      - 'tests/golden/**'
+      - 'tests/test_golden.py'
+      - 'ontology-extraction/scripts/**'  # golden outputs read almost every script
+      - 'examples/operating-picture/**'
       - 'tests/rust_http_smoke.py'
       - 'tests/rust_incident_parity.py'
       - 'tests/test_native_view_bridge.py'
@@ -95,6 +100,8 @@ jobs:
           python tests/feeds_conformance.py check "$RUNNER_TEMP/feeds-table.json"
       - name: Verify Rust entity context, explanations and search against Python (demo + 120 seeded bundles)
         run: python tests/rust_context_parity.py
+      - name: Golden fixtures, Python and Rust against the same expected answers (demo, shop, clinic)
+        run: python tests/golden.py check --engine-dir engine/target/debug --require-rust
       - name: Verify the control room reads native discovery like Python discovery
         run: python -m unittest tests.test_native_view_bridge -v
       - name: Entity routes on the Rust engine, and agent tools end to end

@@ -78,4 +78,8 @@ when the sources do not say, write it down as unknown instead of guessing.
 - Rust: `cargo test --locked --manifest-path engine/Cargo.toml`; Rust must give the
   same answers as Python: `python tests/rust_feeds_parity.py engine/target/debug/ontologyex-feeds`
   and `python tests/rust_discover_parity.py engine/target/debug/ontologyex-discover`.
+- Golden fixtures pin the answers themselves, not only Python-Rust agreement:
+  `python tests/golden.py check` (add `--engine-dir engine/target/debug --require-rust` for Rust).
+  When a change is meant to alter an answer, run `python tests/golden.py update --reason "why"`;
+  the reason is recorded per file in `tests/golden/MANIFEST.json` and `tests/golden/CHANGES.md`.
 - Tools propose; a person decides. Nothing writes to production or authorizes actions.

@@ -1,0 +1,178 @@
+{
+ "coverage": {
+  "bytes_read": 982,
+  "candidate_manifests": 5,
+  "files_seen": 13,
+  "files_with_evidence": 5,
+  "not_assessed": [
+   "business_processes",
+   "people_permissions",
+   "financial_flows",
+   "production_runtime",
+   "cloud_resources",
+   "non-manifest_source_code"
+  ],
+  "symlinks_skipped": 0
+ },
+ "edges": [
+  {
+   "evidence_id": "381213780fc0bf4e6bdf2cbb07c038781c8707e3a5501c9b3ad908d2d6dcb804",
+   "relation": "DECLARES",
+   "source": "discovery:project:shop:",
+   "state": "MANIFEST_DECLARATION",
+   "target": "discovery:manifest:package.json:"
+  },
+  {
+   "evidence_id": "e57a7be1463b331f52e0eadefacd93aefb6cd281f9f789ff2059f24ffc5f52ae",
+   "relation": "DECLARES",
+   "source": "discovery:project:shop:",
+   "state": "MANIFEST_DECLARATION",
+   "target": "discovery:manifest:web/package.json:"
+  },
+  {
+   "evidence_id": "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4",
+   "relation": "DECLARES",
+   "source": "discovery:project:shop:",
+   "state": "MANIFEST_DECLARATION",
+   "target": "discovery:service:compose.yml:api"
+  },
+  {
+   "evidence_id": "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4",
+   "relation": "DECLARES",
+   "source": "discovery:project:shop:",
+   "state": "MANIFEST_DECLARATION",
+   "target": "discovery:service:compose.yml:db"
+  },
+  {
+   "evidence_id": "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4",
+   "relation": "DECLARES",
+   "source": "discovery:project:shop:",
+   "state": "MANIFEST_DECLARATION",
+   "target": "discovery:service:compose.yml:web"
+  },
+  {
+   "evidence_id": "1db32f575313a8ced3e02627776f189d9fded5dabc5f9ff2ebe2f83c6398ce40",
+   "relation": "DECLARES",
+   "source": "discovery:project:shop:",
+   "state": "MANIFEST_DECLARATION",
+   "target": "discovery:workflow:.github/workflows/ci.yml:"
+  },
+  {
+   "evidence_id": "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4",
+   "relation": "DEPENDS_ON",
+   "source": "discovery:service:compose.yml:api",
+   "state": "MANIFEST_DECLARATION",
+   "target": "discovery:service:compose.yml:db"
+  },
+  {
+   "evidence_id": "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4",
+   "relation": "DEPENDS_ON",
+   "source": "discovery:service:compose.yml:web",
+   "state": "MANIFEST_DECLARATION",
+   "target": "discovery:service:compose.yml:api"
+  }
+ ],
+ "execution_authorized": false,
+ "gaps": [
+  {
+   "error_type": "JSONDecodeError",
+   "reason": "PARSE_OR_VALIDATION_FAILED",
+   "source": "api/package.json"
+  }
+ ],
+ "human_review": "REQUIRED",
+ "inferred_business_relationships": "NONE",
+ "kind": "UNREVIEWED_BUSINESS_DISCOVERY_PREVIEW",
+ "nodes": [
+  {
+   "evidence_id": "381213780fc0bf4e6bdf2cbb07c038781c8707e3a5501c9b3ad908d2d6dcb804",
+   "id": "discovery:manifest:package.json:",
+   "kind": "source_manifest",
+   "label": "package.json",
+   "state": "DECLARED_ONLY"
+  },
+  {
+   "evidence_id": "e57a7be1463b331f52e0eadefacd93aefb6cd281f9f789ff2059f24ffc5f52ae",
+   "id": "discovery:manifest:web/package.json:",
+   "kind": "source_manifest",
+   "label": "web/package.json",
+   "state": "DECLARED_ONLY"
+  },
+  {
+   "id": "discovery:project:shop:",
+   "kind": "project",
+   "label": "shop",
+   "state": "DECLARED_ONLY"
+  },
+  {
+   "evidence_id": "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4",
+   "id": "discovery:service:compose.yml:api",
+   "kind": "declared_service",
+   "label": "api",
+   "state": "DECLARED_ONLY"
+  },
+  {
+   "evidence_id": "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4",
+   "id": "discovery:service:compose.yml:db",
+   "kind": "declared_service",
+   "label": "db",
+   "state": "DECLARED_ONLY"
+  },
+  {
+   "evidence_id": "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4",
+   "id": "discovery:service:compose.yml:web",
+   "kind": "declared_service",
+   "label": "web",
+   "state": "DECLARED_ONLY"
+  },
+  {
+   "evidence_id": "1db32f575313a8ced3e02627776f189d9fded5dabc5f9ff2ebe2f83c6398ce40",
+   "id": "discovery:workflow:.github/workflows/ci.yml:",
+   "kind": "workflow",
+   "label": "ci",
+   "state": "DECLARED_ONLY"
+  }
+ ],
+ "project": "discovery:project:shop:",
+ "runtime_health": "UNKNOWN",
+ "schema_version": 1,
+ "source_evidence": [
+  {
+   "authenticity": "UNVERIFIED",
+   "id": "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4",
+   "path": "compose.yml",
+   "sha256": "99f01a5baf705e9feff2ac2541eeff64d43f7cb17d98c5f2afe4ce8d221a009f",
+   "source_kind": "LOCAL_MANIFEST_BYTES"
+  },
+  {
+   "authenticity": "UNVERIFIED",
+   "id": "1db32f575313a8ced3e02627776f189d9fded5dabc5f9ff2ebe2f83c6398ce40",
+   "path": ".github/workflows/ci.yml",
+   "sha256": "fc82cef40907dce2be4c02dfded4da3bff967444c8b85fff47e8ade9a672f58b",
+   "source_kind": "LOCAL_MANIFEST_BYTES"
+  },
+  {
+   "authenticity": "UNVERIFIED",
+   "id": "381213780fc0bf4e6bdf2cbb07c038781c8707e3a5501c9b3ad908d2d6dcb804",
+   "path": "package.json",
+   "sha256": "3ee23f046cc01182d447b1807f4c65b188feae85de22176e9c550c18cfd89d02",
+   "source_kind": "LOCAL_MANIFEST_BYTES"
+  },
+  {
+   "authenticity": "UNVERIFIED",
+   "id": "ccc601b5b357825a775bd2866ac33ed3b422db848e3476c28963187cfe41d3a3",
+   "path": "api/package.json",
+   "sha256": "6018c104936457404608cb22664f852c299a42c267b7f3fca28caa8ec5e97fbe",
+   "source_kind": "LOCAL_MANIFEST_BYTES"
+  },
+  {
+   "authenticity": "UNVERIFIED",
+   "id": "e57a7be1463b331f52e0eadefacd93aefb6cd281f9f789ff2059f24ffc5f52ae",
+   "path": "web/package.json",
+   "sha256": "d7b61e5c54eb93215caef67163741e79e6d767c767afcd9525f621cb52081f64",
+   "source_kind": "LOCAL_MANIFEST_BYTES"
+  }
+ ],
+ "status": "PARTIAL_SOURCE_DECLARATION_MAP",
+ "unresolved": []
+}

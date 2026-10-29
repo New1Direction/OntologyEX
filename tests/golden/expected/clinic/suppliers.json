@@ -1,0 +1,69 @@
+{
+ "categories": [
+  {
+   "category": "cloud and hosting",
+   "criticality": "HIGH",
+   "single_supplier": true,
+   "suppliers": [
+    "Amazon Web Services"
+   ]
+  },
+  {
+   "category": "email and messaging",
+   "criticality": "HIGH",
+   "single_supplier": true,
+   "suppliers": [
+    "Twilio"
+   ]
+  }
+ ],
+ "execution_authorized": false,
+ "kind": "SUPPLIER_MAP",
+ "own_supplier_records": [],
+ "schema_version": 1,
+ "semantics": "DECLARED_IN_MANIFESTS_AND_SETTING_NAMES_NOT_CONTRACTS_OR_SPEND",
+ "suppliers": [
+  {
+   "apps": [
+    "app"
+   ],
+   "category": "cloud and hosting",
+   "criticality": "HIGH",
+   "evidence": [
+    {
+     "kind": "dependency",
+     "line": 4,
+     "path": "requirements.txt",
+     "text": "boto3==1.34.0"
+    }
+   ],
+   "id": "discovery:supplier:amazon-web-services",
+   "libraries": [
+    "boto3"
+   ],
+   "name": "Amazon Web Services",
+   "settings": []
+  },
+  {
+   "apps": [
+    "app"
+   ],
+   "category": "email and messaging",
+   "criticality": "HIGH",
+   "evidence": [
+    {
+     "kind": "dependency",
+     "line": 3,
+     "path": "requirements.txt",
+     "text": "twilio==9.0.0"
+    }
+   ],
+   "id": "discovery:supplier:twilio",
+   "libraries": [
+    "twilio"
+   ],
+   "name": "Twilio",
+   "settings": []
+  }
+ ]
+}

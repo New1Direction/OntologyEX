@@ -1,0 +1,60 @@
+{
+ "coverage": {
+  "bytes_read": 66,
+  "candidate_manifests": 1,
+  "files_seen": 6,
+  "files_with_evidence": 1,
+  "not_assessed": [
+   "business_processes",
+   "people_permissions",
+   "financial_flows",
+   "production_runtime",
+   "cloud_resources",
+   "non-manifest_source_code"
+  ],
+  "symlinks_skipped": 0
+ },
+ "edges": [
+  {
+   "evidence_id": "fe1e88f1672efc1be5054fbf65c05aaedd6d35ebcacf1ca90ee48dde55f09fe5",
+   "relation": "DECLARES",
+   "source": "discovery:project:clinic:",
+   "state": "MANIFEST_DECLARATION",
+   "target": "discovery:manifest:Dockerfile:"
+  }
+ ],
+ "execution_authorized": false,
+ "gaps": [],
+ "human_review": "REQUIRED",
+ "inferred_business_relationships": "NONE",
+ "kind": "UNREVIEWED_BUSINESS_DISCOVERY_PREVIEW",
+ "nodes": [
+  {
+   "evidence_id": "fe1e88f1672efc1be5054fbf65c05aaedd6d35ebcacf1ca90ee48dde55f09fe5",
+   "id": "discovery:manifest:Dockerfile:",
+   "kind": "source_manifest",
+   "label": "Dockerfile",
+   "state": "DECLARED_ONLY"
+  },
+  {
+   "id": "discovery:project:clinic:",
+   "kind": "project",
+   "label": "clinic",
+   "state": "DECLARED_ONLY"
+  }
+ ],
+ "project": "discovery:project:clinic:",
+ "runtime_health": "UNKNOWN",
+ "schema_version": 1,
+ "source_evidence": [
+  {
+   "authenticity": "UNVERIFIED",
+   "id": "fe1e88f1672efc1be5054fbf65c05aaedd6d35ebcacf1ca90ee48dde55f09fe5",
+   "path": "Dockerfile",
+   "sha256": "757ec6389ab36633e81056ef852f819e863f7c90b5995fcde8533fe852be524b",
+   "source_kind": "LOCAL_MANIFEST_BYTES"
+  }
+ ],
+ "status": "PARTIAL_SOURCE_DECLARATION_MAP",
+ "unresolved": []
+}

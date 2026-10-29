@@ -1,0 +1,1016 @@
+{
+ "codeowners": ".github/CODEOWNERS",
+ "contributors": 3,
+ "coverage": [
+  {
+   "detail": "CODEOWNERS names someone for the code behind it.",
+   "label": "Business actions with a declared owner",
+   "part": 0,
+   "percent": null,
+   "whole": 0
+  },
+  {
+   "detail": "Declared, or someone changed its code in the last year.",
+   "label": "Business actions with any owner",
+   "part": 0,
+   "percent": null,
+   "whole": 0
+  }
+ ],
+ "entities": [
+  {
+   "active": [
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Avery Stone"
+    },
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Bea Kim"
+    }
+   ],
+   "active_total": 2,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "DECLARING_FILE",
+     "for": "api/src/server.ts",
+     "line": 3,
+     "owners": [
+      "@shop/payments"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "/api/"
+    }
+   ],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "api/src/server.ts"
+    }
+   ],
+   "id": "discovery:api_route:api/src/server.ts:DELETE%20/api/account",
+   "kind": "api_route",
+   "label": "DELETE /api/account",
+   "layer": "system",
+   "owner": "@shop/payments",
+   "risks": [],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Avery Stone"
+    },
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Bea Kim"
+    }
+   ],
+   "active_total": 2,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "DECLARING_FILE",
+     "for": "prisma/schema.prisma",
+     "line": 2,
+     "owners": [
+      "@shop/platform"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "*"
+    }
+   ],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "prisma/schema.prisma"
+    }
+   ],
+   "id": "discovery:declared_db_table:prisma/schema.prisma:Order",
+   "kind": "declared_db_table",
+   "label": "Order",
+   "layer": "system",
+   "owner": "@shop/platform",
+   "risks": [],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Avery Stone"
+    },
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Bea Kim"
+    }
+   ],
+   "active_total": 2,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "DECLARING_FILE",
+     "for": "api/src/server.ts",
+     "line": 3,
+     "owners": [
+      "@shop/payments"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "/api/"
+    }
+   ],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "api/src/server.ts"
+    }
+   ],
+   "id": "discovery:api_route:api/src/server.ts:POST%20/api/checkout",
+   "kind": "api_route",
+   "label": "POST /api/checkout",
+   "layer": "system",
+   "owner": "@shop/payments",
+   "risks": [],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Avery Stone"
+    },
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Bea Kim"
+    }
+   ],
+   "active_total": 2,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "DECLARING_FILE",
+     "for": "api/src/server.ts",
+     "line": 3,
+     "owners": [
+      "@shop/payments"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "/api/"
+    }
+   ],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "api/src/server.ts"
+    }
+   ],
+   "id": "discovery:api_route:api/src/server.ts:POST%20/api/login",
+   "kind": "api_route",
+   "label": "POST /api/login",
+   "layer": "system",
+   "owner": "@shop/payments",
+   "risks": [],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Avery Stone"
+    },
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Bea Kim"
+    }
+   ],
+   "active_total": 2,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "DECLARING_FILE",
+     "for": "api/src/server.ts",
+     "line": 3,
+     "owners": [
+      "@shop/payments"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "/api/"
+    }
+   ],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "api/src/server.ts"
+    }
+   ],
+   "id": "discovery:api_route:api/src/server.ts:POST%20/api/orders/:id/refund",
+   "kind": "api_route",
+   "label": "POST /api/orders/:id/refund",
+   "layer": "system",
+   "owner": "@shop/payments",
+   "risks": [],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Avery Stone"
+    }
+   ],
+   "active_total": 1,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "NAMED_IN_MANIFEST",
+     "for": "web/package.json",
+     "line": 4,
+     "owners": [
+      "@shop/storefront"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "/web/"
+    },
+    {
+     "basis": "NAMED_IN_MANIFEST",
+     "for": ".env.example",
+     "line": 2,
+     "owners": [
+      "@shop/platform"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "*"
+    }
+   ],
+   "files": [
+    {
+     "basis": "NAMED_IN_MANIFEST",
+     "path": "web/package.json"
+    },
+    {
+     "basis": "NAMED_IN_MANIFEST",
+     "path": ".env.example"
+    }
+   ],
+   "id": "discovery:supplier:posthog",
+   "kind": "external_supplier",
+   "label": "PostHog",
+   "layer": "system",
+   "owner": "@shop/storefront",
+   "risks": [
+    "ONE_PERSON"
+   ],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Avery Stone"
+    },
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Bea Kim"
+    }
+   ],
+   "active_total": 2,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "DECLARING_FILE",
+     "for": "prisma/schema.prisma",
+     "line": 2,
+     "owners": [
+      "@shop/platform"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "*"
+    }
+   ],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "prisma/schema.prisma"
+    }
+   ],
+   "id": "discovery:declared_db_table:prisma/schema.prisma:Product",
+   "kind": "declared_db_table",
+   "label": "Product",
+   "layer": "system",
+   "owner": "@shop/platform",
+   "risks": [],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Avery Stone"
+    },
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Bea Kim"
+    }
+   ],
+   "active_total": 2,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "DECLARING_FILE",
+     "for": "prisma/schema.prisma",
+     "line": 2,
+     "owners": [
+      "@shop/platform"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "*"
+    }
+   ],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "prisma/schema.prisma"
+    }
+   ],
+   "id": "discovery:declared_db_table:prisma/schema.prisma:Refund",
+   "kind": "declared_db_table",
+   "label": "Refund",
+   "layer": "system",
+   "owner": "@shop/platform",
+   "risks": [],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Avery Stone"
+    },
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Bea Kim"
+    }
+   ],
+   "active_total": 2,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "DECLARING_FILE",
+     "for": "prisma/schema.prisma",
+     "line": 2,
+     "owners": [
+      "@shop/platform"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "*"
+    }
+   ],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "prisma/schema.prisma"
+    }
+   ],
+   "id": "discovery:declared_db_table:prisma/schema.prisma:SavedCard",
+   "kind": "declared_db_table",
+   "label": "SavedCard",
+   "layer": "system",
+   "owner": "@shop/platform",
+   "risks": [],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Avery Stone"
+    }
+   ],
+   "active_total": 1,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "NAMED_IN_MANIFEST",
+     "for": ".env.example",
+     "line": 2,
+     "owners": [
+      "@shop/platform"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "*"
+    }
+   ],
+   "files": [
+    {
+     "basis": "NAMED_IN_MANIFEST",
+     "path": ".env.example"
+    }
+   ],
+   "id": "discovery:supplier:sendgrid",
+   "kind": "external_supplier",
+   "label": "SendGrid",
+   "layer": "system",
+   "owner": "@shop/platform",
+   "risks": [],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Avery Stone"
+    }
+   ],
+   "active_total": 1,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "NAMED_IN_MANIFEST",
+     "for": "package.json",
+     "line": 2,
+     "owners": [
+      "@shop/platform"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "*"
+    }
+   ],
+   "files": [
+    {
+     "basis": "NAMED_IN_MANIFEST",
+     "path": "package.json"
+    }
+   ],
+   "id": "discovery:supplier:sentry",
+   "kind": "external_supplier",
+   "label": "Sentry",
+   "layer": "system",
+   "owner": "@shop/platform",
+   "risks": [],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Avery Stone"
+    }
+   ],
+   "active_total": 1,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "NAMED_IN_MANIFEST",
+     "for": ".env.example",
+     "line": 2,
+     "owners": [
+      "@shop/platform"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "*"
+    }
+   ],
+   "files": [
+    {
+     "basis": "NAMED_IN_MANIFEST",
+     "path": ".env.example"
+    }
+   ],
+   "id": "discovery:supplier:shippo",
+   "kind": "external_supplier",
+   "label": "Shippo",
+   "layer": "system",
+   "owner": "@shop/platform",
+   "risks": [],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Avery Stone"
+    }
+   ],
+   "active_total": 1,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "NAMED_IN_MANIFEST",
+     "for": ".env.example",
+     "line": 2,
+     "owners": [
+      "@shop/platform"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "*"
+    },
+    {
+     "basis": "NAMED_IN_MANIFEST",
+     "for": "compose.yml",
+     "line": 2,
+     "owners": [
+      "@shop/platform"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "*"
+    }
+   ],
+   "files": [
+    {
+     "basis": "NAMED_IN_MANIFEST",
+     "path": ".env.example"
+    },
+    {
+     "basis": "NAMED_IN_MANIFEST",
+     "path": "compose.yml"
+    }
+   ],
+   "id": "discovery:supplier:stripe",
+   "kind": "external_supplier",
+   "label": "Stripe",
+   "layer": "system",
+   "owner": "@shop/platform",
+   "risks": [
+    "ONE_PERSON"
+   ],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Avery Stone"
+    },
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Bea Kim"
+    }
+   ],
+   "active_total": 2,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "DECLARING_FILE",
+     "for": "prisma/schema.prisma",
+     "line": 2,
+     "owners": [
+      "@shop/platform"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "*"
+    }
+   ],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "prisma/schema.prisma"
+    }
+   ],
+   "id": "discovery:declared_db_table:prisma/schema.prisma:User",
+   "kind": "declared_db_table",
+   "label": "User",
+   "layer": "system",
+   "owner": "@shop/platform",
+   "risks": [],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 3,
+     "last": "<time>",
+     "name": "Avery Stone"
+    },
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Bea Kim"
+    }
+   ],
+   "active_total": 2,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "SERVICE_FOLDER",
+     "for": "api/",
+     "line": 3,
+     "owners": [
+      "@shop/payments"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "/api/"
+    }
+   ],
+   "files": [
+    {
+     "basis": "SERVICE_FOLDER",
+     "path": "api/"
+    }
+   ],
+   "id": "discovery:service:compose.yml:api",
+   "kind": "declared_service",
+   "label": "api",
+   "layer": "system",
+   "owner": "@shop/payments",
+   "risks": [],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Avery Stone"
+    }
+   ],
+   "active_total": 1,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "DECLARING_FILE",
+     "for": ".github/workflows/ci.yml",
+     "line": 2,
+     "owners": [
+      "@shop/platform"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "*"
+    }
+   ],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": ".github/workflows/ci.yml"
+    }
+   ],
+   "id": "discovery:workflow:.github/workflows/ci.yml:",
+   "kind": "workflow",
+   "label": "ci",
+   "layer": "system",
+   "owner": "@shop/platform",
+   "risks": [],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Avery Stone"
+    }
+   ],
+   "active_total": 1,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "DECLARING_FILE",
+     "for": "compose.yml",
+     "line": 2,
+     "owners": [
+      "@shop/platform"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "*"
+    }
+   ],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "compose.yml"
+    }
+   ],
+   "id": "discovery:service:compose.yml:db",
+   "kind": "declared_service",
+   "label": "db",
+   "layer": "system",
+   "owner": "@shop/platform",
+   "risks": [],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Avery Stone"
+    }
+   ],
+   "active_total": 1,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "DECLARING_FILE",
+     "for": "package.json",
+     "line": 2,
+     "owners": [
+      "@shop/platform"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "*"
+    }
+   ],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "package.json"
+    }
+   ],
+   "id": "discovery:manifest:package.json:",
+   "kind": "source_manifest",
+   "label": "package.json",
+   "layer": "system",
+   "owner": "@shop/platform",
+   "risks": [],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Avery Stone"
+    },
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Cy Ortiz"
+    }
+   ],
+   "active_total": 2,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "SERVICE_FOLDER",
+     "for": "web/",
+     "line": 4,
+     "owners": [
+      "@shop/storefront"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "/web/"
+    }
+   ],
+   "files": [
+    {
+     "basis": "SERVICE_FOLDER",
+     "path": "web/"
+    }
+   ],
+   "id": "discovery:service:compose.yml:web",
+   "kind": "declared_service",
+   "label": "web",
+   "layer": "system",
+   "owner": "@shop/storefront",
+   "risks": [],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Avery Stone"
+    }
+   ],
+   "active_total": 1,
+   "basis": "CODEOWNERS",
+   "declared": [
+    {
+     "basis": "DECLARING_FILE",
+     "for": "web/package.json",
+     "line": 4,
+     "owners": [
+      "@shop/storefront"
+     ],
+     "path": ".github/CODEOWNERS",
+     "pattern": "/web/"
+    }
+   ],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "web/package.json"
+    }
+   ],
+   "id": "discovery:manifest:web/package.json:",
+   "kind": "source_manifest",
+   "label": "web/package.json",
+   "layer": "system",
+   "owner": "@shop/storefront",
+   "risks": [],
+   "standing": "SOURCE",
+   "status": "DECLARED",
+   "through": null
+  }
+ ],
+ "execution_authorized": false,
+ "git": "OK",
+ "kind": "OWNERSHIP",
+ "people": [
+  {
+   "basis": "CODEOWNERS",
+   "owner": "@shop/platform",
+   "owns": [
+    {
+     "id": "discovery:declared_db_table:prisma/schema.prisma:Order",
+     "kind": "declared_db_table",
+     "label": "Order",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:declared_db_table:prisma/schema.prisma:Product",
+     "kind": "declared_db_table",
+     "label": "Product",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:declared_db_table:prisma/schema.prisma:Refund",
+     "kind": "declared_db_table",
+     "label": "Refund",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:declared_db_table:prisma/schema.prisma:SavedCard",
+     "kind": "declared_db_table",
+     "label": "SavedCard",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:supplier:sendgrid",
+     "kind": "external_supplier",
+     "label": "SendGrid",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:supplier:sentry",
+     "kind": "external_supplier",
+     "label": "Sentry",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:supplier:shippo",
+     "kind": "external_supplier",
+     "label": "Shippo",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:supplier:stripe",
+     "kind": "external_supplier",
+     "label": "Stripe",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:declared_db_table:prisma/schema.prisma:User",
+     "kind": "declared_db_table",
+     "label": "User",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:workflow:.github/workflows/ci.yml:",
+     "kind": "workflow",
+     "label": "ci",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:service:compose.yml:db",
+     "kind": "declared_service",
+     "label": "db",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:manifest:package.json:",
+     "kind": "source_manifest",
+     "label": "package.json",
+     "layer": "system"
+    }
+   ]
+  },
+  {
+   "basis": "CODEOWNERS",
+   "owner": "@shop/payments",
+   "owns": [
+    {
+     "id": "discovery:api_route:api/src/server.ts:DELETE%20/api/account",
+     "kind": "api_route",
+     "label": "DELETE /api/account",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:api_route:api/src/server.ts:POST%20/api/checkout",
+     "kind": "api_route",
+     "label": "POST /api/checkout",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:api_route:api/src/server.ts:POST%20/api/login",
+     "kind": "api_route",
+     "label": "POST /api/login",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:api_route:api/src/server.ts:POST%20/api/orders/:id/refund",
+     "kind": "api_route",
+     "label": "POST /api/orders/:id/refund",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:service:compose.yml:api",
+     "kind": "declared_service",
+     "label": "api",
+     "layer": "system"
+    }
+   ]
+  },
+  {
+   "basis": "CODEOWNERS",
+   "owner": "@shop/storefront",
+   "owns": [
+    {
+     "id": "discovery:supplier:posthog",
+     "kind": "external_supplier",
+     "label": "PostHog",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:service:compose.yml:web",
+     "kind": "declared_service",
+     "label": "web",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:manifest:web/package.json:",
+     "kind": "source_manifest",
+     "label": "web/package.json",
+     "layer": "system"
+    }
+   ]
+  }
+ ],
+ "schema_version": 1,
+ "semantics": "DECLARED_OR_INFERRED_FROM_HISTORY_NOT_ACCOUNTABILITY",
+ "status": "OK",
+ "window_days": 365
+}

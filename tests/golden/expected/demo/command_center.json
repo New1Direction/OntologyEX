@@ -1,0 +1,550 @@
+{
+ "by_level": {
+  "CRITICAL": 4,
+  "HIGH": 0,
+  "LOW": 5,
+  "MEDIUM": 3
+ },
+ "coverage": {
+  "rows": [
+   {
+    "detail": "An action with no confirmed system cannot show its health.",
+    "label": "Business actions linked to a system",
+    "part": 2,
+    "percent": 100,
+    "whole": 2
+   },
+   {
+    "detail": "Services with a live observation (health checks, traces, metrics).",
+    "label": "Services reporting health",
+    "part": 5,
+    "percent": 71,
+    "whole": 7
+   },
+   {
+    "detail": "Confirmations whose recorded evidence is unchanged.",
+    "label": "Confirmations still current",
+    "part": 0,
+    "percent": null,
+    "whole": 0
+   },
+   {
+    "detail": "Rules whose evidence a person reviewed or better.",
+    "label": "Business rules reviewed",
+    "part": 2,
+    "percent": 29,
+    "whole": 7
+   },
+   {
+    "detail": "Declared, or someone changed its code in the last year.",
+    "label": "Business actions with any owner",
+    "part": 0,
+    "percent": 0,
+    "whole": 2
+   }
+  ],
+  "suppliers": 0
+ },
+ "execution_authorized": false,
+ "field": {
+  "checklist": [],
+  "detail": "Not enough names in the model to tell the field. Add a domain skill, or link more systems.",
+  "field": null,
+  "signals": []
+ },
+ "items": [
+  {
+   "category": "Systems",
+   "factors": [
+    {
+     "detail": "a system the business relies on reports an error",
+     "factor": "severity",
+     "points": 60
+    },
+    {
+     "detail": "4 business object(s) or action(s) reach it: ApproveException, IssueRefund, Payment, Refund",
+     "factor": "reach",
+     "points": 25
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "c010ab4e0e47df00",
+   "kind": "SYSTEM_ERROR",
+   "level": "CRITICAL",
+   "links": [
+    "discovery:service:compose.yml:payments"
+   ],
+   "next_step": "Open the system, read what it reports, and check the business actions that run on it.",
+   "owner": {
+    "basis": null,
+    "owner": null,
+    "risks": [],
+    "standing": "UNKNOWN",
+    "status": "NO_OWNER",
+    "through": null
+   },
+   "score": 100,
+   "standing": "SOURCE",
+   "subject": {
+    "id": "discovery:service:compose.yml:payments",
+    "kind": "declared_service",
+    "label": "payments",
+    "layer": "system"
+   },
+   "title": "payments reports an error",
+   "why": "payments is in error and 4 business item(s) rely on it."
+  },
+  {
+   "category": "Business at risk",
+   "factors": [
+    {
+     "detail": "a system it runs on depends on a failing one",
+     "factor": "severity",
+     "points": 40
+    },
+    {
+     "detail": "3 business object(s) or action(s) reach it: ApproveException, IssueRefund, Payment",
+     "factor": "reach",
+     "points": 24
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "75ff09e831c0243c",
+   "kind": "POSSIBLY_IMPACTED",
+   "level": "CRITICAL",
+   "links": [
+    "payments-domain:object:Payment",
+    "discovery:service:compose.yml:api",
+    "discovery:service:compose.yml:ledger"
+   ],
+   "next_step": "Follow the dependency to the failing system; the impact is possible, not confirmed.",
+   "owner": {
+    "basis": null,
+    "owner": null,
+    "risks": [],
+    "standing": "UNKNOWN",
+    "status": "NO_OWNER",
+    "through": null
+   },
+   "score": 79,
+   "standing": "SOURCE",
+   "subject": {
+    "id": "payments-domain:object:Payment",
+    "kind": "business_object",
+    "label": "Payment",
+    "layer": "business"
+   },
+   "title": "Payment is possibly impacted",
+   "why": "api depends on failing payments."
+  },
+  {
+   "category": "Business at risk",
+   "factors": [
+    {
+     "detail": "a linked system reports an error",
+     "factor": "severity",
+     "points": 55
+    },
+    {
+     "detail": "1 business object(s) or action(s) reach it: IssueRefund",
+     "factor": "reach",
+     "points": 8
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "aa017e9a518d220b",
+   "kind": "AT_RISK",
+   "level": "CRITICAL",
+   "links": [
+    "payments-domain:action:IssueRefund",
+    "discovery:service:compose.yml:api",
+    "discovery:service:compose.yml:ledger",
+    "discovery:service:compose.yml:payments"
+   ],
+   "next_step": "Open the action: see which linked system fails and what else relies on it.",
+   "owner": {
+    "basis": null,
+    "owner": null,
+    "risks": [],
+    "standing": "UNKNOWN",
+    "status": "NO_OWNER",
+    "through": null
+   },
+   "score": 78,
+   "standing": "SOURCE",
+   "subject": {
+    "id": "payments-domain:action:IssueRefund",
+    "kind": "business_action",
+    "label": "IssueRefund",
+    "layer": "business"
+   },
+   "title": "IssueRefund is at risk",
+   "why": "Linked system payments reports error."
+  },
+  {
+   "category": "Business at risk",
+   "factors": [
+    {
+     "detail": "a linked system reports an error",
+     "factor": "severity",
+     "points": 55
+    },
+    {
+     "detail": "1 business object(s) or action(s) reach it: Refund",
+     "factor": "reach",
+     "points": 8
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "2a931f6fcc8154fa",
+   "kind": "AT_RISK",
+   "level": "CRITICAL",
+   "links": [
+    "payments-domain:object:Refund",
+    "discovery:service:compose.yml:payments"
+   ],
+   "next_step": "Open the action: see which linked system fails and what else relies on it.",
+   "owner": {
+    "basis": null,
+    "owner": null,
+    "risks": [],
+    "standing": "UNKNOWN",
+    "status": "NO_OWNER",
+    "through": null
+   },
+   "score": 78,
+   "standing": "SOURCE",
+   "subject": {
+    "id": "payments-domain:object:Refund",
+    "kind": "business_object",
+    "label": "Refund",
+    "layer": "business"
+   },
+   "title": "Refund is at risk",
+   "why": "Linked system payments reports error."
+  },
+  {
+   "category": "Business at risk",
+   "factors": [
+    {
+     "detail": "a system it runs on depends on a failing one",
+     "factor": "severity",
+     "points": 40
+    },
+    {
+     "detail": "1 business object(s) or action(s) reach it: ApproveException",
+     "factor": "reach",
+     "points": 8
+    }
+   ],
+   "id": "03549dc25263a0e1",
+   "kind": "POSSIBLY_IMPACTED",
+   "level": "MEDIUM",
+   "links": [
+    "payments-domain:action:ApproveException",
+    "discovery:service:compose.yml:api",
+    "discovery:service:compose.yml:ledger"
+   ],
+   "next_step": "Follow the dependency to the failing system; the impact is possible, not confirmed.",
+   "owner": {
+    "basis": null,
+    "owner": null,
+    "risks": [],
+    "standing": "UNKNOWN",
+    "status": "NO_OWNER",
+    "through": null
+   },
+   "score": 48,
+   "standing": "SOURCE",
+   "subject": {
+    "id": "payments-domain:action:ApproveException",
+    "kind": "business_action",
+    "label": "ApproveException",
+    "layer": "business"
+   },
+   "title": "ApproveException is possibly impacted",
+   "why": "api depends on failing payments."
+  },
+  {
+   "category": "Ownership",
+   "factors": [
+    {
+     "detail": "nobody is declared to own it, and nobody changed its code in a year",
+     "factor": "severity",
+     "points": 20
+    },
+    {
+     "detail": "1 business object(s) or action(s) reach it: IssueRefund",
+     "factor": "reach",
+     "points": 8
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "13160472e3084297",
+   "kind": "NO_OWNER",
+   "level": "MEDIUM",
+   "links": [
+    "payments-domain:action:IssueRefund"
+   ],
+   "next_step": "Name an owner: a CODEOWNERS line for the code behind it, so someone answers for it.",
+   "owner": {
+    "basis": null,
+    "owner": null,
+    "risks": [],
+    "standing": "UNKNOWN",
+    "status": "NO_OWNER",
+    "through": null
+   },
+   "score": 43,
+   "standing": "UNKNOWN",
+   "subject": {
+    "id": "payments-domain:action:IssueRefund",
+    "kind": "business_action",
+    "label": "IssueRefund",
+    "layer": "business"
+   },
+   "title": "Nobody owns IssueRefund",
+   "why": "No CODEOWNERS rule covers its code, and nobody changed it in the last year."
+  },
+  {
+   "category": "Unknowns",
+   "factors": [
+    {
+     "detail": "the sources leave a question open",
+     "factor": "severity",
+     "points": 25
+    },
+    {
+     "detail": "1 business object(s) or action(s) reach it: ApproveException",
+     "factor": "reach",
+     "points": 8
+    }
+   ],
+   "id": "cd44a308e1d827d2",
+   "kind": "OPEN_QUESTION",
+   "level": "MEDIUM",
+   "links": [
+    "payments-domain:action:ApproveException"
+   ],
+   "next_step": "Answer it in the domain skill's sources, or name who decides.",
+   "owner": {
+    "basis": null,
+    "owner": null,
+    "risks": [],
+    "standing": "UNKNOWN",
+    "status": "NO_OWNER",
+    "through": null
+   },
+   "score": 33,
+   "standing": "UNKNOWN",
+   "subject": {
+    "id": "payments-domain:action:ApproveException",
+    "kind": "business_action",
+    "label": "ApproveException",
+    "layer": "business"
+   },
+   "title": "Open question on ApproveException",
+   "why": "The supplied requirements do not specify who can approve an exception."
+  },
+  {
+   "category": "Ownership",
+   "factors": [
+    {
+     "detail": "nobody is declared to own it, and nobody changed its code in a year",
+     "factor": "severity",
+     "points": 20
+    },
+    {
+     "detail": "1 business object(s) or action(s) reach it: ApproveException",
+     "factor": "reach",
+     "points": 8
+    }
+   ],
+   "id": "b9d0edac4942733f",
+   "kind": "NO_OWNER",
+   "level": "LOW",
+   "links": [
+    "payments-domain:action:ApproveException"
+   ],
+   "next_step": "Name an owner: a CODEOWNERS line for the code behind it, so someone answers for it.",
+   "owner": {
+    "basis": null,
+    "owner": null,
+    "risks": [],
+    "standing": "UNKNOWN",
+    "status": "NO_OWNER",
+    "through": null
+   },
+   "score": 28,
+   "standing": "UNKNOWN",
+   "subject": {
+    "id": "payments-domain:action:ApproveException",
+    "kind": "business_action",
+    "label": "ApproveException",
+    "layer": "business"
+   },
+   "title": "Nobody owns ApproveException",
+   "why": "No CODEOWNERS rule covers its code, and nobody changed it in the last year."
+  },
+  {
+   "category": "Compliance",
+   "factors": [
+    {
+     "detail": "customers usually ask for this standard, and the sources do not show all of it",
+     "factor": "severity",
+     "points": 10
+    },
+    {
+     "detail": "10 control(s)",
+     "factor": "volume",
+     "points": 12
+    }
+   ],
+   "id": "2027782f7d645002",
+   "kind": "COMPLIANCE_ASKED",
+   "level": "LOW",
+   "links": [],
+   "next_step": "Open Compliance before a customer's security review asks for it.",
+   "owner": null,
+   "score": 22,
+   "standing": "UNKNOWN",
+   "subject": null,
+   "title": "SOC 2: 10 of 13 controls not fully shown in the sources",
+   "why": "Business customers usually ask for a SOC 2 report before buying. Not fully shown: CC2.2 security responsibilities are communicated, CC6.1 sign-in and access are controlled, CC6.1-MFA multi-factor sign-in, CC6.7 data is encrypted in transit, CC6.8 unauthorized or vulnerable software is prevented, CC7.1 vulnerabilities are found...."
+  },
+  {
+   "category": "Visibility",
+   "factors": [
+    {
+     "detail": "services report no health at all",
+     "factor": "severity",
+     "points": 12
+    },
+    {
+     "detail": "2 silent service(s)",
+     "factor": "volume",
+     "points": 2
+    }
+   ],
+   "id": "fe750fd523ed7513",
+   "kind": "UNOBSERVED_SERVICES",
+   "level": "LOW",
+   "links": [],
+   "next_step": "Add health checks (feed_setup.py) or traces (otel_setup.py), one command per service.",
+   "owner": null,
+   "score": 14,
+   "standing": "UNKNOWN",
+   "subject": null,
+   "title": "2 of 7 services report no health",
+   "why": "Nothing reports on web, worker."
+  },
+  {
+   "category": "Ownership",
+   "factors": [
+    {
+     "detail": "no CODEOWNERS file names who owns any code",
+     "factor": "severity",
+     "points": 12
+    }
+   ],
+   "id": "313aea14942c79cc",
+   "kind": "NO_CODEOWNERS",
+   "level": "LOW",
+   "links": [],
+   "next_step": "Add a CODEOWNERS file: it names who reviews and answers for each part of the code.",
+   "owner": null,
+   "score": 12,
+   "standing": "UNKNOWN",
+   "subject": null,
+   "title": "No CODEOWNERS file",
+   "why": "Ownership can only be inferred from who changed the code."
+  },
+  {
+   "category": "Decisions",
+   "factors": [
+    {
+     "detail": "proposals wait for a person",
+     "factor": "severity",
+     "points": 10
+    },
+    {
+     "detail": "1 waiting",
+     "factor": "volume",
+     "points": 1
+    }
+   ],
+   "id": "5c439f2cb86c64f9",
+   "kind": "DECISIONS_WAITING",
+   "level": "LOW",
+   "links": [],
+   "next_step": "Review the proposals: each needs a person to confirm or reject it.",
+   "owner": null,
+   "score": 11,
+   "standing": "INFERRED",
+   "subject": null,
+   "title": "1 link proposal(s) wait for a person",
+   "why": "Suggested links change nothing until someone confirms or rejects them."
+  }
+ ],
+ "kind": "COMMAND_CENTER",
+ "kpis": [
+  {
+   "label": "Business actions",
+   "tone": "neutral",
+   "value": 2
+  },
+  {
+   "label": "Reported OK",
+   "tone": "ok",
+   "value": 0
+  },
+  {
+   "label": "At risk or impacted",
+   "tone": "risk",
+   "value": 2
+  },
+  {
+   "label": "Health unknown",
+   "tone": "unknown",
+   "value": 0
+  },
+  {
+   "label": "Services in error",
+   "tone": "risk",
+   "value": 1
+  },
+  {
+   "label": "Suppliers",
+   "tone": "neutral",
+   "value": 0
+  },
+  {
+   "label": "Decisions waiting",
+   "tone": "unknown",
+   "value": 1
+  }
+ ],
+ "schema_version": 1,
+ "semantics": "IMPORTANCE_RANKS_ATTENTION_NOT_PROBABILITY_OR_APPROVAL",
+ "total": 12
+}
