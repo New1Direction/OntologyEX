@@ -485,7 +485,28 @@ class Harness:
                 sock.bind(("127.0.0.1", 0))
                 return sock.getsockname()[1]
 
+        def raw(port, head: bytes, body: bytes) -> int:
+            """Status for a hand-written request; the server may answer before reading it all."""
+            with socket.create_connection(("127.0.0.1", port), timeout=10) as sock:
+                try:
+                    sock.sendall(head + body)
+                    sock.shutdown(socket.SHUT_WR)
+                except OSError:
+                    pass
+                reply = b""
+                while b"\r\n" not in reply:
+                    data = sock.recv(64)
+                    if not data:
+                        break
+                    reply += data
+            return int(reply.split()[1]) if reply.startswith(b"HTTP/") else 0
+
+        def chunked(*chunks: bytes, end: bytes = b"0\r\n\r\n") -> bytes:
+            return b"".join(b"%x\r\n%s\r\n" % (len(c), c) for c in chunks) + end
+
         def post(port, path, body, headers):
+            if path == "raw":
+                return raw(port, headers, body)
             if len(body) > feeds.MAX_OTLP_BODY:  # declare the size only; the server refuses before reading
                 with socket.create_connection(("127.0.0.1", port), timeout=10) as sock:
                     head = "".join(f"{k}: {v}\r\n" for k, v in headers.items())
@@ -515,6 +536,20 @@ class Harness:
             ("/v1/traces", b"{", {"Content-Type": "application/json", "Authorization": "Bearer tok"}),
             ("/v1/traces", proto, {"Content-Type": "application/x-protobuf", "Content-Encoding": "br", "Authorization": "Bearer tok"}),
             ("/v1/traces", b"x" * (4 * 1024 * 1024 + 1), {"Content-Type": "application/x-protobuf", "Authorization": "Bearer tok"}),
+        ]
+        # OpenTelemetry JS sends chunked bodies with no Content-Length.
+        head = (b"POST /v1/traces HTTP/1.1\r\nHost: x\r\nContent-Type: application/x-protobuf\r\n"
+                b"Authorization: Bearer tok\r\n")
+        te = head + b"Transfer-Encoding: chunked\r\n\r\n"
+        mb = b"\0" * (1024 * 1024)
+        requests += [
+            ("raw", chunked(call[:7], call[7:30], call[30:]), te),
+            ("raw", b"%x;ext=1\r\n%s\r\n" % (len(call), call) + b"0\r\n\r\n", te),
+            ("raw", chunked(mb, mb, mb, mb, b"x"), te),
+            ("raw", b"zz\r\n" + call + b"\r\n0\r\n\r\n", te),
+            ("raw", chunked(call, end=b"0\r\n"), te),
+            ("raw", call, head + b"Transfer-Encoding: gzip\r\n\r\n"),
+            ("raw", chunked(proto), head.replace(b"Bearer tok", b"Bearer nope") + b"Transfer-Encoding: chunked\r\n\r\n"),
         ]
         codes, emitted, calls = {}, {}, {}
         for impl in ("python", "rust"):

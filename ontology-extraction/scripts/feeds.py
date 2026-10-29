@@ -775,6 +775,37 @@ def decode_request(body: bytes, content_type: str, content_encoding: str) -> tup
         return 400, []
 
 
+def read_chunked(stream, limit: int) -> tuple[int, bytes]:
+    """A `Transfer-Encoding: chunked` request body, as OpenTelemetry JS sends it.
+
+    (0, body), or (400, b"") when malformed, or (413, b"") past `limit`. The same rules
+    as the Rust receiver's decoder: a hex size line ending in CRLF (extensions after
+    `;` ignored), CRLF after each chunk, and a final zero-size chunk with no trailers.
+    """
+    body = bytearray()
+    while True:
+        line = bytearray()
+        while len(line) <= 1024:
+            byte = stream.read(1)
+            if not byte or byte == b"\r":
+                break
+            line += byte
+        if byte != b"\r" or stream.read(1) != b"\n":
+            return 400, b""
+        text = bytes(line).split(b";", 1)[0].strip()
+        if re.fullmatch(rb"\+?[0-9A-Fa-f]{1,16}", text) is None:
+            return 400, b""
+        size = int(text, 16)
+        if size == 0:
+            return (0, bytes(body)) if stream.read(2) == b"\r\n" else (400, b"")
+        if len(body) + size > limit:
+            return 413, b""
+        chunk = stream.read(size)
+        if len(chunk) != size or stream.read(2) != b"\r\n":
+            return 400, b""
+        body += chunk
+
+
 def otlp_handler(window: SpanWindow, token: str):
     class Handler(BaseHTTPRequestHandler):
         def reply(self, code: int, body: bytes, mime: str = "application/json") -> None:
@@ -790,11 +821,18 @@ def otlp_handler(window: SpanWindow, token: str):
             if token and not hmac.compare_digest(self.headers.get("Authorization", "").encode("latin-1"),
                                                  f"Bearer {token}".encode("utf-8")):
                 return self.reply(401, b'{"error":"bearer token required"}')
-            declared = self.headers.get("Content-Length", "")
-            length = int(declared) if declared.isascii() and declared.isdigit() else -1
-            if not 0 <= length <= MAX_OTLP_BODY:
-                return self.reply(413, b'{"error":"body too large or unknown length"}')
-            body = self.rfile.read(length)
+            declared = self.headers.get("Content-Length")
+            if declared is None and self.headers.get("Transfer-Encoding", "").strip().lower() == "chunked":
+                status, body = read_chunked(self.rfile, MAX_OTLP_BODY)
+                if status:
+                    self.close_connection = True  # the rest of the stream cannot be trusted
+                    return self.reply(status, b'{"error":"body too large"}' if status == 413 else
+                                      b'{"error":"invalid chunked body"}')
+            else:
+                length = int(declared) if declared and declared.isascii() and declared.isdigit() else -1
+                if not 0 <= length <= MAX_OTLP_BODY:
+                    return self.reply(413, b'{"error":"body too large or unknown length"}')
+                body = self.rfile.read(length)
             code, spans = decode_request(body, self.headers.get("Content-Type", ""),
                                          self.headers.get("Content-Encoding", ""))
             if code == 415:

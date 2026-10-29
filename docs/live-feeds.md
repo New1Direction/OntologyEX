@@ -77,6 +77,50 @@ otherwise `feeds.py`) and the control room reading its observations. Add `--skil
 and `--links` as you would for `control_room.py`. Ctrl-C stops both; if one exits,
 the other is stopped too.
 
+## Send traces from your services, one command each
+
+Health from probes needs nothing in your code. Calls between services need traces.
+`otel_setup.py` starts each service with OpenTelemetry's zero-code instrumentation,
+with no change to its code, dependencies, or Dockerfile:
+
+```bash
+python ontology-extraction/scripts/otel_setup.py propose --repo /path/to/repo
+```
+
+It lists every app in the repository (Node, Python, Java, Go, .NET, Ruby, PHP) with
+the file that declares it, the libraries it will trace (Express, Flask, Django,
+FastAPI, requests, database drivers, ...), the name its traces will carry (the
+compose service, else the package name), and the command to start it with tracing:
+
+```bash
+cd apps/web     && python /path/to/otel_setup.py run --service web --feeds feeds.json -- npm start
+cd services/api && python /path/to/otel_setup.py run --service api --feeds feeds.json -- python app.py
+```
+
+Use your own start command after `--`; `run` replaces itself with it, so signals and
+exit codes are the app's own. `--feeds` sends traces to the receiver that config
+defines (with its token, if it has one); without it, to `http://127.0.0.1:4318`.
+`feed_setup.py propose` already offers the matching name mappings, so
+`feed_setup.py init --accept-strong` then `operate.py up` is all the rest.
+
+| | How | Installed once, to `~/.cache/ontologyex/otel` |
+|---|---|---|
+| **Node** | `NODE_OPTIONS=--require` the auto-instrumentation register hook | `npm ci` of `@opentelemetry/auto-instrumentations-node` 0.82.0 from the lockfile shipped in `scripts/otel/node` (all 189 packages pinned with integrity hashes, install scripts off) |
+| **Python** | a `sitecustomize` on `PYTHONPATH` that adds the packages *after* the app's own and starts OpenTelemetry | `opentelemetry-distro` 0.66b1, the OTLP/HTTP exporter 1.45.1, and the instrumentations `opentelemetry-bootstrap` picks for the libraries **the app's interpreter** has, installed with that interpreter's pip |
+| Java, Go, .NET, Ruby, PHP | listed with what they need; not automated yet | |
+
+The Python interpreter is taken from the command (`python3 app.py`, or the first line
+of `uvicorn`, `gunicorn`, `flask`, ...). With `poetry run`, `uv run`, or `pipenv run`,
+pass it: `--python "$(poetry run which python)"`. For a Dockerfile, Procfile, or your
+own shell, `otel_setup.py env --service NAME --lang node` prints the same settings as
+`export` lines.
+
+Two things `run` keeps as they were: OpenTelemetry's Node hook catches SIGTERM to send
+the last spans, which would stop the service from exiting, so `run` restores the exit
+unless the app handles SIGTERM itself; Python's default SIGTERM would skip sending the
+last spans, so `run` exits through Python's shutdown instead (exit code 143 for both).
+Set `ONTOLOGYEX_OTEL_CACHE` to put the cache elsewhere; delete it to reinstall.
+
 ## Your own systems
 
 To write the config by hand, for systems not described in compose or not on this

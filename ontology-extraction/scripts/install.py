@@ -20,6 +20,8 @@ PACKAGE = (
     "scripts/graph_view_api.py", "scripts/incident_view.py", "scripts/native_view_bridge.py",
     "scripts/feeds.py", "scripts/rdf_export.py", "scripts/graph_view.py", "scripts/fetch_engine.py",
     "scripts/feed_setup.py", "scripts/operate.py", "scripts/dependency_suggest.py", "scripts/decisions.py",
+    "scripts/otel_setup.py", "scripts/otel/node-exit.cjs", "scripts/otel/node/package.json",
+    "scripts/otel/node/package-lock.json",
     "references/operating-picture.md",
     "scripts/domain_skill.py", "scripts/policy_check.py", "scripts/scaffold.py", "scripts/provenance.py",
     "scripts/trace_extract.py", "scripts/otlp_normalize.py", "references/trace-to-ontology.md",

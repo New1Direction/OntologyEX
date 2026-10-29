@@ -33,6 +33,7 @@ import yaml
 
 import discover_repo
 import feeds
+import otel_setup
 
 PROMETHEUS_IMAGE = re.compile(r"(^|/)prometheus(:|@|$)")
 HEALTH_URL = re.compile(r"(https?)://(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::([0-9]{1,5}))?(/[^\s'\"|;&)<>`]*)?")
@@ -278,6 +279,22 @@ def propose(repo: Path) -> dict:
                                 "evidence": _evidence(config_rel, prom_lines, job_node),
                                 "why": f"Prometheus (service {name!r}) scrapes {target} in job "
                                        f"{job['job_name']!r}; default labels assumed"})
+    # Apps that `otel_setup.py run --service NAME` can trace: map the name it gives them.
+    named = {c["entry"]["service"] for c in candidates if c["kind"] == "otlp"}
+    covered = {c["component"] for c in candidates if c["kind"] == "otlp"}
+    try:
+        apps = otel_setup.find_apps(repo)
+    except (otel_setup.SetupError, OSError) as exc:
+        apps = []
+        gaps.append({"source": "apps", "reason": f"apps not scanned for tracing: {exc}"})
+    for app in apps:
+        if app["status"] != "READY" or not app["component"] or app["service"] in named or app["component"] in covered:
+            continue
+        candidates.append({
+            "id": f"otlp-app:{app['folder']}:{app['language']}", "kind": "otlp", "strength": "STRONG",
+            "component": app["component"], "entry": {"service": app["service"], "component": app["component"]},
+            "evidence": app["evidence"],
+            "why": f"started with `otel_setup.py run --service {app['service']}`, its traces carry that name"})
     otlp_port = 4318 if 4318 not in host_ports else 14318
     return {"schema_version": 1, "kind": "FEED_SETUP_PROPOSAL", "repo": str(repo),
             "candidates": candidates, "gaps": gaps, "otlp_port": otlp_port,

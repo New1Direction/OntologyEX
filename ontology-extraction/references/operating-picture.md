@@ -70,6 +70,17 @@ python "$SKILL_ROOT/scripts/control_room.py" --repo REPO --skill SKILL --links l
 
 Health is what linked systems report. It never proves that an action works.
 
+If the user's services do not send traces yet, offer one-command tracing:
+
+```bash
+python "$SKILL_ROOT/scripts/otel_setup.py" propose --repo REPO
+```
+
+It lists each app with its evidence, the trace name, and the command that starts it
+with OpenTelemetry's zero-code instrumentation (Node and Python; no code change). Show
+the user those commands; they start their services with them (the first run downloads
+the instrumentation from npm or PyPI into a cache, so ask before running one yourself).
+
 When services send traces, the feeds also count calls between them (a client span
 in one service and the server span it caused in another). The business page lists
 each call the repository does not declare as a suggested dependency, with counts
