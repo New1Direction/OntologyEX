@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" width="1280" height="400" role="img" aria-labelledby="t d">
+  <title id="t">OntologyEX</title>
+  <desc id="d">The business behind your code: mapped, ranked, proven. Read-only, every claim cited, a person decides.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#05080e"/>
+      <stop offset="0.55" stop-color="#081321"/>
+      <stop offset="1" stop-color="#04070c"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.72" cy="0.48" r="0.5">
+      <stop offset="0" stop-color="#4cc3d9" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#4cc3d9" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#14324a" stroke-width="0.6" opacity="0.55"/>
+    </pattern>
+    <linearGradient id="scan" x1="0" x2="1">
+      <stop offset="0" stop-color="#4cc3d9" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#4cc3d9" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#4cc3d9" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <style>
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+      .sans { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      .edge { stroke: #2a6f86; stroke-width: 1.2; fill: none; opacity: 0.75; }
+      .flow { stroke: #4cc3d9; stroke-width: 1.6; fill: none; stroke-dasharray: 4 10; animation: flow 3.2s linear infinite; }
+      .node { fill: #0b1724; stroke: #4cc3d9; stroke-width: 1.5; }
+      .biz  { stroke: #a78bfa; }
+      .sup  { stroke: #34d399; }
+      .risk { stroke: #ff5d5d; animation: pulse 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+      .ring { fill: none; stroke: #ff5d5d; stroke-width: 1.2; opacity: 0; animation: ring 1.8s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+      .label { fill: #7f93a6; font-size: 11px; letter-spacing: 0.08em; }
+      .sweep { animation: sweep 6s cubic-bezier(.45,0,.55,1) infinite; }
+      .blink { animation: blink 1.1s steps(1) infinite; }
+      @keyframes flow { to { stroke-dashoffset: -28; } }
+      @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+      @keyframes ring { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(2.6); opacity: 0; } }
+      @keyframes sweep { 0% { transform: translateX(-220px); } 100% { transform: translateX(1300px); } }
+      @keyframes blink { 50% { opacity: 0; } }
+      @media (prefers-reduced-motion: reduce) { .flow, .risk, .ring, .sweep, .blink { animation: none; } }
+    </style>
+  </defs>
+
+  <rect width="1280" height="400" fill="url(#bg)"/>
+  <rect width="1280" height="400" fill="url(#grid)"/>
+  <rect width="1280" height="400" fill="url(#halo)"/>
+  <rect class="sweep" x="0" y="0" width="200" height="400" fill="url(#scan)" opacity="0.5"/>
+
+  <!-- the model: business actions (violet), systems (cyan), suppliers (green); one system in error -->
+  <g transform="translate(0,0)">
+    <path class="edge" d="M760 110 C820 110 840 170 900 170"/>
+    <path class="edge" d="M760 110 C830 110 850 250 900 250"/>
+    <path class="edge" d="M760 200 C820 200 840 170 900 170"/>
+    <path class="edge" d="M760 290 C820 290 840 250 900 250"/>
+    <path class="edge" d="M760 290 C830 290 850 330 900 330"/>
+    <path class="edge" d="M960 170 C1030 170 1040 120 1100 120"/>
+    <path class="edge" d="M960 250 C1030 250 1040 200 1100 200"/>
+    <path class="edge" d="M960 330 C1030 330 1040 280 1100 280"/>
+    <path class="edge" d="M960 170 C1020 170 1050 200 1100 200"/>
+    <path class="flow" d="M760 110 C820 110 840 170 900 170"/>
+    <path class="flow" d="M960 170 C1030 170 1040 120 1100 120"/>
+    <path class="flow" d="M760 290 C830 290 850 330 900 330"/>
+
+    <g filter="url(#glow)">
+      <rect class="node biz" x="700" y="94" width="60" height="32" rx="6"/>
+      <rect class="node biz" x="700" y="184" width="60" height="32" rx="6"/>
+      <rect class="node biz" x="700" y="274" width="60" height="32" rx="6"/>
+      <rect class="node" x="900" y="234" width="60" height="32" rx="6"/>
+      <rect class="node" x="900" y="314" width="60" height="32" rx="6"/>
+      <rect class="node sup" x="1100" y="104" width="60" height="32" rx="6"/>
+      <rect class="node sup" x="1100" y="184" width="60" height="32" rx="6"/>
+      <rect class="node sup" x="1100" y="264" width="60" height="32" rx="6"/>
+      <rect class="ring" x="900" y="154" width="60" height="32" rx="6"/>
+      <rect class="node risk" x="900" y="154" width="60" height="32" rx="6"/>
+    </g>
+    <text class="mono" x="730" y="114" text-anchor="middle" fill="#cdbcff" font-size="10.5">checkout</text>
+    <text class="mono" x="730" y="204" text-anchor="middle" fill="#cdbcff" font-size="10.5">refund</text>
+    <text class="mono" x="730" y="294" text-anchor="middle" fill="#cdbcff" font-size="10.5">payout</text>
+    <text class="mono" x="930" y="174" text-anchor="middle" fill="#ffb3b3" font-size="10.5">payments</text>
+    <text class="mono" x="930" y="254" text-anchor="middle" fill="#bfe9f2" font-size="10.5">api</text>
+    <text class="mono" x="930" y="334" text-anchor="middle" fill="#bfe9f2" font-size="10.5">ledger</text>
+    <text class="mono" x="1130" y="124" text-anchor="middle" fill="#b6f0d6" font-size="10.5">payments</text>
+    <text class="mono" x="1130" y="204" text-anchor="middle" fill="#b6f0d6" font-size="10.5">email</text>
+    <text class="mono" x="1130" y="284" text-anchor="middle" fill="#b6f0d6" font-size="10.5">cloud</text>
+    <text class="mono label" x="730" y="80" text-anchor="middle">BUSINESS</text>
+    <text class="mono label" x="930" y="140" text-anchor="middle">SYSTEMS</text>
+    <text class="mono label" x="1130" y="90" text-anchor="middle">SUPPLIERS</text>
+    <text class="mono" x="930" y="208" text-anchor="middle" fill="#ff5d5d" font-size="10" letter-spacing="0.1em">ERROR</text>
+  </g>
+
+  <!-- title -->
+  <text class="mono" x="72" y="118" fill="#4cc3d9" font-size="14" letter-spacing="0.42em">// AGENT ONTOLOGY KIT</text>
+  <text class="sans" x="68" y="196" fill="#e6f1f8" font-size="78" font-weight="700" letter-spacing="-0.02em">OntologyEX</text>
+  <text class="sans" x="72" y="244" fill="#9fb3c5" font-size="22">The business behind your code.</text>
+  <text class="sans" x="72" y="274" fill="#9fb3c5" font-size="22">Mapped, ranked, proven.</text>
+
+  <g class="mono" font-size="12.5" letter-spacing="0.14em">
+    <circle cx="78" cy="330" r="4.5" fill="#34d399" class="blink"/>
+    <text x="92" y="334" fill="#7f93a6">READ-ONLY</text>
+    <text x="200" y="334" fill="#2a3d50">/</text>
+    <text x="222" y="334" fill="#7f93a6">EVERY CLAIM CITED</text>
+    <text x="398" y="334" fill="#2a3d50">/</text>
+    <text x="420" y="334" fill="#7f93a6">A PERSON DECIDES</text>
+  </g>
+</svg>

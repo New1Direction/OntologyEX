@@ -1,58 +1,196 @@
-# OntologyEX — Agent Ontology Kit
+<div align="center">
 
-**Give your agent a repository; get the business behind it, linked to source.**
+<img src="docs/media/banner.svg" alt="OntologyEX: the business behind your code, mapped, ranked, proven. Read-only, every claim cited, a person decides." width="100%">
 
-What it is, who it serves, how money moves, the main journeys, where it breaks, and
-what nobody wrote down, on one page. Then a live map of the systems, and portable
-domain skills with exact evidence before your agent changes a workflow.
+**Point an agent at a repository. Get back the business it runs:**<br>
+**who it serves, how money moves, what is breaking, who owns it, what an auditor will ask,<br>
+and what changed this week. Every claim linked to the line it rests on.**
 
 [![Validator](https://github.com/New1Direction/OntologyEX/actions/workflows/validator.yml/badge.svg)](https://github.com/New1Direction/OntologyEX/actions/workflows/validator.yml)
+[![Rust + Lean](https://github.com/New1Direction/OntologyEX/actions/workflows/rust-proof-foundation.yml/badge.svg)](https://github.com/New1Direction/OntologyEX/actions/workflows/rust-proof-foundation.yml)
+[![Proofs](https://img.shields.io/badge/proofs-Lean%204%20%C2%B7%20Bend-8b5cf6)](docs/business-verification.md)
+[![Engine](https://img.shields.io/badge/engine-Rust%20%E2%89%A1%20Python-4cc3d9)](docs/rust-engine.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-13846f)](LICENSE)
 
-**[Example overview](https://new1direction.github.io/OntologyEX/docs/examples/nextjs-subscription-payments.html) · [Guided onboarding](ontology-extraction/references/guided-onboarding.md) · [Real-source case](examples/cachetools-domain/README.md) · [Payments report](https://new1direction.github.io/OntologyEX/docs/payments-demo.html) · [Contract](ontology-extraction/references/domain-skill.md)**
+**[Live example](https://new1direction.github.io/OntologyEX/docs/examples/nextjs-subscription-payments.html)** ·
+**[Give it to your agent](#-give-it-to-your-agent)** ·
+**[The control room](#-the-control-room)** ·
+**[How it stays honest](#-how-it-stays-honest)** ·
+**[Verified four ways](#-verified-four-ways)** ·
+**[The engine](#-the-engine)**
 
-## Give this repository to your agent
+</div>
 
-In Claude Code, Codex, Cursor, or any coding agent, open your project and say:
+---
+
+## ◢ Give it to your agent
+
+In Claude Code, Codex, Cursor or any coding agent, open your project and say:
 
 > Use https://github.com/New1Direction/OntologyEX to give me an overview of this repository and the business behind it.
 
-Your agent clones the kit, scans your repository (reading only), reads what matters,
-and writes **one page**: what the business is, who it serves, how money moves, the
-main journeys, where it breaks, and what nobody wrote down, with every claim linked
-to the lines it rests on. Then it can show your systems live, trace the calls between
-your services, or build a domain skill before you change a workflow.
-Instructions for the agent: [AGENTS.md](AGENTS.md).
+That is the whole interface. Your agent clones the kit, reads your repository (it never runs
+it, never installs its dependencies, never sends it anywhere) and writes **one offline page**:
+what the business is, who it serves, how money moves, the main journeys, where it breaks, and
+what nobody wrote down. Each claim is linked to the lines it rests on, so you can check every one.
+The agent's manual is [AGENTS.md](AGENTS.md).
 
-[![An agent scans a repository, reads what matters, and builds the page; then the page: journeys, money, where it breaks, each with the cited lines](docs/media/ontologyex-demo.gif)](https://new1direction.github.io/OntologyEX/docs/examples/nextjs-subscription-payments.html)
+[![An agent scans a repository, reads what matters, and builds the page: journeys, money, where it breaks, each with the cited lines](docs/media/ontologyex-demo.gif)](https://new1direction.github.io/OntologyEX/docs/examples/nextjs-subscription-payments.html)
 
-**Examples**, each written by an agent from a public repository, every claim linked to its
-lines at a pinned commit (the risks are the agent's reading, not observed incidents):
+Written by agents from public repositories, every claim pinned to a commit:
+[Vercel's Next.js subscription starter](https://new1direction.github.io/OntologyEX/docs/examples/nextjs-subscription-payments.html) (Stripe + Supabase SaaS) ·
+[Saleor](https://new1direction.github.io/OntologyEX/docs/examples/saleor.html) (open-source commerce, payments through apps over webhooks).
+Fresh agents have run it on Go, Next.js, Remix, Django, Rails, FastAPI, Laravel and Spring apps,
+a 7,700-file monorepo, and a company handbook with no code at all.
 
-- [Vercel's Next.js subscription starter](https://new1direction.github.io/OntologyEX/docs/examples/nextjs-subscription-payments.html): a SaaS skeleton with Stripe and
-  Supabase ([blueprint](examples/overview/nextjs-subscription-payments.blueprint.json))
-- [Saleor](https://new1direction.github.io/OntologyEX/docs/examples/saleor.html): an open-source commerce platform, payments through apps over
-  webhooks ([blueprint](examples/overview/saleor.blueprint.json))
-
-It has been tried by fresh agents on Go, Next.js, Remix, Django, Rails, FastAPI,
-Laravel and Spring apps, a 7,700-file monorepo, and a company handbook with no code.
-
-## Onboard your repository from one request
-
-Python 3.11+ is needed for the local tools. From an OntologyEX checkout:
+## ◢ The control room
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate  # PowerShell: .venv\Scripts\Activate.ps1
-python -m pip install 'PyYAML==6.0.3'
-python ontology-extraction/scripts/install.py --project /path/to/your-project
+python ontology-extraction/scripts/operate.py up --repo /path/to/your/repo
 ```
 
-The installer copies the complete package into the project's
-`.claude/skills/ontology-extraction` directory. It refuses overwrites, changes no global
-settings, and pre-approves no tools. Make the Python environment available to your coding agent.
+One command, on your machine. Loopback only, read-only, nothing deployed. Nine views over a
+single model of your business, the same model your agents read:
 
-Then in Claude Code:
+<table>
+<tr>
+<td width="50%"><a href="docs/media/control-room-business.png"><img src="docs/media/control-room-business.png" alt="Business view: actions, objects and systems linked, with what is at risk"></a><br><sub><b>Business</b>: actions and objects joined to the systems they run on, health flowing through the links.</sub></td>
+<td width="50%"><a href="docs/media/control-room-command.png"><img src="docs/media/control-room-command.png" alt="Command center: everything that needs attention, ranked with the factors behind each score"></a><br><sub><b>Command</b>: everything that needs attention, ranked 0–100 by named factors, each with a next step and an owner.</sub></td>
+</tr>
+<tr>
+<td><a href="docs/media/control-room-compliance.png"><img src="docs/media/control-room-compliance.png" alt="Compliance: PCI DSS controls with evidence cited by line"></a><br><sub><b>Compliance</b>: SOC 2, PCI DSS, HIPAA, GDPR, control by control, evidence cited by line.</sub></td>
+<td><a href="docs/media/control-room-owners.png"><img src="docs/media/control-room-owners.png" alt="Owners: who answers for each part, from CODEOWNERS or git history"></a><br><sub><b>Owners</b>: who answers for each action, system and supplier, and where nobody does.</sub></td>
+</tr>
+<tr>
+<td><a href="docs/media/control-room-digest.png"><img src="docs/media/control-room-digest.png" alt="Weekly digest: new, fixed, worse and longest open, with decisions and code shipped"></a><br><sub><b>Digest</b>: what moved since last week, who decided what, and the code that shipped.</sub></td>
+<td><a href="docs/media/control-room-suppliers.png"><img src="docs/media/control-room-suppliers.png" alt="Suppliers: the outside companies the business runs on, and the sole providers"></a><br><sub><b>Suppliers</b>: the outside companies you run on, and the ones with no second provider.</sub></td>
+</tr>
+</table>
+
+| View | What it answers |
+|---|---|
+| **`/command`** | Everything that needs attention, big or small, ranked by importance. Every score is the sum of factors you can read and argue with (how bad, how much of the business reaches it, whether money moves through it), with the next step and the owner to call. |
+| **`/digest`** | What moved since last week: new, fixed, worse, better, *fixed then back*, open longest. Who decided what. The code that shipped and the business it touched. One click to Markdown. |
+| **`/business`** | Your domain skills joined to your live systems: which business actions are at risk, which depend on a failing system, which rules were checked and how far. |
+| **`/owners`** | Who answers for each part: declared in CODEOWNERS (line cited) or inferred from a year of git history. Business actions nobody owns. Code only one person knows. |
+| **`/compliance`** | SOC 2, PCI DSS v4.0, HIPAA and GDPR mapped to what the code shows, with the lines cited, and what only a person can provide. An evidence map for preparing an audit, not an audit. |
+| **`/suppliers`** | The outside companies you run on (payments, sign-in, email, cloud, AI, shipping, tax…), how critical each kind is, where only one is declared, and what relies on each. |
+| **`/impact`** | Before a merge: what a branch touches in the business, and everything that relies on it. |
+| **`/entity`** | Any object, action, system or supplier: why it exists, what a person confirmed and what is only inferred, what relies on it, and the files behind every link. |
+| **`/`** | The system map: services, routes, tables and calls, with live health from OpenTelemetry traces, Prometheus and health checks. |
+
+**Readout from the bundled demo** (synthetic data; real output of the tools):
+
+```text
+ONTOLOGYEX // COMMAND CENTER                                12 items · 4 critical
+─────────────────────────────────────────────────────────────────────────────────
+ 100  CRITICAL  payments reports an error
+  79  CRITICAL  Payment is possibly impacted
+  78  CRITICAL  IssueRefund is at risk
+  78  CRITICAL  Refund is at risk
+  48  MEDIUM    ApproveException is possibly impacted
+  43  MEDIUM    Nobody owns IssueRefund
+─────────────────────────────────────────────────────────────────────────────────
+DIGEST  Last 7 days: 1 new (1 critical), 1 fixed, 1 worse, 10 unchanged.
+        Longest open: Payment is possibly impacted (critical, 9 days).
+```
+
+See it in ten seconds, no setup beyond Python 3.11 and PyYAML:
+
+```bash
+python examples/operating-picture/demo.py --serve   # then open http://127.0.0.1:8765/command
+```
+
+Live health is real telemetry: `feed_setup.py propose` lists the health checks your compose files
+declare, `otel_setup.py run --service web -- npm start` adds OpenTelemetry traces to a Node or
+Python service with no code change, and calls your repository never declared show up as suggested
+dependencies. See [operating picture](ontology-extraction/references/operating-picture.md) and [live feeds](docs/live-feeds.md).
+
+## ◢ Agents get the same model, and cannot change it
+
+```bash
+python ontology-extraction/scripts/agent_tools.py serve --control-room http://127.0.0.1:8765 \
+  --agent claude --operator "Your Name" --audit audit.jsonl
+```
+
+An MCP server over the running control room. **Thirteen read tools**: `what_needs_attention`,
+`weekly_digest`, `who_owns`, `compliance_status`, `list_suppliers`, `analyze_change`,
+`analyze_impact`, `get_entity_context`, `explain_relationship`, `search_entities`,
+`list_suggestions`, `list_stale_decisions`, `recent_changes`. **Three propose tools**:
+`propose_link`, `propose_dependency` and `propose_rule` append a suggestion that a person
+confirms or rejects. There is no destructive tool, and the server refuses to register one. Every
+agent runs under its own policy (tools allowed, files and entities withheld), and every call is
+audited. See [entity context](ontology-extraction/references/entity-context.md).
+
+## ◢ How it stays honest
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"background": "#060b12", "primaryColor": "#0b1724", "primaryTextColor": "#dbe7f0", "primaryBorderColor": "#4cc3d9", "lineColor": "#4cc3d9", "clusterBkg": "#081321", "clusterBorder": "#2a6f86", "edgeLabelBackground": "#0b1724", "fontFamily": "ui-monospace, SFMono-Regular, Menlo, monospace"}}}%%
+flowchart LR
+  subgraph S[Sources, read only]
+    code[Code & config]
+    docs[Docs & skills]
+    git[Git history]
+    tel[Telemetry]
+  end
+  S --> M[(One model<br/>CONFIRMED · SOURCE<br/>INFERRED · UNKNOWN)]
+  M --> V[Nine views]
+  M --> A[Agents · MCP]
+  A -- propose --> Q[Decision queue]
+  V -- confirm / reject --> Q
+  Q -- a person decides --> M
+  classDef model fill:#140f26,stroke:#a78bfa,color:#ede9fe,stroke-width:2px
+  classDef person fill:#0b1f18,stroke:#34d399,color:#d1fae5,stroke-width:2px
+  class M model
+  class Q person
+```
+
+- **Four standings, weakest link wins.** Everything is CONFIRMED (a person decided), SOURCE
+  (declared in a file), INFERRED (suggested) or UNKNOWN, and a path through the model is only
+  as strong as its weakest hop.
+- **Decisions remember their evidence.** A confirmation records the hashes of the files it
+  rested on. Change one and the link drops to INFERRED until a person re-confirms it.
+- **Stale views are refused.** A decision carries the fingerprint of what the page showed;
+  if anything changed between looking and clicking, nothing is written and the page says why.
+- **Background scans are kept only if the repository held still** while they read it.
+- **`execution_authorized: false`** on every answer. Nothing here approves, runs or deploys.
+- **Secrets stay unread.** `.env` files, keys and credentials are never opened; a line that sets
+  a key is cited without its text.
+
+## ◢ Verified four ways
+
+| Layer | What it guarantees |
+|---|---|
+| **Golden fixtures** | 18 pinned outputs on a demo, a shop and a clinic with fixed git histories. Any change to an answer fails CI with the JSON paths that moved, and an intended change must be recorded with its reason. |
+| **Rust ≡ Python** | Differential parity on every change: 2,557 entity-context cases, 5,049 discovery cases, 2,840 live-feed cases, zero mismatches allowed. |
+| **Lean 4 + Bend** | 77 theorems over the health rollup, grade ladder, link decisions, the decision queue, change impact, watermarks and stale views. Lean prints its tables and CI compares them row by row with Python (1,111 rollup rows, 341 path rows, 6 watermark rows…). |
+| **780+ tests** | Python 3.11 and 3.13, headless-browser smoke tests, every page script parsed, the installed kit exercised from an unrelated directory. No API keys, no model calls. |
+
+Details: [business verification](docs/business-verification.md) · [golden fixture changes](tests/golden/CHANGES.md).
+
+## ◢ The engine
+
+An optional Rust engine runs the hot paths with the same answers, checked by CI on every change:
+
+| Workload | Python | Rust | |
+|---|---:|---:|---:|
+| Discovery of a 5,900-file repository with 125 manifests | 1.30 s | 0.088 s | **14.8× faster** |
+| OTLP trace ingest, 4 clients, 1,000 spans per request | 98,000 spans/s | 1,740,000 spans/s | **17.8× more** |
+| Receiver memory under that load | 41.5 MiB | 8.3 MiB | **5× less** |
+
+With background scans, the slowest page answer after the first load on a real repository
+(documenso: about 3,000 files, 720 commits in a year) fell from **4.2 s to 0.19 s**.
+Install prebuilt binaries with `python ontology-extraction/scripts/fetch_engine.py`. See [Rust engine](docs/rust-engine.md).
+
+## ◢ Domain skills: change a workflow without inventing rules
+
+Before an agent changes a workflow, give it a **domain skill**: the business concepts, actions and
+rules of that workflow, each bound to the code that implements it and the evidence it rests on,
+with the unknowns and conflicts kept visible instead of guessed away.
+
+```bash
+python ontology-extraction/scripts/install.py --project /path/to/your-project
+```
 
 ```text
 /ontology-extraction Onboard the reservation and cancellation workflow in this repository.
@@ -61,254 +199,38 @@ skill for modifying that workflow. Show the rules, implementation locations, evi
 and anything the sources leave unclear.
 ```
 
-Replace the example workflow with your own. The agent coordinates source selection,
-authoring, evidence collection, bounded compilation, and review. It does **not** automatically
-execute your project or deploy the generated skill.
+The installer copies the kit into `.claude/skills/ontology-extraction`; it refuses overwrites,
+changes no global settings and pre-approves no tools. Authoring is bounded (one submission and at
+most two corrections), evidence spans are copied exactly with their hashes (`evidence.py`), and
+nothing is approved, promoted or deployed by a command.
 
-**Compatibility:** the Claude Code project layout and installed-script workflow are smoke-tested.
-Native host activation and fresh-model quality comparisons remain separate, unrun checks.
-Other runners can read `ontology-extraction/SKILL.md` directly; no agent framework is required.
+- **[Guided onboarding](ontology-extraction/references/guided-onboarding.md)** and the **[contract](ontology-extraction/references/domain-skill.md)**.
+- **[Real-source case](examples/cachetools-domain/README.md)**: pinned `cachetools` source, a compiled skill, 18 behavioral checks against the real library, no API key.
+- **[Native-agent pilot](docs/native-pilot.md)**: run it in a fresh agent session and grade the result.
+- **[Evidence grades](ontology-extraction/references/evidence-grades.md)** G0–G4, **[rule wording](ontology-extraction/references/rule-wording.md)** checks, **[RDF / SPARQL](docs/rdf-interop.md)** export, **[decision models](docs/decision-models.md)**, the **[four-layer method](ontology-extraction/METHOD.md)**, and experimental **[traces → ontology](ontology-extraction/references/trace-to-ontology.md)**.
 
-## What is different from a summary?
+## ◢ Boundaries
 
-| Output | Use |
-|---|---|
-| Business concepts and actions | Explain the system in domain terms, not just file names. |
-| Source-linked rules and implementation bindings | Locate the code and inspect the evidence for a claim. |
-| Explicit unknowns and conflicts | Expose unanswered questions instead of inventing permission. |
-| Portable domain skill and task handoff | Carry the reviewed context into a separate agent session. |
-| Source freshness and version comparison | Identify drift and the tasks that need review again. |
+Checks are not permissions. `CHECKS_PASS` describes modeled conditions on supplied inputs;
+unknown conditions produce `NEEDS_REVIEW`. Health is the source-reported status of linked
+systems, not proof that an action works. Owners inferred from git history are history, not
+accountability. The compliance map is evidence for preparing an audit, not an audit. Source
+hashes establish byte identity, not semantic truth. Source text is untrusted data, and secret-name
+filtering is not an exhaustive secret scanner. The consuming application owns authorization,
+state, concurrency and integration safety.
 
-**Your agent does the interpretation.** The tools handle exact copying, fingerprints,
-structural checks, and packaging. Source hashes establish byte identity, not semantic truth.
-
-## Try a real-source case without an API key
-
-```bash
-python -m pip install -r examples/cachetools-domain/requirements-case.txt
-python examples/cachetools-domain/case.py
-```
-
-The case verifies installed `cachetools` source bytes against a pinned upstream commit,
-uses the evidence helper to compile a domain skill, exports a task-focused handoff, and runs
-**18 behavioral acceptance checks** against a developer-written batch-lookup adapter.
-
-It covers expiration at the exact boundary, fractional and datetime clocks, falsy values,
-ordered misses, recency, no TTL refresh, and error propagation. These behaviors are exercised
-against the actual pinned library, not inferred from a successful ontology check.
-
-Open the report under:
-
-```text
-build/cachetools-case/session/attempts/01/candidate/cachetools-domain/report.html
-```
-
-The model and adapter are **developer-authored replay artifacts**, not proof of automatic
-extraction or superior agent performance. Raw-source, Markdown, and domain-skill trial inputs
-are exported separately; fresh-agent comparisons are explicitly `NOT_RUN`.
-See the [case protocol and limitations](examples/cachetools-domain/README.md).
-
-The earlier fictional payments/update demo remains available:
+## ◢ Build on it
 
 ```bash
-python examples/payments-domain/demo.py
+python -m pip install 'PyYAML==6.0.3'
+python -m unittest discover -s tests            # the suite, including golden fixtures
+python tests/golden.py check                     # just the pinned answers
+cargo test --locked --manifest-path engine/Cargo.toml
 ```
 
-Expected result: 26/26 deterministic fixture checks across two policy versions, detection of
-stale sources, and a reviewable change report. No real money moves. Use a fresh `--out` directory
-to rerun either example; existing outputs are never overwritten.
-
-## Run a genuine native-agent pilot
-
-The operator workflow is now command-driven. From this checkout:
-
-```bash
-python -m pip install -r examples/cachetools-domain/requirements-case.txt
-python examples/cachetools-domain/pilot.py prepare --out "$HOME/ontologyex-native-pilot-v2"
-python examples/cachetools-domain/pilot.py status "$HOME/ontologyex-native-pilot-v2"
-```
-
-Open the generated `project/` in a fresh, signed-in Claude Code session and paste
-`operator/ONBOARDING-PROMPT.txt`. The project contains only pinned sources and installed
-extraction tooling, not a prebuilt model, reference solution, or grading tests. The
-scripts never start a model or copy credentials. A detected host binary is not an
-authentication or activation check.
-
-The [native pilot runbook](docs/native-pilot.md) covers private run capture, a separate
-implementation project after review, and explicit grading of the submitted adapter
-using the existing acceptance cases. The grader requires reviewed code, an acknowledgment
-flag, and a disposable environment; its bounded child process is **not an OS sandbox**.
-Native-agent comparisons remain `NOT_RUN` until actual reviewed results exist.
-
-## Bounded authoring, not endless retries
-
-The guided driver records one initial submission and at most two correction attempts.
-Each attempt freezes the submitted files and records diagnostics. Process interruptions
-consume a slot; recovery requires acknowledgment that the earlier process is not running.
-
-```bash
-python ontology-extraction/scripts/onboard.py status /path/to/session
-python ontology-extraction/scripts/onboard.py attempt /path/to/session
-python ontology-extraction/scripts/onboard.py handoff /path/to/session \
-  --task TASK_ID --out /path/to/new-handoff
-```
-
-A candidate can be structurally valid and still need semantic review. Unknowns, conflicts,
-inferred rules, and unsupported conditions must not be removed simply to obtain a pass.
-The limit bounds submissions to the driver, not arbitrary host-agent tokens or off-tool actions.
-No command approves, promotes, or deploys a candidate.
-
-## Evidence without manually copying hashes
-
-```bash
-python ontology-extraction/scripts/evidence.py add /path/to/session/workspace \
-  --path docs/policy.md --start 12 --end 16 --id E-policy --kind requirement
-```
-
-The helper copies an exact source span and digest into the authoring contract. `show` displays
-numbered source lines; `record` emits JSON without changing the contract. Existing evidence IDs
-cannot be silently repointed. Someone must still review whether the span supports the claim.
-
-## Business operating picture
-
-```bash
-python examples/operating-picture/demo.py --serve   # then open http://127.0.0.1:8765/business
-```
-
-One screen joins domain skills to the system map: which business actions are at
-risk and why, which objects depend on a failing system, open review questions,
-and how far each rule's evidence was checked. Health is the source-reported status
-of operator-linked systems, not proof that an action works. The demo data is
-synthetic. See [operating picture](docs/operating-picture.md).
-
-For your own project, the installed skill includes the business screen. After onboarding
-a workflow, ask your agent:
-
-```text
-/ontology-extraction Show my business screen for this repository. Suggest which systems
-run each code binding and let me confirm the links.
-```
-
-For the wider business story (users, journeys, money flows, and where they can break),
-the **Business X-Ray** preview compiles authored, source-linked blueprints into one offline
-page. See [Business X-Ray](business/README.md).
-
-The **command center** (`/command`) is where to start: everything that needs attention,
-big or small, ranked by importance with the factors behind each score (how bad, how much
-of the business reaches it, whether money moves through it), the next step for each, how
-much of the business can be seen at all, and what a business in its field should be able
-to see. The **weekly digest** (`/digest`) says what moved since last week: new, fixed,
-worse, better and longest open, the decisions people made, and the code shipped with the
-business it touched, ready to paste as Markdown. **Owners** (`/owners`) says who answers for each
-business action, system and supplier: declared in CODEOWNERS (line cited) or inferred from
-who changes the code, with the gaps nobody owns and the code only one person knows. **Compliance** (`/compliance`) maps SOC 2, PCI DSS,
-HIPAA and GDPR to what the code shows, control by control with lines cited, and says what
-only a person can provide; an evidence map for preparing an audit, not an audit. Every business object, action and system also has an **entity page** (`/entity`): why
-it exists, what a person confirmed and what is only inferred, what relies on it, and
-the files behind each relationship. A confirmation records the hashes of the files it
-rested on; when one changes, the link waits for a person to re-confirm it. Before a change
-merges, `/impact` (or `change_impact.py --markdown`) shows what it touches in the
-business and what relies on it. `/suppliers` maps the outside companies it runs on
-(payments, sign-in, email, cloud, AI, shipping, tax, ...), what relies on each, and the
-critical ones where only one is declared. Agents get the same model through an MCP server
-(`agent_tools.py`) whose tools read, or propose a link, a dependency or a business rule for a person to decide, under a
-per-agent policy with every call audited. See [entity context](ontology-extraction/references/entity-context.md)
-and [what OntologyEX took from Macro](docs/macro-comparison.md).
-
-Live health comes from real telemetry: `feeds.py` receives OpenTelemetry traces and
-polls Prometheus and HTTP health checks (`python examples/operating-picture/live.py`).
-For your own repository, `feed_setup.py propose` lists the feeds its compose files
-declare, with the line for each; you accept the ones to watch, and `operate.py up`
-starts the feeds and the business screen together. No traces yet? `otel_setup.py run
---service web -- npm start` starts a Node or Python service with OpenTelemetry and no
-code change. When services send traces, calls
-between them that the repository does not declare show up as suggested dependencies;
-a confirmed one carries possible impact on the map like a declared one. See
-[live feeds](docs/live-feeds.md).
-
-The same jobs also run on an optional Rust engine: live feeds with about 18× the
-trace throughput in a fifth of the memory, and repository discovery about 15× faster,
-with answers CI checks against Python on every change. Install prebuilt binaries
-with `python ontology-extraction/scripts/fetch_engine.py`. See [Rust engine](docs/rust-engine.md).
-
-Optional decision models (Jev or Clef) speed up the proposal steps: source selection,
-link routing, review triage, conflict candidates, wording checks, and an **Ask** box that
-routes questions to the right view. They never make the proven decisions. See
-[decision models](docs/decision-models.md).
-
-Links are suggested from names and paths and applied only when a person confirms
-them. The health rollup, grade ladder, and link decisions are implemented in Python
-and Rust, proven in Lean and Bend, and cross-checked in CI. See
-[business verification](docs/business-verification.md).
-
-## Grades, wording, and queries
-
-- **Evidence grades:** `evidence_grade.py` reports an ordinal G0–G4 grade per rule from
-  recorded review and behavior-check events. No numbers, no approvals; nothing reaches G4
-  until a tool observes fresh-agent use. See [evidence grades](ontology-extraction/references/evidence-grades.md).
-- **Rule wording:** `statement_lint.py` gives advisory, STE-style warnings for statements that
-  can be read two ways. See [rule wording](ontology-extraction/references/rule-wording.md).
-- **SPARQL:** `rdf_export.py` exports declarations, evidence, rules, unknowns, and conflicts
-  as N-Triples; `examples/sparql/` has queries tested with the optional sparq engine.
-  See [RDF interchange](docs/rdf-interop.md).
-
-## Existing compiler and four-layer method
-
-The original method remains intact in [METHOD.md](ontology-extraction/METHOD.md):
-upper anchors → domain nouns/relations → task actions/conditions → application bindings.
-Use the [portable entry point](AGENT_SKILL.md) for either guided skills or ontology-only outputs.
-
-`domain_skill.py` still provides `prepare`, `build`, `verify`, `freshness`, and `compare`.
-The [contract reference](ontology-extraction/references/domain-skill.md) documents direct use.
-The five original modeling examples remain under `examples/eval-*`; they are not agent benchmarks.
-
-```bash
-python ontology-extraction/scripts/scaffold.py validate examples/eval-1-stripe/stripe-support-agent-ontology
-python ontology-extraction/scripts/domain_skill.py freshness WORKSPACE --repo ORIGINAL_REPO
-python ontology-extraction/scripts/domain_skill.py compare OLD_SKILL NEW_SKILL
-```
-
-## Checks are not permissions
-
-Generated checkers use bounded typed comparisons, not arbitrary code or model calls.
-`CHECKS_PASS` only describes modeled conditions on supplied inputs. Unknown/manual conditions
-produce `NEEDS_REVIEW`; failed conditions produce `CHECKS_FAIL`. Every result leaves
-`execution_authorized: false`. The consuming application owns authenticated authorization,
-current state, concurrency, atomicity, idempotency, and integration safety.
-
-Source text is untrusted data. Secret-name filtering is not an exhaustive secret scanner.
-Fingerprints are not signatures; session files and trial folders are not an OS security sandbox.
-Keep private snapshots out of commits and use proper isolation for untrusted execution.
-
-## Experimental: traces → ontology candidates
-
-OntologyEX now includes a bounded, offline prototype to extract **observed** object types,
-actions, tool relationships and evidence lineages from normalized agent spans. These are
-**unreviewed candidates**, not independently confirmed policy or operational authorization.
-
-```bash
-python ontology-extraction/scripts/trace_extract.py \
-  examples/trace-to-ontology/demo.jsonl --out build/trace-ontology-draft
-```
-
-See [the trace format, privacy boundary and roadmap](ontology-extraction/references/trace-to-ontology.md).
-Raw prompt/tool inputs and outputs are forbidden; neither agents nor source files are executed.
-The prototype does not interpret natural-language transcripts automatically or grant execution rights.
-
-## Contributing and verification
-
-```bash
-python -m pip install -r examples/cachetools-domain/requirements-case.txt
-python -m unittest discover -s tests -v
-```
-
-CI runs the suite on Python 3.11 and 3.13, validates the original examples, exercises the payments
-update demo and report reproducibility, and runs the pinned-source onboarding case. The installed
-package is exercised from an unrelated working directory. No API keys or model calls are needed.
-A useful contribution is a scoped real-source example, a failing behavioral case, or a documented
-fresh-agent run with comparable baselines. Do not treat compiler success as proof of model quality.
-
-Useful for your agent stack? Star the repo to follow worked examples and releases.
+A change meant to alter an answer is made with `python tests/golden.py update --reason "why"`.
+Useful contributions: a scoped real-source example, a failing behavioral case, or a documented
+fresh-agent run with comparable baselines. Working on the kit itself: see the end of [AGENTS.md](AGENTS.md).
 
 ## License
 
