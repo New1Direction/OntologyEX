@@ -38,6 +38,7 @@ import command_center
 import digest
 import ownership
 import compliance
+import operations
 import background_scans
 import stale_view
 import github_discovery
@@ -890,8 +891,13 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
           allow_link_decisions: bool = False, decision_model: bool = False,
           discovery_engine: str = "python", dependencies: Path | None = None,
           print_bundle: bool = False, proposals: Path | None = None, rules_file: Path | None = None,
-          history: Path | None = None, history_seconds: int = 300) -> None:
+          history: Path | None = None, history_seconds: int = 300,
+          operations_dir: Path | None = None) -> None:
     check(0 <= port <= 65535, "invalid port")
+    # The business's own records (exports, pulled aggregates), read as weekly aggregates only.
+    if operations_dir is None and repo is not None:
+        operations_dir = repo / ".ontologyex" / "operations"
+    operations_cache: dict = {}
     check(view_engine in ("python", "rust"), "unsupported graph view backend")
     native_view = native_view_bridge.NativeView() if view_engine == "rust" else None
 
@@ -1163,11 +1169,22 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 "agent_dependency_proposals": dependency_suggest.read_proposals(proposals),
                 "suppliers": supplier_report()}
 
+    def operations_report(data: dict) -> dict:
+        """The operations ledger, read again only when a file in the folder or the week changed;
+        compared each time with the model and code as they are now."""
+        now = datetime.now(timezone.utc)
+        key = (operations.week_of(now), operations.folder_revision(operations_dir))
+        if operations_cache.get("key") != key:
+            operations_cache["key"], operations_cache["report"] = key, operations.report(operations_dir, now=now)
+        found = operations_cache["report"]
+        return operations.with_comparison(found, list(entity_context._entities(data).values()))
+
     def bundle() -> dict:
         """The model, with who owns each part of it."""
         data = model()
         data["ownership"] = ownership.report(data, scanner.result("ownership")[0] if scanner is not None else None)
         data["compliance"] = compliance.report(data, scanner.result("compliance")[0] if scanner is not None else None)
+        data["operations"] = operations_report(data)
         return data
 
     if print_bundle:  # the same assembly the server answers from, for tests, parity and agents offline
@@ -1340,6 +1357,27 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 except graph_view_api.ViewError:
                     payload, code = b'{"status":"INVALID_QUERY"}', 400
                 except (RoomError, DomainError, discover_repo.DiscoveryError,
+                        github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
+            elif route.path == "/operations" and not route.query:
+                page = (Path(__file__).resolve().parent / "operations_page.html").read_bytes()
+                payload, mime, code = page, "text/html; charset=utf-8", 200
+            elif route.path == "/api/operations":  # the business's own records, as weekly aggregates
+                mime = "application/json; charset=utf-8"
+                try:
+                    params = parse_qs(route.query, strict_parsing=True, max_num_fields=1) if route.query else {}
+                    shape = params.get("format", ["json"])
+                    if not set(params) <= {"format"} or len(shape) != 1 or shape[0] not in ("json", "markdown"):
+                        raise graph_view_api.ViewError("operations takes format")
+                    answer = bundle()["operations"]
+                    if shape[0] == "markdown":
+                        payload, mime = operations.markdown(answer).encode(), "text/markdown; charset=utf-8"
+                    else:
+                        payload = json.dumps(answer, sort_keys=True).encode()
+                    code = 200
+                except graph_view_api.ViewError:
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, DomainError, discover_repo.DiscoveryError, operations.OperationsError,
                         github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
                     payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
             elif route.path == "/owners" and not route.query:
@@ -1742,6 +1780,9 @@ def main():
                         help="append the command-center ranking to this JSON-lines file when it changes "
                              "(and once a day), for the weekly digest at /digest")
     parser.add_argument("--history-seconds", type=int, default=300, help="how often to check the ranking")
+    parser.add_argument("--operations", type=Path, default=None,
+                        help="the business's own records: exports and pulled aggregates, read as weekly "
+                             "aggregates only (default: REPO/.ontologyex/operations)")
     parser.add_argument("--allow-link-decisions", action="store_true",
                         help="let the local business page confirm or reject link and dependency suggestions")
     parser.add_argument("--decision-model", action="store_true",
@@ -1790,7 +1831,7 @@ def main():
                   allow_link_decisions=args.allow_link_decisions,
                   decision_model=args.decision_model, dependencies=args.dependencies,
                   print_bundle=args.bundle_only, proposals=args.proposals, rules_file=args.rules,
-                  history=args.history, history_seconds=args.history_seconds)
+                  history=args.history, history_seconds=args.history_seconds, operations_dir=args.operations)
         return 0
     except (OSError, RoomError, discover_repo.DiscoveryError,
             github_discovery.GitHubDiscoveryError, snapshot_store.SnapshotError,

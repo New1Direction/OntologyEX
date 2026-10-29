@@ -166,3 +166,16 @@ The control room binds to loopback only. Links, health, and model answers are
 not approvals: every result keeps `execution_authorized: false`. Do not report
 `REPORTED OK` as "the action works", and do not hide `UNKNOWN`, `STALE`, or
 `UNLINKED` items.
+
+## The business's own records (operations)
+
+What the business actually does comes from its records, not its code. Ask the user for
+exports from their payment processor (payments, refunds, disputes, payouts, subscriptions,
+invoices) and have them put the files in `REPO/.ontologyex/operations/`; `/operations` and
+`operations_status` read them as weekly aggregates per currency. Never copy a record, a
+customer, or an identifier into anything you write: report the aggregates and signals.
+A pull (`operations.py pull stripe`) goes over the network and needs a restricted, read-only
+key the user sets in their own environment: ask first, never ask for the key in chat, and
+never use a secret key. When a file is not recognized, write its `operations.json` entry
+from the column names the page lists. See `docs/operations.md`.
+

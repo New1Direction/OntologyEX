@@ -6,7 +6,7 @@
   "better": 0,
   "fixed": 1,
   "new": 2,
-  "still_open": 10,
+  "still_open": 19,
   "worse": 0
  },
  "coverage": [
@@ -84,7 +84,7 @@
    "title": "worker reports an error"
   }
  ],
- "headline": "Last 7 days: 2 new (2 critical), 1 fixed, 10 unchanged. Longest open: IssueRefund is at risk (critical, 9 days). 1 decision made.",
+ "headline": "Last 7 days: 2 new (2 critical), 1 fixed, 19 unchanged. Longest open: Payment is possibly impacted (critical, 9 days). 1 decision made.",
  "history_snapshots": 1,
  "kind": "WEEKLY_DIGEST",
  "kpis": [
@@ -143,6 +143,57 @@
    "category": "Business at risk",
    "factors": [
     {
+     "detail": "a system it runs on depends on a failing one",
+     "factor": "severity",
+     "points": 40
+    },
+    {
+     "detail": "3 business object(s) or action(s) reach it: ApproveException, IssueRefund, Payment",
+     "factor": "reach",
+     "points": 24
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "75ff09e831c0243c",
+   "kind": "POSSIBLY_IMPACTED",
+   "level": "CRITICAL",
+   "level_before": "CRITICAL",
+   "links": [
+    "payments-domain:object:Payment",
+    "discovery:service:compose.yml:api",
+    "discovery:service:compose.yml:ledger"
+   ],
+   "next_step": "Follow the dependency to the failing system; the impact is possible, not confirmed.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": {
+    "basis": null,
+    "owner": null,
+    "risks": [],
+    "standing": "UNKNOWN",
+    "status": "NO_OWNER",
+    "through": null
+   },
+   "score": 79,
+   "score_before": 79,
+   "standing": "SOURCE",
+   "subject": {
+    "id": "payments-domain:object:Payment",
+    "kind": "business_object",
+    "label": "Payment",
+    "layer": "business"
+   },
+   "title": "Payment is possibly impacted",
+   "why": "api depends on failing payments."
+  },
+  {
+   "category": "Business at risk",
+   "factors": [
+    {
      "detail": "a linked system reports an error",
      "factor": "severity",
      "points": 55
@@ -240,6 +291,69 @@
    },
    "title": "Refund is at risk",
    "why": "Linked system payments reports error."
+  },
+  {
+   "category": "Operations",
+   "factors": [
+    {
+     "detail": "refunds take a growing share of what customers pay",
+     "factor": "severity",
+     "points": 45
+    },
+    {
+     "detail": "2 business object(s) or action(s) reach it: IssueRefund, Refund",
+     "factor": "reach",
+     "points": 16
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "2a1fcdacbaf81b29",
+   "kind": "REFUND_RATE_RISING",
+   "level": "CRITICAL",
+   "level_before": "CRITICAL",
+   "links": [
+    "payments-domain:object:Refund",
+    "payments-domain:action:IssueRefund"
+   ],
+   "next_step": "Read the refund reasons on the Operations page and find what changed in that journey.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 76,
+   "score_before": 76,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Refund rate rising (USD)",
+   "why": "Refunds were 6.2% of payments in the last 4 weeks, 0.4% in the 4 before."
+  },
+  {
+   "category": "Operations",
+   "factors": [
+    {
+     "detail": "disputes wait for a response, and an unanswered dispute is lost",
+     "factor": "severity",
+     "points": 65
+    }
+   ],
+   "id": "aeb2b64df95d6e3d",
+   "kind": "DISPUTES_OPEN",
+   "level": "HIGH",
+   "level_before": "HIGH",
+   "links": [],
+   "next_step": "Answer each open dispute in the payment processor's dashboard before its evidence is due.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 65,
+   "score_before": 65,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Disputes waiting for a response (USD)",
+   "why": "2 dispute(s) were open or awaiting a response when exported; an unanswered dispute is lost."
   }
  ],
  "new": [
@@ -291,6 +405,40 @@
    "why": "payments is in error and 4 business item(s) rely on it."
   },
   {
+   "category": "Operations",
+   "factors": [
+    {
+     "detail": "a payout failed: money did not reach the bank",
+     "factor": "severity",
+     "points": 65
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "1358f67382c05e1b",
+   "kind": "PAYOUT_FAILED",
+   "level": "CRITICAL",
+   "links": [],
+   "next_step": "Check the bank account payouts go to, then have the processor retry the payout.",
+   "open_days": 0,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 80,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "A payout failed (USD)",
+   "why": "1 payout(s) failed in the last 4 weeks: money did not reach the bank."
+  }
+ ],
+ "schema_version": 1,
+ "semantics": "COMPARES_RANKINGS_NOT_OUTCOMES",
+ "since": "<time>",
+ "status": "OK",
+ "still_open": [
+  {
    "category": "Business at risk",
    "factors": [
     {
@@ -312,13 +460,14 @@
    "id": "75ff09e831c0243c",
    "kind": "POSSIBLY_IMPACTED",
    "level": "CRITICAL",
+   "level_before": "CRITICAL",
    "links": [
     "payments-domain:object:Payment",
     "discovery:service:compose.yml:api",
     "discovery:service:compose.yml:ledger"
    ],
    "next_step": "Follow the dependency to the failing system; the impact is possible, not confirmed.",
-   "open_days": 0,
+   "open_days": 9,
    "open_since": "<time>",
    "owner": {
     "basis": null,
@@ -329,6 +478,7 @@
     "through": null
    },
    "score": 79,
+   "score_before": 79,
    "standing": "SOURCE",
    "subject": {
     "id": "payments-domain:object:Payment",
@@ -338,13 +488,7 @@
    },
    "title": "Payment is possibly impacted",
    "why": "api depends on failing payments."
-  }
- ],
- "schema_version": 1,
- "semantics": "COMPARES_RANKINGS_NOT_OUTCOMES",
- "since": "<time>",
- "status": "OK",
- "still_open": [
+  },
   {
    "category": "Business at risk",
    "factors": [
@@ -448,6 +592,69 @@
    "why": "Linked system payments reports error."
   },
   {
+   "category": "Operations",
+   "factors": [
+    {
+     "detail": "refunds take a growing share of what customers pay",
+     "factor": "severity",
+     "points": 45
+    },
+    {
+     "detail": "2 business object(s) or action(s) reach it: IssueRefund, Refund",
+     "factor": "reach",
+     "points": 16
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "2a1fcdacbaf81b29",
+   "kind": "REFUND_RATE_RISING",
+   "level": "CRITICAL",
+   "level_before": "CRITICAL",
+   "links": [
+    "payments-domain:object:Refund",
+    "payments-domain:action:IssueRefund"
+   ],
+   "next_step": "Read the refund reasons on the Operations page and find what changed in that journey.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 76,
+   "score_before": 76,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Refund rate rising (USD)",
+   "why": "Refunds were 6.2% of payments in the last 4 weeks, 0.4% in the 4 before."
+  },
+  {
+   "category": "Operations",
+   "factors": [
+    {
+     "detail": "disputes wait for a response, and an unanswered dispute is lost",
+     "factor": "severity",
+     "points": 65
+    }
+   ],
+   "id": "aeb2b64df95d6e3d",
+   "kind": "DISPUTES_OPEN",
+   "level": "HIGH",
+   "level_before": "HIGH",
+   "links": [],
+   "next_step": "Answer each open dispute in the payment processor's dashboard before its evidence is due.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 65,
+   "score_before": 65,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Disputes waiting for a response (USD)",
+   "why": "2 dispute(s) were open or awaiting a response when exported; an unanswered dispute is lost."
+  },
+  {
    "category": "Business at risk",
    "factors": [
     {
@@ -492,6 +699,31 @@
    },
    "title": "ApproveException is possibly impacted",
    "why": "api depends on failing payments."
+  },
+  {
+   "category": "Operations",
+   "factors": [
+    {
+     "detail": "disputes are above a common warning level",
+     "factor": "severity",
+     "points": 45
+    }
+   ],
+   "id": "58627330c84baa9c",
+   "kind": "DISPUTE_RATE_HIGH",
+   "level": "MEDIUM",
+   "level_before": "MEDIUM",
+   "links": [],
+   "next_step": "Read the dispute reasons; fraud disputes call for stronger checks at checkout.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 45,
+   "score_before": 45,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Dispute rate high (USD)",
+   "why": "2 disputes against 240 payments (0.83%) in the last 4 weeks."
   },
   {
    "category": "Ownership",
@@ -541,6 +773,126 @@
    },
    "title": "Nobody owns IssueRefund",
    "why": "No CODEOWNERS rule covers its code, and nobody changed it in the last year."
+  },
+  {
+   "category": "Operations",
+   "factors": [
+    {
+     "detail": "the records show the business doing something the sources do not show",
+     "factor": "severity",
+     "points": 20
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "d9b4bc130617b014",
+   "kind": "HAPPENS_NOT_IN_CODE",
+   "level": "MEDIUM",
+   "level_before": "MEDIUM",
+   "links": [],
+   "next_step": "Find where it is handled (a person, a dashboard, another system) and write it down.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 35,
+   "score_before": 35,
+   "standing": "INFERRED",
+   "subject": null,
+   "title": "Invoices happen, and the sources do not show where",
+   "why": "The records show invoices, and nothing in the business model or the code is named for them: they are handled somewhere the sources do not show (by hand, in a supplier's dashboard, or in code outside this repository)."
+  },
+  {
+   "category": "Operations",
+   "factors": [
+    {
+     "detail": "invoices were written off as uncollectible",
+     "factor": "severity",
+     "points": 20
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "b5331184c8956f03",
+   "kind": "INVOICES_UNCOLLECTIBLE",
+   "level": "MEDIUM",
+   "level_before": "MEDIUM",
+   "links": [],
+   "next_step": "Review how unpaid invoices are chased, and when one is written off.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 35,
+   "score_before": 35,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Invoices written off (USD)",
+   "why": "10 invoice(s) marked uncollectible."
+  },
+  {
+   "category": "Operations",
+   "factors": [
+    {
+     "detail": "the records show the business doing something the sources do not show",
+     "factor": "severity",
+     "points": 20
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "b98a11958f6997fc",
+   "kind": "HAPPENS_NOT_IN_CODE",
+   "level": "MEDIUM",
+   "level_before": "MEDIUM",
+   "links": [],
+   "next_step": "Find where it is handled (a person, a dashboard, another system) and write it down.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 35,
+   "score_before": 35,
+   "standing": "INFERRED",
+   "subject": null,
+   "title": "Payouts happen, and the sources do not show where",
+   "why": "The records show payouts, and nothing in the business model or the code is named for them: they are handled somewhere the sources do not show (by hand, in a supplier's dashboard, or in code outside this repository)."
+  },
+  {
+   "category": "Operations",
+   "factors": [
+    {
+     "detail": "the records show the business doing something the sources do not show",
+     "factor": "severity",
+     "points": 20
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "e4d7798b581e49e5",
+   "kind": "HAPPENS_NOT_IN_CODE",
+   "level": "MEDIUM",
+   "level_before": "MEDIUM",
+   "links": [],
+   "next_step": "Find where it is handled (a person, a dashboard, another system) and write it down.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 35,
+   "score_before": 35,
+   "standing": "INFERRED",
+   "subject": null,
+   "title": "Subscriptions happen, and the sources do not show where",
+   "why": "The records show subscriptions, and nothing in the business model or the code is named for them: they are handled somewhere the sources do not show (by hand, in a supplier's dashboard, or in code outside this repository)."
   },
   {
    "category": "Unknowns",
@@ -659,6 +1011,31 @@
    "subject": null,
    "title": "SOC 2: 10 of 13 controls not fully shown in the sources",
    "why": "Business customers usually ask for a SOC 2 report before buying. Not fully shown: CC2.2 security responsibilities are communicated, CC6.1 sign-in and access are controlled, CC6.1-MFA multi-factor sign-in, CC6.7 data is encrypted in transit, CC6.8 unauthorized or vulnerable software is prevented, CC7.1 vulnerabilities are found...."
+  },
+  {
+   "category": "Operations",
+   "factors": [
+    {
+     "detail": "the records show the business doing something the sources do not show",
+     "factor": "severity",
+     "points": 20
+    }
+   ],
+   "id": "7df26638bad75069",
+   "kind": "HAPPENS_NOT_IN_CODE",
+   "level": "LOW",
+   "level_before": "LOW",
+   "links": [],
+   "next_step": "Find where it is handled (a person, a dashboard, another system) and write it down.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 20,
+   "score_before": 20,
+   "standing": "INFERRED",
+   "subject": null,
+   "title": "Disputes happen, and the sources do not show where",
+   "why": "The records show disputes, and nothing in the business model or the code is named for them: they are handled somewhere the sources do not show (by hand, in a supplier's dashboard, or in code outside this repository)."
   },
   {
    "category": "Visibility",

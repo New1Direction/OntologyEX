@@ -1,0 +1,1484 @@
+{
+ "code_vs_operations": [
+  {
+   "detail": "the records show payments, and the model names Payment",
+   "entities": [
+    {
+     "id": "payments-domain:object:Payment",
+     "label": "Payment"
+    }
+   ],
+   "finding": "SEEN_AND_MODELED",
+   "standing": "INFERRED",
+   "stream": "payments"
+  },
+  {
+   "detail": "the records show refunds, and the model names IssueRefund, Refund",
+   "entities": [
+    {
+     "id": "payments-domain:object:Refund",
+     "label": "Refund"
+    },
+    {
+     "id": "payments-domain:action:IssueRefund",
+     "label": "IssueRefund"
+    }
+   ],
+   "finding": "SEEN_AND_MODELED",
+   "standing": "INFERRED",
+   "stream": "refunds"
+  },
+  {
+   "detail": "the records show disputes, and nothing in the business model or the code is named for them: they are handled somewhere the sources do not show (by hand, in a supplier's dashboard, or in code outside this repository)",
+   "finding": "HAPPENS_NOT_IN_CODE",
+   "stream": "disputes"
+  },
+  {
+   "detail": "the records show payouts, and nothing in the business model or the code is named for them: they are handled somewhere the sources do not show (by hand, in a supplier's dashboard, or in code outside this repository)",
+   "finding": "HAPPENS_NOT_IN_CODE",
+   "stream": "payouts"
+  },
+  {
+   "detail": "the records show subscriptions, and nothing in the business model or the code is named for them: they are handled somewhere the sources do not show (by hand, in a supplier's dashboard, or in code outside this repository)",
+   "finding": "HAPPENS_NOT_IN_CODE",
+   "stream": "subscriptions"
+  },
+  {
+   "detail": "the records show invoices, and nothing in the business model or the code is named for them: they are handled somewhere the sources do not show (by hand, in a supplier's dashboard, or in code outside this repository)",
+   "finding": "HAPPENS_NOT_IN_CODE",
+   "stream": "invoices"
+  }
+ ],
+ "currencies": {
+  "usd": {
+   "first_week": "2026-W25",
+   "last_week": "2026-W40",
+   "recent": {
+    "disputes": {
+     "count": 2,
+     "open": 2,
+     "rate": 0.0083
+    },
+    "invoices": {
+     "open": 9,
+     "uncollectible": 10
+    },
+    "payments": {
+     "attempted": 252,
+     "failure_rate": 0.0476,
+     "refund_rate": 0.0622,
+     "refund_rate_before": 0.0036,
+     "succeeded": 240,
+     "taken": 19510.0,
+     "taken_before": 18971.0
+    },
+    "payouts": {
+     "count": 4,
+     "failed": 1
+    },
+    "subscriptions": {
+     "active": 76,
+     "ended": 0,
+     "ended_before": 7,
+     "mrr": 4295.0,
+     "started": 28
+    }
+   },
+   "streams": {
+    "disputes": [
+     {
+      "amount": null,
+      "count": 0,
+      "lost": 0,
+      "open": 0,
+      "reasons": null,
+      "records": 0,
+      "week": "2026-W25",
+      "withheld": true,
+      "won": 0
+     },
+     {
+      "amount": null,
+      "count": 0,
+      "lost": 0,
+      "open": 0,
+      "reasons": null,
+      "records": 0,
+      "week": "2026-W26",
+      "withheld": true,
+      "won": 0
+     },
+     {
+      "amount": null,
+      "count": 0,
+      "lost": 0,
+      "open": 0,
+      "reasons": null,
+      "records": 0,
+      "week": "2026-W27",
+      "withheld": true,
+      "won": 0
+     },
+     {
+      "amount": null,
+      "count": 0,
+      "lost": 0,
+      "open": 0,
+      "reasons": null,
+      "records": 0,
+      "week": "2026-W28",
+      "withheld": true,
+      "won": 0
+     },
+     {
+      "amount": null,
+      "count": 0,
+      "lost": 0,
+      "open": 0,
+      "reasons": null,
+      "records": 0,
+      "week": "2026-W29",
+      "withheld": true,
+      "won": 0
+     },
+     {
+      "amount": null,
+      "count": 0,
+      "lost": 0,
+      "open": 0,
+      "reasons": null,
+      "records": 0,
+      "week": "2026-W30",
+      "withheld": true,
+      "won": 0
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "lost": 0,
+      "open": 0,
+      "reasons": null,
+      "records": 1,
+      "week": "2026-W31",
+      "withheld": true,
+      "won": 1
+     },
+     {
+      "amount": null,
+      "count": 0,
+      "lost": 0,
+      "open": 0,
+      "reasons": null,
+      "records": 0,
+      "week": "2026-W32",
+      "withheld": true,
+      "won": 0
+     },
+     {
+      "amount": null,
+      "count": 0,
+      "lost": 0,
+      "open": 0,
+      "reasons": null,
+      "records": 0,
+      "week": "2026-W33",
+      "withheld": true,
+      "won": 0
+     },
+     {
+      "amount": null,
+      "count": 0,
+      "lost": 0,
+      "open": 0,
+      "reasons": null,
+      "records": 0,
+      "week": "2026-W34",
+      "withheld": true,
+      "won": 0
+     },
+     {
+      "amount": null,
+      "count": 0,
+      "lost": 0,
+      "open": 0,
+      "reasons": null,
+      "records": 0,
+      "week": "2026-W35",
+      "withheld": true,
+      "won": 0
+     },
+     {
+      "amount": null,
+      "count": 0,
+      "lost": 0,
+      "open": 0,
+      "reasons": null,
+      "records": 0,
+      "week": "2026-W36",
+      "withheld": true,
+      "won": 0
+     },
+     {
+      "amount": null,
+      "count": 0,
+      "lost": 0,
+      "open": 0,
+      "reasons": null,
+      "records": 0,
+      "week": "2026-W37",
+      "withheld": true,
+      "won": 0
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "lost": 0,
+      "open": 1,
+      "reasons": null,
+      "records": 1,
+      "week": "2026-W38",
+      "withheld": true,
+      "won": 0
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "lost": 0,
+      "open": 1,
+      "reasons": null,
+      "records": 1,
+      "week": "2026-W39",
+      "withheld": true,
+      "won": 0
+     },
+     {
+      "amount": null,
+      "count": 0,
+      "lost": 0,
+      "open": 0,
+      "reasons": null,
+      "records": 0,
+      "week": "2026-W40",
+      "withheld": true,
+      "won": 0
+     }
+    ],
+    "invoices": [
+     {
+      "count": 11,
+      "due": 529.0,
+      "open": 3,
+      "open_amount": 137.0,
+      "paid": 392.0,
+      "records": 11,
+      "uncollectible": 0,
+      "uncollectible_amount": 0.0,
+      "week": "2026-W25"
+     },
+     {
+      "count": 6,
+      "due": 194.0,
+      "open": 0,
+      "open_amount": 0.0,
+      "paid": 194.0,
+      "records": 6,
+      "uncollectible": 0,
+      "uncollectible_amount": 0.0,
+      "week": "2026-W26"
+     },
+     {
+      "count": 7,
+      "due": 533.0,
+      "open": 0,
+      "open_amount": 0.0,
+      "paid": 434.0,
+      "records": 7,
+      "uncollectible": 1,
+      "uncollectible_amount": 99.0,
+      "week": "2026-W27"
+     },
+     {
+      "count": 6,
+      "due": 274.0,
+      "open": 0,
+      "open_amount": 0.0,
+      "paid": 274.0,
+      "records": 6,
+      "uncollectible": 0,
+      "uncollectible_amount": 0.0,
+      "week": "2026-W28"
+     },
+     {
+      "count": 10,
+      "due": 350.0,
+      "open": 1,
+      "open_amount": 19.0,
+      "paid": 312.0,
+      "records": 10,
+      "uncollectible": 1,
+      "uncollectible_amount": 19.0,
+      "week": "2026-W29"
+     },
+     {
+      "count": 7,
+      "due": 533.0,
+      "open": 0,
+      "open_amount": 0.0,
+      "paid": 415.0,
+      "records": 7,
+      "uncollectible": 2,
+      "uncollectible_amount": 118.0,
+      "week": "2026-W30"
+     },
+     {
+      "count": 7,
+      "due": 533.0,
+      "open": 1,
+      "open_amount": 19.0,
+      "paid": 415.0,
+      "records": 7,
+      "uncollectible": 1,
+      "uncollectible_amount": 99.0,
+      "week": "2026-W31"
+     },
+     {
+      "count": 7,
+      "due": 533.0,
+      "open": 0,
+      "open_amount": 0.0,
+      "paid": 434.0,
+      "records": 7,
+      "uncollectible": 1,
+      "uncollectible_amount": 99.0,
+      "week": "2026-W32"
+     },
+     {
+      "count": 6,
+      "due": 194.0,
+      "open": 1,
+      "open_amount": 99.0,
+      "paid": 95.0,
+      "records": 6,
+      "uncollectible": 0,
+      "uncollectible_amount": 0.0,
+      "week": "2026-W33"
+     },
+     {
+      "count": 12,
+      "due": 628.0,
+      "open": 1,
+      "open_amount": 19.0,
+      "paid": 510.0,
+      "records": 12,
+      "uncollectible": 1,
+      "uncollectible_amount": 99.0,
+      "week": "2026-W34"
+     },
+     {
+      "count": 7,
+      "due": 373.0,
+      "open": 0,
+      "open_amount": 0.0,
+      "paid": 354.0,
+      "records": 7,
+      "uncollectible": 1,
+      "uncollectible_amount": 19.0,
+      "week": "2026-W35"
+     },
+     {
+      "count": 4,
+      "due": 316.0,
+      "open": 0,
+      "open_amount": 0.0,
+      "paid": 316.0,
+      "records": 4,
+      "uncollectible": 0,
+      "uncollectible_amount": 0.0,
+      "week": "2026-W36"
+     },
+     {
+      "count": 4,
+      "due": 156.0,
+      "open": 0,
+      "open_amount": 0.0,
+      "paid": 156.0,
+      "records": 4,
+      "uncollectible": 0,
+      "uncollectible_amount": 0.0,
+      "week": "2026-W37"
+     },
+     {
+      "count": 8,
+      "due": 552.0,
+      "open": 1,
+      "open_amount": 99.0,
+      "paid": 453.0,
+      "records": 8,
+      "uncollectible": 0,
+      "uncollectible_amount": 0.0,
+      "week": "2026-W38"
+     },
+     {
+      "count": 8,
+      "due": 392.0,
+      "open": 0,
+      "open_amount": 0.0,
+      "paid": 373.0,
+      "records": 8,
+      "uncollectible": 1,
+      "uncollectible_amount": 19.0,
+      "week": "2026-W39"
+     },
+     {
+      "count": 10,
+      "due": 510.0,
+      "open": 1,
+      "open_amount": 19.0,
+      "paid": 472.0,
+      "records": 10,
+      "uncollectible": 1,
+      "uncollectible_amount": 19.0,
+      "week": "2026-W40"
+     }
+    ],
+    "payments": [
+     {
+      "attempted": 63,
+      "decline_reasons": {
+       "expired_card": 4,
+       "insufficient_funds": 1
+      },
+      "failed": 5,
+      "fees": 173.61,
+      "gross": 4952.0,
+      "pending": 0,
+      "records": 63,
+      "refunded": 149.0,
+      "succeeded": 58,
+      "week": "2026-W25"
+     },
+     {
+      "attempted": 67,
+      "decline_reasons": {
+       "expired_card": 3,
+       "insufficient_funds": 5
+      },
+      "failed": 8,
+      "fees": 163.96,
+      "gross": 4461.0,
+      "pending": 0,
+      "records": 67,
+      "refunded": 49.0,
+      "succeeded": 59,
+      "week": "2026-W26"
+     },
+     {
+      "attempted": 57,
+      "decline_reasons": {
+       "card_declined": 2,
+       "expired_card": 2,
+       "insufficient_funds": 2
+      },
+      "failed": 6,
+      "fees": 140.96,
+      "gross": 3869.0,
+      "pending": 0,
+      "records": 57,
+      "refunded": 168.0,
+      "succeeded": 51,
+      "week": "2026-W27"
+     },
+     {
+      "attempted": 63,
+      "decline_reasons": {
+       "card_declined": 1,
+       "insufficient_funds": 2
+      },
+      "failed": 3,
+      "fees": 170.42,
+      "gross": 5090.0,
+      "pending": 0,
+      "records": 63,
+      "refunded": 0.0,
+      "succeeded": 60,
+      "week": "2026-W28"
+     },
+     {
+      "attempted": 60,
+      "decline_reasons": {
+       "card_declined": 1,
+       "insufficient_funds": 2
+      },
+      "failed": 3,
+      "fees": 139.16,
+      "gross": 3993.0,
+      "pending": 0,
+      "records": 60,
+      "refunded": 19.0,
+      "succeeded": 57,
+      "week": "2026-W29"
+     },
+     {
+      "attempted": 61,
+      "decline_reasons": {
+       "card_declined": 5,
+       "expired_card": 1,
+       "insufficient_funds": 1
+      },
+      "failed": 7,
+      "fees": 171.33,
+      "gross": 4616.0,
+      "pending": 0,
+      "records": 61,
+      "refunded": 0.0,
+      "succeeded": 54,
+      "week": "2026-W30"
+     },
+     {
+      "attempted": 64,
+      "decline_reasons": {
+       "card_declined": 2,
+       "expired_card": 3,
+       "insufficient_funds": 1
+      },
+      "failed": 6,
+      "fees": 156.19,
+      "gross": 4442.0,
+      "pending": 0,
+      "records": 64,
+      "refunded": 19.0,
+      "succeeded": 58,
+      "week": "2026-W31"
+     },
+     {
+      "attempted": 66,
+      "decline_reasons": {
+       "card_declined": 2,
+       "expired_card": 3,
+       "insufficient_funds": 2
+      },
+      "failed": 7,
+      "fees": 178.48,
+      "gross": 4761.0,
+      "pending": 0,
+      "records": 66,
+      "refunded": 19.0,
+      "succeeded": 59,
+      "week": "2026-W32"
+     },
+     {
+      "attempted": 60,
+      "decline_reasons": {
+       "expired_card": 1,
+       "insufficient_funds": 1
+      },
+      "failed": 2,
+      "fees": 163.52,
+      "gross": 4902.0,
+      "pending": 0,
+      "records": 60,
+      "refunded": 49.0,
+      "succeeded": 58,
+      "week": "2026-W33"
+     },
+     {
+      "attempted": 69,
+      "decline_reasons": {
+       "card_declined": 5,
+       "expired_card": 2,
+       "insufficient_funds": 2
+      },
+      "failed": 9,
+      "fees": 182.48,
+      "gross": 4620.0,
+      "pending": 0,
+      "records": 69,
+      "refunded": 0.0,
+      "succeeded": 60,
+      "week": "2026-W34"
+     },
+     {
+      "attempted": 69,
+      "decline_reasons": {
+       "card_declined": 1,
+       "expired_card": 3,
+       "insufficient_funds": 3
+      },
+      "failed": 7,
+      "fees": 175.81,
+      "gross": 4688.0,
+      "pending": 0,
+      "records": 69,
+      "refunded": 0.0,
+      "succeeded": 62,
+      "week": "2026-W35"
+     },
+     {
+      "attempted": 62,
+      "decline_reasons": {
+       "card_declined": 1,
+       "expired_card": 2,
+       "insufficient_funds": 4
+      },
+      "failed": 7,
+      "fees": 185.52,
+      "gross": 5175.0,
+      "pending": 0,
+      "records": 62,
+      "refunded": 99.0,
+      "succeeded": 55,
+      "week": "2026-W36"
+     },
+     {
+      "attempted": 69,
+      "decline_reasons": {
+       "expired_card": 1
+      },
+      "failed": 1,
+      "fees": 183.64,
+      "gross": 5572.0,
+      "pending": 0,
+      "records": 69,
+      "refunded": 633.0,
+      "succeeded": 68,
+      "week": "2026-W37"
+     },
+     {
+      "attempted": 59,
+      "decline_reasons": {
+       "expired_card": 2
+      },
+      "failed": 2,
+      "fees": 146.43,
+      "gross": 4323.0,
+      "pending": 0,
+      "records": 59,
+      "refunded": 314.0,
+      "succeeded": 57,
+      "week": "2026-W38"
+     },
+     {
+      "attempted": 62,
+      "decline_reasons": {
+       "card_declined": 1,
+       "insufficient_funds": 1
+      },
+      "failed": 2,
+      "fees": 151.59,
+      "gross": 4440.0,
+      "pending": 0,
+      "records": 62,
+      "refunded": 466.0,
+      "succeeded": 60,
+      "week": "2026-W39"
+     },
+     {
+      "attempted": 64,
+      "decline_reasons": {
+       "card_declined": 3,
+       "insufficient_funds": 2
+      },
+      "failed": 5,
+      "fees": 173.3,
+      "gross": 4931.0,
+      "pending": 0,
+      "records": 64,
+      "refunded": 216.0,
+      "succeeded": 59,
+      "week": "2026-W40"
+     }
+    ],
+    "payouts": [
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "failed_amount": null,
+      "records": 1,
+      "week": "2026-W25",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "failed_amount": null,
+      "records": 1,
+      "week": "2026-W26",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "failed_amount": null,
+      "records": 1,
+      "week": "2026-W27",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "failed_amount": null,
+      "records": 1,
+      "week": "2026-W28",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "failed_amount": null,
+      "records": 1,
+      "week": "2026-W29",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "failed_amount": null,
+      "records": 1,
+      "week": "2026-W30",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "failed_amount": null,
+      "records": 1,
+      "week": "2026-W31",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "failed_amount": null,
+      "records": 1,
+      "week": "2026-W32",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "failed_amount": null,
+      "records": 1,
+      "week": "2026-W33",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "failed_amount": null,
+      "records": 1,
+      "week": "2026-W34",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "failed_amount": null,
+      "records": 1,
+      "week": "2026-W35",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "failed_amount": null,
+      "records": 1,
+      "week": "2026-W36",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "failed_amount": null,
+      "records": 1,
+      "week": "2026-W37",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "failed_amount": null,
+      "records": 1,
+      "week": "2026-W38",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 1,
+      "failed_amount": null,
+      "records": 1,
+      "week": "2026-W39",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "failed_amount": null,
+      "records": 1,
+      "week": "2026-W40",
+      "withheld": true
+     }
+    ],
+    "refunds": [
+     {
+      "amount": null,
+      "count": 0,
+      "failed": 0,
+      "reasons": null,
+      "records": 0,
+      "week": "2026-W25",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 2,
+      "failed": 0,
+      "reasons": null,
+      "records": 2,
+      "week": "2026-W26",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 2,
+      "failed": 0,
+      "reasons": null,
+      "records": 2,
+      "week": "2026-W27",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 0,
+      "failed": 0,
+      "reasons": null,
+      "records": 0,
+      "week": "2026-W28",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 0,
+      "failed": 0,
+      "reasons": null,
+      "records": 0,
+      "week": "2026-W29",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "reasons": null,
+      "records": 1,
+      "week": "2026-W30",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "reasons": null,
+      "records": 1,
+      "week": "2026-W31",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "reasons": null,
+      "records": 1,
+      "week": "2026-W32",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 0,
+      "failed": 0,
+      "reasons": null,
+      "records": 0,
+      "week": "2026-W33",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "reasons": null,
+      "records": 1,
+      "week": "2026-W34",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 0,
+      "failed": 0,
+      "reasons": null,
+      "records": 0,
+      "week": "2026-W35",
+      "withheld": true
+     },
+     {
+      "amount": null,
+      "count": 1,
+      "failed": 0,
+      "reasons": null,
+      "records": 1,
+      "week": "2026-W36",
+      "withheld": true
+     },
+     {
+      "amount": 595.0,
+      "count": 5,
+      "failed": 0,
+      "reasons": {
+       "duplicate": 2,
+       "fraudulent": 1,
+       "requested_by_customer": 2
+      },
+      "records": 5,
+      "week": "2026-W37"
+     },
+     {
+      "amount": 235.0,
+      "count": 5,
+      "failed": 0,
+      "reasons": {
+       "fraudulent": 4,
+       "requested_by_customer": 1
+      },
+      "records": 5,
+      "week": "2026-W38"
+     },
+     {
+      "amount": 285.0,
+      "count": 5,
+      "failed": 0,
+      "reasons": {
+       "duplicate": 1,
+       "fraudulent": 1,
+       "requested_by_customer": 3
+      },
+      "records": 5,
+      "week": "2026-W39"
+     },
+     {
+      "amount": 514.0,
+      "count": 6,
+      "failed": 0,
+      "reasons": {
+       "duplicate": 3,
+       "fraudulent": 2,
+       "requested_by_customer": 1
+      },
+      "records": 6,
+      "week": "2026-W40"
+     }
+    ],
+    "subscriptions": [
+     {
+      "active": 5,
+      "canceled": 0,
+      "mrr": 238.5,
+      "new": 5,
+      "plans": {
+       "annual": 1,
+       "starter": 3,
+       "team": 1
+      },
+      "records": 5,
+      "week": "2026-W25"
+     },
+     {
+      "active": 8,
+      "canceled": 0,
+      "mrr": 439.0,
+      "new": 3,
+      "plans": {
+       "annual": 2,
+       "starter": 4,
+       "team": 2
+      },
+      "records": 3,
+      "week": "2026-W26"
+     },
+     {
+      "active": 19,
+      "canceled": 2,
+      "mrr": 1189.0,
+      "new": 11,
+      "plans": {
+       "annual": 8,
+       "starter": 7,
+       "team": 4
+      },
+      "records": 13,
+      "week": "2026-W27"
+     },
+     {
+      "active": 23,
+      "canceled": 0,
+      "mrr": 1265.0,
+      "new": 6,
+      "plans": {
+       "annual": 8,
+       "starter": 11,
+       "team": 4
+      },
+      "records": 6,
+      "week": "2026-W28"
+     },
+     {
+      "active": 30,
+      "canceled": 0,
+      "mrr": 1638.0,
+      "new": 7,
+      "plans": {
+       "annual": 8,
+       "starter": 15,
+       "team": 7
+      },
+      "records": 7,
+      "week": "2026-W29"
+     },
+     {
+      "active": 34,
+      "canceled": 1,
+      "mrr": 1874.0,
+      "new": 4,
+      "plans": {
+       "annual": 8,
+       "starter": 17,
+       "team": 9
+      },
+      "records": 5,
+      "week": "2026-W30"
+     },
+     {
+      "active": 37,
+      "canceled": 1,
+      "mrr": 1994.5,
+      "new": 4,
+      "plans": {
+       "annual": 9,
+       "starter": 19,
+       "team": 9
+      },
+      "records": 5,
+      "week": "2026-W31"
+     },
+     {
+      "active": 41,
+      "canceled": 2,
+      "mrr": 2214.0,
+      "new": 5,
+      "plans": {
+       "annual": 10,
+       "starter": 21,
+       "team": 10
+      },
+      "records": 7,
+      "week": "2026-W32"
+     },
+     {
+      "active": 45,
+      "canceled": 1,
+      "mrr": 2433.5,
+      "new": 6,
+      "plans": {
+       "annual": 11,
+       "starter": 23,
+       "team": 11
+      },
+      "records": 7,
+      "week": "2026-W33"
+     },
+     {
+      "active": 49,
+      "canceled": 1,
+      "mrr": 2700.0,
+      "new": 5,
+      "plans": {
+       "annual": 14,
+       "starter": 24,
+       "team": 11
+      },
+      "records": 6,
+      "week": "2026-W34"
+     },
+     {
+      "active": 51,
+      "canceled": 3,
+      "mrr": 2865.0,
+      "new": 3,
+      "plans": {
+       "annual": 16,
+       "starter": 24,
+       "team": 11
+      },
+      "records": 6,
+      "week": "2026-W35"
+     },
+     {
+      "active": 53,
+      "canceled": 0,
+      "mrr": 2983.0,
+      "new": 5,
+      "plans": {
+       "annual": 16,
+       "starter": 25,
+       "team": 12
+      },
+      "records": 5,
+      "week": "2026-W36"
+     },
+     {
+      "active": 55,
+      "canceled": 0,
+      "mrr": 3101.0,
+      "new": 2,
+      "plans": {
+       "annual": 16,
+       "starter": 26,
+       "team": 13
+      },
+      "records": 2,
+      "week": "2026-W37"
+     },
+     {
+      "active": 67,
+      "canceled": 0,
+      "mrr": 3726.5,
+      "new": 12,
+      "plans": {
+       "annual": 21,
+       "starter": 32,
+       "team": 14
+      },
+      "records": 12,
+      "week": "2026-W38"
+     },
+     {
+      "active": 76,
+      "canceled": 0,
+      "mrr": 4295.0,
+      "new": 9,
+      "plans": {
+       "annual": 26,
+       "starter": 35,
+       "team": 15
+      },
+      "records": 9,
+      "week": "2026-W39"
+     },
+     {
+      "active": 79,
+      "canceled": 1,
+      "mrr": 4495.5,
+      "new": 3,
+      "plans": {
+       "annual": 27,
+       "starter": 36,
+       "team": 16
+      },
+      "records": 4,
+      "week": "2026-W40"
+     }
+    ]
+   },
+   "subscriptions_now": {
+    "active": 78,
+    "canceled": 12
+   },
+   "totals": {
+    "disputes": {
+     "amount": 297.0,
+     "count": 3,
+     "lost": 0,
+     "open": 2,
+     "reasons": {
+      "fraudulent": 2,
+      "product_not_received": 1
+     },
+     "records": 3,
+     "won": 1
+    },
+    "invoices": {
+     "count": 120,
+     "due": 6600.0,
+     "open": 9,
+     "open_amount": 411.0,
+     "paid": 5599.0,
+     "records": 120,
+     "uncollectible": 10,
+     "uncollectible_amount": 590.0
+    },
+    "payments": {
+     "attempted": 1015,
+     "decline_reasons": {
+      "card_declined": 24,
+      "expired_card": 27,
+      "insufficient_funds": 29
+     },
+     "failed": 80,
+     "fees": 2656.4,
+     "gross": 74835.0,
+     "pending": 0,
+     "records": 1015,
+     "refunded": 2200.0,
+     "succeeded": 935
+    },
+    "payouts": {
+     "amount": 48786.0,
+     "count": 16,
+     "failed": 1,
+     "failed_amount": 3101.0,
+     "records": 16
+    },
+    "refunds": {
+     "amount": 2200.0,
+     "count": 30,
+     "failed": 0,
+     "reasons": {
+      "duplicate": 7,
+      "fraudulent": 11,
+      "requested_by_customer": 12
+     },
+     "records": 30
+    },
+    "subscriptions": {
+     "active": 79,
+     "canceled": 12,
+     "mrr": 4495.5,
+     "new": 90,
+     "plans": {
+      "annual": 27,
+      "starter": 36,
+      "team": 16
+     },
+     "records": 102
+    }
+   }
+  }
+ },
+ "execution_authorized": false,
+ "folder": "<root>/demo/business/.ontologyex/operations",
+ "kind": "OPERATIONS_LEDGER",
+ "overlaps": [],
+ "privacy": {
+  "identifiers_read": false,
+  "min_cell": 3,
+  "rows_kept": false,
+  "rule": "Only aggregates are kept. Amounts and breakdowns of a week with fewer than 3 records are withheld."
+ },
+ "schema_version": 1,
+ "signals": [
+  {
+   "currency": "usd",
+   "detail": "2 dispute(s) were open or awaiting a response when exported; an unanswered dispute is lost",
+   "level": "CRITICAL",
+   "signal": "DISPUTES_OPEN",
+   "stream": "disputes"
+  },
+  {
+   "currency": "usd",
+   "detail": "1 payout(s) failed in the last 4 weeks: money did not reach the bank",
+   "level": "CRITICAL",
+   "signal": "PAYOUT_FAILED",
+   "stream": "payouts"
+  },
+  {
+   "currency": "usd",
+   "detail": "2 disputes against 240 payments (0.83%) in the last 4 weeks",
+   "level": "HIGH",
+   "signal": "DISPUTE_RATE_HIGH",
+   "stream": "disputes"
+  },
+  {
+   "currency": "usd",
+   "detail": "refunds were 6.2% of payments in the last 4 weeks, 0.4% in the 4 before",
+   "level": "HIGH",
+   "signal": "REFUND_RATE_RISING",
+   "stream": "refunds"
+  },
+  {
+   "currency": "usd",
+   "detail": "10 invoice(s) marked uncollectible",
+   "level": "MEDIUM",
+   "signal": "INVOICES_UNCOLLECTIBLE",
+   "stream": "invoices"
+  }
+ ],
+ "sources": [
+  {
+   "bytes": 379,
+   "columns_not_read": 2,
+   "columns_used": [
+    "amount",
+    "created",
+    "currency",
+    "evidence_due",
+    "reason",
+    "status"
+   ],
+   "file": "disputes.csv",
+   "recognized_by": "file name and columns",
+   "rows": 3,
+   "rows_used": 3,
+   "sha256": "4f73b5d8b455defc0b8c51a52acc423306e9ac20c0db2d043fdb3a11603ecbfa",
+   "status": "READ",
+   "stream": "disputes"
+  },
+  {
+   "bytes": 12738,
+   "columns_not_read": 3,
+   "columns_used": [
+    "amount_due",
+    "amount_paid",
+    "created",
+    "currency",
+    "status"
+   ],
+   "file": "invoices.csv",
+   "recognized_by": "file name and columns",
+   "rows": 120,
+   "rows_used": 120,
+   "sha256": "5b47154af9ac62b0471327458e26b4bef87a49860b70d35fd1cd9a1e1ef68592",
+   "status": "READ",
+   "stream": "invoices"
+  },
+  {
+   "bytes": 155978,
+   "columns_not_read": 6,
+   "columns_used": [
+    "amount",
+    "amount_refunded",
+    "captured",
+    "created",
+    "currency",
+    "decline_reason",
+    "fee",
+    "status"
+   ],
+   "file": "payments.csv",
+   "recognized_by": "file name and columns",
+   "rows": 1015,
+   "rows_used": 1015,
+   "sha256": "c6a6e2c64383b787959d3194f7c285b3deae697069fce1be9f98bc7fa67c3000",
+   "status": "READ",
+   "stream": "payments"
+  },
+  {
+   "bytes": 1546,
+   "columns_not_read": 2,
+   "columns_used": [
+    "amount",
+    "arrival",
+    "created",
+    "currency",
+    "status"
+   ],
+   "file": "payouts.csv",
+   "recognized_by": "file name and columns",
+   "rows": 16,
+   "rows_used": 16,
+   "sha256": "6b75846e3c23600c4d9d131d3e275cb60a177420e7e6a2b05655b6f18a09de89",
+   "status": "READ",
+   "stream": "payouts"
+  },
+  {
+   "bytes": 3591,
+   "columns_not_read": 3,
+   "columns_used": [
+    "amount",
+    "created",
+    "currency",
+    "reason",
+    "status"
+   ],
+   "file": "refunds.csv",
+   "recognized_by": "file name and columns",
+   "rows": 30,
+   "rows_used": 30,
+   "sha256": "afd34f2148cfeb248dbf5160f1350de9989930f74e81fb51b19d446f65771dfa",
+   "status": "READ",
+   "stream": "refunds"
+  },
+  {
+   "bytes": 13578,
+   "columns_not_read": 5,
+   "columns_used": [
+    "amount",
+    "canceled",
+    "created",
+    "currency",
+    "interval",
+    "plan",
+    "quantity",
+    "start",
+    "status"
+   ],
+   "file": "subscriptions.csv",
+   "recognized_by": "file name and columns",
+   "rows": 90,
+   "rows_used": 90,
+   "sha256": "4edfd294b526f19fbc20d8b2880aab06fc3e0f63c428077193132e21c0710f28",
+   "status": "READ",
+   "stream": "subscriptions"
+  },
+  {
+   "bytes": 175,
+   "file": "bank/statement-october.csv",
+   "headers": [
+    "Posting Date",
+    "Narrative",
+    "Debit",
+    "Credit"
+   ],
+   "hint": "Add an entry for it in operations.json: which stream it is and which column holds each of amount, currency, created and status.",
+   "sha256": "962631eaea07a878514c808e76f84c269a6ef038bfbdb3e8c1f04e0311ce5aa7",
+   "status": "UNRECOGNIZED"
+  }
+ ],
+ "status": "OK",
+ "streams_present": [
+  "disputes",
+  "invoices",
+  "payments",
+  "payouts",
+  "refunds",
+  "subscriptions"
+ ],
+ "unrecognized": [
+  {
+   "bytes": 175,
+   "file": "bank/statement-october.csv",
+   "headers": [
+    "Posting Date",
+    "Narrative",
+    "Debit",
+    "Credit"
+   ],
+   "hint": "Add an entry for it in operations.json: which stream it is and which column holds each of amount, currency, created and status.",
+   "sha256": "962631eaea07a878514c808e76f84c269a6ef038bfbdb3e8c1f04e0311ce5aa7",
+   "status": "UNRECOGNIZED"
+  }
+ ],
+ "week_in_progress": "2026-W40"
+}

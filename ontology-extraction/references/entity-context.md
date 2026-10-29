@@ -233,6 +233,7 @@ running control room, `--bundle FILE` reads a file from
 | `weekly_digest` | read | what changed in the last N days: new, fixed, worse, better, decisions, code shipped |
 | `who_owns` | read | an entity's owner (CODEOWNERS line, or most commits in a year), or everyone and what they own |
 | `compliance_status` | read | SOC 2, PCI DSS, HIPAA, GDPR: what applies, each control's evidence (lines cited) or what a person provides |
+| `operations_status` | read | what the business's own records show, as weekly aggregates: payments, refunds, disputes, payouts, subscriptions, invoices, signals, and what the code does not show |
 | `analyze_change` | read | what a change (git refs, or a list of files) touches and what relies on it |
 | `propose_link` | additive | appends a link proposal; a person decides it |
 | `propose_dependency` | additive | appends "A depends on B" with a reason; a person decides it |

@@ -53,6 +53,9 @@ Then offer what fits:
   says what moved since last week (it records history in `REPO/.ontologyex`), and `/owners` says
   who answers for each part (CODEOWNERS, then git history), and `/compliance` maps SOC 2, PCI DSS,
   HIPAA and GDPR to the evidence in the code;
+  `/operations` shows what the business actually does from its own records (exports dropped in
+  `REPO/.ontologyex/operations`, kept as weekly aggregates only; a read-only pull needs their key and
+  their yes, see [operations](docs/operations.md));
   `feed_setup.py` adds health checks and `otel_setup.py` adds
   traces between services, one command per service with no code change (see
   [operating picture](ontology-extraction/references/operating-picture.md)).

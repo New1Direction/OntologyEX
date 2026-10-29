@@ -166,6 +166,15 @@ TOOLS = {
                        "or whether only a person can provide it (NEEDS_A_PERSON). An evidence map for preparing an "
                        "audit, not an audit or legal advice. Optional pack: soc2, pci, hipaa or gdpr.",
         "input": _schema({}, {"pack": _text("pack", "soc2, pci, hipaa or gdpr", 10)})},
+    "operations_status": {
+        "kind": READ_ONLY, "title": "What the records show",
+        "description": "What the business actually does, from its own records (payment-processor exports and "
+                       "read-only pulls), as weekly aggregates per currency: payments taken, refund, failure and "
+                       "dispute rates, payouts, recurring revenue and churn, invoices; the signals that need a person "
+                       "(each with its numbers); and what the records show that the business model or code does not "
+                       "name, and the reverse. Aggregates only: no customer, row or identifier is ever in it. Give "
+                       "weeks to include the weekly series too.",
+        "input": _schema({}, {"weeks": _text("weeks", "include the weekly series: yes", 3)})},
     "list_stale_decisions": {
         "kind": READ_ONLY, "title": "Decisions to re-check",
         "description": "Confirmed links whose evidence (the file hashes recorded when a person confirmed them) "
@@ -533,6 +542,16 @@ class Tools:
         found = dict(bundle.get("compliance") or {"status": "NOT_SCANNED", "packs": []})
         found["packs"] = [p for p in found.get("packs", []) if pack is None or p["id"] == pack]
         return self._out({**found, "execution_authorized": False}, hidden)  # cited paths pass the file policy too
+
+    def operations_status(self, args: dict) -> dict:
+        if args.get("weeks") not in (None, "yes"):
+            raise ToolError("INVALID_ARGUMENTS", "weeks is yes or absent")
+        bundle, hidden = self._model()
+        found = dict(bundle.get("operations") or {"status": "NO_OPERATIONS_FOLDER", "currencies": {}})
+        if args.get("weeks") is None:  # the headline figures, signals and findings; the series on request
+            found["currencies"] = {c: {k: v for k, v in cur.items() if k != "streams"}
+                                   for c, cur in found.get("currencies", {}).items()}
+        return self._out({**found, "execution_authorized": False}, hidden)
 
     def list_stale_decisions(self, args: dict) -> dict:
         bundle, hidden = self._model()
