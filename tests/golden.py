@@ -146,7 +146,8 @@ def demo_outputs(tmp: Path, engines: dict) -> tuple[dict, dict, str]:
     shutil.rmtree(folder)
     demo.write_operations(folder, NOW)
     bundle["operations"] = operations.with_comparison(operations.report(folder, now=NOW),
-                                                      list(entity_context._entities(bundle).values()))
+                                                      list(entity_context._entities(bundle).values()),
+                                                      bundle["suppliers"]["suppliers"])
     report = command_center.report(bundle)
     business = sorted(i for i, e in entity_context._entities(bundle).items() if e["layer"] == "business")
     changes = {"files": [{"path": "domain/payments.py"}]}

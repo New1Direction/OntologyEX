@@ -61,12 +61,14 @@ class DemoTests(Folder):
         by_file = {s["file"]: s for s in self.answer["sources"]}
         self.assertEqual({f: s.get("stream") for f, s in by_file.items() if s["status"] == "READ"},
                          {"payments.csv": "payments", "refunds.csv": "refunds", "disputes.csv": "disputes",
-                          "payouts.csv": "payouts", "subscriptions.csv": "subscriptions", "invoices.csv": "invoices"})
+                          "payouts.csv": "payouts", "subscriptions.csv": "subscriptions", "invoices.csv": "invoices",
+                          "bank/business-account.csv": "transactions", "bills.csv": "bills",
+                          "cloud/aws-cost-and-usage.csv": "cloud_costs"})
         self.assertNotIn("customer", " ".join(by_file["payments.csv"]["columns_used"]).lower())
         self.assertEqual(by_file["payments.csv"]["columns_not_read"], 6)
-        unknown = self.answer["unrecognized"][0]
-        self.assertEqual((unknown["file"], unknown["headers"]), ("bank/statement-october.csv",
-                                                                 ["Posting Date", "Narrative", "Debit", "Credit"]))
+        self.assertEqual(by_file["bank/business-account.csv"]["recognized_by"], "operations.json")
+        self.assertEqual(by_file["bank/business-account.csv"]["columns_matched_only"], ["description"])
+        self.assertEqual(self.answer["unrecognized"], [])
 
     def test_signals_from_complete_weeks(self):
         found = {s["signal"] for s in self.answer["signals"]}
@@ -99,6 +101,121 @@ class DemoTests(Folder):
         self.assertEqual(items["PAYOUT_FAILED"]["category"], "Operations")
         self.assertIn("money", [f["factor"] for f in items["REFUND_RATE_RISING"]["factors"]])
         self.assertEqual(items["REFUND_RATE_RISING"]["links"], ["a"])
+
+
+class SpendDemoTests(Folder):
+    def setUp(self):
+        super().setUp()
+        demo.write_operations(self.dir / "ops", NOW)
+        self.answer = ops.report(self.dir / "ops", now=NOW)
+        self.usd = self.answer["spend"]["currencies"]["usd"]
+
+    def test_no_person_payee_description_or_account_leaves_the_records(self):
+        text = json.dumps(self.answer)
+        for needle in ("Jordan", "Okafor", "Riley", "WEWORK", "STAPLES", "arn:aws", "ST-", "Hartwell", "aws.amazon.com"):
+            self.assertNotIn(needle, text, needle)
+        self.assertIsNone(re.search(r"\b\d{12}\b", text))  # no AWS account or resource number
+
+    def test_suppliers_categories_cloud_and_signals(self):
+        self.assertEqual([p["name"] for p in self.usd["suppliers_paid"]],
+                         ["Amazon Web Services", "Datadog", "Twilio", "SendGrid", "OpenAI"])
+        categories = self.usd["totals"]["transactions"]["categories"]
+        self.assertEqual(set(categories), {"payroll", "rent", "legal", "hosting", "software", "office", "refunds"})
+        self.assertEqual(set(self.usd["totals"]["cloud_costs"]["services"]),
+                         {"amazon elastic compute cloud", "amazon relational database service", "amazon simple storage service"})
+        found = {s["signal"] for s in self.answer["signals"]}
+        self.assertTrue({"SPEND_RISING", "CLOUD_COST_RISING", "BILLS_OVERDUE", "NEW_SUPPLIER_PAID",
+                         "PAYOUTS_NOT_IN_BANK"} <= found, found)
+
+    def test_the_missing_payout_is_exactly_the_gap(self):
+        import csv
+        rows = list(csv.reader((self.dir / "ops/payouts.csv").open()))[1:]
+        self.assertEqual(self.usd["reconciliation"]["gap"], float(rows[3][1]))  # the one the bank never got
+
+    def test_paid_against_used(self):
+        code = [{"name": "Stripe", "category": "payments"}, {"name": "SendGrid", "category": "email and messaging"},
+                {"name": "Sentry", "category": "analytics and monitoring"}]
+        found = {(f["finding"], f["supplier"]) for f in
+                 ops.with_comparison(self.answer, [], code)["spend"]["suppliers_vs_spend"]}
+        self.assertEqual(found, {("PAID_AND_IN_CODE", "SendGrid"), ("PAID_NOT_IN_CODE", "Amazon Web Services"),
+                                 ("PAID_NOT_IN_CODE", "Datadog"), ("PAID_NOT_IN_CODE", "Twilio"),
+                                 ("PAID_NOT_IN_CODE", "OpenAI"), ("IN_CODE_NOT_PAID", "Sentry")})  # Stripe: a processor
+        items = command_center.report({"state": {"nodes": [], "edges": []},
+                                       "operations": ops.with_comparison(self.answer, [], code)})["items"]
+        self.assertEqual({i["kind"] for i in items if i["category"] == "Spend"},
+                         {"PAYOUTS_NOT_IN_BANK", "BILLS_OVERDUE", "SPEND_RISING", "CLOUD_COST_RISING", "NEW_SUPPLIER_PAID",
+                          "PAID_NOT_IN_CODE", "IN_CODE_NOT_PAID"})
+
+
+class SpendFormatTests(Folder):
+    def test_debit_credit_columns_and_a_missing_currency(self):
+        write(self.dir, "statement.csv", "Posting Date,Narrative,Debit,Credit\n"
+              "2026-09-02,GOOGLE *CLOUD 77,310.00,\n2026-09-03,SQ *CORNER COFFEE,4.50,\n2026-09-04,STRIPE PAYOUT,,1200.00\n")
+        source = ops.report(self.dir, now=NOW)["sources"][0]
+        self.assertEqual((source["stream"], source["rows_used"]), ("transactions", 0))
+        self.assertIn("currency", source["hint"])
+        write(self.dir, "operations.json", json.dumps({"files": [{"match": "statement.csv", "stream": "transactions",
+                                                                  "currency": "eur", "columns": {
+            "created": "Posting Date", "description": "Narrative", "debit": "Debit", "credit": "Credit"}}]}))
+        eur = ops.report(self.dir, min_cell=1, now=NOW)["spend"]["currencies"]["eur"]
+        month = eur["months"]["transactions"][0]
+        self.assertEqual((month["in"], month["out"], month["suppliers"], month["processor_deposits"]),
+                         (1200.0, 314.5, {"Google Cloud": 310.0}, {"Stripe": 1200.0}))  # Square is too common a word
+
+    def test_card_charges_listed_as_positive(self):
+        write(self.dir, "card.csv", "Date,Description,Amount\n2026-09-02,OPENAI *API,20.00\n2026-09-05,PAYMENT THANK YOU,-20.00\n")
+        write(self.dir, "operations.json", json.dumps({"files": [{"match": "card.csv", "stream": "transactions",
+                                                                  "currency": "usd", "amounts": "out_positive",
+                                                                  "columns": {"created": "Date", "description": "Description",
+                                                                              "amount": "Amount"}}]}))
+        month = ops.report(self.dir, min_cell=1, now=NOW)["spend"]["currencies"]["usd"]["months"]["transactions"][0]
+        self.assertEqual((month["out"], month["in"], month["suppliers"]), (20.0, 20.0, {"OpenAI": 20.0}))
+
+    def test_google_cloud_and_azure_exports(self):
+        write(self.dir, "gcp-billing.csv", "Billing account name,Service description,SKU description,Usage start date,Cost,Currency\n"
+              "Acme,Compute Engine,N2 core,2026-09-01T00:00:00Z,12.50,USD\nAcme,Cloud Storage,Standard,2026-09-01T00:00:00Z,1.25,USD\n")
+        write(self.dir, "azure-costs.csv", "Date,MeterCategory,CostInBillingCurrency,BillingCurrency,SubscriptionId\n"
+              "2026-09-03,Virtual Machines,30.00,USD,0000-1111\n")
+        usd = ops.report(self.dir, now=NOW)["spend"]["currencies"]["usd"]
+        cloud = usd["totals"]["cloud_costs"]
+        self.assertEqual(cloud["providers"], {"Microsoft Azure": 30.0, "Google Cloud": 13.75})
+        self.assertEqual(cloud["services"], {"virtual machines": 30.0, "compute engine": 12.5, "cloud storage": 1.25})
+
+    def test_bills_overdue(self):
+        write(self.dir, "bills.csv", "Bill Date,Vendor,Amount,Currency,Due Date,Status\n"
+              "2026-09-01,Twilio Inc,120.00,USD,2026-09-30,open\n2026-10-01,Twilio Inc,120.00,USD,2026-11-30,open\n"
+              "2026-08-01,Twilio Inc,110.00,USD,2026-08-30,paid\n")
+        answer = ops.report(self.dir, min_cell=1, now=NOW)
+        months = {m["month"]: m for m in answer["spend"]["currencies"]["usd"]["months"]["bills"]}
+        self.assertEqual((months["2026-09"]["overdue"], months["2026-10"]["overdue"], months["2026-10"]["open"]), (1, 0, 1))
+        self.assertIn("BILLS_OVERDUE", {s["signal"] for s in answer["signals"]})
+
+    def test_aws_pull_through_the_command_line(self):
+        fake = self.dir / "aws"
+        log = self.dir / "args.txt"
+        answer = {"ResultsByTime": [
+            {"TimePeriod": {"Start": "2026-08-01"}, "Groups": [
+                {"Keys": ["Amazon Elastic Compute Cloud - Compute"], "Metrics": {"UnblendedCost": {"Amount": "800.5", "Unit": "USD"}}},
+                {"Keys": ["Amazon Simple Storage Service"], "Metrics": {"UnblendedCost": {"Amount": "40", "Unit": "USD"}}}]},
+            {"TimePeriod": {"Start": "2026-09-01"}, "Groups": [
+                {"Keys": ["Amazon Elastic Compute Cloud - Compute"], "Metrics": {"UnblendedCost": {"Amount": "1400", "Unit": "USD"}}}]}]}
+        fake.write_text(f"#!/bin/sh\necho \"$@\" > {log}\ncat <<'JSON'\n{json.dumps(answer)}\nJSON\n")
+        fake.chmod(0o755)
+        out = self.dir / "ops"
+        result = ops.pull_aws(out, 3, str(fake), now=NOW)
+        self.assertEqual(result["months"], ["2026-08", "2026-09"])
+        self.assertTrue(log.read_text().startswith("ce get-cost-and-usage --time-period Start=2026-08-01,End=2026-10-30"))
+        usd = ops.report(out, now=NOW)["spend"]["currencies"]["usd"]
+        sep = usd["months"]["cloud_costs"][1]
+        self.assertEqual((sep["month"], sep["cost"], sep["services"]), ("2026-09", 1400.0,
+                                                                         {"amazon elastic compute cloud - compute": 1400.0}))
+        self.assertIn("CLOUD_COST_RISING", {s["signal"] for s in ops.report(out, now=NOW)["signals"]})
+        broken = self.dir / "aws-broken"
+        broken.write_text("#!/bin/sh\necho 'AccessDenied: ce:GetCostAndUsage' >&2\nexit 254\n")
+        broken.chmod(0o755)
+        with self.assertRaises(ops.OperationsError) as caught:
+            ops.pull_aws(out, 3, str(broken), now=NOW)
+        self.assertIn("AccessDenied", str(caught.exception))
 
 
 class AgentToolTests(Folder):

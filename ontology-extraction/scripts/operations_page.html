@@ -79,16 +79,19 @@ function h(tag,attrs={},...kids){const el=document.createElement(tag);
  for(const [k,v] of Object.entries(attrs)){if(v==null)continue;if(k==="text")el.textContent=v;else if(k==="class")el.className=v;else el.setAttribute(k,v)}
  for(const c of kids){if(c!=null)el.append(c)}return el}
 function s(tag,attrs={}){const el=document.createElementNS("http://www.w3.org/2000/svg",tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,v);return el}
-const TITLE={payments:"Payments",refunds:"Refunds",disputes:"Disputes",payouts:"Payouts",subscriptions:"Subscriptions",invoices:"Invoices"};
+const TITLE={payments:"Payments",refunds:"Refunds",disputes:"Disputes",payouts:"Payouts",subscriptions:"Subscriptions",invoices:"Invoices",
+ transactions:"Bank and card",bills:"Bills",cloud_costs:"Cloud costs"};
 const SIGNAL={DISPUTES_OPEN:"Disputes waiting for a response",PAYOUT_FAILED:"A payout failed",REFUND_RATE_RISING:"Refund rate rising",
  REVENUE_DOWN:"Payments taken fell",DISPUTE_RATE_HIGH:"Dispute rate high",CHURN_RISING:"Cancellations rising",FAILED_PAYMENTS_HIGH:"Many payments fail",
- INVOICES_UNCOLLECTIBLE:"Invoices written off",SUBSCRIPTIONS_PAST_DUE:"Subscriptions past due"};
+ INVOICES_UNCOLLECTIBLE:"Invoices written off",SUBSCRIPTIONS_PAST_DUE:"Subscriptions past due",PAYOUTS_NOT_IN_BANK:"Payouts missing from the bank",
+ DEPOSITS_WITHOUT_PAYOUTS:"Deposits without payouts",BILLS_OVERDUE:"Bills overdue",SPEND_RISING:"Spending jumped",CLOUD_COST_RISING:"Cloud costs jumped",
+ NEW_SUPPLIER_PAID:"A new supplier was paid"};
 const FINDING={HAPPENS_NOT_IN_CODE:"HAPPENS, NOT IN THE SOURCES",IN_CODE_NOT_SEEN:"BUILT, NOT SEEN",SEEN_AND_MODELED:"SEEN AND MODELED"};
 function money(v,cur){if(v==null)return "withheld";try{return new Intl.NumberFormat(undefined,{style:"currency",currency:cur.toUpperCase(),maximumFractionDigits:0}).format(v)}catch(_){return v.toLocaleString()+" "+cur.toUpperCase()}}
 const pct=v=>v==null?"–":(100*v).toFixed(v<0.01?2:1)+"%";
-function delta(now,before,goodWhenDown){if(now==null||before==null||!before)return h("span",{class:"flat",text:"no earlier weeks"});
+function delta(now,before,goodWhenDown,against="the 4 weeks before"){if(now==null||before==null||!before)return h("span",{class:"flat",text:"nothing earlier to compare"});
  const d=(now-before)/before,up=d>0.005,down=d<-0.005,bad=goodWhenDown?up:down;
- return h("span",{class:up||down?(bad?"up":"down"):"flat",text:`${up?"▲":down?"▼":"="} ${Math.abs(100*d).toFixed(0)}% vs the 4 weeks before`})}
+ return h("span",{class:up||down?(bad?"up":"down"):"flat",text:`${up?"▲":down?"▼":"="} ${Math.abs(100*d).toFixed(0)}% vs ${against}`})}
 function tile(label,value,sub){return h("div",{class:"tile"},h("b",{text:label}),h("div",{class:"v",text:value}),sub?h("div",{class:"s"},sub):null)}
 function chart(c,cur,inProgress){const pays=(c.streams.payments||[]),refs=c.streams.refunds||[];if(!pays.length)return null;
  const W=1000,H=170,pad=18,bw=(W-pad)/pays.length,max=Math.max(1,...pays.map(w=>w.gross||0));
@@ -117,10 +120,47 @@ function currencySection(cur,c,d){const r=c.recent||{},p=r.payments,tiles=h("div
  return h("div",{class:"sec"},h("h2",{},h("span",{text:`${cur.toUpperCase()} · ${c.first_week} to ${c.last_week}`}),h("span",{text:"last 4 complete weeks"})),tiles,
   chart(c,cur,d.week_in_progress),c.streams.payments?h("div",{class:"legend"},h("span",{style:"--c:#4cc3d9",text:"payments taken"}),h("span",{style:"--c:#ff5d5d",text:"refunds"}),h("span",{style:"--c:#24485a",text:"week in progress"})):null,
   breakdowns.childElementCount?breakdowns:null)}
+// Where the money goes: bank and card lines, bills, cloud costs, by month; suppliers paid against suppliers the code uses.
+const SPEND_FIND={PAID_AND_IN_CODE:"PAID · USED",PAID_NOT_IN_CODE:"PAID · NOT IN THE CODE",IN_CODE_NOT_PAID:"IN THE CODE · NOT PAID"};
+function moneyBars(rows,cur,live){const W=1000,H=170,pad=18,bw=(W-pad)/Math.max(1,rows.length),max=Math.max(1,...rows.flatMap(r=>[r.in||0,r.out||0]));
+ const svg=s("svg",{class:"chart",viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":"Money in and out by month"});
+ rows.forEach((r,i)=>{const x=pad+i*bw,half=Math.max(2,(bw-10)/2),isLive=r.month>=live;
+  for(const [k,j,color] of [["in",0,"#34d399"],["out",1,"#ff9a3c"]]){const v=r[k]||0,hgt=(H-24)*v/max;
+   const bar=s("rect",{x:x+4+j*half,y:H-16-hgt,width:half-2,height:Math.max(0,hgt),rx:2,fill:color,opacity:isLive?0.35:r.withheld?0.25:0.9});
+   bar.append(s("title"));bar.lastChild.textContent=`${r.month}${isLive?" (in progress)":""}: money ${k} ${money(r[k],cur)}`;svg.append(bar)}
+  const t=s("text",{x:x+bw/2,y:H-3,"text-anchor":"middle",fill:"#7f93a6","font-size":"12"});t.textContent=r.month;svg.append(t)});
+ return h("div",{class:"wrap"},svg)}
+function amounts(title,obj,cur){const rows=Object.entries(obj||{}).sort((a,b)=>b[1]-a[1]);if(!rows.length)return null;
+ return h("div",{},h("h3",{text:title}),h("ul",{class:"list"},...rows.slice(0,8).map(([k,v])=>h("li",{},h("span",{text:k}),h("span",{text:money(v,cur)})))))}
+function spendSection(d){const sp=d.spend;if(!sp||!Object.keys(sp.currencies).length)return [];const out=[];
+ const usedBy=Object.fromEntries((sp.suppliers_vs_spend||[]).map(f=>[f.supplier,f.finding]));
+ for(const [cur,c] of Object.entries(sp.currencies)){const tx=(c.months.transactions||[]),done=tx.filter(r=>r.month<d.month_in_progress),last=done[done.length-1];
+  const cloud=(c.months.cloud_costs||[]).filter(r=>r.month<d.month_in_progress),lastCloud=cloud[cloud.length-1];
+  const bills=c.months.bills||[],open=bills.reduce((a,b)=>a+b.open,0),overdue=bills.reduce((a,b)=>a+b.overdue,0);
+  const tiles=h("div",{class:"tiles"});
+  if(last)tiles.append(tile(`Money in, ${last.month}`,money(last.in,cur)),tile(`Money out, ${last.month}`,money(last.out,cur),
+   done.length>1?delta(last.out,done[done.length-2].out,true,"the month before"):null));
+  if(lastCloud)tiles.append(tile(`Cloud, ${lastCloud.month}`,money(lastCloud.cost,cur),c.unit_economics?h("span",{},`${pct(c.unit_economics.cloud_share)} of payments taken`):
+   cloud.length>1?delta(lastCloud.cost,cloud[cloud.length-2].cost,true,"the month before"):null));
+  if(bills.length)tiles.append(tile("Bills",`${open} open`,h("span",{class:overdue?"up":"flat",text:`${overdue} overdue`})));
+  if(c.reconciliation)tiles.append(tile("Payouts reached the bank",c.reconciliation.gap>0.005?`${money(c.reconciliation.gap,cur)} missing`:"all",
+   h("span",{},`${money(c.reconciliation.payouts,cur)} paid out · ${money(c.reconciliation.deposits,cur)} deposited, ${c.reconciliation.months.join(", ")}`)));
+  const t=c.totals||{};
+  const supplierRows=(c.suppliers_paid||[]).map(p=>h("tr",{},h("td",{text:p.name}),h("td",{text:p.category||""}),h("td",{text:money(p.amount,cur)}),
+   h("td",{text:SPEND_FIND[usedBy[p.name]]||(p.category==="payments"?"payment processor":"–")})));
+  const unpaid=(sp.suppliers_vs_spend||[]).filter(f=>f.finding==="IN_CODE_NOT_PAID");
+  out.push(h("div",{class:"sec"},h("h2",{},h("span",{text:`Spend · ${cur.toUpperCase()} · ${c.first_month} to ${c.last_month}`}),h("span",{text:"by month"})),tiles,
+   tx.length?moneyBars(tx,cur,d.month_in_progress):null,tx.length?h("div",{class:"legend"},h("span",{style:"--c:#34d399",text:"money in"}),h("span",{style:"--c:#ff9a3c",text:"money out"})):null,
+   h("div",{class:"cols"},amounts("Where money went",t.transactions&&t.transactions.categories,cur),amounts("Cloud, by service",t.cloud_costs&&t.cloud_costs.services,cur)),
+   supplierRows.length?h("div",{style:"margin-top:12px"},h("h3",{text:"Suppliers paid, and whether the code uses them"}),
+    h("div",{class:"wrap"},h("table",{},h("tr",{},...["Supplier","Kind","Paid","In the code"].map(x=>h("th",{text:x}))),...supplierRows))):null,
+   ...unpaid.map(f=>h("p",{class:"note",style:"margin-top:6px"},h("b",{text:"In the code, not paid: "}),f.detail[0].toUpperCase()+f.detail.slice(1)+".")),
+   h("p",{class:"note",style:"margin-top:8px",text:"Only suppliers OntologyEX knows are named; any other payee counts under its category, never by name."})))}
+ return out}
 function empty(d){return h("div",{class:"sec"},h("p",{class:"summary",text:"No records read yet"}),
  h("p",{class:"note",text:"Operations shows what the business actually does, from its own records, kept as weekly aggregates only. Drop exports in this folder:"}),
  h("pre",{text:d.folder||"REPO/.ontologyex/operations"}),
- h("p",{class:"note",text:"Read now: Stripe dashboard exports of payments, refunds, disputes, payouts, subscriptions and invoices (CSV), Stripe API objects saved as JSON, and other processors' CSVs described in operations.json. Or pull aggregates with a restricted, read-only key; no record is written:"}),
+ h("p",{class:"note",text:"Read now: Stripe dashboard exports of payments, refunds, disputes, payouts, subscriptions and invoices (CSV), Stripe API objects saved as JSON, bank and card statements, vendor bills, AWS, Google Cloud and Azure cost exports, and other files described in operations.json. Or pull aggregates with a restricted, read-only key; no record is written:"}),
  h("pre",{text:"STRIPE_API_KEY=rk_... python ontology-extraction/scripts/operations.py pull stripe --out "+(d.folder||"REPO/.ontologyex/operations")}),
  h("p",{class:"note",text:d.privacy.rule}))}
 function render(d){
@@ -132,12 +172,13 @@ function render(d){
   h("p",{},h("strong",{text:`${SIGNAL[g.signal]||g.signal} (${g.currency.toUpperCase()})`}),g.detail[0].toUpperCase()+g.detail.slice(1)+".")));
  parts.push(sigs);
  for(const [cur,c] of Object.entries(d.currencies))parts.push(currencySection(cur,c,d));
+ parts.push(...spendSection(d));
  if(d.code_vs_operations.length)parts.push(h("div",{class:"sec"},h("h2",{text:"Code and operations"}),
   h("p",{class:"note",style:"margin-bottom:6px",text:"What the records show the business doing, against what the business model and the code name. Matched by words, so it is inferred."}),
   ...d.code_vs_operations.map(f=>h("div",{class:"find"},h("b",{text:FINDING[f.finding]}),`${TITLE[f.stream]}: ${f.detail}`,
    ...(f.entities||[]).slice(0,3).map(e=>[" · ",h("a",{href:"/entity?id="+encodeURIComponent(e.id),text:e.label||e.id})]).flat()))));
  const rows=d.sources.map(x=>h("tr",{},h("td",{class:"mono",text:x.file}),h("td",{text:x.status==="READ"?(x.stream||"").split(",").map(k=>TITLE[k]||k).join(", "):x.status.toLowerCase()}),
-  h("td",{text:x.status!=="READ"?"–":x.rows==null?"aggregate":x.rows.toLocaleString()}),h("td",{text:x.columns_used?`${x.columns_used.join(", ")} (${x.columns_not_read} not read)`:x.recognized_by||x.hint||""}),
+  h("td",{text:x.status!=="READ"?"–":x.rows==null?"aggregate":x.rows.toLocaleString()}),h("td",{text:x.columns_used?`${x.columns_used.join(", ")}${x.columns_matched_only&&x.columns_matched_only.length?"; "+x.columns_matched_only.join(", ")+" only matched against known suppliers":""} (${x.columns_not_read} not read)${x.hint?". "+x.hint:""}`:x.recognized_by||x.hint||""}),
   h("td",{class:"mono",style:"white-space:nowrap",text:(x.sha256||"").slice(0,10)})));
  parts.push(h("div",{class:"sec"},h("h2",{text:"Records read"}),h("div",{class:"wrap"},h("table",{},h("tr",{},...["File","Stream","Rows","Columns read","sha256"].map(t=>h("th",{text:t}))),...rows)),
   ...d.unrecognized.map(u=>h("p",{class:"note",style:"margin-top:8px"},h("code",{text:u.file}),` was not recognized${u.headers&&u.headers.length?" (columns: "+u.headers.join(", ")+")":""}. ${u.hint}`)),

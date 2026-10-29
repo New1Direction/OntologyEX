@@ -6,7 +6,7 @@
   "better": 0,
   "fixed": 1,
   "new": 2,
-  "still_open": 19,
+  "still_open": 30,
   "worse": 0
  },
  "coverage": [
@@ -84,7 +84,7 @@
    "title": "worker reports an error"
   }
  ],
- "headline": "Last 7 days: 2 new (2 critical), 1 fixed, 19 unchanged. Longest open: Payment is possibly impacted (critical, 9 days). 1 decision made.",
+ "headline": "Last 7 days: 2 new (2 critical), 1 fixed, 30 unchanged. Longest open: Payment is possibly impacted (critical, 9 days). 1 decision made.",
  "history_snapshots": 1,
  "kind": "WEEKLY_DIGEST",
  "kpis": [
@@ -124,11 +124,11 @@
    "now": 1
   },
   {
-   "before": 0,
+   "before": 2,
    "better_when": null,
    "delta": 0,
    "label": "Suppliers",
-   "now": 0
+   "now": 2
   },
   {
    "before": 1,
@@ -329,6 +329,36 @@
    "subject": null,
    "title": "Refund rate rising (USD)",
    "why": "Refunds were 6.2% of payments in the last 4 weeks, 0.4% in the 4 before."
+  },
+  {
+   "category": "Spend",
+   "factors": [
+    {
+     "detail": "money the payment processor paid out is not in the bank lines",
+     "factor": "severity",
+     "points": 60
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "a5e2ba681ca86d01",
+   "kind": "PAYOUTS_NOT_IN_BANK",
+   "level": "CRITICAL",
+   "level_before": "CRITICAL",
+   "links": [],
+   "next_step": "Match each payout in the processor's dashboard to a bank deposit; ask the processor about any that never arrived.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 75,
+   "score_before": 75,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Payouts missing from the bank (USD)",
+   "why": "Processor payouts of 34,021.00 over 3 month(s) and 30,879.00 deposited from processors: 3,142.00 is not in the bank lines."
   },
   {
    "category": "Operations",
@@ -630,6 +660,36 @@
    "why": "Refunds were 6.2% of payments in the last 4 weeks, 0.4% in the 4 before."
   },
   {
+   "category": "Spend",
+   "factors": [
+    {
+     "detail": "money the payment processor paid out is not in the bank lines",
+     "factor": "severity",
+     "points": 60
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "a5e2ba681ca86d01",
+   "kind": "PAYOUTS_NOT_IN_BANK",
+   "level": "CRITICAL",
+   "level_before": "CRITICAL",
+   "links": [],
+   "next_step": "Match each payout in the processor's dashboard to a bank deposit; ask the processor about any that never arrived.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 75,
+   "score_before": 75,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Payouts missing from the bank (USD)",
+   "why": "Processor payouts of 34,021.00 over 3 month(s) and 30,879.00 deposited from processors: 3,142.00 is not in the bank lines."
+  },
+  {
    "category": "Operations",
    "factors": [
     {
@@ -775,6 +835,31 @@
    "why": "No CODEOWNERS rule covers its code, and nobody changed it in the last year."
   },
   {
+   "category": "Spend",
+   "factors": [
+    {
+     "detail": "bills are past due",
+     "factor": "severity",
+     "points": 40
+    }
+   ],
+   "id": "5ec05fa0699f69bb",
+   "kind": "BILLS_OVERDUE",
+   "level": "MEDIUM",
+   "level_before": "MEDIUM",
+   "links": [],
+   "next_step": "Pay or dispute the overdue bills before the supplier stops the service.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 40,
+   "score_before": 40,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Bills overdue (USD)",
+   "why": "1 bill(s) are past their due date and not marked paid."
+  },
+  {
    "category": "Operations",
    "factors": [
     {
@@ -865,6 +950,31 @@
    "why": "The records show payouts, and nothing in the business model or the code is named for them: they are handled somewhere the sources do not show (by hand, in a supplier's dashboard, or in code outside this repository)."
   },
   {
+   "category": "Spend",
+   "factors": [
+    {
+     "detail": "money out jumped against the months before",
+     "factor": "severity",
+     "points": 35
+    }
+   ],
+   "id": "210eafe83fbca9a6",
+   "kind": "SPEND_RISING",
+   "level": "MEDIUM",
+   "level_before": "MEDIUM",
+   "links": [],
+   "next_step": "Open Operations: see which category grew, and whether it was planned.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 35,
+   "score_before": 35,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Spending jumped (USD)",
+   "why": "Money out in 2026-09 was 75% above the average of the three months before."
+  },
+  {
    "category": "Operations",
    "factors": [
     {
@@ -939,6 +1049,31 @@
    "why": "The supplied requirements do not specify who can approve an exception."
   },
   {
+   "category": "Spend",
+   "factors": [
+    {
+     "detail": "cloud costs jumped against the month before",
+     "factor": "severity",
+     "points": 30
+    }
+   ],
+   "id": "fbd64ef359c34428",
+   "kind": "CLOUD_COST_RISING",
+   "level": "MEDIUM",
+   "level_before": "MEDIUM",
+   "links": [],
+   "next_step": "See which service grew on the Operations page and whether usage grew with it.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 30,
+   "score_before": 30,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Cloud costs jumped (USD)",
+   "why": "Cloud costs in 2026-09 were 45% above 2026-08."
+  },
+  {
    "category": "Ownership",
    "factors": [
     {
@@ -983,6 +1118,36 @@
    "why": "No CODEOWNERS rule covers its code, and nobody changed it in the last year."
   },
   {
+   "category": "Spend",
+   "factors": [
+    {
+     "detail": "the code uses a supplier nobody is seen paying",
+     "factor": "severity",
+     "points": 10
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "734d91d955a0f4ab",
+   "kind": "IN_CODE_NOT_PAID",
+   "level": "LOW",
+   "level_before": "LOW",
+   "links": [],
+   "next_step": "Check which account pays for it, or whether production is on a free plan with limits.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 25,
+   "score_before": 25,
+   "standing": "INFERRED",
+   "subject": null,
+   "title": "Sentry is used, and nobody is seen paying it",
+   "why": "The code uses Sentry, and these records show no payment to it: a free plan, paid from another account or card, or not set up for production."
+  },
+  {
    "category": "Compliance",
    "factors": [
     {
@@ -991,12 +1156,12 @@
      "points": 10
     },
     {
-     "detail": "10 control(s)",
+     "detail": "9 control(s)",
      "factor": "volume",
      "points": 12
     }
    ],
-   "id": "2027782f7d645002",
+   "id": "7dd7f1770255cf63",
    "kind": "COMPLIANCE_ASKED",
    "level": "LOW",
    "level_before": "LOW",
@@ -1009,7 +1174,7 @@
    "score_before": 22,
    "standing": "UNKNOWN",
    "subject": null,
-   "title": "SOC 2: 10 of 13 controls not fully shown in the sources",
+   "title": "SOC 2: 9 of 13 controls not fully shown in the sources",
    "why": "Business customers usually ask for a SOC 2 report before buying. Not fully shown: CC2.2 security responsibilities are communicated, CC6.1 sign-in and access are controlled, CC6.1-MFA multi-factor sign-in, CC6.7 data is encrypted in transit, CC6.8 unauthorized or vulnerable software is prevented, CC7.1 vulnerabilities are found...."
   },
   {
@@ -1036,6 +1201,45 @@
    "subject": null,
    "title": "Disputes happen, and the sources do not show where",
    "why": "The records show disputes, and nothing in the business model or the code is named for them: they are handled somewhere the sources do not show (by hand, in a supplier's dashboard, or in code outside this repository)."
+  },
+  {
+   "category": "Suppliers",
+   "factors": [
+    {
+     "detail": "the only supplier of an important kind",
+     "factor": "severity",
+     "points": 18
+    }
+   ],
+   "id": "dad71936ad240528",
+   "kind": "SINGLE_HIGH_SUPPLIER",
+   "level": "LOW",
+   "level_before": "LOW",
+   "links": [
+    "discovery:supplier:sendgrid"
+   ],
+   "next_step": "Note who owns this supplier and what happens if it is down.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": {
+    "basis": null,
+    "owner": null,
+    "risks": [],
+    "standing": "UNKNOWN",
+    "status": "NO_OWNER",
+    "through": null
+   },
+   "score": 18,
+   "score_before": 18,
+   "standing": "SOURCE",
+   "subject": {
+    "id": "discovery:supplier:sendgrid",
+    "kind": "external_supplier",
+    "label": "SendGrid",
+    "layer": "system"
+   },
+   "title": "SendGrid is the only email and messaging supplier",
+   "why": "No second email and messaging supplier is declared in the sources."
   },
   {
    "category": "Visibility",
@@ -1068,6 +1272,81 @@
    "why": "Nothing reports on web, worker."
   },
   {
+   "category": "Spend",
+   "factors": [
+    {
+     "detail": "a supplier was paid for the first time",
+     "factor": "severity",
+     "points": 12
+    }
+   ],
+   "id": "938c209e888e4814",
+   "kind": "NEW_SUPPLIER_PAID",
+   "level": "LOW",
+   "level_before": "LOW",
+   "links": [],
+   "next_step": "Check who signed up for it and whether the code or a person uses it.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 12,
+   "score_before": 12,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "A new supplier was paid (USD)",
+   "why": "OpenAI was paid for the first time in 2026-09."
+  },
+  {
+   "category": "Spend",
+   "factors": [
+    {
+     "detail": "a supplier is paid that the code does not use",
+     "factor": "severity",
+     "points": 12
+    }
+   ],
+   "id": "a32137d359be8456",
+   "kind": "PAID_NOT_IN_CODE",
+   "level": "LOW",
+   "level_before": "LOW",
+   "links": [],
+   "next_step": "Ask who uses it; cancel it if nobody does.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 12,
+   "score_before": 12,
+   "standing": "INFERRED",
+   "subject": null,
+   "title": "Amazon Web Services is paid, and the code does not use it",
+   "why": "Amazon Web Services is paid (7,962.00 USD in these records) and the code does not use it: a tool people use, a service set up outside this repository, or one nobody needs any more."
+  },
+  {
+   "category": "Spend",
+   "factors": [
+    {
+     "detail": "a supplier is paid that the code does not use",
+     "factor": "severity",
+     "points": 12
+    }
+   ],
+   "id": "6f28bc56995bbb58",
+   "kind": "PAID_NOT_IN_CODE",
+   "level": "LOW",
+   "level_before": "LOW",
+   "links": [],
+   "next_step": "Ask who uses it; cancel it if nobody does.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 12,
+   "score_before": 12,
+   "standing": "INFERRED",
+   "subject": null,
+   "title": "Datadog is paid, and the code does not use it",
+   "why": "Datadog is paid (2,700.00 USD in these records) and the code does not use it: a tool people use, a service set up outside this repository, or one nobody needs any more."
+  },
+  {
    "category": "Ownership",
    "factors": [
     {
@@ -1091,6 +1370,56 @@
    "subject": null,
    "title": "No CODEOWNERS file",
    "why": "Ownership can only be inferred from who changed the code."
+  },
+  {
+   "category": "Spend",
+   "factors": [
+    {
+     "detail": "a supplier is paid that the code does not use",
+     "factor": "severity",
+     "points": 12
+    }
+   ],
+   "id": "12c68c8265671159",
+   "kind": "PAID_NOT_IN_CODE",
+   "level": "LOW",
+   "level_before": "LOW",
+   "links": [],
+   "next_step": "Ask who uses it; cancel it if nobody does.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 12,
+   "score_before": 12,
+   "standing": "INFERRED",
+   "subject": null,
+   "title": "OpenAI is paid, and the code does not use it",
+   "why": "OpenAI is paid (120.00 USD in these records) and the code does not use it: a tool people use, a service set up outside this repository, or one nobody needs any more."
+  },
+  {
+   "category": "Spend",
+   "factors": [
+    {
+     "detail": "a supplier is paid that the code does not use",
+     "factor": "severity",
+     "points": 12
+    }
+   ],
+   "id": "9b2eefbf9fa56dfd",
+   "kind": "PAID_NOT_IN_CODE",
+   "level": "LOW",
+   "level_before": "LOW",
+   "links": [],
+   "next_step": "Ask who uses it; cancel it if nobody does.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 12,
+   "score_before": 12,
+   "standing": "INFERRED",
+   "subject": null,
+   "title": "Twilio is paid, and the code does not use it",
+   "why": "Twilio is paid (737.40 USD in these records) and the code does not use it: a tool people use, a service set up outside this repository, or one nobody needs any more."
   },
   {
    "category": "Decisions",

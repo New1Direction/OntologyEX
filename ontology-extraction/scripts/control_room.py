@@ -1177,7 +1177,8 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         if operations_cache.get("key") != key:
             operations_cache["key"], operations_cache["report"] = key, operations.report(operations_dir, now=now)
         found = operations_cache["report"]
-        return operations.with_comparison(found, list(entity_context._entities(data).values()))
+        return operations.with_comparison(found, list(entity_context._entities(data).values()),
+                                          (data.get("suppliers") or {}).get("suppliers"))
 
     def bundle() -> dict:
         """The model, with who owns each part of it."""

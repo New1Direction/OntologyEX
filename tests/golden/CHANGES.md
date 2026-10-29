@@ -30,3 +30,9 @@ here with its reason, or CI fails.
 - `demo/command_center.json`
 - `demo/digest.json`
 - `demo/operations.json`
+
+## 2026-10-29: Spend: the demo's bank statement, vendor bills and AWS cost report, read as monthly aggregates, add payouts missing from the bank, overdue bills, a spending jump, rising cloud costs and a first payment to OpenAI; its web app now declares SendGrid and Sentry, so suppliers paid are compared with suppliers used.
+
+- `demo/command_center.json`
+- `demo/digest.json`
+- `demo/operations.json`
