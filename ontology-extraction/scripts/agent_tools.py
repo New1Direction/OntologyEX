@@ -19,8 +19,8 @@ Every tool declares its kind, and the kind decides what it may do:
 
 - READ_ONLY tools (search, context, explain, impact, recent decisions, open
   suggestions, decisions whose evidence changed, change impact) change nothing.
-- ADDITIVE tools (propose_link, propose_dependency) append a proposal to a proposals
-  file and nothing else. A proposal is a suggestion: it shows in the control room beside the ranked
+- ADDITIVE tools (propose_link, propose_dependency, propose_rule) append a proposal to
+  a proposals file and nothing else. A proposal is a suggestion: it shows in the control room beside the ranked
   ones, and only a person confirms or rejects it there, through the existing decision
   route and its history. A rejected link stays rejected whoever proposes it again.
 - There are no destructive tools, and the server refuses to register one.
@@ -44,6 +44,7 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+import re
 import secrets
 import sys
 import urllib.error
@@ -53,6 +54,7 @@ import urllib.request
 import dependency_suggest
 import entity_context
 import link_suggest
+import rule_suggest
 
 PROTOCOL_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
 SERVER = {"name": "ontologyex", "title": "OntologyEX", "version": "1"}
@@ -140,6 +142,17 @@ TOOLS = {
                           "binding": _text("binding", "the binding ID (an entity context names it in 'via')", 200),
                           "component": _text("component", "the system component's entity ID"),
                           "reason": _text("reason", "why, in a sentence or two, citing files where you can", 500)})},
+    "propose_rule": {
+        "kind": ADDITIVE, "title": "Propose a business rule",
+        "description": "Propose a business rule for a business object or action (for example \"a refund never "
+                       "exceeds the captured amount\"), citing the file and lines it rests on, with your reason. "
+                       "The control room checks the cited lines exist and shows them; a person reads them and "
+                       "confirms or rejects the rule. Rules a person rejected cannot be proposed again.",
+        "input": _schema({"target": _text("target", "the business object or action's entity ID"),
+                          "statement": _text("statement", "the rule, as one plain sentence", 500),
+                          "path": _text("path", "the cited file, relative to the repository"),
+                          "lines": _text("lines", "the cited line or range, like 42 or 42-47 (at most 80 lines)", 20),
+                          "reason": _text("reason", "why these lines show the rule", 500)})},
     "propose_dependency": {
         "kind": ADDITIVE, "title": "Propose a dependency",
         "description": "Propose that one system component depends on another (source depends on target), with "
@@ -451,6 +464,50 @@ class Tools:
                 "next": "A person confirms or rejects it in the control room (Business page or the entity page). "
                         "Nothing changes until then.", "execution_authorized": False}
 
+
+    def propose_rule(self, args: dict) -> dict:
+        if self.proposals is None:
+            raise ToolError("NOT_ALLOWED", "proposals are off: start agent_tools with --proposals FILE and the "
+                                           "control room with the same --proposals FILE")
+        bundle, hidden = self._model(args["target"])
+        picture = bundle.get("business") or {}
+        if args["target"] not in {row["key"] for row in [*picture.get("actions", []), *picture.get("objects", [])]}:
+            raise ToolError("NOT_FOUND", "target must be a business object or action; search_entities finds them")
+        if len(args["statement"].strip()) < 8:
+            raise ToolError("INVALID_ARGUMENTS", "state the rule as a sentence")
+        match = re.fullmatch(r"(\d{1,7})(?:-(\d{1,7}))?", args["lines"].strip())
+        path = args["path"].strip()
+        citation = {"path": path[2:] if path.startswith("./") else path,
+                    "start_line": int(match.group(1)) if match else 0,
+                    "end_line": int(match.group(2) or match.group(1)) if match else 0}
+        if not rule_suggest.valid_citation(citation):
+            raise ToolError("INVALID_ARGUMENTS", "cite a relative path and lines like 42 or 42-47 "
+                                                 f"(at most {rule_suggest.MAX_CITED_LINES} lines)")
+        if rule_suggest.secret(citation["path"]) or path_withheld(self.policy, citation["path"]):
+            raise ToolError("NOT_ALLOWED", "that file is withheld; cite the code or document the rule is in")
+        proposal_id = rule_suggest.rule_id(args["target"], args["statement"])
+        for row in picture.get("rule_decided", []):
+            if row.get("id") == proposal_id:
+                if row.get("decision") == "reject":
+                    raise ToolError("REJECTED_BY_PERSON", f"{row.get('declared_by') or 'a person'} rejected this rule; "
+                                    "rejections are sticky. Ask the operator to undo it if the evidence changed.")
+                raise ToolError("ALREADY_DECIDED", "a person already confirmed this rule")
+        mine = f"agent:{self.audit.agent}"
+        if any(p["id"] == proposal_id and p["proposed_by"] == mine for p in rule_suggest.read_proposals(self.proposals)):
+            return {"status": "ALREADY_PROPOSED", "id": proposal_id, "execution_authorized": False}
+        rule_suggest.append_proposal(self.proposals, {
+            "kind": rule_suggest.PROPOSAL_KIND, "id": proposal_id,
+            "at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "proposed_by": mine,
+            "on_behalf_of": self.audit.operator, "target": args["target"], "statement": args["statement"],
+            "citation": citation, "reason": args["reason"]})
+        check = None
+        if self.source.control_room is not None:  # what the control room found at the cited lines, now
+            listed = (self.source.bundle().get("business") or {}).get("rule_suggestions", {}).get("suggestions", [])
+            check = next((s["citation_check"] for s in listed if s["id"] == proposal_id), None)
+        return self._out({"status": "PROPOSED", "id": proposal_id, "applied": False, "citation_check": check,
+                          "next": "A person reads the cited lines and confirms or rejects the rule (entity page). "
+                                  "Nothing changes until then; the control room needs --rules FILE to record it.",
+                          "execution_authorized": False}, hidden)
 
     def propose_dependency(self, args: dict) -> dict:
         if self.proposals is None:

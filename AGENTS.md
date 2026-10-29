@@ -54,7 +54,7 @@ Then offer what fits:
   [operating picture](ontology-extraction/references/operating-picture.md)).
 - **Ask about it as an agent, safely:** `KIT/.venv/bin/python KIT/ontology-extraction/scripts/agent_tools.py serve`
   gives MCP tools over a running control room: read tools, and propose tools (links,
-  dependencies) whose proposals a person confirms (see [entity context](ontology-extraction/references/entity-context.md)).
+  dependencies, rules) whose proposals a person confirms (see [entity context](ontology-extraction/references/entity-context.md)).
 - **Before they merge a change:** `KIT/.venv/bin/python KIT/ontology-extraction/scripts/change_impact.py --repo REPO --base main --head BRANCH --bundle BUNDLE --markdown`
   says what it touches in their business and what relies on it (git is only read).
 - **Change one workflow safely:** build a domain skill for it

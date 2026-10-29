@@ -87,7 +87,14 @@ def random_bundle(rng: random.Random) -> dict:
                                        **({"start_line": rng.randrange(1, 6), "end_line": rng.randrange(5, 9)}
                                           if rng.random() < 0.6 else {})}]} if rng.random() < 0.6 else {})}
                     for j in range(rng.randrange(0, 3))]
+        rules_here = [{"id": f"r{i}", "target": f"{skill}:action:A{i}", "statement": "refund <= captured",
+                       "status": rng.choice(["CONFIRMED_BY_PERSON", "CONFIRMED_BEFORE_EVIDENCE_CHANGED"]),
+                       "citation": {"path": "pay.py", "start_line": 3, "end_line": 4}, "declared_by": "Ana"}
+                      for _ in range(rng.randrange(0, 2))]
         actions.append({"key": f"{skill}:action:A{i}", "id": f"A{i}", "skill": skill, "health": "UNLINKED",
+                        "person_rules": rules_here,
+                        "rule_proposals": [{"id": f"p{i}", "statement": "é never negative",
+                                            "citation_check": {"status": "LINES_FOUND"}}] if rng.random() < 0.3 else [],
                         "verb_phrase": rng.choice(["", "take a payment", "réembourser"]), "bindings": bindings,
                         "rules": [{"id": "r1", "statement": "amount > 0", "status": "observed", "grade": "G1"}],
                         "blockers": [{"type": rng.choice(["unknown", "conflict", "inferred rule"]), "id": "u1",

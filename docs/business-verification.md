@@ -75,6 +75,7 @@ sets and seeded random ones).
 **Lean, the decision queue for any fact** (`OntologyEX.Queue`): `proposals_alone_change_nothing`,
 `blocked_proposal_never_queued` and `added_facts_were_confirmed` hold for any kind of
 fact, so they cover agent dependency proposals (`dependency_proposals_change_nothing`)
+and rule proposals (`rule_proposals_change_nothing`)
 as `OntologyEX.Business` covers links: a proposal adds nothing until a person confirms
 it, and a pair a person rejected, already confirmed, or the repository declares is
 never queued again.

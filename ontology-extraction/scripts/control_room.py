@@ -32,6 +32,7 @@ import change_impact
 import entity_context
 import watermark
 import link_suggest
+import rule_suggest
 import github_discovery
 import snapshot_store
 import graph_view_api
@@ -880,7 +881,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
           links: Path | None = None, events: Path | None = None,
           allow_link_decisions: bool = False, decision_model: bool = False,
           discovery_engine: str = "python", dependencies: Path | None = None,
-          print_bundle: bool = False, proposals: Path | None = None) -> None:
+          print_bundle: bool = False, proposals: Path | None = None, rules_file: Path | None = None) -> None:
     check(0 <= port <= 65535, "invalid port")
     check(view_engine in ("python", "rust"), "unsupported graph view backend")
     native_view = native_view_bridge.NativeView() if view_engine == "rust" else None
@@ -893,8 +894,10 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
     if dependencies is not None and dependencies.exists():
         dependency_suggest.read_dependency_document(dependencies)
     check(len(skills) <= business_view.MAX_SKILLS, "too many skills")
-    check(not allow_link_decisions or (links is not None and skills) or dependencies is not None,
-          "decisions need --links and at least one --skill, or --dependencies")
+    check(not allow_link_decisions or (links is not None and skills) or dependencies is not None or rules_file is not None,
+          "decisions need --links and at least one --skill, --dependencies, or --rules")
+    if rules_file is not None and rules_file.exists():
+        rule_suggest.read_rule_document(rules_file)
     # Per-process secret for the opt-in write route; served only inside /business.
     write_token = secrets.token_urlsafe(32) if allow_link_decisions else None
     # Opt-in decision model (Jev or Clef): proposals and routing only, never decisions.
@@ -994,6 +997,22 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 *(["--proposals", str(proposals)] if proposals is not None and "calls" not in row["evidence"] else [])])
                 if dependency_command else None)
         result["dependency_suggestions"] = observed
+        # Rules agents proposed, with their cited lines checked, and the ones a person decided.
+        rule_rows, rule_rejected = (rule_suggest.read_rule_document(rules_file)
+                                    if rules_file is not None and rules_file.exists() else ([], []))
+        keys = {row["key"] for row in [*result.get("actions", []), *result.get("objects", [])]}
+        result["rule_suggestions"] = rule_suggest.suggest(rule_suggest.read_proposals(proposals), rule_rows,
+                                                          rule_rejected, keys, repo_files)
+        person_rules = rule_suggest.confirmed_view(rule_rows, repo_files)
+        result["rule_decided"] = person_rules + [
+            {"id": decisions.decision_id(*rule_suggest.rule_key(r)), "target": r["target"], "statement": r["statement"],
+             "decision": "reject", "declared_by": r["declared_by"], "note": r["note"]} for r in rule_rejected]
+        for row in [*result.get("actions", []), *result.get("objects", [])]:
+            row["person_rules"] = [r for r in person_rules if r["target"] == row["key"]][:20]
+            row["rule_proposals"] = [{k: s[k] for k in ("id", "statement", "citation", "citation_check", "proposed_by",
+                                                         "signals")}
+                                     for s in result["rule_suggestions"]["suggestions"] if s["target"] == row["key"]][:20]
+        result["rule_decisions"] = "ENABLED_LOCAL_TOKEN" if write_token and rules_file is not None else "READ_ONLY_USE_CLI"
         result["dependency_decisions"] = ("ENABLED_LOCAL_TOKEN" if write_token and dependencies is not None else
                                           "READ_ONLY_USE_CLI")
         result["feeds"] = feed_status()
@@ -1305,7 +1324,8 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             if (len(host_headers) != 1 or origin is None or not valid_local_host(
                     host_headers[0], origin, self.server.server_port)):
                 code, body = 403, {"status": "FORBIDDEN"}
-            elif route.path not in ("/api/links/decision", "/api/dependencies/decision") or route.query:
+            elif route.path not in ("/api/links/decision", "/api/dependencies/decision",
+                                    "/api/rules/decision") or route.query:
                 code, body = 404, {"status": "NOT_FOUND"}
             elif write_token is None:
                 code, body = 403, {"status": "LINK_DECISIONS_DISABLED"}
@@ -1313,6 +1333,8 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 code, body = 403, {"status": "LINK_DECISIONS_DISABLED"}
             elif route.path == "/api/dependencies/decision" and dependencies is None:
                 code, body = 403, {"status": "DEPENDENCY_DECISIONS_DISABLED"}
+            elif route.path == "/api/rules/decision" and rules_file is None:
+                code, body = 403, {"status": "RULE_DECISIONS_DISABLED"}
             elif not hmac.compare_digest(self.headers.get("X-OntologyEX-Token", ""), write_token):
                 code, body = 403, {"status": "INVALID_TOKEN"}
             elif self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
@@ -1334,13 +1356,21 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                             or request["decision"] not in ("confirm", "reject", "undo", "reconfirm")):
                         raise ValueError("invalid IDs or decision")
                     links_route = route.path == "/api/links/decision"
-                    if request["decision"] == "reconfirm" and not links_route:
-                        raise ValueError("only links carry evidence watermarks")
-                    apply = link_suggest.apply_decisions if links_route else dependency_suggest.apply_decisions
-                    target = links if links_route else dependencies
+                    rules_route = route.path == "/api/rules/decision"
+                    if request["decision"] == "reconfirm" and not (links_route or rules_route):
+                        raise ValueError("only links and rules carry evidence watermarks")
+                    apply = (link_suggest.apply_decisions if links_route else
+                             rule_suggest.apply_decisions if rules_route else dependency_suggest.apply_decisions)
+                    target = links if links_route else rules_file if rules_route else dependencies
                     with decision_lock:
                         if request["decision"] == "undo":
                             body = apply(target, request["by"], request["note"], undo=ids)
+                        elif request["decision"] == "reconfirm" and rules_route:
+                            confirmed_rules = (rule_suggest.read_rule_document(rules_file)[0]
+                                               if rules_file.exists() else [])
+                            body = rule_suggest.apply_decisions(target, request["by"], request["note"],
+                                                                reconfirm=rule_suggest.reconfirm_rows(
+                                                                    confirmed_rules, ids, repo_files))
                         elif request["decision"] == "reconfirm":  # a person confirms again what changed
                             marks = watermark.Marks(repo_files, skills, snapshot())
                             confirmed = {decisions.decision_id(*link_suggest.link_key(r)): r
@@ -1352,7 +1382,8 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                                 for i in dict.fromkeys(ids)])
                         else:
                             current = {x["id"]: x for x in business(snapshot())[
-                                "link_suggestions" if links_route else "dependency_suggestions"]["suggestions"]}
+                                "link_suggestions" if links_route else "rule_suggestions" if rules_route
+                                else "dependency_suggestions"]["suggestions"]}
                             if not all(i in current for i in ids):
                                 raise ValueError("no current suggestion has that ID")
                             chosen = [current[i] for i in dict.fromkeys(ids)]
@@ -1419,6 +1450,8 @@ def main():
                         help="evidence grade events file (see evidence_grade.py)")
     parser.add_argument("--dependencies", type=Path, default=None,
                         help="dependencies confirmed from observed calls (JSON; see dependency_suggest.py)")
+    parser.add_argument("--rules", type=Path, default=None,
+                        help="business rules a person decided from agent proposals (JSON; see rule_suggest.py)")
     parser.add_argument("--proposals", type=Path, default=None,
                         help="agent link proposals (JSON lines written by agent_tools.py); shown as suggestions")
     parser.add_argument("--allow-link-decisions", action="store_true",
@@ -1468,7 +1501,7 @@ def main():
                   skills=args.skill, links=args.links, events=args.events,
                   allow_link_decisions=args.allow_link_decisions,
                   decision_model=args.decision_model, dependencies=args.dependencies,
-                  print_bundle=args.bundle_only, proposals=args.proposals)
+                  print_bundle=args.bundle_only, proposals=args.proposals, rules_file=args.rules)
         return 0
     except (OSError, RoomError, discover_repo.DiscoveryError,
             github_discovery.GitHubDiscoveryError, snapshot_store.SnapshotError,

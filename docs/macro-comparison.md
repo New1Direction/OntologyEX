@@ -100,7 +100,7 @@ through the tools, under a policy, with every call audited.
   along a path.
 - The operator name is typed, not authenticated; the policy is per agent process, not
   per user.
-- Agents can propose links and dependencies, not rules or skill edits.
+- Agents can propose links, dependencies and rules, not skill edits.
 - Bend models the original decision rules; the new proposal and path laws are in
   Lean only.
 
@@ -111,9 +111,10 @@ through the tools, under a policy, with every call audited.
 2. ~~Change impact~~ (built: `change_impact.py`, `/impact`, `analyze_change`; a diff
    or a new skill version, the entities it touches, what relies on them, and the
    confirmed links to re-confirm after merge).
-3. ~~Dependency proposals from agents~~ (built: `propose_dependency`, through the
-   same queue, policy and audit; the queue laws are proved for any fact type). Rule
-   and skill-edit proposals remain.
+3. ~~Dependency and rule proposals from agents~~ (built: `propose_dependency`,
+   `propose_rule`, through the same queue, policy and audit; the queue laws are proved
+   for any fact type; a confirmed rule's cited lines are watermarked). Skill-edit
+   proposals remain.
 4. Finer declarations: discovery records each compose service's own lines, so a
    change to one service touches only it (today a compose edit touches every
    service in the file, and every watermark that recorded the file).

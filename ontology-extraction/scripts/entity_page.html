@@ -159,6 +159,36 @@ async function decide(kind,id,decision,status,btns){
   status.textContent=d.applied.length?DOING[decision][1]:"Already decided.";await open(current,false)}
  catch(err){status.textContent="Not saved: "+err.message;btns.forEach(b=>b.disabled=false)}}
 
+// Business rules: the skill's own, ones a person confirmed from agent proposals, and ones still proposed.
+const CITE={LINES_FOUND:"cited lines found",FILE_NOT_FOUND:"cited file not found",LINES_OUT_OF_RANGE:"cited lines are past the end of the file",WITHHELD_SECRET_FILE:"cited file withheld (secrets)"};
+function citeLine(c){return h("div",{class:"ev",text:`${c.path}:${c.start_line}${c.end_line!==c.start_line?"-"+c.end_line:""}`})}
+function quoteBox(text){return text?h("details",{},h("summary",{text:"Cited lines"}),h("pre",{class:"mono",style:"white-space:pre-wrap;margin:4px 0;font-size:11.5px;color:var(--muted)",text:text})):null}
+function rulesSection(e){if(e.layer!=="business")return null;
+ const own=e.rules||[],mine=e.confirmed_rules||[],open=e.proposed_rules||[];
+ if(!own.length&&!mine.length&&!open.length)return null;
+ const rows=[];
+ for(const r of own)rows.push(h("div",{class:"rel"},h("div",{class:"dir",text:r.grade||""}),h("div",{class:"main",text:r.statement}),
+  h("div",{class:"meta",text:`from the domain skill · ${(r.grade_label||r.status||"").toString().replace(/_/g," ").toLowerCase()}`})));
+ for(const r of mine){const stale=r.status==="CONFIRMED_BEFORE_EVIDENCE_CHANGED";
+  const row=h("div",{class:"rel"+(stale?" stale":"")},h("div",{class:"dir"},chip(stale?"INFERRED":"CONFIRMED")),h("div",{class:"main",text:r.statement}),
+   h("div",{class:"meta",text:`Confirmed by ${r.declared_by}${r.proposed_by?", proposed by "+r.proposed_by:""}${r.note?" — "+r.note:""}`}),
+   citeLine(r.citation),stale?h("div",{class:"meta warn",text:"The cited lines changed since the decision."}):null,quoteBox(r.quote));
+  if(TOKEN){const status=h("span",{class:"muted"}),btns=[];
+   if(stale){const again=h("button",{class:"btn yes",type:"button",text:"Re-confirm"});again.addEventListener("click",()=>decide("rules",r.id,"reconfirm",status,btns));btns.push(again)}
+   const undo=h("button",{class:"btn no",type:"button",text:"Undo"});undo.addEventListener("click",()=>decide("rules",r.id,"undo",status,btns));btns.push(undo);
+   row.append(h("div",{class:"act"},...btns,status))}
+  rows.push(row)}
+ for(const r of open){const c=r.citation_check||{};
+  const row=h("div",{class:"rel inferred"},h("div",{class:"dir"},chip("INFERRED")),h("div",{class:"main",text:r.statement}),
+   h("div",{class:"meta",text:`proposed by ${r.proposed_by} · ${CITE[c.status]||c.status||""}`}),citeLine(r.citation),
+   ...(r.signals||[]).map(s=>h("div",{class:"meta",text:"· "+(s.detail||s.signal)})),quoteBox(c.quote));
+  if(TOKEN){const status=h("span",{class:"muted"}),yes=h("button",{class:"btn yes",type:"button",text:"Confirm rule"}),no=h("button",{class:"btn no",type:"button",text:"Reject"});
+   yes.addEventListener("click",()=>decide("rules",r.id,"confirm",status,[yes,no]));no.addEventListener("click",()=>decide("rules",r.id,"reject",status,[yes,no]));
+   row.append(h("div",{class:"act"},yes,no,status))}
+  rows.push(row)}
+ return section("Business rules",own.length+mine.length+open.length,
+  open.length?h("p",{class:"note",text:"Proposed rules change nothing until a person reads the cited lines and confirms them."}):null,
+  (open.length||mine.length)&&TOKEN?whoInput():null,...rows)}
 function whoInput(){const box=h("input",{class:"who",type:"text",maxlength:"120",placeholder:"Your name (recorded with each decision)",value:who});
  box.addEventListener("input",ev=>{who=ev.target.value;try{localStorage.setItem("ontologyex-decider",who)}catch(_){}});
  return h("div",{style:"margin:8px 0"},box)}
@@ -184,7 +214,7 @@ function render(){const e=ctx.entity,c=ctx.standing_counts;document.title="Ontol
  const sugg=section("Suggested changes",ctx.suggestions.length,
   ctx.suggestions.length?h("p",{class:"note",text:"Nothing below changes the model until a person confirms it. Agent proposals land here too."}):h("p",{class:"empty",text:"No open suggestions touch this entity."}),
   ctx.suggestions.length&&TOKEN?whoBox:null,...ctx.suggestions.map(relRow));
- $("body").replaceChildren(head,why,sugg,rels,explainBox());
+ $("body").replaceChildren(head,why,rulesSection(e),sugg,rels,explainBox());
  const impact=section("What relies on this",ctx.relied_on_by.length,
   h("p",{class:"note",text:"Declared reachability, not a measured blast radius. A path is only as strong as its weakest hop."}),
   ...ctx.relied_on_by.map(r=>h("div",{class:"item"},h("div",{},chip(r.standing)," ",entityLink(r),h("span",{class:"faint",text:` · ${r.depth} hop${r.depth>1?"s":""}`})),
