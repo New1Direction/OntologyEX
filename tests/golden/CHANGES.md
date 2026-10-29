@@ -24,3 +24,9 @@ here with its reason, or CI fails.
 - `shop/discovery.json`
 - `shop/ownership.json`
 - `shop/suppliers.json`
+
+## 2026-10-29: Operations: the demo's synthetic payment-processor exports, read as weekly aggregates against the fixed clock, add a payout failure, open disputes, rising refunds, a high dispute rate and written-off invoices to the command center and digest, and pin the operations ledger itself.
+
+- `demo/command_center.json`
+- `demo/digest.json`
+- `demo/operations.json`

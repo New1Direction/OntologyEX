@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>OntologyEX / Operations</title>
+<style>
+:root{color-scheme:dark;--bg:#060b12;--panel:#0b131d;--panel2:#0f1a26;--line:#1d2c3b;--line2:#2a3d50;
+--text:#dbe7f0;--muted:#7f93a6;--faint:#4d6176;--accent:#4cc3d9;--ok:#34d399;--warn:#f2c14e;--risk:#ff5d5d;--impact:#ff9a3c;--person:#a78bfa;
+--sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:13px/1.5 var(--sans);min-height:100vh}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+header{display:flex;align-items:center;gap:18px;padding:10px 18px;border-bottom:1px solid var(--line);background:#08101a;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15}
+.brand b{font:600 11px var(--mono);letter-spacing:.22em;color:var(--accent)}
+.brand span{font-weight:600;font-size:15px}
+nav{display:flex;flex-wrap:wrap;max-width:100%;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px}
+nav a{padding:6px 12px;border-radius:6px;color:var(--muted);font-weight:500}
+nav a[aria-current="page"]{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
+nav a:hover{text-decoration:none;color:var(--text)}
+main{max-width:1200px;margin:0 auto;padding:0 0 40px}
+.sec{padding:16px 20px;border-bottom:1px solid var(--line)}
+.sec h2{margin:0 0 10px;font:600 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.summary{font-size:18px;margin:0 0 6px;font-weight:600}.note{color:var(--muted);font-size:12px;margin:0}
+.tabs{display:flex;flex-wrap:wrap;gap:8px}
+.tab{background:var(--panel);color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px 12px;font:600 13px var(--sans);cursor:pointer;text-align:left}
+.tab small{display:block;font:600 10px var(--mono);letter-spacing:.06em;color:var(--muted);margin-top:2px}
+.tab[aria-pressed="true"]{border-color:var(--accent);background:var(--panel2)}
+.APPLIES{color:var(--impact)!important}.ASKED_BY_CUSTOMERS{color:var(--warn)!important}.NOT_INDICATED{color:var(--faint)!important}
+.bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--panel2);margin:10px 0 6px}
+.bar i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:var(--c)}
+.risk{border:1px solid #5a2a2a;background:#160b0b;border-radius:8px;padding:10px 12px;margin:10px 0 0}
+.risk b{color:var(--risk)}
+.ctl{border-top:1px solid var(--line);padding:10px 0}
+.ctl h3{margin:0;font-size:14px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.ctl h3 code{font:600 11px var(--mono);color:var(--muted)}
+.chip{display:inline-flex;padding:1px 7px;border-radius:999px;border:1px solid var(--line2);font:600 10px var(--mono);letter-spacing:.05em;white-space:nowrap}
+.SHOWN{color:var(--ok);border-color:#1f4a3a}.PARTLY_SHOWN{color:var(--warn);border-color:#5a4a1e}
+.NOT_SHOWN_IN_SOURCES{color:var(--risk);border-color:#5a2a2a}.NEEDS_A_PERSON{color:var(--person);border-color:#3d3060}
+.check{margin:6px 0 0 2px;font-size:12px;overflow-wrap:anywhere}
+.yes{color:var(--ok)}.no{color:var(--faint)}
+.cite{font:11px var(--mono);color:var(--faint);margin-left:16px;overflow-wrap:anywhere}
+.person{font-size:12px;color:var(--person);margin-top:6px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
+.tile b{display:block;font:600 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.tile .v{font-size:22px;font-weight:650;margin:2px 0 0;overflow-wrap:anywhere}.tile .s{font-size:12px;color:var(--muted)}
+.up{color:var(--risk)}.down{color:var(--ok)}.flat{color:var(--muted)}
+.sig{display:flex;gap:10px;align-items:baseline;padding:7px 0;border-top:1px solid var(--line)}.sig:first-of-type{border-top:0}
+.sig p{margin:0;min-width:0;overflow-wrap:anywhere}.sig strong{display:block}
+.CRITICAL{color:var(--risk);border-color:#5a2a2a}.HIGH{color:var(--impact);border-color:#5a3a1e}.MEDIUM{color:var(--warn);border-color:#5a4a1e}
+.chart{width:100%;height:auto;display:block;margin:10px 0 4px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:var(--c)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:12px}
+.list{margin:0;padding:0;list-style:none;font-size:12px}.list li{display:flex;justify-content:space-between;gap:8px;padding:2px 0;border-bottom:1px dashed var(--line)}
+.list li span:last-child{color:var(--muted);font:12px var(--mono)}
+h3{margin:0 0 4px;font-size:12px;color:var(--muted);font-weight:600}
+.find{padding:7px 0;border-top:1px solid var(--line);font-size:12.5px;overflow-wrap:anywhere}.find:first-of-type{border-top:0}
+.find b{font:600 10px var(--mono);letter-spacing:.08em;color:var(--accent);margin-right:6px}
+table{width:100%;border-collapse:collapse;font-size:12px}td,th{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 10px var(--mono);letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+.wrap{overflow-x:auto}.mono{font:11.5px var(--mono);overflow-wrap:anywhere}
+.empty{color:var(--faint);margin:0}code{font:12px var(--mono);color:var(--text);background:var(--panel2);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;font:12px var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}
+</style></head>
+<body>
+<header>
+ <div class="brand"><b>ONTOLOGYEX</b><span>Operations</span></div>
+ <nav><a href="/command">Command</a><a href="/digest">Digest</a><a href="/owners">Owners</a><a href="/compliance">Compliance</a><a href="/operations" aria-current="page">Operations</a><a href="/">System map</a><a href="/business">Business</a><a href="/entity">Entity</a><a href="/impact">Change impact</a><a href="/suppliers">Suppliers</a></nav>
+</header>
+<main id="body"></main>
+<script>
+"use strict";
+// What the business's own records show it doing, kept as weekly aggregates: money in and out, refunds,
+// disputes, payouts, subscriptions and invoices, what changed, and how that compares with the code.
+const $=id=>document.getElementById(id);
+function h(tag,attrs={},...kids){const el=document.createElement(tag);
+ for(const [k,v] of Object.entries(attrs)){if(v==null)continue;if(k==="text")el.textContent=v;else if(k==="class")el.className=v;else el.setAttribute(k,v)}
+ for(const c of kids){if(c!=null)el.append(c)}return el}
+function s(tag,attrs={}){const el=document.createElementNS("http://www.w3.org/2000/svg",tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,v);return el}
+const TITLE={payments:"Payments",refunds:"Refunds",disputes:"Disputes",payouts:"Payouts",subscriptions:"Subscriptions",invoices:"Invoices"};
+const SIGNAL={DISPUTES_OPEN:"Disputes waiting for a response",PAYOUT_FAILED:"A payout failed",REFUND_RATE_RISING:"Refund rate rising",
+ REVENUE_DOWN:"Payments taken fell",DISPUTE_RATE_HIGH:"Dispute rate high",CHURN_RISING:"Cancellations rising",FAILED_PAYMENTS_HIGH:"Many payments fail",
+ INVOICES_UNCOLLECTIBLE:"Invoices written off",SUBSCRIPTIONS_PAST_DUE:"Subscriptions past due"};
+const FINDING={HAPPENS_NOT_IN_CODE:"HAPPENS, NOT IN THE SOURCES",IN_CODE_NOT_SEEN:"BUILT, NOT SEEN",SEEN_AND_MODELED:"SEEN AND MODELED"};
+function money(v,cur){if(v==null)return "withheld";try{return new Intl.NumberFormat(undefined,{style:"currency",currency:cur.toUpperCase(),maximumFractionDigits:0}).format(v)}catch(_){return v.toLocaleString()+" "+cur.toUpperCase()}}
+const pct=v=>v==null?"–":(100*v).toFixed(v<0.01?2:1)+"%";
+function delta(now,before,goodWhenDown){if(now==null||before==null||!before)return h("span",{class:"flat",text:"no earlier weeks"});
+ const d=(now-before)/before,up=d>0.005,down=d<-0.005,bad=goodWhenDown?up:down;
+ return h("span",{class:up||down?(bad?"up":"down"):"flat",text:`${up?"▲":down?"▼":"="} ${Math.abs(100*d).toFixed(0)}% vs the 4 weeks before`})}
+function tile(label,value,sub){return h("div",{class:"tile"},h("b",{text:label}),h("div",{class:"v",text:value}),sub?h("div",{class:"s"},sub):null)}
+function chart(c,cur,inProgress){const pays=(c.streams.payments||[]),refs=c.streams.refunds||[];if(!pays.length)return null;
+ const W=1000,H=170,pad=18,bw=(W-pad)/pays.length,max=Math.max(1,...pays.map(w=>w.gross||0));
+ const svg=s("svg",{class:"chart",viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":"Payments taken and refunds by week"});
+ const refundBy=Object.fromEntries(refs.map(r=>[r.week,r.amount]));
+ pays.forEach((w,i)=>{const x=pad+i*bw,g=w.gross==null?0:w.gross,hgt=(H-24)*g/max,live=w.week>=inProgress;
+  const bar=s("rect",{x:x+2,y:H-16-hgt,width:Math.max(2,bw-4),height:Math.max(0,hgt),rx:2,fill:live?"#24485a":"#4cc3d9",opacity:w.withheld?0.25:0.9});
+  bar.append(s("title"));bar.lastChild.textContent=`${w.week}${live?" (in progress)":""}: ${money(w.gross,cur)} taken, ${w.succeeded} payments, ${w.failed} failed`;svg.append(bar);
+  const rf=refundBy[w.week];if(rf){const rh=(H-24)*rf/max;const r=s("rect",{x:x+2,y:H-16-rh,width:Math.max(2,bw-4),height:rh,rx:2,fill:"#ff5d5d",opacity:0.85});svg.append(r)}
+  if(i%Math.ceil(pays.length/8)===0){const t=s("text",{x:x+bw/2,y:H-3,"text-anchor":"middle",fill:"#7f93a6","font-size":"12"});t.textContent=w.week.slice(5);svg.append(t)}});
+ return h("div",{class:"wrap"},svg)}
+function counts(title,obj){const rows=Object.entries(obj||{}).sort((a,b)=>b[1]-a[1]);if(!rows.length)return null;
+ return h("div",{},h("h3",{text:title}),h("ul",{class:"list"},...rows.slice(0,8).map(([k,v])=>h("li",{},h("span",{text:k.replace(/_/g," ")}),h("span",{text:String(v)})))))}
+function currencySection(cur,c,d){const r=c.recent||{},p=r.payments,tiles=h("div",{class:"tiles"});
+ if(p)tiles.append(tile("Payments taken, 4 weeks",money(p.taken,cur),delta(p.taken,p.taken_before,false)),
+  tile("Refund rate",pct(p.refund_rate),h("span",{},`${pct(p.refund_rate_before)} the 4 weeks before`)),
+  tile("Failed attempts",pct(p.failure_rate),h("span",{},`${p.attempted.toLocaleString()} attempts`)));
+ if(r.disputes)tiles.append(tile("Disputes, 4 weeks",String(r.disputes.count),h("span",{class:r.disputes.open?"up":"flat",text:`${r.disputes.open} open · rate ${pct(r.disputes.rate)}`})));
+ if(r.subscriptions)tiles.append(tile("Recurring revenue",money(r.subscriptions.mrr,cur)+"/mo",
+  h("span",{},`${r.subscriptions.active} active · ${r.subscriptions.started} started, ${r.subscriptions.ended} ended in 4 weeks`)));
+ if(r.payouts)tiles.append(tile("Payouts, 4 weeks",String(r.payouts.count),h("span",{class:r.payouts.failed?"up":"flat",text:`${r.payouts.failed} failed`})));
+ if(r.invoices)tiles.append(tile("Invoices",`${r.invoices.open} open`,h("span",{class:r.invoices.uncollectible?"up":"flat",text:`${r.invoices.uncollectible} uncollectible`})));
+ const t=c.totals||{};
+ const breakdowns=h("div",{class:"cols"},counts("Why payments failed",t.payments&&t.payments.decline_reasons),counts("Why refunds were given",t.refunds&&t.refunds.reasons),
+  counts("Why customers disputed",t.disputes&&t.disputes.reasons),counts("Active plans",t.subscriptions&&t.subscriptions.plans));
+ return h("div",{class:"sec"},h("h2",{},h("span",{text:`${cur.toUpperCase()} · ${c.first_week} to ${c.last_week}`}),h("span",{text:"last 4 complete weeks"})),tiles,
+  chart(c,cur,d.week_in_progress),c.streams.payments?h("div",{class:"legend"},h("span",{style:"--c:#4cc3d9",text:"payments taken"}),h("span",{style:"--c:#ff5d5d",text:"refunds"}),h("span",{style:"--c:#24485a",text:"week in progress"})):null,
+  breakdowns.childElementCount?breakdowns:null)}
+function empty(d){return h("div",{class:"sec"},h("p",{class:"summary",text:"No records read yet"}),
+ h("p",{class:"note",text:"Operations shows what the business actually does, from its own records, kept as weekly aggregates only. Drop exports in this folder:"}),
+ h("pre",{text:d.folder||"REPO/.ontologyex/operations"}),
+ h("p",{class:"note",text:"Read now: Stripe dashboard exports of payments, refunds, disputes, payouts, subscriptions and invoices (CSV), Stripe API objects saved as JSON, and other processors' CSVs described in operations.json. Or pull aggregates with a restricted, read-only key; no record is written:"}),
+ h("pre",{text:"STRIPE_API_KEY=rk_... python ontology-extraction/scripts/operations.py pull stripe --out "+(d.folder||"REPO/.ontologyex/operations")}),
+ h("p",{class:"note",text:d.privacy.rule}))}
+function render(d){
+ if(d.status!=="OK"){$("body").replaceChildren(empty(d));return}
+ const parts=[];
+ const sigs=h("div",{class:"sec"},h("h2",{},h("span",{text:"What needs a person"}),h("span",{text:`${d.signals.length}`})));
+ if(!d.signals.length)sigs.append(h("p",{class:"empty",text:"Nothing in the last four complete weeks stands out."}));
+ for(const g of d.signals)sigs.append(h("div",{class:"sig"},h("span",{class:"chip "+g.level,text:g.level}),
+  h("p",{},h("strong",{text:`${SIGNAL[g.signal]||g.signal} (${g.currency.toUpperCase()})`}),g.detail[0].toUpperCase()+g.detail.slice(1)+".")));
+ parts.push(sigs);
+ for(const [cur,c] of Object.entries(d.currencies))parts.push(currencySection(cur,c,d));
+ if(d.code_vs_operations.length)parts.push(h("div",{class:"sec"},h("h2",{text:"Code and operations"}),
+  h("p",{class:"note",style:"margin-bottom:6px",text:"What the records show the business doing, against what the business model and the code name. Matched by words, so it is inferred."}),
+  ...d.code_vs_operations.map(f=>h("div",{class:"find"},h("b",{text:FINDING[f.finding]}),`${TITLE[f.stream]}: ${f.detail}`,
+   ...(f.entities||[]).slice(0,3).map(e=>[" · ",h("a",{href:"/entity?id="+encodeURIComponent(e.id),text:e.label||e.id})]).flat()))));
+ const rows=d.sources.map(x=>h("tr",{},h("td",{class:"mono",text:x.file}),h("td",{text:x.status==="READ"?(x.stream||"").split(",").map(k=>TITLE[k]||k).join(", "):x.status.toLowerCase()}),
+  h("td",{text:x.status!=="READ"?"–":x.rows==null?"aggregate":x.rows.toLocaleString()}),h("td",{text:x.columns_used?`${x.columns_used.join(", ")} (${x.columns_not_read} not read)`:x.recognized_by||x.hint||""}),
+  h("td",{class:"mono",style:"white-space:nowrap",text:(x.sha256||"").slice(0,10)})));
+ parts.push(h("div",{class:"sec"},h("h2",{text:"Records read"}),h("div",{class:"wrap"},h("table",{},h("tr",{},...["File","Stream","Rows","Columns read","sha256"].map(t=>h("th",{text:t}))),...rows)),
+  ...d.unrecognized.map(u=>h("p",{class:"note",style:"margin-top:8px"},h("code",{text:u.file}),` was not recognized${u.headers&&u.headers.length?" (columns: "+u.headers.join(", ")+")":""}. ${u.hint}`)),
+  ...(d.overlaps||[]).map(o=>h("p",{class:"note",text:`${TITLE[o.stream]} ${o.currency.toUpperCase()}: ${o.weeks} week(s) came from both a file and a pull; ${o.kept} was kept.`})),
+  h("p",{class:"note",style:"margin-top:8px",text:d.privacy.rule+" Customer names, emails, IDs, card details and free text are never read."})));
+ $("body").replaceChildren(...parts)}
+async function load(){
+ try{const r=await fetch("/api/operations",{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.status);render(d)}
+ catch(err){$("body").replaceChildren(h("div",{class:"sec"},h("p",{class:"empty",text:"Not available: "+err.message})))}}
+load();
+</script>
+</body></html>

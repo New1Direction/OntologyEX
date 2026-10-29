@@ -74,6 +74,7 @@ single model of your business, the same model your agents read:
 | **`/business`** | Your domain skills joined to your live systems: which business actions are at risk, which depend on a failing system, which rules were checked and how far. |
 | **`/owners`** | Who answers for each part: declared in CODEOWNERS (line cited) or inferred from a year of git history. Business actions nobody owns. Code only one person knows. |
 | **`/compliance`** | SOC 2, PCI DSS v4.0, HIPAA and GDPR mapped to what the code shows, with the lines cited, and what only a person can provide. An evidence map for preparing an audit, not an audit. |
+| **`/operations`** | What the business actually does, from its own records: payments, refunds, disputes, payouts, subscriptions and invoices as weekly aggregates (never a row or a customer), the signals that need a person, and what happens that the code does not show. [How](docs/operations.md). |
 | **`/suppliers`** | The outside companies you run on (payments, sign-in, email, cloud, AI, shipping, tax…), how critical each kind is, where only one is declared, and what relies on each. |
 | **`/impact`** | Before a merge: what a branch touches in the business, and everything that relies on it. |
 | **`/entity`** | Any object, action, system or supplier: why it exists, what a person confirmed and what is only inferred, what relies on it, and the files behind every link. |
@@ -113,8 +114,8 @@ python ontology-extraction/scripts/agent_tools.py serve --control-room http://12
   --agent claude --operator "Your Name" --audit audit.jsonl
 ```
 
-An MCP server over the running control room. **Thirteen read tools**: `what_needs_attention`,
-`weekly_digest`, `who_owns`, `compliance_status`, `list_suppliers`, `analyze_change`,
+An MCP server over the running control room. **Fourteen read tools**: `what_needs_attention`,
+`weekly_digest`, `who_owns`, `compliance_status`, `operations_status`, `list_suppliers`, `analyze_change`,
 `analyze_impact`, `get_entity_context`, `explain_relationship`, `search_entities`,
 `list_suggestions`, `list_stale_decisions`, `recent_changes`. **Three propose tools**:
 `propose_link`, `propose_dependency` and `propose_rule` append a suggestion that a person

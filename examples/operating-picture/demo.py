@@ -9,7 +9,7 @@ No LLM, network, real payment system, or production observation is involved.
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import importlib.util
 import json
 import shutil
@@ -50,6 +50,85 @@ HEALTH = (("db", "ok", {"db_pool_utilization_pct": 41}), ("ledger", "ok", {}),
 LINKS = (("payments.apply_refund", "payments", "Refund code is deployed in the payments service."),
          ("payments.Payment", "ledger", "Payment records are stored by the ledger service."),
          ("payments.Payment", "api", "The public API returns Payment records."))
+
+
+def write_operations(folder: Path, now: datetime) -> None:
+    """Sixteen weeks of synthetic payment-processor exports for the fictional shop, shaped like Stripe's
+    dashboard exports, with the customer columns such exports carry (all fictional) so the tests can show
+    they are never read. Refunds rise in the last four weeks, two disputes are open, one payout failed
+    and subscription cancellations climb: things the operations page should find."""
+    import csv
+    import random
+    rng = random.Random(20261029)
+    folder.mkdir(parents=True)
+    monday = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    first = monday - timedelta(weeks=15)
+    when = lambda week, day=None: min(now, first + timedelta(  # noqa: E731
+        weeks=week, days=rng.randrange(7) if day is None else day, seconds=rng.randrange(86400)))
+    stamp = lambda t: t.strftime("%Y-%m-%d %H:%M:%S")  # noqa: E731
+    ident = lambda prefix: prefix + "".join(rng.choice("abcdefghijklmnopqrstuvwxyz0123456789") for _ in range(14))  # noqa: E731
+
+    def write(name, header, rows):
+        with (folder / name).open("w", newline="", encoding="utf-8") as handle:
+            out = csv.writer(handle)
+            out.writerow(header)
+            out.writerows(rows)
+
+    payments, refunds = [], []
+    for week in range(16):
+        for _ in range(55 + rng.randrange(15)):
+            t, price = when(week), rng.choice(["19.00", "49.00", "99.00", "149.00"])
+            customer = rng.randrange(400)
+            failed = rng.random() < 0.08
+            refunded = not failed and rng.random() < (0.07 if week >= 12 else 0.02)
+            charge = ident("ch_")
+            payments.append([charge, stamp(t), price, price if refunded else "0.00", "usd", "true" if not failed else "false",
+                             f"{float(price) * 0.029 + 0.30:.2f}", "Failed" if failed else "Refunded" if refunded else "Paid",
+                             "Payment complete." if not failed else "The bank declined it.", f"cus_{customer:06d}x",
+                             f"customer{customer}@example.test", f"Customer {customer}",
+                             rng.choice(["card_declined", "insufficient_funds", "expired_card"]) if failed else "",
+                             f"Order #{rng.randrange(10**6)}"])
+            if refunded:
+                refunds.append([ident("re_"), price, charge, stamp(min(now, t + timedelta(days=2))), "usd",
+                                rng.choice(["requested_by_customer", "duplicate", "fraudulent"]), "succeeded",
+                                f"customer{customer}@example.test"])
+    write("payments.csv", ["id", "Created date (UTC)", "Amount", "Amount Refunded", "Currency", "Captured", "Fee", "Status",
+                           "Seller Message", "Customer ID", "Customer Email", "Customer Description", "Decline Reason",
+                           "Description"], payments)
+    write("refunds.csv", ["id", "Amount", "Charge ID", "Created (UTC)", "Currency", "Reason", "Status", "Customer Email"],
+          refunds)
+    write("disputes.csv", ["id", "Amount", "Charge ID", "Created (UTC)", "Currency", "Reason", "Status",
+                           "Evidence Due By (UTC)"],
+          [[ident("dp_"), "149.00", ident("ch_"), stamp(when(13)), "usd", "fraudulent", "needs_response", stamp(when(15, 6))],
+           [ident("dp_"), "49.00", ident("ch_"), stamp(when(14)), "usd", "product_not_received", "under_review", ""],
+           [ident("dp_"), "99.00", ident("ch_"), stamp(when(6)), "usd", "fraudulent", "won", ""]])
+    write("payouts.csv", ["id", "Amount", "Arrival Date (UTC)", "Created (UTC)", "Currency", "Status", "Destination"],
+          [[ident("po_"), f"{2600 + rng.randrange(900)}.00", stamp(when(w, 3)), stamp(when(w, 1)), "usd",
+            "failed" if w == 14 else "paid", "ba_" + "9" * 12] for w in range(16)])
+    subscriptions = []
+    for n in range(90):
+        plan, amount_, interval = rng.choice([("Starter", "19.00", "month"), ("Team", "99.00", "month"),
+                                              ("Annual", "990.00", "year")])
+        started = when(rng.randrange(16))
+        ends = rng.random() < (0.35 if n % 3 == 0 else 0.08)
+        ended = started + timedelta(days=rng.randrange(14, 60)) if ends else None
+        if ended is not None and ended > monday + timedelta(days=6):
+            ended = None
+        subscriptions.append([ident("sub_"), f"cus_{n:06d}x", f"subscriber{n}@example.test", plan, f"Shop {plan}", "1",
+                              interval, amount_, "usd", "canceled" if ended else "active", stamp(started), stamp(started),
+                              stamp(ended) if ended else "", stamp(ended) if ended else ""])
+    write("subscriptions.csv", ["id", "Customer ID", "Customer Email", "Plan", "Product", "Quantity", "Interval", "Amount",
+                                "Currency", "Status", "Created (UTC)", "Start (UTC)", "Canceled At (UTC)",
+                                "Ended At (UTC)"], subscriptions)
+    write("invoices.csv", ["id", "Amount Due", "Amount Paid", "Currency", "Customer Email", "Date (UTC)", "Status",
+                           "Subscription"],
+          [[ident("in_"), amount_, "0.00" if status != "paid" else amount_, "usd", f"subscriber{rng.randrange(90)}@example.test",
+            stamp(when(rng.randrange(16))), status, ident("sub_")]
+           for amount_, status in [(rng.choice(["19.00", "99.00"]), rng.choice(["paid"] * 12 + ["open", "uncollectible"]))
+                                   for _ in range(120)]])
+    (folder / "bank").mkdir()
+    write("bank/statement-october.csv", ["Posting Date", "Narrative", "Debit", "Credit"],
+          [[stamp(when(w)), "CARD SETTLEMENT", "", "2900.00"] for w in range(3)])
 
 
 def build(out: Path, now: datetime | None = None, unlinked: bool = False) -> dict:
@@ -96,6 +175,7 @@ def build(out: Path, now: datetime | None = None, unlinked: bool = False) -> dic
     evidence_grade.record(skill, events, "remaining-balance", "BEHAVIOR_CHECK_PASSED", "demo (synthetic)",
                           "examples/payments-domain fixture checks")
     evidence_grade.record(skill, events, "positive-amount", "REVIEW_SUPPORTS", "demo (synthetic)", "")
+    write_operations(repo / ".ontologyex/operations", now)  # exports, read as aggregates (REPO/.ontologyex/operations)
     command = [sys.executable, str(ROOT / "ontology-extraction/scripts/control_room.py"),
                "--repo", str(repo), "--skill", str(skill), "--links", str(links),
                "--events", str(events), "--observations", str(health)]

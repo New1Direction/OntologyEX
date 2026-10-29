@@ -44,6 +44,7 @@ import digest  # noqa: E402
 import discover_repo  # noqa: E402
 import entity_context  # noqa: E402
 import native_view_bridge  # noqa: E402
+import operations  # noqa: E402
 import ownership  # noqa: E402
 
 GOLDEN = ROOT / "tests/golden"
@@ -141,13 +142,19 @@ def demo_outputs(tmp: Path, engines: dict) -> tuple[dict, dict, str]:
     spec.loader.exec_module(demo)
     built = demo.build(tmp / "demo")
     bundle = _bundle(built["command"])
+    folder = Path(built["repo"]) / ".ontologyex/operations"  # the exports again, against the fixed clock
+    shutil.rmtree(folder)
+    demo.write_operations(folder, NOW)
+    bundle["operations"] = operations.with_comparison(operations.report(folder, now=NOW),
+                                                      list(entity_context._entities(bundle).values()))
     report = command_center.report(bundle)
     business = sorted(i for i, e in entity_context._entities(bundle).items() if e["layer"] == "business")
     changes = {"files": [{"path": "domain/payments.py"}]}
     history = [digest.snapshot({**report, "items": report["items"][2:] + [
         {**report["items"][0], "id": "fixture-fixed", "title": "worker reports an error", "score": 80,
          "level": "CRITICAL"}]}, NOW - timedelta(days=9))]
-    out = {"command_center": report, "context": {i: entity_context.context(bundle, i) for i in business},
+    out = {"command_center": report, "operations": bundle["operations"],
+           "context": {i: entity_context.context(bundle, i) for i in business},
            "change_impact": entity_context.change_impact(bundle, changes),
            "digest": digest.build(history, report, NOW, 7, {"link": [
                {"at": "2026-09-30T09:00:00Z", "by": "Dana", "action": "confirm", "note": "checked the handler",

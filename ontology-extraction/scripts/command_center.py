@@ -53,6 +53,17 @@ SEVERITY = {
     "CARD_FIELDS": (45, "fields named like card numbers or security codes are in the data model"),
     "COMPLIANCE_GAPS": (18, "a standard that applies asks for controls the sources do not show"),
     "COMPLIANCE_ASKED": (10, "customers usually ask for this standard, and the sources do not show all of it"),
+    "DISPUTES_OPEN": (65, "disputes wait for a response, and an unanswered dispute is lost"),
+    "PAYOUT_FAILED": (65, "a payout failed: money did not reach the bank"),
+    "REFUND_RATE_RISING": (45, "refunds take a growing share of what customers pay"),
+    "REVENUE_DOWN": (45, "payments taken fell against the weeks before"),
+    "DISPUTE_RATE_HIGH": (45, "disputes are above a common warning level"),
+    "CHURN_RISING": (40, "more subscriptions are ending than before"),
+    "FAILED_PAYMENTS_HIGH": (30, "many payment attempts fail"),
+    "INVOICES_UNCOLLECTIBLE": (20, "invoices were written off as uncollectible"),
+    "SUBSCRIPTIONS_PAST_DUE": (20, "subscriptions are past due"),
+    "HAPPENS_NOT_IN_CODE": (20, "the records show the business doing something the sources do not show"),
+    "IN_CODE_NOT_SEEN": (10, "something is built that the records never show in use"),
 }
 CATEGORY = {"SYSTEM_ERROR": "Systems", "AT_RISK": "Business at risk", "POSSIBLY_IMPACTED": "Business at risk",
             "DEGRADED": "Business at risk", "STALE": "Business at risk", "STALE_CONFIRMATION": "Decisions",
@@ -60,7 +71,11 @@ CATEGORY = {"SYSTEM_ERROR": "Systems", "AT_RISK": "Business at risk", "POSSIBLY_
             "LINK_GAP": "Unknowns", "OPEN_QUESTION": "Unknowns", "NOT_LINKED": "Visibility", "NEVER_OBSERVED": "Visibility",
             "NO_BUSINESS_MODEL": "Visibility", "UNOBSERVED_SERVICES": "Visibility", "NO_OWNER": "Ownership",
             "ONE_PERSON": "Ownership", "ONE_PERSON_REPOSITORY": "Ownership", "NO_CODEOWNERS": "Ownership",
-            "CARD_FIELDS": "Compliance", "COMPLIANCE_GAPS": "Compliance", "COMPLIANCE_ASKED": "Compliance"}
+            "CARD_FIELDS": "Compliance", "COMPLIANCE_GAPS": "Compliance", "COMPLIANCE_ASKED": "Compliance",
+            **{k: "Operations" for k in ("DISPUTES_OPEN", "PAYOUT_FAILED", "REFUND_RATE_RISING", "REVENUE_DOWN",
+                                         "DISPUTE_RATE_HIGH", "CHURN_RISING", "FAILED_PAYMENTS_HIGH",
+                                         "INVOICES_UNCOLLECTIBLE", "SUBSCRIPTIONS_PAST_DUE", "HAPPENS_NOT_IN_CODE",
+                                         "IN_CODE_NOT_SEEN")}}
 NEXT_STEP = {
     "SYSTEM_ERROR": "Open the system, read what it reports, and check the business actions that run on it.",
     "AT_RISK": "Open the action: see which linked system fails and what else relies on it.",
@@ -85,7 +100,23 @@ NEXT_STEP = {
     "CARD_FIELDS": "Confirm no card number or security code is stored; if one is, move it to the payments supplier.",
     "COMPLIANCE_GAPS": "Open Compliance: each gap says what evidence would show it and what a person must provide.",
     "COMPLIANCE_ASKED": "Open Compliance before a customer's security review asks for it.",
+    "DISPUTES_OPEN": "Answer each open dispute in the payment processor's dashboard before its evidence is due.",
+    "PAYOUT_FAILED": "Check the bank account payouts go to, then have the processor retry the payout.",
+    "REFUND_RATE_RISING": "Read the refund reasons on the Operations page and find what changed in that journey.",
+    "REVENUE_DOWN": "Compare the weeks on the Operations page, and check the health of the systems checkout runs on.",
+    "DISPUTE_RATE_HIGH": "Read the dispute reasons; fraud disputes call for stronger checks at checkout.",
+    "CHURN_RISING": "See which plans lose subscribers on the Operations page, and ask the people who left why.",
+    "FAILED_PAYMENTS_HIGH": "Read the decline reasons; retries and card-update reminders recover some of them.",
+    "INVOICES_UNCOLLECTIBLE": "Review how unpaid invoices are chased, and when one is written off.",
+    "SUBSCRIPTIONS_PAST_DUE": "Check the failed renewals and the reminders those customers get.",
+    "HAPPENS_NOT_IN_CODE": "Find where it is handled (a person, a dashboard, another system) and write it down.",
+    "IN_CODE_NOT_SEEN": "Check whether it is used, handled by another processor, or missing from the exports.",
 }
+SIGNAL_TITLES = {"DISPUTES_OPEN": "Disputes waiting for a response", "PAYOUT_FAILED": "A payout failed",
+                 "REFUND_RATE_RISING": "Refund rate rising", "REVENUE_DOWN": "Payments taken fell",
+                 "DISPUTE_RATE_HIGH": "Dispute rate high", "CHURN_RISING": "Subscription cancellations rising",
+                 "FAILED_PAYMENTS_HIGH": "Many payments fail", "INVOICES_UNCOLLECTIBLE": "Invoices written off",
+                 "SUBSCRIPTIONS_PAST_DUE": "Subscriptions past due"}
 # What a business in each field should be able to see; each found from supplier categories or names in the model.
 FIELDS = {
     "e-commerce": (r"order|cart|checkout|product|sku|inventor|catalog|coupon|fulfil|shipment|storefront", (
@@ -302,6 +333,22 @@ def report(bundle: dict) -> dict:
                 items.append(_item("CARD_FIELDS", None, "Card number fields in the data model", risk["detail"] + " "
                                    + ", ".join(f"{e['path']}:{e['line']}" for e in risk["evidence"]), [],
                                    standing="SOURCE"))
+    ops = bundle.get("operations") or {}
+    reach = {f["stream"]: [{**e, "layer": "business"} for e in f.get("entities", [])]
+             for f in ops.get("code_vs_operations", []) if f["finding"] == "SEEN_AND_MODELED"}
+    for signal in ops.get("signals", []):  # from the business's own records, as aggregates
+        items.append(_item(signal["signal"], None, f"{SIGNAL_TITLES[signal['signal']]} ({signal['currency'].upper()})",
+                           signal["detail"][:1].upper() + signal["detail"][1:] + ".", reach.get(signal["stream"], []),
+                           standing="SOURCE", links=[e["id"] for e in reach.get(signal["stream"], [])]))
+    for finding in ops.get("code_vs_operations", []):
+        if finding["finding"] in ("HAPPENS_NOT_IN_CODE", "IN_CODE_NOT_SEEN"):
+            what = finding["stream"]
+            items.append(_item(finding["finding"], None,
+                               (f"{what.capitalize()} happen, and the sources do not show where"
+                                if finding["finding"] == "HAPPENS_NOT_IN_CODE"
+                                else f"{what.capitalize()} are built, and the records show none"),
+                               finding["detail"][:1].upper() + finding["detail"][1:] + ".",
+                               [{**e, "layer": "business"} for e in finding.get("entities", [])], standing="INFERRED"))
     for item in items:
         if item["subject"] and item["subject"]["id"] in owners:
             item["owner"] = owners[item["subject"]["id"]]
