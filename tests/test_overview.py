@@ -141,7 +141,7 @@ class Scan(unittest.TestCase):
             write(repo, ".cursor/rules/architecture.mdc", "# How the pieces fit\n")
             result = overview.scan(repo)
             apps = {a["folder"]: (a["service"], a.get("role", "")[:7]) for a in result["apps"]}
-            self.assertEqual(apps["."], ("app (tooling)", "tooling"))
+            self.assertEqual(apps["."], (f"{repo.name} (tooling)", "tooling"))  # a root app takes the repo name
             self.assertEqual(apps["backend"], ("backend", ""))  # the compose service builds backend/
             self.assertEqual([s["name"] for s in result["services"]], ["backend", "mailpit"])  # one backend, not its override
             self.assertEqual([f["name"] for f in result["apps"][1]["frameworks"]], ["fastapi"])
@@ -150,6 +150,36 @@ class Scan(unittest.TestCase):
             self.assertEqual(result["read_first"]["entry points"][0], "backend/app/main.py")
             self.assertEqual(result["docs"][0], ".cursor/rules/architecture.mdc")
             self.assertIn("compose.override.yml", result["read_first"]["configuration"])
+
+    def test_a_repository_of_documents(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            write(repo, "README.md", "# Handbook\n\n- [How we work](./how-we-work.md)\n- [Benefits](benefits.md)\n")
+            write(repo, "how-we-work.md", "# How we work\n\nSix-week cycles.\n")
+            write(repo, "benefits.md", "# Benefits\n\nSalary at the top 10%, a $3,000 stipend, retirement match, "
+                                       "insurance premiums paid, profit sharing and severance pay.\n")
+            write(repo, "zebra.md", "# Zebra\n\nNotes.\n")
+            write(repo, "LICENSE.md", "Permission is hereby granted, free of charge, to any person obtaining a copy...\n")
+            (repo / ".git").mkdir()
+            (repo / ".git" / "shallow").write_text("0" * 40 + "\n")
+            result = overview.scan(repo)
+            self.assertEqual(result["docs"], ["README.md", "how-we-work.md", "benefits.md", "zebra.md"])  # README's order
+            self.assertEqual(result["read_first"]["money"], ["benefits.md"])
+            self.assertIn("shallow", result["history"])
+            draft = overview.draft(result)
+            self.assertEqual([(e["path"], e["start"]) for e in draft["evidence"]],
+                             [("README.md", 1), ("how-we-work.md", 1), ("benefits.md", 1), ("zebra.md", 1)])
+            self.assertIn("documents, not code", subprocess.run(
+                [sys.executable, str(SCRIPTS / "overview.py"), "scan", "--repo", str(repo), "--out", str(repo / "ov")],
+                capture_output=True, text=True, check=True).stdout)
+
+    def test_the_default_database_in_env_example(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            write(repo, ".env.example", "APP_NAME=Contacts\nDB_CONNECTION=sqlite\n")
+            result = overview.scan(repo)
+            self.assertEqual([(d["name"], d["inferred_from"], d["evidence"]["line"]) for d in result["datastores"]],
+                             [("sqlite", "the default in .env.example", 2)])
 
     def test_cli_scan_prints_a_summary_not_the_whole_scan(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -183,6 +213,8 @@ class Scan(unittest.TestCase):
 
 class Build(unittest.TestCase):
     def setUp(self):
+        self.umask = os.umask(0)
+        os.umask(self.umask)
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
@@ -269,6 +301,20 @@ class Build(unittest.TestCase):
                       "export default async function handler(req, res) {}", result["check_citations"])
         page = (self.root / "x.html").read_text()
         self.assertIn("renderSystems", page)
+        # The drafted README line and the README citation the test added are cited by nothing.
+        self.assertEqual(result["unused_citations"], ["e9", "readme"])
+        self.assertEqual(oct((self.root / "x.html").stat().st_mode & 0o777), oct(0o666 & ~self.umask))
+
+    def test_the_citation_check_reads_the_file_not_the_kept_quote(self):
+        long_lines = "".join(f"line {n} " + "x" * 300 + "\n" for n in range(1, 11))
+        write(self.repo, "policy.md", long_lines)
+        blueprint = self.filled()
+        blueprint["evidence"].append({"id": "policy", "repo": "local", "path": "policy.md", "start": 2, "end": 9})
+        blueprint["unknowns"] = [{"id": "u1", "name": "Policy", "description": "d", "evidence": ["policy"],
+                                  "basis": "observed_in_source"}]
+        result = overview.build(self.repo, self.save(blueprint), self.root / "y.html", self.root / "y.json")
+        check = next(c for c in result["check_citations"] if c.startswith("policy "))
+        self.assertTrue(check.startswith("policy policy.md:2-9  line 2 ") and "...  line 9 " in check, check)
 
     def test_a_shared_page_links_to_github_at_the_commit(self):
         overview.build(self.repo, self.save(self.filled()), self.root / "s.html", self.root / "s.json",

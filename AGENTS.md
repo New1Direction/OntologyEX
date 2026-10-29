@@ -38,8 +38,8 @@ tools only read their repository; they run and change nothing in it.
      --blueprint REPO/.ontologyex/overview/blueprint.json --out REPO/.ontologyex/overview/business.html
    ```
 
-   Read the `check_citations` it prints (the first cited line of each) and fix any
-   range that is off.
+   Read the `check_citations` it prints (the first and last cited line of each) and
+   fix any range that is off.
 
 5. **Tell them**: the page path (one offline file; they open it in a browser), then
    what it is, how money moves, the main journeys, where it breaks, and what is

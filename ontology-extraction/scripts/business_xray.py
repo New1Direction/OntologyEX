@@ -18,6 +18,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 MAX_BYTES = 4 * 1024 * 1024
+MAX_QUOTE = 2000  # characters of cited text kept in the page; the SHA-256 covers all of it
 SLUG = re.compile(r'^[a-zA-Z][a-zA-Z0-9_.-]{0,80}$')
 SHA = re.compile(r'^[0-9a-f]{40}$')
 PROJECT = re.compile(r'^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')
@@ -90,7 +91,7 @@ def local_evidence(ev, root):
     head = git_head(root)
     check(ev.get('commit') in (None, head), f'evidence {ev["id"]}: the checkout is not at commit {ev.get("commit")}')
     return {**ev, 'repo': root.name, 'commit': head, 'source': LOCAL,
-            'quote': cited[:600], 'sha256': hashlib.sha256(cited.encode('utf-8')).hexdigest(),
+            'quote': cited if len(cited) <= MAX_QUOTE else cited[:MAX_QUOTE] + ' …', 'sha256': hashlib.sha256(cited.encode('utf-8')).hexdigest(),
             'url': path.as_uri()}
 
 def validate(p):

@@ -24,6 +24,7 @@ import json
 import os
 from pathlib import Path
 import re
+import sys
 import tempfile
 
 import business_xray
@@ -48,7 +49,8 @@ INTEGRATIONS = {
                  "@paddle/paddle-js", "@paddle/paddle-node-sdk", "paddle", "lemonsqueezy", "@lemonsqueezy/lemonsqueezy.js",
                  "chargebee", "recurly", "adyen", "@adyen/api-library", "square", "paypal", "@paypal/checkout-server-sdk",
                  "razorpay", "mollie", "@mollie/api-client", "avalara", "avatax", "stripe-rails", "laravel/cashier",
-                 "dj-stripe", "@polar-sh/sdk", "@revenuecat/purchases-js", "stripe-ruby-mock", "pay"),
+                 "dj-stripe", "@polar-sh/sdk", "@revenuecat/purchases-js", "stripe-ruby-mock", "pay",
+                 "stripe/stripe-php", "laravel/cashier-paddle", "mollie/*", "paypal/*", "braintree/braintree_php"),
     "banking and finance data": ("plaid", "plaid-python", "plaid-node", "react-plaid-link", "@plaid/*", "teller",
                                  "yodlee", "mx-platform-ruby", "mx-platform-node", "gocardless*", "truelayer*",
                                  "@finicity/*", "github.com/plaid/plaid-go*", "alpaca*", "yfinance"),
@@ -60,19 +62,24 @@ INTEGRATIONS = {
              "github.com/pquerna/otp", "golang.org/x/oauth2", "@workos-inc/node", "@kinde-oss/*", "@hcaptcha/*",
              "hcaptcha", "altcha", "github.com/altcha-org/*", "doorkeeper", "jwt", "rotp", "pundit", "cancancan",
              "rack-attack", "passlib", "pwdlib", "bcrypt", "argon2-cffi", "itsdangerous", "omniauth-*",
-             "django-guardian", "casbin", "oso"),
+             "django-guardian", "casbin", "oso", "laravel/socialite", "laravel/fortify", "laravel/jetstream",
+             "laravel/breeze", "laravel/passport", "tymon/jwt-auth", "web-auth/*", "pragmarx/google2fa*",
+             "spatie/laravel-permission"),
     "email and messaging": ("nodemailer", "@sendgrid/mail", "sendgrid", "postmark", "resend", "mailgun.js", "mailgun",
                             "twilio", "@slack/*", "slack-sdk", "pusher", "@novu/*", "onesignal", "@react-email/*",
                             "react-email", "django-anymail", "@aws-sdk/client-ses", "@aws-sdk/client-sns",
                             "github.com/knadh/smtppool*", "gopkg.in/gomail*", "github.com/wneessen/go-mail",
                             "@mailchimp/*", "mailchimp-marketing", "@vonage/*", "firebase-messaging", "emails",
                             "fastapi-mail", "flask-mail", "postmark-rails", "sendgrid-ruby", "mailgun-ruby",
-                            "intercom-rails", "intercom", "intercom-client", "@intercom/*", "octokit"),
+                            "intercom-rails", "intercom", "intercom-client", "@intercom/*", "octokit",
+                            "pusher/pusher-php-server", "symfony/mailgun-mailer", "symfony/postmark-mailer",
+                            "symfony/*-mailer", "resend/resend-php", "twilio/sdk", "laravel/reverb",
+                            "laravel-notification-channels/*"),
     "AI": ("openai", "@anthropic-ai/sdk", "anthropic", "langchain", "@langchain/*", "llama-index", "llamaindex",
            "cohere", "cohere-ai", "@google/generative-ai", "@google/genai", "google-generativeai", "google-genai",
            "@google-cloud/vertexai", "google-cloud-aiplatform", "replicate", "transformers", "ai", "@ai-sdk/*",
            "mistralai", "@mistralai/mistralai", "groq-sdk", "groq", "ollama", "litellm", "github.com/sashabaranov/go-openai",
-           "ruby-openai", "anthropic-sdk-ruby", "langchainrb", "openai-ruby"),
+           "ruby-openai", "anthropic-sdk-ruby", "langchainrb", "openai-ruby", "openai-php/*", "prism-php/*"),
     "data and queues": ("@prisma/client", "prisma", "sequelize", "typeorm", "mongoose", "drizzle-orm", "knex", "kysely",
                         "sqlalchemy", "psycopg", "psycopg2", "psycopg2-binary", "asyncpg", "pg", "postgres", "mysql2",
                         "mysqlclient", "pymysql", "redis", "ioredis", "@upstash/*", "kafkajs", "celery", "kombu", "rq",
@@ -81,18 +88,21 @@ INTEGRATIONS = {
                         "pymongo", "motor", "mongodb", "@neondatabase/serverless", "@planetscale/database",
                         "google-cloud-pubsub", "@google-cloud/pubsub", "sidekiq", "github.com/jackc/pgx*",
                         "github.com/lib/pq", "github.com/jmoiron/sqlx", "gorm.io/gorm", "github.com/redis/go-redis*",
-                        "github.com/go-redis/redis*", "github.com/go-sql-driver/mysql", "better-sqlite3", "sqlite3"),
+                        "github.com/go-redis/redis*", "github.com/go-sql-driver/mysql", "better-sqlite3", "sqlite3",
+                        "predis/predis", "laravel/horizon", "laravel/scout", "meilisearch/*", "doctrine/dbal"),
     "cloud": ("aws-sdk", "@aws-sdk/*", "boto3", "github.com/aws/aws-sdk-go*", "@google-cloud/*", "google-cloud-*",
               "@azure/*", "azure-*", "firebase", "@vercel/blob", "@vercel/kv", "@vercel/edge-config", "cloudinary",
               "minio", "github.com/minio/minio-go*", "github.com/rhnvrm/simples3", "@cloudflare/*", "cloudflare",
-              "django-storages", "aws-sdk-*", "google-cloud-*", "azure-storage-*"),
+              "django-storages", "aws-sdk-*", "google-cloud-*", "azure-storage-*", "aws/aws-sdk-php",
+              "league/flysystem-aws-s3-v3", "google/cloud-*"),
     "analytics and monitoring": ("posthog-js", "posthog-node", "posthog", "@segment/*", "analytics-node", "mixpanel",
                                  "@amplitude/*", "@sentry/*", "sentry-sdk", "github.com/getsentry/sentry-go",
                                  "dd-trace", "ddtrace", "newrelic", "@opentelemetry/*", "opentelemetry-*",
                                  "go.opentelemetry.io/otel*", "@vercel/analytics", "prom-client",
                                  "prometheus-client", "github.com/prometheus/client_golang", "sentry-*",
                                  "skylight", "logtail*", "@logtail/*", "scout_apm", "honeybadger", "rollbar",
-                                 "bugsnag", "appsignal", "ahoy_matey", "lograge"),
+                                 "bugsnag", "appsignal", "ahoy_matey", "lograge", "sentry/*", "laravel/telescope",
+                                 "laravel/pulse", "bugsnag/*"),
 }
 # Libraries that show a datastore even when no compose file runs one.
 DRIVERS = {
@@ -101,7 +111,7 @@ DRIVERS = {
     "mysql": ("mysql2", "mysqlclient", "pymysql", "@planetscale/database", "github.com/go-sql-driver/mysql"),
     "mongodb": ("mongoose", "mongodb", "pymongo", "motor"),
     "redis": ("redis", "ioredis", "@upstash/redis", "github.com/redis/go-redis*", "github.com/go-redis/redis*",
-              "django-redis", "bullmq", "bull", "rq"),
+              "django-redis", "bullmq", "bull", "rq", "predis/predis"),
     "sqlite": ("better-sqlite3", "sqlite3"),
 }
 # Words that show a file is about what the business itself charges for (in a finance app, "money"
@@ -132,15 +142,16 @@ READ_FIRST = [
                                 r"^main\.go$|(^|/)Program\.cs$|(^|/)src/main\.rs$|(^|/)config\.ru$|"
                                 r"(^|/)(src/)?app/(layout|page)\.(tsx|jsx|ts|js)$|(^|/)(src/)?middleware\.(ts|js)$|"
                                 r"(^|/)pages/_app\.(tsx|jsx|ts|js)$|(^|/)app/(root|entry\.server|entry\.client)\.(tsx|jsx|ts|js)$|"
-                                r"(^|/)server/(router|main|index|app)\.(ts|js|mjs)$|(^|/)celery(conf)?\.py$")),
+                                r"(^|/)server/(router|main|index|app)\.(ts|js|mjs)$|(^|/)celery(conf)?\.py$|"
+                                r"(^|/)public/index\.php$|(^|/)bootstrap/app\.php$|^artisan$")),
     ("routes and APIs", re.compile(r"(^|/)(routes?|controllers?|handlers?|endpoints|resolvers|views)(/|\.py$|\.ts$|\.js$|\.go$)|"
                                    r"(^|/)urls\.py$|\.controller\.ts$|(^|/)pages/api/|(^|/)app/api/.*route\.(ts|js)$|"
                                    r"(^|/)(openapi|swagger)[^/]*\.(ya?ml|json)$|\.proto$|\.graphql$")),
-    ("data model", re.compile(r"(^|/)schema\.prisma$|(^|/)models?(/|\.py$|\.ts$|\.rb$|\.go$)|(^|/)entities/|"
+    ("data model", re.compile(r"(^|/)schema\.prisma$|(^|/)[Mm]odels?(/|\.py$|\.ts$|\.rb$|\.go$)|(^|/)[Ee]ntities/|"
                               r"(^|/)schema\.(rb|sql|ts)$|(^|/)migrations?/[^/]+$|\.sql$")),
     ("money", re.compile(r"(^|[/_.-])(billing|payments?|pricing|prices|checkout|subscriptions?|invoices?|stripe|"
                          r"refunds?|orders?|cart|wallets?|payouts?|plans|giftcards?|gift_cards?|discounts?|vouchers?|"
-                         r"tax|taxes|ledger|credits?)([/_.-]|$)", re.I)),
+                         r"tax|taxes|ledger|credits?|benefits?|compensation|payroll|expenses?|severance|pay)([/_.-]|$)", re.I)),
     ("users and access", re.compile(r"(^|[/_.-])(auth|authentication|login|signup|signin|register|sessions?|accounts?|"
                                     r"permissions?|roles?|users?|members?|teams?|oauth|sso|tokens?)([/_.-]|$)", re.I)),
     ("background jobs", re.compile(r"(^|/)(tasks?|jobs?|workers?|queues?|cron|schedulers?)(/|\.py$|\.ts$|\.js$|\.go$|\.rb$)",
@@ -148,19 +159,22 @@ READ_FIRST = [
 ]
 CONFIG = re.compile(r"(^|/)\.env\.(example|sample|template|dist)$|(^|/)settings(/[^/]+)?\.py$|(^|/)(core/)?config\.py$|(^|/)(docker-)?compose(\.[\w-]+)*\.ya?ml$|(^|/)supabase/config\.toml$|"
                     r"(^|/)(vercel|netlify|render|fly|app|railway|now)\.(json|toml|ya?ml)$|(^|/)Procfile$|"
-                    r"(^|/)(Dockerfile|Containerfile)$|(^|/)config/[^/]+\.(ya?ml|toml|json|ts|js)$|"
+                    r"(^|/)(Dockerfile|Containerfile)$|(^|/)config/[^/]+\.(ya?ml|toml|json|ts|js|php|rb)$|"
                     r"(^|/)config\.(toml|ya?ml)(\.sample|\.example)?$|(^|/)(next|nuxt|vite|remix)\.config\.(js|mjs|ts)$")
 CODE = re.compile(r"\.(py|js|jsx|ts|tsx|mjs|cjs|go|rb|java|kt|cs|php|rs|sql|prisma|proto|graphql|ya?ml|json)$")
+PROSE = re.compile(r"\.(md|mdx|rst|txt)$", re.I)
 TEMPLATES = re.compile(r"\.(erb|haml|slim|vue|svelte|astro|hbs|jinja2?|j2|twig|blade\.php|heex|eex)$")
 NOT_SOURCE = re.compile(r"(^|/)(tests?|__tests__|spec|e2e|cypress|playwright|fixtures?|mocks?|__mocks__|stories|"
-                        r"storybook|i18n|locales?|translations|generated|__generated__|development|seeds?)(/|$)|\.(test|spec|stories|d|gen)\."
+                        r"storybook|i18n|locales?|lang|translations|generated|__generated__|development|seeds?)(/|$)|\.(test|spec|stories|d|gen)\."
                         r"[jt]sx?$|_pb2\.py$|\.pb\.go$|(^|/)test_[^/]+\.py$|_test\.go$|(^|/)(package-lock|yarn\.lock|pnpm-lock)|"
-                        r"\.lock$|(^|/)package\.json$|(^|/)tsconfig[^/]*\.json$", re.I)
+                        r"\.lock$|(^|/)(package|composer)\.json$|(^|/)tsconfig[^/]*\.json$|"
+                        r"(^|/)(LICEN[CS]E|COPYING|NOTICE|CODE_OF_CONDUCT|CONTRIBUTORS|AUTHORS)[^/]*$", re.I)
 # Words that, several at once, show a file is about money or about access.
 TOPIC_WORDS = {
     "money": re.compile(r"\b(price|pricing|amount|currency|invoice|billing|payment|payout|refund|charge|checkout|"
                         r"subscription|plan|coupon|discount|voucher|tax|gift_?card|wallet|ledger|seat|trial|"
-                        r"stripe|paddle|revenue|fee)s?\b", re.I),
+                        r"stripe|paddle|revenue|fee|salar(?:y|ies)|stipend|bonus|compensation|severance|reimburse\w*|"
+                        r"expense|retirement|401k|profit|equity|insurance|premium|payroll|budget|cost)s?\b", re.I),
     "users and access": re.compile(r"\b(password|login|logout|sign_?in|sign_?up|session|token|jwt|oauth|permission|"
                                    r"role|authenticat\w*|authoriz\w*|otp|totp|2fa|passkey|webauthn|sso|saml|oidc|"
                                    r"api_?key|invite|member)s?\b", re.I),
@@ -271,10 +285,12 @@ def _doc_rank(rel: str) -> int | None:
         return 1
     if re.search(r"(^|/)(adrs?|decisions?|rfcs?)/", rel, re.I):
         return 2
+    business = re.search(r"pric|billing|plans?\b|business|architect|overview|polic|enterprise|licens|self-?host|deploy|"
+                         r"domain|terms|privacy|legal|benefit|compensation|salar|pay\b|severance|handbook|how-we",
+                         rel, re.I)
     if depth == 0:
-        return 6 if name.startswith(("CHANGELOG", "HISTORY", "RELEASE")) else 3
-    if re.search(r"pric|billing|plans?\b|business|architect|overview|polic|enterprise|licens|self-?host|deploy|domain",
-                 rel, re.I) and depth <= 6:
+        return 6 if name.startswith(("CHANGELOG", "HISTORY", "RELEASE")) else 3 if business else 4
+    if business and depth <= 6:
         return 4
     if (re.match(r"docs?/", rel) or "/docs/" in rel) and depth <= 4 or name.startswith("README") and depth <= 2:
         return 5
@@ -312,10 +328,15 @@ def _entry_points_from_build(repo: Path, paths: list[str]) -> list[str]:
                         path = (prefix / candidate).as_posix().lstrip("./")
                         if path in known:
                             found.append(path)
-            for script in re.findall(r"([\w./-]+\.(?:py|js|mjs|cjs|ts))\b", command):
-                path = (base / script).as_posix().lstrip("./")
-                if path in known:
-                    found.append(path)
+            for script in re.findall(r"([\w./-]+\.(?:py|js|mjs|cjs|ts|sh|rb|php))\b", command):
+                for path in ((base / script).as_posix().lstrip("./"), script.lstrip("./")):
+                    if path in known:
+                        found.append(path)
+                        break
+                else:  # copied into the image under another path: match a unique file name
+                    same = [k for k in known if k.endswith("/" + Path(script).name)]
+                    if len(same) == 1:
+                        found.append(same[0])
         if commands and name != "package.json":
             found.append(rel)
     return list(dict.fromkeys(found))
@@ -337,7 +358,7 @@ def _topic_scores(repo: Path, paths: list[str], libraries: dict[str, list[str]])
         imports[label] = re.compile("|".join(parts), re.M) if parts else None
     budget = MAX_READ_TOTAL
     for rel in paths:
-        if not (CODE.search(rel) or TEMPLATES.search(rel)) or NOT_SOURCE.search(rel) or re.search(
+        if not (CODE.search(rel) or TEMPLATES.search(rel) or PROSE.search(rel)) or NOT_SOURCE.search(rel) or re.search(
                 r"\.(ya?ml)$|(^|/)(migrations?|migrate)/", rel):
             continue
         try:
@@ -439,6 +460,10 @@ def scan(repo: Path) -> dict:
                      **({"role": "tooling only: no runtime dependencies or framework"}
                         if runtime == 0 and not frameworks else {})})
 
+    # An app at the root with no declared name takes the repository's name, not "app".
+    for app in apps:
+        if app["folder"] == "." and re.fullmatch(r"app(-\d+)?", app["service"]):
+            app["service"] = repo.name + (f" ({app['language']})" if sum(a["folder"] == "." for a in apps) > 1 else "")
     # A tooling-only package.json at the root should not take the project's name from the real app.
     for app in apps:
         if app.get("role"):
@@ -472,6 +497,18 @@ def scan(repo: Path) -> dict:
                     line = text[:match.start()].count("\n") + 1
                     datastores.append({"name": engine, "image": None, "inferred_from": "the Prisma datasource",
                                        "evidence": {"path": rel, "line": line, "text": match.group(0)}})
+                    present.add(engine)
+        if re.search(r"(^|/)\.env\.(example|sample|dist)$", rel) and rel.count("/") <= 1:
+            text = (repo / rel).read_text("utf-8", "replace")
+            match = re.search(r"^(?:DB_CONNECTION|DB_DRIVER|DATABASE_ENGINE|DATABASE_URL)\s*=\s*['\"]?"
+                              r"(postgres(?:ql)?|pgsql|mysql|mariadb|sqlite3?|mongodb(?:\+srv)?)\b", text, re.M | re.I)
+            if match:
+                engine = {"postgresql": "postgres", "pgsql": "postgres", "mariadb": "mysql", "sqlite3": "sqlite",
+                          "mongodb+srv": "mongodb"}.get(match.group(1).lower(), match.group(1).lower())
+                if engine not in present:
+                    datastores.append({"name": engine, "image": None, "inferred_from": f"the default in {rel}",
+                                       "evidence": {"path": rel, "line": text[:match.start()].count("\n") + 1,
+                                                    "text": match.group(0)}})
                     present.add(engine)
         if rel.endswith("supabase/config.toml") and "postgres" not in present:
             datastores.append({"name": "postgres", "image": None, "inferred_from": "the Supabase project config",
@@ -510,21 +547,35 @@ def scan(repo: Path) -> dict:
         declared = by_file.get({"routes and APIs": "routes", "data model": "tables",
                                 "background jobs": "jobs"}.get(label, ""), {})
         declared = {f: n for f, n in declared.items() if not NOT_SOURCE.search(f)}
-        ranked = sorted(declared, key=lambda f: (-declared[f], f))
+        # One-table-per-file migrations (Laravel, Rails) go after the models that describe the same tables.
+        migration = re.compile(r"(^|/)(migrations?|migrate)/")
+        ranked = sorted((f for f in declared if not migration.search(f)), key=lambda f: (-declared[f], f))
+        later = sorted((f for f in declared if migration.search(f)), key=lambda f: (-declared[f], f))
         # Then names that suggest the topic, larger files (more of the logic) first.
         rest = sorted((p for p in hits if p not in declared),
                       key=lambda p: (-min((repo / p).stat().st_size // 4096, 8), p.count("/"), p))
-        read_first[label] = (ranked + rest)[:MAX_LIST]
+        read_first[label] = (ranked + rest + later)[:MAX_LIST]
     deploys = [n["id"].split(":", 2)[2].rstrip(":") for n in discovery["nodes"] if n["kind"] == "workflow"
                and re.search(r"deploy|release|publish|prod|cd\b", f"{n['id']} {n.get('label', '')}", re.I)]
     read_first["configuration"] = (sorted((p for p in paths if p in nonempty and CONFIG.search(p)
-                                           and not NOT_SOURCE.search(p)), key=lambda p: (p.count("/"), p))
+                                           and not NOT_SOURCE.search(p)),
+                                          key=lambda p: (Path(p).stem.lower() != repo.name.lower(),
+                                                         p.startswith("config/"), p.count("/"), p))
                                    + deploys)[:MAX_LIST]
     # Agent and editor notes live in dot folders the walk skips; they are often the best architecture docs.
     notes = sorted(p.relative_to(repo).as_posix() for pattern in (".cursor/rules/*.md*", ".github/copilot-instructions.md")
                    for p in repo.glob(pattern) if p.is_file() and not p.is_symlink() and p.stat().st_size > 0)
-    ranked_docs = sorted([(rank, p) for p in paths if p in nonempty and (rank := _doc_rank(p)) is not None]
-                         + [(1, p) for p in notes], key=lambda x: (x[0], x[1].count("/"), x[1]))
+    # The order the README links its own pages in is the author's reading order.
+    readme = next((p for p in paths if re.fullmatch(r"README\.(md|mdx|rst|txt)", p, re.I)), None)
+    linked = []
+    if readme:
+        for target in re.findall(r"\]\(\s*\.?/?([^)#\s]+\.(?:md|mdx|rst))", (repo / readme).read_text("utf-8", "replace")):
+            if target in paths and target not in linked:
+                linked.append(target)
+    ranked_docs = sorted([(2 if p in linked else rank, p) for p in paths if p in nonempty
+                          and (rank := _doc_rank(p)) is not None] + [(1, p) for p in notes],
+                         key=lambda x: (x[0], linked.index(x[1]) if x[1] in linked else len(linked),
+                                        x[1].count("/"), x[1]))
     docs = [p for _, p in ranked_docs][:MAX_DOCS]
     languages: dict[str, int] = {}
     for p in paths:
@@ -533,7 +584,10 @@ def scan(repo: Path) -> dict:
                       ".sql", ".prisma", ".graphql", ".vue", ".svelte"):
             languages[suffix] = languages.get(suffix, 0) + 1
     return {"schema_version": 1, "kind": "ONTOLOGYEX_REPOSITORY_SCAN", "repo": str(repo), "name": repo.name,
-            "commit": business_xray.git_head(repo), "files": len(paths),
+            "commit": business_xray.git_head(repo),
+            **({"history": "shallow clone: older commits are not in this checkout"}
+               if (repo / ".git" / "shallow").is_file() else {}),
+            "files": len(paths),
             "languages": dict(sorted(languages.items(), key=lambda kv: -kv[1])),
             "apps": apps, "services": services, "datastores": datastores, "integrations": integrations,
             **({"compose_unread": unread} if unread else {}),
@@ -604,6 +658,12 @@ def draft(result: dict) -> dict:
                                            + (f" (with {', '.join(hit['also'][:6])}{', ...' if len(hit['also']) > 6 else ''})"
                                               if hit.get("also") else "")
                                            + "; what the code uses it for is not traced yet"})
+    repo = Path(result["repo"])
+    for rel in result["docs"][:1] if systems else result["docs"][:MAX_DOCS]:
+        text = (repo / rel).read_text("utf-8", "replace") if (repo / rel).is_file() else ""
+        heading = next((n for n, line in enumerate(text.splitlines(), 1) if line.strip()), None)
+        if heading:
+            _cite(evidence, rel, heading, rel)
     slug = re.sub(r"[^A-Za-z0-9_.-]+", "-", result["name"]).strip("-") or "repo"
     return {"schema_version": 1, "id": f"local/{slug}", "name": result["name"],
             "purpose": f"{PLACEHOLDER}: one sentence on what this business or project does, and for whom",
@@ -627,16 +687,28 @@ def _write(path: Path, text: str) -> None:
     with tempfile.NamedTemporaryFile("w", dir=path.parent, prefix=f".{path.name}-", delete=False,
                                      encoding="utf-8") as handle:
         handle.write(text)
+    mask = os.umask(0)
+    os.umask(mask)
+    os.chmod(handle.name, 0o666 & ~mask)  # tempfile creates 0600; the page is meant to be opened and shared
     os.replace(handle.name, path)
 
 
-def _citation_check(ev: dict) -> str:
-    """The first and last cited line, so a range that is off at either end shows."""
-    lines = ev["quote"].splitlines() or [""]
-    if ev["start"] == ev["end"] or len(lines) == 1:
-        return f"{ev['id']} {ev['path']}:{ev['start']}  {lines[0].strip()[:100]}"
-    return (f"{ev['id']} {ev['path']}:{ev['start']}-{ev['end']}  {lines[0].strip()[:70]}  ...  "
-            f"{lines[-1].strip()[:70]}")
+def _citation_check(repo: Path, ev: dict) -> str:
+    """The first and last cited line, read from the file, so a range that is off at either end shows."""
+    lines = (repo / ev["path"]).read_text("utf-8", "replace").splitlines()
+    first, last = lines[ev["start"] - 1].strip(), lines[ev["end"] - 1].strip()
+    if ev["start"] == ev["end"]:
+        return f"{ev['id']} {ev['path']}:{ev['start']}  {first[:100]}"
+    return f"{ev['id']} {ev['path']}:{ev['start']}-{ev['end']}  {first[:70]}  ...  {last[:70]}"
+
+
+def _cited_ids(value) -> set[str]:
+    if isinstance(value, dict):
+        return set(value.get("evidence") or []) | {i for v in value.values() if isinstance(v, (dict, list))
+                                                   for i in _cited_ids(v)}
+    if isinstance(value, list):
+        return {i for v in value for i in _cited_ids(v)}
+    return set()
 
 
 def summary(result: dict) -> dict:
@@ -648,7 +720,8 @@ def summary(result: dict) -> dict:
             "datastores": [d["name"] + (f" ({d['image']})" if d.get("image") else f" (inferred from {d['inferred_from']})")
                            for d in result["datastores"]],
             "integrations": {area: [h["library"] for h in hits] for area, hits in result["integrations"].items()},
-            "code_found": result["code"]["found"], "docs": result["docs"][:8],
+            "code_found": result["code"]["found"],
+            "docs": result["docs"][:8] + ([f"... {len(result['docs']) - 8} more in scan.json"] if len(result["docs"]) > 8 else []),
             "read_first": {label: paths[:5] for label, paths in result["read_first"].items()}}
 
 
@@ -678,7 +751,9 @@ def build(repo: Path, blueprint: Path, out: Path, json_out: Path | None = None, 
     return {"status": "WRITTEN", "page": str(out), "open": out.resolve().as_uri(), **compiled["totals"],
             "citations": len(evidence),
             # The first cited line of each, so an off-by-a-few range shows at a glance.
-            "check_citations": [_citation_check(e) for e in evidence if e.get("source") == business_xray.LOCAL],
+            "check_citations": [_citation_check(repo, e) for e in evidence if e.get("source") == business_xray.LOCAL],
+            "unused_citations": sorted({e["id"] for e in evidence} - _cited_ids(
+                {k: v for k, v in project.items() if k != "evidence"})),
             "semantics": compiled["trust"]}
 
 
@@ -710,8 +785,10 @@ def main() -> int:
                               "kept": [] if str(blueprint) in written else [str(blueprint)],
                               "found": summary(result),
                               "next": f"Read the docs and the read_first files listed in {args.out / 'scan.json'} "
-                                      f"(full lists, routes, tables, jobs), fill in {blueprint}, then run: "
-                                      f"overview.py build --repo {args.repo} --blueprint {blueprint} "
+                                      + ("(full lists, routes, tables, jobs)" if any(result["code"]["found"].values())
+                                         else "(this repository holds documents, not code: read the docs)")
+                                      + f", fill in {blueprint}, then run: {sys.executable} {Path(__file__).resolve()} "
+                                      f"build --repo {args.repo} --blueprint {blueprint} "
                                       f"--out {args.out / 'business.html'}. Tell the user {args.out} was "
                                       "created; they can delete it or add it to .gitignore."}, indent=2))
         else:
