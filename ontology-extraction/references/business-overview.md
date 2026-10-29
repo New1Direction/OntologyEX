@@ -41,6 +41,17 @@ that shows it:
 `blueprint.json` is a draft with the systems already filled in and cited. Tell the
 user the folder exists; they can delete it or add it to `.gitignore`.
 
+### A repository of documents
+
+A handbook, a policy set or a company wiki has no apps or code; the scan then finds
+docs (in the order the README links them) and ranks documents for money and access
+by what they say, and the draft cites each document's first line. Read them all.
+In the blueprint, `systems` are the tools, vendors and providers the documents name
+(`kind`: `internal tool`, `vendor: benefits`, ...), `stage` describes the company or
+the documents as they show it, and `derived_from_source` means it follows from the
+cited text. Journeys are people's paths through the company (joining, a work cycle,
+leaving); money flows include pay, benefits and stipends as well as revenue.
+
 ## 2. Read
 
 Read the docs first (the README usually says what the business is), then the
@@ -74,7 +85,7 @@ Every item has an `id` (letters, digits, `_.-`), a `name`, a `description`,
 | `money_flows` | who pays whom for what (plans, prices, fees, payouts); `[]` if nothing in the code or docs shows money | `state`: `described` (default), `deployed_claim`, `gated`, `planned`, `unknown` |
 | `journeys` | how someone gets an outcome | `actor`, `outcome`, `steps`: 1 to 20, each with `id`, `name`, `description`, `evidence`, `basis`, `state` (as above) and optional `risk_ids` |
 | `systems` | apps, services, datastores, outside services (the draft has these) | `kind`: free text (`application`, `datastore`, `external: payments`, ...) |
-| `risks` | where it breaks | `severity` (required): `critical`, `high`, `medium`, `low`; `signal`: what would show it happening; `basis`: `derived_from_source` when you can follow the failure in the cited code, `proposed` when it is a judgment |
+| `risks` | where it breaks | `severity` (required): `critical`, `high`, `medium`, `low`; `signal`: what would show it happening; `basis`: `derived_from_source` when you can follow the failure in the cited lines, `proposed` when it is a judgment |
 | `unknowns` | the questions the sources leave open | `basis: unknown`; evidence may be empty |
 | `improvements` | suggested work | `priority`: `P0` to `P3` (default `P2`); `addresses`: risk IDs |
 
@@ -119,8 +130,10 @@ the page records the cited lines, their SHA-256, and the commit the checkout is 
 Fix what it names and build again.
 
 The build checks that cited lines exist, not that they say what you claim. Its
-output lists `check_citations`, the first and last line of each range; read them,
-and fix a range that is off at either end. `open` is the page's `file://` address: one file
+output lists `check_citations`, the first and last line of each range (read from the
+file); read them, and fix a range that is off at either end. `unused_citations` lists
+evidence nothing refers to: cite it or remove it. The page keeps up to 2,000
+characters of each cited range, so keep ranges to the lines that show the claim. `open` is the page's `file://` address: one file
 that works offline. The cited text is inside the page, so it still reads when the
 file is shared, but the links point at the local checkout. To share the page, add
 `--github OWNER/NAME`: each citation then links to its lines on GitHub at the
