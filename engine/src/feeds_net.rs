@@ -342,13 +342,23 @@ fn handle(mut request: tiny_http::Request, window: &Mutex<SpanWindow>, token: &s
     if !token.is_empty() && !same(header(&request, "Authorization").as_bytes(), format!("Bearer {token}").as_bytes()) {
         return reply(request, 401, br#"{"error":"bearer token required"}"#, JSON);
     }
-    let length = match request.body_length() {
-        Some(n) if n <= MAX_OTLP_BODY => n,
+    let mut body = Vec::new();
+    match request.body_length() {
+        Some(n) if n <= MAX_OTLP_BODY => {
+            if request.as_reader().take(n as u64).read_to_end(&mut body).is_err() || body.len() != n {
+                return reply(request, 400, br#"{"error":"invalid OTLP traces"}"#, JSON);
+            }
+        }
+        // `feeds.read_chunked`: OpenTelemetry JS sends chunked bodies without a length.
+        None if feeds::py_strip(header(&request, "Transfer-Encoding")).eq_ignore_ascii_case("chunked") => {
+            if request.as_reader().take(MAX_OTLP_BODY as u64 + 1).read_to_end(&mut body).is_err() {
+                return reply(request, 400, br#"{"error":"invalid chunked body"}"#, JSON);
+            }
+            if body.len() > MAX_OTLP_BODY {
+                return reply(request, 413, br#"{"error":"body too large"}"#, JSON);
+            }
+        }
         _ => return reply(request, 413, br#"{"error":"body too large or unknown length"}"#, JSON),
-    };
-    let mut body = Vec::with_capacity(length);
-    if request.as_reader().take(length as u64).read_to_end(&mut body).is_err() || body.len() != length {
-        return reply(request, 400, br#"{"error":"invalid OTLP traces"}"#, JSON);
     }
     let (code, spans) = decode_request(&body, header(&request, "Content-Type"), header(&request, "Content-Encoding"));
     match code {

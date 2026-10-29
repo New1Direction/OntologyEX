@@ -1,0 +1,9 @@
+{
+  "name": "ontologyex-otel-node",
+  "private": true,
+  "description": "Pinned OpenTelemetry zero-code instrumentation for otel_setup.py (installed with npm ci from the lockfile beside this file).",
+  "dependencies": {
+    "@opentelemetry/api": "1.10.0",
+    "@opentelemetry/auto-instrumentations-node": "0.82.0"
+  }
+}
