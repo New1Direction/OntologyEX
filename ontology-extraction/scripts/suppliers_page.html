@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>OntologyEX / Suppliers</title>
+<style>
+:root{color-scheme:dark;--bg:#060b12;--panel:#0b131d;--panel2:#0f1a26;--line:#1d2c3b;--line2:#2a3d50;
+--text:#dbe7f0;--muted:#7f93a6;--faint:#4d6176;--accent:#4cc3d9;--ok:#34d399;--warn:#f2c14e;--risk:#ff5d5d;--impact:#ff9a3c;
+--sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:13px/1.5 var(--sans);min-height:100vh}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+header{display:flex;align-items:center;gap:18px;padding:10px 18px;border-bottom:1px solid var(--line);background:#08101a;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15}
+.brand b{font:600 11px var(--mono);letter-spacing:.22em;color:var(--accent)}
+.brand span{font-weight:600;font-size:15px}
+nav{display:flex;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px}
+nav a{padding:6px 12px;border-radius:6px;color:var(--muted);font-weight:500}
+nav a[aria-current="page"]{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
+nav a:hover{text-decoration:none;color:var(--text)}
+main{max-width:1200px;margin:0 auto;padding:0 0 40px}
+.sec{padding:16px 20px;border-bottom:1px solid var(--line)}
+.sec h2{margin:0 0 10px;font:600 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between}
+.summary{font-size:16px;margin:0 0 4px}.note{color:var(--muted);font-size:12px;margin:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px}
+.card{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:12px 14px;min-width:0}
+.card h3{margin:0;font-size:15px;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.chip{display:inline-flex;padding:1px 7px;border-radius:999px;border:1px solid var(--line2);font:600 10px var(--mono);letter-spacing:.05em;white-space:nowrap}
+.CRITICAL{color:var(--risk);border-color:#5a2a2a}.HIGH{color:var(--impact);border-color:#5a3d1e}.MEDIUM{color:var(--warn);border-color:#5a4a1e}.LOW{color:var(--muted)}
+.single{color:var(--warn);font-size:12px;margin-top:4px}
+.ev{font:11px var(--mono);color:var(--faint);overflow-wrap:anywhere;margin-top:2px}
+.relies{margin-top:8px;font-size:12px;color:var(--muted)}.relies a{margin-right:6px}
+.business{color:var(--text);font-weight:600}
+.cat{margin:18px 0 8px;font:600 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:flex;gap:8px;align-items:center}
+.empty{color:var(--faint);margin:0}
+</style></head>
+<body>
+<header>
+ <div class="brand"><b>ONTOLOGYEX</b><span>Suppliers</span></div>
+ <nav><a href="/">System map</a><a href="/business">Business</a><a href="/entity">Entity</a><a href="/impact">Change impact</a><a href="/suppliers" aria-current="page">Suppliers</a></nav>
+</header>
+<main id="body"></main>
+<script>
+"use strict";
+// The outside companies the business runs on, what relies on each, and where only one is declared.
+const $=id=>document.getElementById(id);
+function h(tag,attrs={},...kids){const el=document.createElement(tag);
+ for(const [k,v] of Object.entries(attrs)){if(v==null)continue;if(k==="text")el.textContent=v;else if(k==="class")el.className=v;else el.setAttribute(k,v)}
+ for(const c of kids){if(c!=null)el.append(c)}return el}
+function link(o,cls){return h("a",{href:"/entity?id="+encodeURIComponent(o.id),class:cls||null,text:o.label||o.id})}
+function card(s,single){const business=(s.relied_on_by||[]).filter(r=>r.layer==="business"),systems=(s.relied_on_by||[]).filter(r=>r.layer!=="business");
+ return h("div",{class:"card"},h("h3",{},link({id:s.id,label:s.name}),h("span",{class:"chip "+s.criticality,text:s.criticality})),
+  h("div",{class:"note",text:s.category}),single?h("div",{class:"single",text:"The only "+s.category+" supplier declared in the sources."}):null,
+  ...s.evidence.slice(0,4).map(e=>h("div",{class:"ev",text:`${e.path}:${e.line} · ${e.kind} · ${e.text}`})),
+  s.settings.length?h("div",{class:"ev",text:"settings named: "+s.settings.slice(0,6).join(", ")}):null,
+  business.length||systems.length?h("div",{class:"relies"},"Relied on by: ",...business.map(r=>link(r,"business")),...systems.slice(0,8).map(r=>link(r))):h("div",{class:"relies",text:"Nothing linked relies on it yet: link the service that uses it to see which business actions depend on it."}))}
+async function load(){let d;
+ try{const r=await fetch("/api/suppliers",{cache:"no-store"});d=await r.json();if(!r.ok)throw new Error(d.status)}
+ catch(err){$("body").replaceChildren(h("div",{class:"sec"},h("p",{class:"empty",text:"Not available: "+err.message})));return}
+ const singles=new Set(d.categories.filter(c=>c.single_supplier).map(c=>c.category));
+ const critical=d.categories.filter(c=>c.single_supplier&&c.criticality==="CRITICAL").map(c=>c.category);
+ const head=h("div",{class:"sec"},h("h2",{text:"Summary"}),
+  h("p",{class:"summary",text:d.suppliers.length?`${d.suppliers.length} supplier${d.suppliers.length>1?"s":""} across ${d.categories.length} categor${d.categories.length>1?"ies":"y"}${critical.length?`; one supplier each for ${critical.join(", ")}`:""}.`:"No supplier is declared in the sources."}),
+  h("p",{class:"note",text:"From vendor SDKs in manifests and setting names in example env and compose files (names only, never values). Not contracts, spend or usage."+(d.status==="NO_LOCAL_REPOSITORY"?" Needs a local --repo.":"")}));
+ const blocks=[head];
+ const byCat=new Map();for(const s of d.suppliers){if(!byCat.has(s.category))byCat.set(s.category,[]);byCat.get(s.category).push(s)}
+ const body=h("div",{class:"sec"},h("h2",{text:"By how much the business leans on them"}));
+ for(const c of d.categories){body.append(h("div",{class:"cat"},h("span",{class:"chip "+c.criticality,text:c.criticality}),c.category),
+  h("div",{class:"grid"},...(byCat.get(c.category)||[]).map(s=>card(s,singles.has(c.category)))))}
+ if(d.suppliers.length)blocks.push(body);
+ blocks.push(h("div",{class:"sec"},h("h2",{text:"Supplier records the business keeps"}),
+  ...(d.own_supplier_records.length?d.own_supplier_records.map(r=>h("div",{},link(r),h("span",{class:"note",text:" · "+r.kind.replace(/_/g," ")}))):[h("p",{class:"empty",text:"No table or route named for suppliers, vendors or purchase orders."})])));
+ $("body").replaceChildren(...blocks)}
+load();
+</script>
+</body></html>

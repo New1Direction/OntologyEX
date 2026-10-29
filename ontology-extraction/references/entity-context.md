@@ -36,6 +36,29 @@ evidence was not recorded; re-confirming records it. A binding file that the rep
 holds in more than one place is not guessed: only the skill's compiled hash is watched
 for it.
 
+## Suppliers
+
+`/suppliers` (and `suppliers.py --repo REPO`) lists the outside companies the business
+runs on: payments, banking data, sign-in, managed data and jobs, identity checks, email
+and messaging, cloud, AI models, tax, shipping, commerce platforms, accounting, search,
+maps, CRM and support, media, analytics, feature flags. A supplier is found from a
+vendor SDK in a manifest (the line is cited) or a vendor's setting named in an example
+env file or a compose file: the name only, never a value; a real `.env` is never read.
+Helper scripts, docs, examples and tests are not the product's suppliers, and neither
+are open-source libraries or self-run databases.
+
+Each category says how much the business leans on that kind of supplier (CRITICAL to
+LOW), and a CRITICAL or HIGH category with exactly one supplier is marked as the only
+one declared: a fact about the sources, not a verdict that a second is needed. Tables
+and routes the business keeps about its own suppliers (suppliers, vendors, purchase
+orders, procurement) are listed too.
+
+In the control room every supplier is an entity, depended on by the service that
+declares it (or the project when no service does), so "what relies on Stripe" reaches
+the business actions through the links a person confirmed, and change impact and agents
+(`list_suppliers`) see suppliers like any other part of the system. It is what the
+repository declares, not contracts, spend or usage.
+
 ## Before a change merges
 
 `/impact` (and `change_impact.py` on the command line) reads a change from git and
@@ -110,6 +133,7 @@ running control room, `--bundle FILE` reads a file from
 | `recent_changes` | read | the newest recorded decisions, for one entity or all |
 | `list_suggestions` | read | proposals nobody has decided, with strength, signals and proposer |
 | `list_stale_decisions` | read | confirmed links whose evidence changed since, with the changed files |
+| `list_suppliers` | read | the outside companies the business runs on, what relies on each, single suppliers |
 | `analyze_change` | read | what a change (git refs, or a list of files) touches and what relies on it |
 | `propose_link` | additive | appends a link proposal; a person decides it |
 | `propose_dependency` | additive | appends "A depends on B" with a reason; a person decides it |
