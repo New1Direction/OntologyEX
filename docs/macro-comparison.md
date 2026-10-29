@@ -62,7 +62,7 @@ to run.
 | 3 | Agent proposals into the human decision queue | High: agents contribute, people decide | Low: reuses the queue | Low: proved never to add a link alone | Built |
 | 4 | Entity page with backlinks, evidence, suggestions and decisions | High for operators | Low | Low | Built |
 | 5 | Decision watermark: record the evidence sha256 a decision saw and re-open it when the file changes | High: keeps CONFIRMED honest over time | Medium | Medium: touches the decision format | Built |
-| 6 | Impact of a proposed change (diff, or a skill version) mapped through entity context | High | Medium | Low | Next (`change_plan.py` exists) |
+| 6 | Impact of a proposed change (diff, or a skill version) mapped through entity context | High | Medium | Low | Built |
 | 7 | Dependency proposals from agents (same pattern as links) | Medium | Low | Low | Next |
 | 8 | Multi-user identity for decisions | Medium | High | Medium | Not now |
 
@@ -108,9 +108,13 @@ through the tools, under a policy, with every call audited.
 
 1. ~~Decision watermark~~ (built: `watermark.py`; confirmations record file hashes,
    read as INFERRED once one changes, and a person re-confirms or undoes them).
-2. Change impact: given a diff or a new skill version, list the entities it touches
-   and what relies on them, with standings, before anyone merges.
+2. ~~Change impact~~ (built: `change_impact.py`, `/impact`, `analyze_change`; a diff
+   or a new skill version, the entities it touches, what relies on them, and the
+   confirmed links to re-confirm after merge).
 3. Dependency and rule proposals from agents through the same queue, policy and
    audit, so agents can contribute every kind of fact a person already decides.
-4. Watermarks for confirmed dependencies: their evidence is trace observations, not
+4. Finer declarations: discovery records each compose service's own lines, so a
+   change to one service touches only it (today a compose edit touches every
+   service in the file, and every watermark that recorded the file).
+5. Watermarks for confirmed dependencies: their evidence is trace observations, not
    files, so "changed" needs its own rule (for example, no calls seen for N days).

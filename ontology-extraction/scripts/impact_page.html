@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>OntologyEX / Change impact</title>
+<style>
+:root{color-scheme:dark;--bg:#060b12;--panel:#0b131d;--panel2:#0f1a26;--line:#1d2c3b;--line2:#2a3d50;
+--text:#dbe7f0;--muted:#7f93a6;--faint:#4d6176;--accent:#4cc3d9;--ok:#34d399;--warn:#f2c14e;--unknown:#7d8fa3;
+--sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:13px/1.5 var(--sans);min-height:100vh}
+button,input{font:inherit;color:inherit}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+header{display:flex;align-items:center;gap:18px;padding:10px 18px;border-bottom:1px solid var(--line);background:#08101a;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15}
+.brand b{font:600 11px var(--mono);letter-spacing:.22em;color:var(--accent)}
+.brand span{font-weight:600;font-size:15px}
+nav{display:flex;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px}
+nav a{padding:6px 12px;border-radius:6px;color:var(--muted);font-weight:500}
+nav a[aria-current="page"]{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
+nav a:hover{text-decoration:none;color:var(--text)}
+form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+form input{background:#0d1a26;border:1px solid #2f5d73;border-radius:8px;padding:7px 10px;width:170px}
+input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.btn{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:7px 12px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+main{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 380px}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+.side{border-left:1px solid var(--line);background:var(--panel)}
+.sec{padding:16px 20px;border-bottom:1px solid var(--line)}
+.sec h2{margin:0 0 10px;font:600 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between}
+.sec h2 em{font-style:normal;color:var(--faint)}
+.item{padding:8px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}.item:first-of-type{border-top:0}
+.chip{display:inline-flex;padding:1px 7px;border-radius:999px;border:1px solid var(--line2);font:600 10px var(--mono);letter-spacing:.05em;margin-right:6px}
+.CONFIRMED{color:var(--ok);border-color:#2f7d62}.SOURCE{color:var(--accent);border-color:#2f5d73}
+.INFERRED{color:var(--warn);border-color:#5a4a1e;border-style:dashed}.UNKNOWN{color:var(--unknown);border-style:dotted}
+.why{color:var(--muted);font-size:12px;margin-top:2px}.why b{color:var(--warn);font-weight:600}
+.mono{font-family:var(--mono)}.muted{color:var(--muted)}.faint{color:var(--faint)}.empty{color:var(--faint);margin:0}
+.note{color:var(--muted);font-size:12px;margin:0 0 8px}
+.summary{font-size:15px;margin:0}
+</style></head>
+<body>
+<header>
+ <div class="brand"><b>ONTOLOGYEX</b><span>Change impact</span></div>
+ <nav><a href="/">System map</a><a href="/business">Business</a><a href="/entity">Entity</a><a href="/impact" aria-current="page">Change impact</a></nav>
+ <form id="form"><input id="base" placeholder="base (default HEAD)" maxlength="200" aria-label="Base ref"/>
+  <input id="head" placeholder="head (default working tree)" maxlength="200" aria-label="Head ref"/>
+  <button class="btn" type="submit">Analyze</button></form>
+</header>
+<main><div id="body"></div><div class="side" id="side"></div></main>
+<script>
+"use strict";
+// What a change touches in the business, and what relies on it. Read-only: git diff, never checkout.
+const $=id=>document.getElementById(id);
+function h(tag,attrs={},...kids){const el=document.createElement(tag);
+ for(const [k,v] of Object.entries(attrs)){if(v==null)continue;if(k==="text")el.textContent=v;else if(k==="class")el.className=v;else el.setAttribute(k,v)}
+ for(const c of kids){if(c!=null)el.append(c)}return el}
+const WHY={DECLARED_IN_CHANGED_FILE:"declared in",BINDING_SOURCE_CHANGED:"binding source in",CITED_BY_SKILL:"skill cites",CONFIRMED_LINK_EVIDENCE_CHANGES:"confirmed link rests on",SKILL_BINDING_CHANGED:"binding changed"};
+function section(title,count,...kids){return h("div",{class:"sec"},h("h2",{},h("span",{text:title}),count==null?null:h("em",{text:String(count)})),...kids)}
+function link(o){return h("a",{href:"/entity?id="+encodeURIComponent(o.id),text:o.label||o.id})}
+async function run(){const q=new URLSearchParams();const base=$("base").value.trim(),head=$("head").value.trim();
+ if(base)q.set("base",base);if(head)q.set("head",head);history.replaceState(null,"","/impact"+(q.toString()?"?"+q:""));
+ $("body").replaceChildren(section("Reading the change",null,h("p",{class:"muted",text:"git diff, then the model…"})));$("side").replaceChildren();
+ let d;try{const r=await fetch("/api/impact"+(q.toString()?"?"+q:""),{cache:"no-store"});d=await r.json();if(!r.ok)throw new Error(d.error||d.status)}
+ catch(err){$("body").replaceChildren(section("Not available",null,h("p",{class:"muted",text:err.message})));return}
+ render(d,base,head)}
+function render(d,base,head){
+ const what=head?`${base}...${head}`:`working tree against ${base||"HEAD"}`;
+ const head1=section("Summary",null,h("p",{class:"summary",text:`${d.changed_files} changed file${d.changed_files===1?"":"s"} (${what}): ${d.touched_total} touched, ${d.impacted_total} more rely on them.`}),
+  h("p",{class:"note",text:"Declared reachability from the sources and recorded decisions, not measured runtime impact."+(d.files_omitted?` ${d.files_omitted} files were left out (limit).`:"")}));
+ const touched=section("Touched",d.touched_total,...d.touched.map(t=>h("div",{class:"item"},h("div",{},h("span",{class:"chip",text:t.layer}),link(t),h("span",{class:"faint",text:" · "+t.kind.replace(/_/g," ")})),
+   ...t.reasons.map(r=>h("div",{class:"why"},`${WHY[r.reason]||r.reason} `,h("span",{class:"mono",text:r.path}),r.line_hit===true?h("b",{text:" · cited lines changed"}):r.line_hit===false?h("span",{class:"faint",text:" · other lines changed"}):null)))),
+  d.touched.length?null:h("p",{class:"empty",text:"Nothing in the model is declared in, cited from, or rests on these files."}));
+ const impacted=section("What relies on it",d.impacted_total,h("p",{class:"note",text:"Each through its strongest path; the weakest hop on that path decides the standing."}),
+  ...d.impacted.map(r=>h("div",{class:"item"},h("div",{},h("span",{class:"chip "+r.standing,text:r.standing}),link(r),h("span",{class:"faint",text:` · ${r.depth} hop${r.depth>1?"s":""}`})),
+   h("div",{class:"why mono",text:r.path.join(" → ")}))),
+  d.impacted.length?null:h("p",{class:"empty",text:"Nothing else in the model relies on what this touches."}));
+ $("body").replaceChildren(head1,touched,impacted);
+ $("side").replaceChildren(
+  section("Re-confirm after merge",d.reconfirm_after_merge.length,h("p",{class:"note",text:"Confirmed links whose recorded evidence this change alters. Once it lands they read as inferred until a person re-confirms them."}),
+   ...d.reconfirm_after_merge.map(r=>h("div",{class:"item"},h("span",{class:"mono",text:`${r.binding} → ${String(r.component).split(":").pop()}`}),h("div",{class:"why mono",text:r.path}))),
+   d.reconfirm_after_merge.length?null:h("p",{class:"empty",text:"None."})),
+  section("Not mapped to any entity",d.unmapped_files.length,...d.unmapped_files.map(p=>h("div",{class:"item mono",text:p})),
+   d.unmapped_files.length?null:h("p",{class:"empty",text:"Every changed file maps to something."})),
+  section("Boundaries",null,h("p",{class:"note",text:"Reads git and local sources only. Nothing here checks out, builds, runs or approves the change."})))}
+const params=new URLSearchParams(location.search);$("base").value=params.get("base")||"";$("head").value=params.get("head")||"";
+$("form").addEventListener("submit",e=>{e.preventDefault();run()});run();
+</script>
+</body></html>

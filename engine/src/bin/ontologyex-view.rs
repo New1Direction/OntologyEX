@@ -45,6 +45,7 @@ fn run() -> Result<(), String> {
         "context" if args.len() == 3 => context::context(&full, &args[2])?,
         "explain" if args.len() == 4 => context::explain(&full, &args[2], &args[3])?,
         "search" if args.len() == 3 => context::search(&full, &args[2])?,
+        "change-impact" if args.len() == 2 => context::change_impact(&full)?,
         _ => return Err("unsupported view command or argument count".into()),
     };
     println!("{}",serde_json::to_string(&output)

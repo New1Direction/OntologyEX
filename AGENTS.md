@@ -55,6 +55,8 @@ Then offer what fits:
 - **Ask about it as an agent, safely:** `KIT/.venv/bin/python KIT/ontology-extraction/scripts/agent_tools.py serve`
   gives MCP tools over a running control room: read tools, and a propose tool whose
   proposals a person confirms (see [entity context](ontology-extraction/references/entity-context.md)).
+- **Before they merge a change:** `KIT/.venv/bin/python KIT/ontology-extraction/scripts/change_impact.py --repo REPO --base main --head BRANCH --bundle BUNDLE --markdown`
+  says what it touches in their business and what relies on it (git is only read).
 - **Change one workflow safely:** build a domain skill for it
   ([guided onboarding](ontology-extraction/references/guided-onboarding.md)).
 - **Keep the kit in their project:** `KIT/.venv/bin/python KIT/ontology-extraction/scripts/install.py --project REPO`

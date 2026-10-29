@@ -81,14 +81,17 @@ def random_bundle(rng: random.Random) -> dict:
     skill = rng.choice(["s", "pay"])
     actions, objects, decided, suggestions, gaps, graph = [], [], [], [], [], []
     for i in range(rng.randrange(0, 4)):
-        bindings = [{"id": f"b{j}", "components": rng.sample(ids, rng.randrange(0, min(3, len(ids)) + 1))}
+        bindings = [{"id": f"b{j}", "components": rng.sample(ids, rng.randrange(0, min(3, len(ids)) + 1)),
+                     **({"evidence": [{"path": rng.choice(["src/é.py", "pay.py", "f0.yml"]),
+                                       **({"start_line": rng.randrange(1, 6), "end_line": rng.randrange(5, 9)}
+                                          if rng.random() < 0.6 else {})}]} if rng.random() < 0.6 else {})}
                     for j in range(rng.randrange(0, 3))]
         actions.append({"key": f"{skill}:action:A{i}", "id": f"A{i}", "skill": skill, "health": "UNLINKED",
                         "verb_phrase": rng.choice(["", "take a payment", "réembourser"]), "bindings": bindings,
                         "rules": [{"id": "r1", "statement": "amount > 0", "status": "observed", "grade": "G1"}],
                         "blockers": [{"type": rng.choice(["unknown", "conflict", "inferred rule"]), "id": "u1",
                                       "statement": "who approves?"}] if rng.random() < 0.5 else [],
-                        "evidence": [{"path": "req.md", "quote": "pay"}]})
+                        "evidence": [{"path": "req.md", "quote": "pay", **({"start_line": 3, "end_line": 4} if rng.random() < 0.5 else {})}]})
         for b in bindings:
             for c in b["components"]:
                 if rng.random() < 0.7:
@@ -138,6 +141,31 @@ def random_bundle(rng: random.Random) -> dict:
                                 for _ in range(rng.randrange(0, 4))]}
 
 
+PATHS = ["f0.yml", "f1.yml", "f2.yml", "compose.yml", "req.md", "docs/req.md", "src/é.py", "README.md",
+         "lib/pay.py"]
+
+
+def change_set(rng: random.Random) -> dict:
+    files = [{"path": path, **({"status": rng.choice("AMDR")} if rng.random() < 0.7 else {}),
+              **({"ranges": sorted([sorted([rng.randrange(1, 9), rng.randrange(1, 9)])
+                                    for _ in range(rng.randrange(0, 3))])} if rng.random() < 0.6 else {})}
+             for path in rng.sample(PATHS, rng.randrange(0, 5))]
+    changes = {"files": files}
+    if rng.random() < 0.4:
+        changes["bindings"] = [{"skill": rng.choice(["s", "pay"]), "binding": f"b{rng.randrange(3)}"}
+                               for _ in range(rng.randrange(1, 3))]
+    if rng.random() < 0.1:  # invalid change sets are refused by both
+        changes = rng.choice([{"files": files + files[:1]} if files else {"files": "x"},
+                              {"files": [{"path": "a", "ranges": [[3, 1]]}]}, {"other": []},
+                              {"files": [{"path": "bad\x01"}]}, {"bindings": [{"skill": "s"}]}])
+    return changes
+
+
+def impact_case(label: str, bundle: dict, changes: dict) -> None:
+    same(f"{label} change-impact {json.dumps(changes)[:120]}", python(entity_context.change_impact, bundle, changes),
+         native({**bundle, "changes": changes}, "change-impact"))
+
+
 def check(bundle: dict, label: str, rng: random.Random, pairs: int) -> int:
     ids = sorted(entity_context._entities(bundle))
     cases = 0
@@ -148,6 +176,9 @@ def check(bundle: dict, label: str, rng: random.Random, pairs: int) -> int:
         a, b = rng.sample(ids, 2)
         same(f"{label} explain {a} {b}", python(entity_context.explain, bundle, a, b), native(bundle, "explain", a, b))
         cases += 1
+    for _ in range(3):
+        impact_case(label, bundle, change_set(rng))
+        cases += 1
     for query in ("api", "PAY", "é 0", "refund ledger", "bad\x01query", "None"):
         same(f"{label} search {query!r}", python(entity_context.search, bundle, query), native(bundle, "search", query))
         cases += 1
@@ -156,7 +187,15 @@ def check(bundle: dict, label: str, rng: random.Random, pairs: int) -> int:
 
 def run() -> None:
     rng = random.Random(20261029)
-    cases = check(demo_bundle(), "demo", rng, 25)
+    demo = demo_bundle()
+    cases = check(demo, "demo", rng, 25)
+    for changes in ({"files": [{"path": "compose.yml", "status": "M", "ranges": [[3, 5]]}]},
+                    {"files": [{"path": "domain/payments.py", "status": "M", "ranges": [[6, 6]]},
+                               {"path": "domain/requirements.md", "status": "M", "ranges": [[4, 4]]},
+                               {"path": "README.md", "status": "A"}]},
+                    {"bindings": [{"skill": "payments-domain", "binding": "payments.apply_refund"}]}):
+        impact_case("demo", demo, changes)
+        cases += 1
     for n in range(120):
         cases += check(random_bundle(rng), f"random#{n}", rng, 4)
     authorizing = random_bundle(rng)

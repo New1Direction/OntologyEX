@@ -20,8 +20,8 @@ MAX_BINARY_BYTES = 64 * 1024 * 1024
 MAX_CONCURRENT = 2
 TIMEOUT_SECONDS = 5.0
 COMMANDS = frozenset({"summary", "page", "neighborhood", "node", "incident", "suggest-links",
-                      "context", "explain", "search"})
-CONTEXT_COMMANDS = frozenset({"context", "explain", "search"})  # read a bundle: {"state", "business", ...}
+                      "context", "explain", "search", "change-impact"})
+CONTEXT_COMMANDS = frozenset({"context", "explain", "search", "change-impact"})  # read a bundle: {"state", "business", ...}
 KINDS = {
     "summary": "LOCAL_CONTROL_ROOM_SUMMARY",
     "page": "BOUNDED_GRAPH_PAGE",
@@ -32,6 +32,7 @@ KINDS = {
     "context": "ENTITY_CONTEXT",
     "explain": "RELATIONSHIP_EXPLANATION",
     "search": "ENTITY_SEARCH",
+    "change-impact": "CHANGE_IMPACT",
 }
 
 
@@ -135,7 +136,7 @@ class NativeView:
             raise NativeViewError("invalid native view invocation")
         expected_args = {"summary": 0, "page": 3, "neighborhood": 2,
                          "node": 1, "incident": 1, "suggest-links": 0,
-                         "context": 1, "explain": 2, "search": 1}
+                         "context": 1, "explain": 2, "search": 1, "change-impact": 0}
         if len(args) != expected_args[command] or any(
             len(arg) > 1024 or (not arg and (command != "page" or i != 1))
             for i, arg in enumerate(args)
@@ -228,6 +229,9 @@ class NativeView:
                       and type(result.get("relied_on_by")) is list and len(result["relied_on_by"]) <= 100)
             elif command == "explain":
                 ok = type(result.get("paths")) is list and len(result["paths"]) <= 10
+            elif command == "change-impact":
+                ok = (type(result.get("touched")) is list and len(result["touched"]) <= 500
+                      and type(result.get("impacted")) is list and len(result["impacted"]) <= 100)
             else:
                 ok = type(result.get("results")) is list and len(result["results"]) <= 25
             if not ok or "nodes" in result or "edges" in result:

@@ -187,7 +187,7 @@ fn entities(bundle: &Value) -> BTreeMap<String, Value> {
         for row in arr(picture, field) {
             let id = key_str(get(row, "key"));
             let quotes: Vec<Value> = arr(row, "evidence").iter().take(4).map(|e| json!({
-                "path": get(e, "path"), "start": get(e, "start"), "end": get(e, "end"), "quote": get(e, "quote")})).collect();
+                "path": get(e, "path"), "start": get(e, "start_line"), "end": get(e, "end_line"), "quote": get(e, "quote")})).collect();
             let rules: Vec<Value> = arr(row, "rules").iter().take(20).map(|r| json!({
                 "id": get(r, "id"), "statement": get(r, "statement"), "status": get(r, "status"),
                 "grade": get(r, "grade"), "grade_label": get(r, "grade_label")})).collect();
@@ -402,6 +402,199 @@ fn impact(entity_id: &str, rels: &[Rel], entities: &BTreeMap<String, Value>) -> 
     }
     found.truncate(MAX_IMPACT);
     found
+}
+
+const MAX_CHANGED_FILES: usize = 2000;
+const MAX_RANGES: usize = 200;
+const MAX_TOUCHED: usize = 500;
+
+fn clean(v: &Value) -> bool {
+    v.as_str().is_some_and(|t| { let n = t.chars().count(); n > 0 && n <= 1024 && t.chars().all(|c| c >= ' ' && c != '\x7f') })
+}
+
+fn int(v: &Value) -> Option<i64> {
+    if v.is_i64() || v.is_u64() { v.as_i64() } else { None }
+}
+
+type Change<'a> = (&'a str, Option<Vec<(i64, i64)>>);
+type Changes<'a> = (Vec<Change<'a>>, Vec<(String, String)>);
+
+/// Validate a change set the way `entity_context._changes` does.
+fn changes_of(changes: &Value) -> Result<Changes<'_>, String> {
+    let invalid = |m: &str| Err(error(m));
+    let Some(obj) = changes.as_object() else { return invalid("changes need files and/or bindings") };
+    if obj.keys().any(|k| k != "files" && k != "bindings") { return invalid("changes need files and/or bindings"); }
+    let files: &[Value] = match obj.get("files") { None => &[], Some(Value::Array(a)) => a, _ => return invalid("too many changed files") };
+    if files.len() > MAX_CHANGED_FILES { return invalid("too many changed files"); }
+    let mut out = Vec::new();
+    let mut seen = HashSet::new();
+    for row in files {
+        let Some(r) = row.as_object() else { return invalid("invalid changed file") };
+        let status_ok = match r.get("status") { None => true, Some(v) => matches!(v.as_str(), Some("A" | "M" | "D" | "R")) };
+        let path = r.get("path").unwrap_or(&Value::Null);
+        if r.keys().any(|k| k != "path" && k != "status" && k != "ranges") || !clean(path) || !status_ok
+            || !seen.insert(path.as_str().unwrap_or("")) { return invalid("invalid changed file"); }
+        let ranges = match r.get("ranges") {
+            None | Some(Value::Null) => None,
+            Some(Value::Array(list)) if list.len() <= MAX_RANGES => {
+                let mut got = Vec::new();
+                for item in list {
+                    match item.as_array().map(|x| x.as_slice()) {
+                        Some([a, b]) => match (int(a), int(b)) {
+                            (Some(a), Some(b)) if a >= 1 && b >= 1 && a <= b => got.push((a, b)),
+                            _ => return invalid("invalid changed line ranges"),
+                        },
+                        _ => return invalid("invalid changed line ranges"),
+                    }
+                }
+                Some(got)
+            }
+            _ => return invalid("invalid changed line ranges"),
+        };
+        out.push((path.as_str().unwrap_or(""), ranges));
+    }
+    let bindings: &[Value] = match obj.get("bindings") { None => &[], Some(Value::Array(a)) => a, _ => return invalid("invalid changed bindings") };
+    if bindings.len() > MAX_CHANGED_FILES { return invalid("invalid changed bindings"); }
+    let mut pairs = BTreeSet::new();
+    for b in bindings {
+        let Some(o) = b.as_object() else { return invalid("invalid changed bindings") };
+        if o.len() != 2 || !clean(get(b, "skill")) || !clean(get(b, "binding")) { return invalid("invalid changed bindings"); }
+        pairs.insert((s(get(b, "skill")).to_owned(), s(get(b, "binding")).to_owned()));
+    }
+    out.sort_by(|a, b| a.0.cmp(b.0));
+    Ok((out, pairs.into_iter().collect()))
+}
+
+fn hit(ranges: &Option<Vec<(i64, i64)>>, start: &Value, end: &Value) -> Value {
+    let (Some(ranges), Some(start)) = (ranges, int(start)) else { return Value::Null };
+    let end = int(end).filter(|e| *e >= start).unwrap_or(start);
+    json!(ranges.iter().any(|(a, b)| *a <= end && start <= *b))
+}
+
+fn names(cited: &Value, changed: &str) -> bool {
+    cited.as_str().is_some_and(|c| !c.is_empty() && (changed == c || changed.ends_with(&format!("/{c}"))))
+}
+
+/// What a change touches, and what relies on what it touches. Mirrors
+/// `entity_context.change_impact`; the change set is the bundle's "changes" field.
+pub fn change_impact(bundle: &Value) -> Result<Value, String> {
+    check_bundle(bundle)?;
+    if get(get(bundle, "state"), "execution_authorized") != &json!(false) {
+        return Err(error("context never reads an authorizing state"));
+    }
+    let (files, bindings) = changes_of(get(bundle, "changes"))?;
+    let ents = entities(bundle);
+    let picture = get(bundle, "business");
+    let paths: HashMap<String, &Value> = arr(get(bundle, "state"), "source_evidence").iter()
+        .map(|e| (pystr(get(e, "id")), get(e, "path"))).collect();
+    let mut holders: HashMap<(String, String), Vec<String>> = HashMap::new();
+    let mut cited: BTreeMap<(String, String), Vec<&Value>> = BTreeMap::new();
+    for row in arr(picture, "actions").iter().chain(arr(picture, "objects")) {
+        for binding in arr(row, "bindings") {
+            let key = (key_str(get(row, "skill")), key_str(&binding_id(binding)));
+            holders.entry(key.clone()).or_default().push(pystr(get(row, "key")));
+            if binding.is_object() { cited.entry(key).or_default().extend(arr(binding, "evidence")); }
+        }
+    }
+    let mut touches: BTreeMap<String, BTreeMap<(String, String), Value>> = BTreeMap::new();
+    let mut mapped: HashSet<String> = HashSet::new();  // a file counts as mapped only when a touch lands
+    let mut touch = |id: &str, reason: &str, path: &str, line_hit: Value| {
+        if !ents.contains_key(id) { return; }
+        mapped.insert(path.to_owned());
+        let seen = touches.entry(id.to_owned()).or_default();
+        match seen.get_mut(&(reason.to_owned(), path.to_owned())) {
+            None => { seen.insert((reason.to_owned(), path.to_owned()),
+                                  json!({"reason": reason, "path": path, "line_hit": line_hit})); }
+            // Any changed cited line wins; a known miss beats unknown. Order-independent.
+            Some(old) => if line_hit == json!(true) || (line_hit == json!(false) && old["line_hit"].is_null()) {
+                old["line_hit"] = line_hit;
+            },
+        }
+    };
+    let mut reconfirm = Vec::new();
+    for (path, ranges) in &files {
+        for node in arr(get(bundle, "state"), "nodes") {
+            let declared = node.get("evidence_id").and_then(|e| paths.get(&pystr(e))).and_then(|p| p.as_str());
+            if declared == Some(path) {
+                touch(&pystr(get(node, "id")), "DECLARED_IN_CHANGED_FILE", path, hit(ranges, get(node, "source_line"), &Value::Null));
+            }
+        }
+        for entity in ents.values() {
+            for quote in arr(entity, "quotes") {
+                if names(get(quote, "path"), path) {
+                    touch(&pystr(get(entity, "id")), "CITED_BY_SKILL", path, hit(ranges, get(quote, "start"), get(quote, "end")));
+                }
+            }
+        }
+        for (key, sources) in &cited {
+            for source in sources {
+                if names(get(source, "path"), path) {
+                    for holder in holders.get(key).into_iter().flatten() {
+                        touch(holder, "BINDING_SOURCE_CHANGED", path, hit(ranges, get(source, "start_line"), get(source, "end_line")));
+                    }
+                }
+            }
+        }
+        for mark in arr(picture, "link_watermarks") {
+            let empty = Map::new();
+            let recorded = get(mark, "recorded").as_object().unwrap_or(&empty);
+            let now = get(mark, "now").as_object().unwrap_or(&empty);
+            if recorded.contains_key(*path) || now.contains_key(*path) {
+                for holder in holders.get(&(key_str(get(mark, "skill")), key_str(get(mark, "binding")))).into_iter().flatten() {
+                    touch(holder, "CONFIRMED_LINK_EVIDENCE_CHANGES", path, Value::Null);
+                }
+                if let Some(component) = get(mark, "component").as_str() {
+                    touch(component, "CONFIRMED_LINK_EVIDENCE_CHANGES", path, Value::Null);
+                }
+                if recorded.contains_key(*path) {
+                    reconfirm.push(json!({"decision_id": get(mark, "id"), "skill": get(mark, "skill"),
+                                          "binding": get(mark, "binding"), "component": get(mark, "component"), "path": path}));
+                }
+            }
+        }
+    }
+    for (skill, binding) in &bindings {
+        for holder in holders.get(&(skill.clone(), binding.clone())).into_iter().flatten() {
+            touch(holder, "SKILL_BINDING_CHANGED", &format!("skill:{skill}/{binding}"), Value::Null);
+        }
+    }
+    let mut touched: Vec<&String> = touches.keys().collect();
+    touched.sort_by(|a, b| {
+        let key = |i: &str| (s(get(&ents[i], "layer")) != "business", s(get(&ents[i], "label")).to_owned(), i.to_owned());
+        key(a).cmp(&key(b))
+    });
+    let rels = relationships(bundle, &history(bundle));
+    let mut best: BTreeMap<String, ((usize, usize, String), Value)> = BTreeMap::new();
+    for origin in &touched {
+        for row in impact(origin, &rels, &ents) {
+            let id = pystr(get(&row, "id"));
+            if touches.contains_key(&id) { continue; }
+            let key = (weakest(s(get(&row, "standing"))), int(get(&row, "depth")).unwrap_or(0) as usize, (*origin).clone());
+            if best.get(&id).is_none_or(|(k, _)| key < *k) {
+                let mut row = row;
+                row["via"] = json!(origin);
+                best.insert(id, (key, row));
+            }
+        }
+    }
+    let mut impacted: Vec<((usize, usize, String), Value)> = best.into_values().collect();
+    impacted.sort_by(|a, b| (&a.0, s(get(&a.1, "id"))).cmp(&(&b.0, s(get(&b.1, "id")))));
+    reconfirm.sort_by_key(|r| (pystr(get(r, "decision_id")), s(get(r, "path")).to_owned()));
+    let touched_rows: Vec<Value> = touched.iter().take(MAX_TOUCHED).map(|i| {
+        let mut row = side(&ents, &json!(i)).as_object().cloned().unwrap_or_default();
+        row.insert("reasons".into(), Value::Array(touches[*i].values().cloned().collect()));
+        Value::Object(row)
+    }).collect();
+    let total = impacted.len();
+    Ok(json!({"schema_version": 1, "kind": "CHANGE_IMPACT", "changed_files": files.len(),
+              "touched": touched_rows, "touched_total": touched.len(),
+              "impacted": impacted.into_iter().take(MAX_IMPACT).map(|(_, r)| r).collect::<Vec<_>>(),
+              "impacted_total": total,
+              "reconfirm_after_merge": reconfirm.into_iter().take(MAX_RELATIONSHIPS).collect::<Vec<_>>(),
+              "unmapped_files": files.iter().filter(|(p, _)| !mapped.contains(*p)).map(|(p, _)| *p)
+                  .take(MAX_RELATIONSHIPS).collect::<Vec<_>>(),
+              "semantics": "DECLARED_REACHABILITY_FROM_CHANGED_FILES_NOT_RUNTIME_IMPACT",
+              "execution_authorized": false}))
 }
 
 fn check_bundle(bundle: &Value) -> Result<(), String> {
@@ -633,6 +826,21 @@ mod tests {
         assert_eq!(mark(json!({"compose.yml": "b"}), json!({"compose.yml": "b"}))["standing"], "CONFIRMED");
         assert_eq!(mark(Value::Null, json!({}))["evidence_check"]["status"], "NOT_RECORDED");
         assert_eq!(watermark_standing(&json!({"f": "0"}), &json!({"f": "0", "g": "1"})), "INFERRED");
+    }
+
+    #[test]
+    fn a_change_touches_what_its_files_declare_and_reports_the_rest_unmapped() {
+        let mut b = bundle();
+        b["state"]["nodes"][1]["source_line"] = json!(7);
+        b["changes"] = json!({"files": [{"path": "compose.yml", "ranges": [[6, 8]]}, {"path": "README.md"}]});
+        let r = change_impact(&b).unwrap();
+        let db = r["touched"].as_array().unwrap().iter().find(|t| t["id"] == "svc:db").unwrap();
+        assert_eq!(db["reasons"][0]["reason"], "DECLARED_IN_CHANGED_FILE");
+        assert_eq!(db["reasons"][0]["line_hit"], true);
+        assert_eq!(r["unmapped_files"], json!(["README.md"]));
+        assert!(r["impacted"].as_array().unwrap().iter().any(|i| i["id"] == "s:action:Pay"));
+        b["changes"] = json!({"files": [{"path": "a"}, {"path": "a"}]});
+        assert!(change_impact(&b).is_err());
     }
 
     #[test]
