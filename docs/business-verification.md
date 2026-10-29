@@ -57,6 +57,14 @@ by Python's `path_standing`, Rust's `path_standing` and Lean's `pathStanding`, a
 three must agree; `tests/rust_context_parity.py` then checks the whole Rust entity
 context, explanations and search against Python on the demo and 120 seeded bundles.
 
+**Lean, decision watermarks** (`OntologyEX.Context.linkStanding`, `watermark.py`):
+`changed_evidence_never_confirmed` (a confirmation whose recorded evidence differs from
+the evidence now never reads as CONFIRMED), `reconfirm_is_current`,
+`confirmed_link_matches_its_evidence` (a watermarked link that reads as CONFIRMED rests
+on exactly the evidence it recorded), `stale_link_taints_path` (no path through such a
+link reads as CONFIRMED). The conformance table's `watermark` section (6 rows) is
+printed by Python, Rust and Lean.
+
 **Bend** (`proofs/bend/business.bend`, checked by `bendlang/bend` at a pinned commit):
 `empty_is_unlinked`, `error_anywhere_is_at_risk`, `unknown_anywhere_is_not_ok`,
 `ladder_never_g4`, `rejection_is_g0`, `inferred_at_most_g1`,

@@ -332,11 +332,23 @@ def apply_decisions(links_path: Path, by: str, note: str = "", confirm: list[dic
     """Confirm or reject proposed suggestions and undo decided links, in one atomic write."""
     for suggestion in (*confirm, *reject):
         require(suggestion.get("status") == "PROPOSED", "only a proposed suggestion can be decided")
-    row = lambda s: {"skill": s["skill"], "binding": s["binding"], "component": s["component"]}
+    # A confirmation records the evidence it rested on (watermark.py), when the caller has it.
+    row = lambda s, mark: {"skill": s["skill"], "binding": s["binding"], "component": s["component"],
+                           **({"evidence": s["evidence"]} if mark and s.get("evidence") is not None else {})}
     return decisions.apply(links_path, read=business_view.read_link_document, kind=business_view.LINK_KIND,
                            confirmed_field="links", key=link_key, name="links",
                            max_rows=business_view.MAX_LINKS, by=by, note=note,
-                           confirm=[row(s) for s in confirm], reject=[row(s) for s in reject], undo=list(undo))
+                           confirm=[row(s, True) for s in confirm], reject=[row(s, False) for s in reject],
+                           undo=list(undo))
+
+
+def reconfirm(links_path: Path, by: str, note: str, rows: list[dict]) -> dict:
+    """A person confirms again links whose evidence changed, recording the evidence now."""
+    return decisions.apply(links_path, read=business_view.read_link_document, kind=business_view.LINK_KIND,
+                           confirmed_field="links", key=link_key, name="links",
+                           max_rows=business_view.MAX_LINKS, by=by, note=note,
+                           reconfirm=[{"skill": r["skill"], "binding": r["binding"], "component": r["component"],
+                                       "evidence": r["evidence"]} for r in rows])
 
 
 def decide(links_path: Path, suggestion: dict, decision: str, by: str, note: str = "") -> dict:
@@ -352,10 +364,11 @@ def decide(links_path: Path, suggestion: dict, decision: str, by: str, note: str
 def main() -> int:
     import control_room
     import discover_repo
+    import watermark
 
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("suggest", "confirm", "reject", "undo"):
+    for name in ("suggest", "confirm", "reject", "undo", "reconfirm"):
         p = commands.add_parser(name)
         p.add_argument("--repo", type=Path, required=True)
         p.add_argument("--skill", type=Path, action="append", required=True)
@@ -364,7 +377,8 @@ def main() -> int:
                        help="also ask the configured decision model (sends binding source to it)")
         if name != "suggest":
             p.add_argument("--id", action="append", default=[],
-                           help="suggestion ID from `suggest` (or, for undo, a decided link's ID); repeatable")
+                           help="suggestion ID from `suggest` (or, for undo and reconfirm, a decided link's ID); "
+                                "repeatable")
             p.add_argument("--by", required=True, help="who decided (not verified)")
             p.add_argument("--note", default="")
         if name in ("confirm", "reject"):
@@ -376,11 +390,19 @@ def main() -> int:
                            if args.links.exists() else ([], []))
         client = decision_model.DecisionClient() if args.model_assist else None
         result = suggest(args.skill, state, links, rejected, client=client)
+        marks = watermark.Marks(watermark.RepoFiles(args.repo), args.skill, state)
         if args.command == "undo":
             require(args.id, "pass --id for each decided link to undo (see `suggest`'s decided list)")
             result = apply_decisions(args.links, args.by, args.note, undo=args.id)
+        elif args.command == "reconfirm":  # record the evidence as it is now, for links whose evidence changed
+            by_id = {decisions.decision_id(*link_key(r)): r for r in links}
+            require(args.id and all(i in by_id for i in args.id), "pass --id for each confirmed link to re-confirm")
+            result = reconfirm(args.links, args.by, args.note,
+                               [{**by_id[i], "evidence": marks.now(*link_key(by_id[i]))} for i in dict.fromkeys(args.id)])
         elif args.command != "suggest":
             chosen = decisions.select(result["suggestions"], args.id, args.all_strong)
+            if args.command == "confirm":  # record the evidence each confirmation rests on
+                chosen = [{**c, "evidence": marks.now(c["skill"], c["binding"], c["component"])} for c in chosen]
             result = apply_decisions(args.links, args.by, args.note, **{args.command: chosen})
         else:
             result["decided"] = decisions.decided(links, rejected, link_key)

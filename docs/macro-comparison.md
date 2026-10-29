@@ -46,7 +46,7 @@ to run.
 | Dangling targets shown as missing, never inferred deleted | ALREADY EXISTS | `link_gaps` (LINK_COMPONENT_NOT_DISCOVERED) now surfaces as UNKNOWN |
 | Sticky rejection | ALREADY EXISTS | Kept; agent proposals cannot resurface a rejected link (proved) |
 | Decision record that names who and why | ALREADY EXISTS | History file; now read back |
-| Decision revision watermark (re-open when evidence changes) | ADAPT, not built | Next step (below) |
+| Decision revision watermark (re-open when evidence changes) | ADAPT | Built: confirmations record file hashes and read as INFERRED once they change |
 | `explain_access` | ADAPT, partly | `explain_relationship` explains why two entities are connected; policy refusals explain access |
 | Review stacks with compare-and-swap revisions | REJECT for now | One local operator; batch decisions are already atomic |
 | Kafka, SQS, Redis, DynamoDB, OpenSearch, pgvector | REJECT | Constraint: no new brokers or databases; files and loopback HTTP are enough |
@@ -61,7 +61,7 @@ to run.
 | 2 | Agent tools with kinds, policy and audit, read-only by default | High: agents use the same model safely | Medium | Low | Built |
 | 3 | Agent proposals into the human decision queue | High: agents contribute, people decide | Low: reuses the queue | Low: proved never to add a link alone | Built |
 | 4 | Entity page with backlinks, evidence, suggestions and decisions | High for operators | Low | Low | Built |
-| 5 | Decision watermark: record the evidence sha256 a decision saw and re-open it when the file changes | High: keeps CONFIRMED honest over time | Medium | Medium: touches the decision format | Next |
+| 5 | Decision watermark: record the evidence sha256 a decision saw and re-open it when the file changes | High: keeps CONFIRMED honest over time | Medium | Medium: touches the decision format | Built |
 | 6 | Impact of a proposed change (diff, or a skill version) mapped through entity context | High | Medium | Low | Next (`change_plan.py` exists) |
 | 7 | Dependency proposals from agents (same pattern as links) | Medium | Low | Low | Next |
 | 8 | Multi-user identity for decisions | Medium | High | Medium | Not now |
@@ -96,8 +96,6 @@ through the tools, under a policy, with every call audited.
 
 ## What remains
 
-- A confirmed link does not yet notice when the evidence behind it changes
-  (opportunity 5).
 - Impact is declared reachability. It does not weigh how much traffic or money flows
   along a path.
 - The operator name is typed, not authenticated; the policy is per agent process, not
@@ -108,10 +106,11 @@ through the tools, under a policy, with every call audited.
 
 ## Next three
 
-1. Decision watermark: store the sha256 of the evidence each decision saw, show
-   CONFIRMED as "confirmed, evidence changed since" when it differs, and let a person
-   re-confirm. Prove a stale confirmation never reads as current.
+1. ~~Decision watermark~~ (built: `watermark.py`; confirmations record file hashes,
+   read as INFERRED once one changes, and a person re-confirms or undoes them).
 2. Change impact: given a diff or a new skill version, list the entities it touches
    and what relies on them, with standings, before anyone merges.
 3. Dependency and rule proposals from agents through the same queue, policy and
    audit, so agents can contribute every kind of fact a person already decides.
+4. Watermarks for confirmed dependencies: their evidence is trace observations, not
+   files, so "changed" needs its own rule (for example, no calls seen for N days).

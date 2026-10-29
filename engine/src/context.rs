@@ -96,6 +96,35 @@ pub fn path_standing_rows() -> Vec<Value> {
     rows
 }
 
+/// Compare the evidence a decision recorded with the evidence now (`entity_context.evidence_check`):
+/// CURRENT, CHANGED_SINCE_DECISION (with the changed paths), or NOT_RECORDED.
+pub fn evidence_check(recorded: &Value, now: &Value) -> Value {
+    let Some(recorded) = recorded.as_object() else { return json!({"status": "NOT_RECORDED", "changed": []}) };
+    let empty = Map::new();
+    let now = now.as_object().unwrap_or(&empty);
+    let paths: BTreeSet<&String> = recorded.keys().chain(now.keys()).collect();
+    let changed: Vec<&String> = paths.into_iter().filter(|p| recorded.get(*p) != now.get(*p)).take(16).collect();
+    json!({"status": if changed.is_empty() { "CURRENT" } else { "CHANGED_SINCE_DECISION" }, "changed": changed})
+}
+
+/// A confirmation reads as CONFIRMED only while its evidence is unchanged (Lean: `linkStanding`).
+pub fn watermark_standing(recorded: &Value, now: &Value) -> &'static str {
+    if evidence_check(recorded, now)["status"] == "CHANGED_SINCE_DECISION" { "INFERRED" } else { "CONFIRMED" }
+}
+
+/// Recorded evidence (0: none, 1 or 2: value 0 or 1) against evidence now (0 or 1), in the
+/// order of tests/conformance.py and proofs/lean/Conformance.lean.
+pub fn watermark_rows() -> Vec<Value> {
+    let mut rows = Vec::new();
+    for recorded in 0..3u32 {
+        for now in 0..2u32 {
+            let then = if recorded == 0 { Value::Null } else { json!({"f": (recorded - 1).to_string()}) };
+            rows.push(json!([[recorded, now], watermark_standing(&then, &json!({"f": now.to_string()}))]));
+        }
+    }
+    rows
+}
+
 fn key_str(v: &Value) -> String {
     v.as_str().unwrap_or("").to_owned()
 }
@@ -112,12 +141,13 @@ struct Rel {
     via: Option<Value>,
     label: Option<Value>,
     suggestion: Option<Value>,
+    evidence_check: Option<Value>,
 }
 
 impl Rel {
     fn new(source: Value, target: Value, relation: &str, standing: &'static str, basis: Value) -> Rel {
         Rel { source, target, relation: relation.to_owned(), standing, basis, evidence_ids: vec![],
-              decision: Value::Null, via: None, label: None, suggestion: None }
+              decision: Value::Null, via: None, label: None, suggestion: None, evidence_check: None }
     }
     fn src(&self) -> &str { self.source.as_str().unwrap_or("") }
     fn tgt(&self) -> &str { self.target.as_str().unwrap_or("") }
@@ -127,7 +157,8 @@ impl Rel {
         out.insert("basis".into(), self.basis.clone());
         out.insert("evidence_ids".into(), Value::Array(self.evidence_ids.clone()));
         out.insert("decision".into(), self.decision.clone());
-        for (name, value) in [("via", &self.via), ("label", &self.label), ("suggestion", &self.suggestion)] {
+        for (name, value) in [("via", &self.via), ("label", &self.label), ("suggestion", &self.suggestion),
+                              ("evidence_check", &self.evidence_check)] {
             if let Some(v) = value {
                 if !v.is_null() { out.insert(name.into(), v.clone()); }
             }
@@ -200,7 +231,7 @@ fn history(bundle: &Value) -> Vec<Event> {
 
 fn decision_for(history: &[Event], file: &str, matches: &[(&str, &Value)]) -> Value {
     for event in history.iter().rev() {
-        if event.file == file && event.action == json!("confirm")
+        if event.file == file && (event.action == json!("confirm") || event.action == json!("reconfirm"))
             && matches.iter().all(|(k, v)| get(&event.row, k) == *v) {
             return json!({"by": event.by, "at": event.at, "note": event.note});
         }
@@ -239,6 +270,10 @@ fn relationships(bundle: &Value, history: &[Event]) -> Vec<Rel> {
         proposers.entry((key_str(get(p, "skill")), key_str(get(p, "binding")), key_str(get(p, "component"))))
             .or_insert(get(p, "proposed_by"));
     }
+    let mut marks: HashMap<(String, String, String), &Value> = HashMap::new();
+    for m in arr(picture, "link_watermarks") {
+        marks.entry((key_str(get(m, "skill")), key_str(get(m, "binding")), key_str(get(m, "component")))).or_insert(m);
+    }
     for (kind, field) in [("action", "actions"), ("object", "objects")] {
         for row in arr(picture, field) {
             for binding in arr(row, "bindings") {
@@ -261,6 +296,15 @@ fn relationships(bundle: &Value, history: &[Event]) -> Vec<Rel> {
                     let key = (key_str(get(row, "skill")), key_str(&id), key_str(component));
                     if let (Some(decision), Some(by)) = (rel.decision.as_object_mut(), proposers.get(&key)) {
                         decision.insert("proposed_by".into(), (*by).clone());
+                    }
+                    if let Some(mark) = marks.get(&key) {
+                        let mut check = evidence_check(get(mark, "recorded"), get(mark, "now"));
+                        check["decision_id"] = get(mark, "id").clone();
+                        if check["status"] == "CHANGED_SINCE_DECISION" {
+                            rel.standing = "INFERRED";
+                            rel.basis = json!("CONFIRMED_BEFORE_EVIDENCE_CHANGED");
+                        }
+                        rel.evidence_check = Some(check);
                     }
                     out.push(rel);
                 }
@@ -569,6 +613,26 @@ mod tests {
         assert!(rows.iter().any(|r| r["standing"] == "INFERRED" && r["suggestion"]["id"] == "x1"));
         assert_eq!(c["recent_changes"][0]["by"], "Ana");
         assert_eq!(c["execution_authorized"], false);
+    }
+
+    #[test]
+    fn a_confirmation_whose_evidence_changed_reads_as_inferred_until_reconfirmed() {
+        let mark = |recorded: Value, now: Value| {
+            let mut b = bundle();
+            b["business"]["link_watermarks"] = json!([{"id": "d1", "skill": "s", "binding": "b.pay",
+                                                       "component": "svc:api", "recorded": recorded, "now": now}]);
+            let c = context(&b, "s:action:Pay").unwrap();
+            c["relationships"].as_array().unwrap().iter().find(|r| r["other"]["id"] == "svc:api").unwrap().clone()
+        };
+        let stale = mark(json!({"compose.yml": "a"}), json!({"compose.yml": "b"}));
+        assert_eq!(stale["standing"], "INFERRED");
+        assert_eq!(stale["basis"], "CONFIRMED_BEFORE_EVIDENCE_CHANGED");
+        assert_eq!(stale["evidence_check"]["changed"], json!(["compose.yml"]));
+        assert_eq!(stale["evidence_check"]["decision_id"], "d1");
+        assert_eq!(stale["decision"]["by"], "Ana");
+        assert_eq!(mark(json!({"compose.yml": "b"}), json!({"compose.yml": "b"}))["standing"], "CONFIRMED");
+        assert_eq!(mark(Value::Null, json!({}))["evidence_check"]["status"], "NOT_RECORDED");
+        assert_eq!(watermark_standing(&json!({"f": "0"}), &json!({"f": "0", "g": "1"})), "INFERRED");
     }
 
     #[test]

@@ -18,7 +18,7 @@ the same code behind the entity page; the Rust engine gives the same answers.
 Every tool declares its kind, and the kind decides what it may do:
 
 - READ_ONLY tools (search, context, explain, impact, recent decisions, open
-  suggestions) change nothing.
+  suggestions, decisions whose evidence changed) change nothing.
 - ADDITIVE tools (propose_link) append a proposal to a proposals file and nothing
   else. A proposal is a suggestion: it shows in the control room beside the ranked
   ones, and only a person confirms or rejects it there, through the existing decision
@@ -113,6 +113,12 @@ TOOLS = {
         "description": "Proposals nobody has decided yet (ranked links, calls seen in traces, agent proposals), "
                        "with strength, signals and who proposed them; for one entity or for everything.",
         "input": _schema({}, {"id": ENTITY_ID})},
+    "list_stale_decisions": {
+        "kind": READ_ONLY, "title": "Decisions to re-check",
+        "description": "Confirmed links whose evidence (the file hashes recorded when a person confirmed them) "
+                       "changed since. They read as INFERRED until a person re-confirms or undoes them; name the "
+                       "changed files when you report them.",
+        "input": _schema({})},
     "propose_link": {
         "kind": ADDITIVE, "title": "Propose a link",
         "description": "Propose that a domain-skill binding runs on a system component, with your reason. This "
@@ -175,6 +181,9 @@ def redact(policy: dict, value, hidden: set[str]):
         if "path" in value and path_withheld(policy, value["path"]):
             return {"withheld": True, "reason": WITHHELD}
         out = {k: redact(policy, v, hidden) for k, v in value.items()}
+        if isinstance(value.get("changed"), list):  # file paths a decision's evidence check names
+            out["changed"] = [WITHHELD if path_withheld(policy, p) else redact(policy, p, hidden)
+                              for p in value["changed"]]
         if value.get("id") in hidden and "label" in value:
             out.update({"id": WITHHELD, "label": WITHHELD})
         return out
@@ -351,6 +360,10 @@ class Tools:
                                     if args["id"] in (s["source"]["id"], s["target"]["id"])]
             found["total"] = len(found["suggestions"])
         return self._out(found, hidden)
+
+    def list_stale_decisions(self, args: dict) -> dict:
+        bundle, hidden = self._model()
+        return self._out(entity_context.stale_decisions(bundle), hidden)
 
     def propose_link(self, args: dict) -> dict:
         if self.proposals is None:

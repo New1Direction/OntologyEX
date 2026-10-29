@@ -51,6 +51,7 @@ ul.why{margin:0;padding-left:18px}ul.why li{margin:3px 0}
 .btn{background:var(--panel2);border:1px solid var(--line2);border-radius:6px;padding:4px 10px;cursor:pointer}
 .btn:hover{border-color:var(--accent)}.btn.yes{border-color:#2f7d62;color:#7ff0b4}.btn.no{border-color:#5a2a2a;color:#ffaaaa}
 .btn:disabled{opacity:.5;cursor:default}
+.stale{border-color:#5a4a1e;background:#141007}.warn{color:var(--warn)}
 .who{background:var(--bg);border:1px solid var(--line2);border-radius:6px;padding:4px 8px;width:220px}
 details>summary{cursor:pointer;color:var(--muted);font-size:12px;margin:6px 0}
 .item{padding:7px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}.item:first-of-type{border-top:0}
@@ -123,6 +124,7 @@ function relRow(r){const isIn=r.direction==="in";
   r.label?h("span",{class:"muted",text:` (${r.label})`}):null);
  const row=h("div",{class:"rel"+(r.standing==="INFERRED"?" inferred":"")},h("div",{class:"dir",text:isIn?"← in":"out →"}),main,
   h("div",{class:"meta",text:words(r.basis)+(r.via?" · via "+r.via:"")}),decisionLine(r.decision),evidence(r.evidence_ids||[]));
+ if(r.evidence_check)row.append(...watermarkParts(r));
  if(r.suggestion)row.append(...suggestionParts(r));
  return row}
 function suggestionParts(r){const s=r.suggestion,parts=[];
@@ -134,33 +136,54 @@ function suggestionParts(r){const s=r.suggestion,parts=[];
   parts.push(h("div",{class:"act"},yes,no,status))}
  else parts.push(h("div",{class:"meta faint",text:"Start the control room with --allow-link-decisions to decide here."}));
  return parts}
+// A confirmation records the file hashes it rested on; when one changes, it waits for a person again.
+function watermarkParts(r){const c=r.evidence_check;
+ if(c.status==="CURRENT")return [h("div",{class:"meta faint",text:"Evidence unchanged since the decision."})];
+ const parts=[c.status==="NOT_RECORDED"
+  ?h("div",{class:"meta faint",text:"Decided before evidence was recorded. Re-confirm to record it."})
+  :h("div",{class:"meta warn",text:"Evidence changed since the decision: "+c.changed.join(", ")})];
+ if(TOKEN&&c.decision_id){const status=h("span",{class:"muted"}),again=h("button",{class:"btn yes",type:"button",text:"Re-confirm"});
+  again.addEventListener("click",()=>decide("links",c.decision_id,"reconfirm",status,[again]));
+  const btns=[again];
+  if(c.status!=="NOT_RECORDED"){const undo=h("button",{class:"btn no",type:"button",text:"Undo the link"});
+   undo.addEventListener("click",()=>decide("links",c.decision_id,"undo",status,[again,undo]));btns.push(undo)}
+  parts.push(h("div",{class:"act"},...btns,status))}
+ return parts}
+const DOING={confirm:["Confirming…","Confirmed."],reject:["Rejecting…","Rejected."],reconfirm:["Re-confirming…","Re-confirmed with the evidence as it is now."],undo:["Undoing…","Undone."]};
 async function decide(kind,id,decision,status,btns){
- if(!who.trim()){status.textContent="Enter your name in Suggested changes first.";return}
- btns.forEach(b=>b.disabled=true);status.textContent=decision==="confirm"?"Confirming…":"Rejecting…";
+ if(!who.trim()){status.textContent="Enter your name above first.";return}
+ btns.forEach(b=>b.disabled=true);status.textContent=DOING[decision][0];
  try{const r=await fetch(`/api/${kind}/decision`,{method:"POST",headers:{"Content-Type":"application/json","X-OntologyEX-Token":TOKEN},
    body:JSON.stringify({ids:[id],decision,by:who.trim().slice(0,120),note:""})});
   const d=await r.json();if(!r.ok)throw new Error(d.status||String(r.status));
-  status.textContent=d.applied.length?(decision==="confirm"?"Confirmed.":"Rejected."):"Already decided.";await open(current,false)}
+  status.textContent=d.applied.length?DOING[decision][1]:"Already decided.";await open(current,false)}
  catch(err){status.textContent="Not saved: "+err.message;btns.forEach(b=>b.disabled=false)}}
 
+function whoInput(){const box=h("input",{class:"who",type:"text",maxlength:"120",placeholder:"Your name (recorded with each decision)",value:who});
+ box.addEventListener("input",ev=>{who=ev.target.value;try{localStorage.setItem("ontologyex-decider",who)}catch(_){}});
+ return h("div",{style:"margin:8px 0"},box)}
 function render(){const e=ctx.entity,c=ctx.standing_counts;document.title="OntologyEX / "+e.label;
  const head=h("div",{class:"sec"},h("div",{class:"kind",text:`${LAYER[e.layer]||e.layer} · ${words(e.kind)}${e.skill?" · "+e.skill:""}`}),
   h("h1",{text:e.label}),h("div",{class:"idline",text:e.id}),
   h("div",{class:"counts"},...["CONFIRMED","SOURCE","INFERRED","UNKNOWN"].map(s=>h("span",{class:"chip "+s,title:WORD[s],text:`${s} ${c[s]}`})),
+   (n=>n?h("span",{class:"chip INFERRED",title:"Confirmed links whose evidence changed since",text:`${n} TO RE-CONFIRM`}):null)(ctx.relationships.filter(r=>r.basis==="CONFIRMED_BEFORE_EVIDENCE_CHANGED").length),
    h("span",{class:"chip",text:"status "+words(e.status)}),e.observed_at?h("span",{class:"chip",text:"observed "+day(e.observed_at)}):null));
  const why=section("Why it exists",ctx.why.length,ctx.why.length?h("ul",{class:"why"},...ctx.why.map(w=>h("li",{text:w}))):h("p",{class:"empty",text:"No source or decision says why. That is an unknown."}));
  if(e.quotes&&e.quotes.length)why.append(h("details",{},h("summary",{text:`Quoted from the sources (${e.quotes.length})`}),
   ...e.quotes.map(q=>h("div",{class:"item"},h("div",{class:"path",text:q.path+(q.start?`:${q.start}${q.end&&q.end!==q.start?"-"+q.end:""}`:"")}),h("div",{text:q.quote})))));
- const groups=["CONFIRMED","SOURCE","INFERRED"].map(s=>{const rows=ctx.relationships.filter(r=>r.standing===s&&!r.suggestion);
+ const stale=ctx.relationships.filter(r=>r.basis==="CONFIRMED_BEFORE_EVIDENCE_CHANGED");
+ const groups=["CONFIRMED","SOURCE","INFERRED"].map(s=>{const rows=ctx.relationships.filter(r=>r.standing===s&&!r.suggestion&&!stale.includes(r));
   return rows.length?h("div",{},h("h2",{style:"margin-top:12px"},h("span",{},chip(s)," ",WORD[s]),h("em",{text:String(rows.length)})),...rows.map(relRow)):null});
+ if(stale.length)groups.unshift(h("div",{},h("h2",{style:"margin-top:12px"},h("span",{class:"warn"},chip("INFERRED")," Confirmed before the evidence changed"),h("em",{text:String(stale.length)})),
+  h("p",{class:"note",text:"A person confirmed these, then a file they rested on changed. They count as inferred until someone re-confirms or undoes them."}),
+  TOKEN?whoInput():null,...stale.map(r=>{const row=relRow(r);row.classList.add("stale");return row})));
  const rels=section("Relationships",ctx.relationships_total,...groups.filter(Boolean),
   ctx.relationships_omitted?h("p",{class:"note",text:`${ctx.relationships_omitted} more not shown.`}):null,
   ctx.relationships.length?null:h("p",{class:"empty",text:"No relationships in the sources."}));
- const whoBox=h("input",{class:"who",type:"text",maxlength:"120",placeholder:"Your name (recorded with each decision)",value:who});
- whoBox.addEventListener("input",ev=>{who=ev.target.value;try{localStorage.setItem("ontologyex-decider",who)}catch(_){}});
+ const whoBox=whoInput();
  const sugg=section("Suggested changes",ctx.suggestions.length,
   ctx.suggestions.length?h("p",{class:"note",text:"Nothing below changes the model until a person confirms it. Agent proposals land here too."}):h("p",{class:"empty",text:"No open suggestions touch this entity."}),
-  ctx.suggestions.length&&TOKEN?h("div",{style:"margin:8px 0"},whoBox):null,...ctx.suggestions.map(relRow));
+  ctx.suggestions.length&&TOKEN?whoBox:null,...ctx.suggestions.map(relRow));
  $("body").replaceChildren(head,why,sugg,rels,explainBox());
  const impact=section("What relies on this",ctx.relied_on_by.length,
   h("p",{class:"note",text:"Declared reachability, not a measured blast radius. A path is only as strong as its weakest hop."}),

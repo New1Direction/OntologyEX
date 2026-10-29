@@ -111,18 +111,26 @@ def random_bundle(rng: random.Random) -> dict:
         gaps.append({"link": {"skill": skill, "binding": "b9", "component": rng.choice(ids + ["gone"])},
                      "reason": "LINK_COMPONENT_NOT_DISCOVERED"})
     history = [{"at": f"2026-10-2{rng.randrange(10)}T0{rng.randrange(10)}:00:00Z", "by": rng.choice(["Ana", "Bo"]),
-                "action": rng.choice(["confirm", "reject", "undo"]), "note": rng.choice(["", "ok"]),
+                "action": rng.choice(["confirm", "reject", "undo", "reconfirm"]), "note": rng.choice(["", "ok"]),
                 "row": {"skill": skill, "binding": f"b{rng.randrange(3)}", "component": rng.choice(ids)}}
                for _ in range(rng.randrange(0, 6))]
     dep_history = [{"at": "2026-10-27T00:00:00Z", "by": "Ana", "action": "confirm", "note": "",
                     "row": {"source": e["source"], "target": e["target"]}} for e in edges if e.get("state")]
     deps = [{"id": f"d{i}", "source": rng.choice(ids), "target": rng.choice(ids), "strength": "STRONG",
              "calls": rng.randrange(1, 90), "last_seen": "2026-10-28T11:00:00Z"} for i in range(rng.randrange(0, 3))]
+    shas = ["a" * 64, "b" * 64]
+    def evidence():
+        return rng.choice([None, {}, {"compose.yml": rng.choice(shas)},
+                           {"compose.yml": rng.choice(shas), "src/é.py": rng.choice(shas)}])
+    watermarks = [{"id": f"d{i}", "skill": r["skill"], "binding": r["binding"], "component": r["component"],
+                   "recorded": evidence(), "now": evidence() or {}} for i, r in enumerate(decided)
+                  if rng.random() < 0.8]
     return {"state": {"execution_authorized": False, "nodes": nodes, "edges": edges,
                       "source_evidence": [{"id": f"e{i}", "path": f"f{i}.yml", "sha256": "ab", "source_kind": "MANIFEST",
                                            "authenticity": "UNVERIFIED"} for i in range(3)]},
             "business": {"actions": actions, "objects": objects, "graph": {"edges": graph}, "link_decided": decided,
                          "link_suggestions": {"suggestions": suggestions}, "link_gaps": gaps,
+                         "link_watermarks": watermarks,
                          "dependency_suggestions": {"suggestions": deps}},
             "link_history": history, "dependency_history": dep_history,
             "agent_proposals": [{"skill": skill, "binding": f"b{rng.randrange(3)}", "component": rng.choice(ids),

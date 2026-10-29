@@ -65,6 +65,7 @@ aside{border-right:1px solid var(--line)}#inspector{border-left:1px solid var(--
 .pick{margin:0 7px 0 0;vertical-align:-2px;accent-color:#7ff0b4}
 .decided{margin-top:8px;font-size:12px}.decided summary{cursor:pointer;color:var(--muted)}
 .drow{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.drow>span:first-child{flex:1;min-width:0}.drow .btn{flex:none;white-space:nowrap;overflow-wrap:normal}
 #who,#who-deps{width:100%;margin-bottom:8px;background:var(--panel);border:1px solid var(--line2);border-radius:6px;color:var(--text);padding:6px 8px;font:inherit;font-size:12px}
 .attn{display:block;padding:9px 10px;border-radius:7px;margin-bottom:6px;border:1px solid var(--line);border-left-width:3px;background:var(--bg);cursor:pointer;width:100%;text-align:left}
 .attn:hover{background:var(--panel2)}
@@ -357,7 +358,7 @@ function suggestionsFor(bindingIds){const all=(data&&data.link_suggestions)?data
  return bindingIds?all.filter(x=>bindingIds.includes(x.skill+"\u0000"+x.binding)):all}
 // Decisions: one card at a time, or several picked at once; the last action can be undone.
 const PICKED={links:new Set(),dependencies:new Set()},LAST={links:null,dependencies:null};
-const WORDS={confirm:["Confirming…","Confirmed"],reject:["Rejecting…","Rejected"],undo:["Undoing…","Undid"]};
+const WORDS={confirm:["Confirming…","Confirmed"],reject:["Rejecting…","Rejected"],undo:["Undoing…","Undid"],reconfirm:["Re-confirming…","Re-confirmed"]};
 function canDecide(kind){return !!(TOKEN&&data&&data[kind==="links"?"link_decisions":"dependency_decisions"]==="ENABLED_LOCAL_TOKEN")}
 async function decide(kind,ids,decision,status,btns=[]){
  if(!who.trim()){status.textContent="Enter your name above first.";return}
@@ -366,7 +367,7 @@ async function decide(kind,ids,decision,status,btns=[]){
    body:JSON.stringify({ids,decision,by:who.trim().slice(0,120),note:""})});
   const d=await r.json();if(!r.ok)throw new Error(d.status||String(r.status));
   const n=d.applied.length;ids.forEach(i=>PICKED[kind].delete(i));
-  LAST[kind]=n?{text:`${WORDS[decision][1]} ${n}.`,ids:decision==="undo"?null:d.applied.map(a=>a.id)}:{text:"Already decided.",ids:null};
+  LAST[kind]=n?{text:`${WORDS[decision][1]} ${n}.`,ids:decision==="undo"||decision==="reconfirm"?null:d.applied.map(a=>a.id)}:{text:"Already decided.",ids:null};
   status.textContent=LAST[kind].text;await load()}
  catch(err){status.textContent="Not saved: "+err.message;btns.forEach(b=>b.disabled=false)}}
 function pickBox(kind,s){const box=h("input",{type:"checkbox",class:"pick","aria-label":"Select this suggestion"});box.checked=PICKED[kind].has(s.id);
@@ -405,11 +406,19 @@ function bulkBar(kind,items){const picked=PICKED[kind],status=h("div",{class:"si
  if(last){status.textContent=last.text+" ";if(last.ids){const undo=h("button",{class:"btn",type:"button",text:"Undo"});
   undo.addEventListener("click",()=>decide(kind,last.ids,"undo",status,[undo]));status.append(undo)}}
  return [bar,status]}
-function decidedList(kind,rows,label){if(!rows||!rows.length)return null;const list=h("details",{class:"decided"},h("summary",{text:`Decided (${rows.length})`}));
- for(const r of rows){const status=h("span",{class:"sig"}),line=h("div",{class:"drow"},
-   h("span",{text:`${r.decision==="confirm"?"✓":"✗"} ${label(r)} · ${r.declared_by}`}),status);
+// A confirmed link whose evidence (file hashes recorded at decision time) changed waits for a person again.
+function decidedList(kind,rows,label){if(!rows||!rows.length)return null;
+ const stale=rows.filter(r=>r.evidence_check==="CHANGED_SINCE_DECISION").length;
+ const list=h("details",{class:"decided"},h("summary",{text:`Decided (${rows.length})${stale?` · ${stale} to re-confirm: evidence changed`:""}`}));
+ if(stale)list.open=true;
+ for(const r of rows){const status=h("span",{class:"sig"}),changed=r.evidence_check==="CHANGED_SINCE_DECISION",line=h("div",{class:"drow"},
+   h("span",{text:`${r.decision==="confirm"?(changed?"⚠":"✓"):"✗"} ${label(r)} · ${r.declared_by}`}),status);
+  if(changed)line.title="Evidence changed since the decision: "+(r.evidence_changed||[]).join(", ");
+  if(canDecide(kind)&&changed){const again=h("button",{class:"btn yes",type:"button",text:"Re-confirm"});
+   again.addEventListener("click",()=>decide(kind,[r.id],"reconfirm",status,[again]));line.append(again)}
   if(canDecide(kind)){const undo=h("button",{class:"btn",type:"button",text:"Undo"});undo.addEventListener("click",()=>decide(kind,[r.id],"undo",status,[undo]));line.append(undo)}
-  list.append(line)}
+  list.append(line);
+  if(changed)list.append(h("div",{class:"sig",style:"color:var(--warn);margin:-2px 0 6px 18px",text:"Evidence changed since the decision: "+(r.evidence_changed||[]).join(", ")}))}
  return list}
 function whoInput(id){const inp=h("input",{id,type:"text",maxlength:120,placeholder:"Your name (recorded with each decision)",value:who});
  inp.addEventListener("input",e=>{who=e.target.value;try{localStorage.setItem("ontologyex-decider",who)}catch(_){}});return inp}

@@ -78,14 +78,21 @@ def pathRow (seq : List Nat) : String :=
   let hs := seq.map (fun i => standings.getD i .confirmed)
   "[" ++ natList seq ++ ", \"" ++ standingName (OntologyEX.Context.pathStanding hs) ++ "\"]"
 
+/-- Recorded evidence 0 (none), 1 or 2 (values 0 or 1) against evidence now 0 or 1. -/
+def watermarkRow (c : Nat × Nat) : String :=
+  let recorded : Option Nat := if c.1 = 0 then none else some (c.1 - 1)
+  "[" ++ natList [c.1, c.2] ++ ", \"" ++ standingName (OntologyEX.Context.linkStanding recorded c.2) ++ "\"]"
+
 def main : IO Unit := do
   let rows := (seqs 10 0 ++ seqs 10 1 ++ seqs 10 2 ++ seqs 10 3).map rollupRow
   let grades := (List.range 64).map gradeRow
   let fusion := (seqs 6 0 ++ seqs 6 1 ++ seqs 6 2 ++ seqs 6 3).map fusionRow
   let paths := (seqs 4 0 ++ seqs 4 1 ++ seqs 4 2 ++ seqs 4 3 ++ seqs 4 4).map pathRow
+  let marks := [(0, 0), (0, 1), (1, 0), (1, 1), (2, 0), (2, 1)].map watermarkRow
   IO.println ("{\"kind\": \"BUSINESS_CONFORMANCE_TABLE\", \"execution_authorized\": false, " ++
     "\"rollup\": [" ++ ", ".intercalate rows ++ "], \"grade\": [" ++
     ", ".intercalate grades ++ "], \"fusion\": [" ++ ", ".intercalate fusion ++ "], " ++
     "\"path_standing\": [" ++ ", ".intercalate paths ++ "], " ++
+    "\"watermark\": [" ++ ", ".intercalate marks ++ "], " ++
     "\"classify\": [" ++ ", ".intercalate classifyRows ++ "], \"retain\": [" ++
     ", ".intercalate retainRows ++ "], \"p95\": [" ++ ", ".intercalate p95Rows ++ "]}")

@@ -265,6 +265,7 @@ pub fn conformance_table() -> Value {
     }
     json!({"kind": "BUSINESS_CONFORMANCE_TABLE", "rollup": rollups, "grade": grades,
            "fusion": fusion_rows(), "path_standing": crate::context::path_standing_rows(),
+           "watermark": crate::context::watermark_rows(),
            "execution_authorized": false})
 }
 

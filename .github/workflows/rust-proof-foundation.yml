@@ -29,6 +29,8 @@ on:
       - 'tests/rust_context_parity.py'
       - 'tests/test_entity_context.py'
       - 'tests/test_agent_tools.py'
+      - 'tests/test_watermark.py'
+      - 'ontology-extraction/scripts/watermark.py'
       - '.github/workflows/rust-proof-foundation.yml'
   push:
     branches: [main]
@@ -80,7 +82,7 @@ jobs:
       - name: Verify the control room reads native discovery like Python discovery
         run: python -m unittest tests.test_native_view_bridge -v
       - name: Entity routes on the Rust engine, and agent tools end to end
-        run: python -m unittest tests.test_entity_context tests.test_agent_tools -v
+        run: python -m unittest tests.test_entity_context tests.test_agent_tools tests.test_watermark -v
       - name: Static graph-to-status fixture
         run: |
           cargo run --manifest-path engine/Cargo.toml --quiet --bin ontologyex-core --             engine/examples/topology.json engine/examples/observations.jsonl 2000 > /tmp/ontologyex-state.json
