@@ -1280,6 +1280,7 @@
  "execution_authorized": false,
  "folder": "<root>/demo/business/.ontologyex/operations",
  "kind": "OPERATIONS_LEDGER",
+ "month_in_progress": "2026-10",
  "overlaps": [],
  "privacy": {
   "identifiers_read": false,
@@ -1305,10 +1306,24 @@
   },
   {
    "currency": "usd",
+   "detail": "1 bill(s) are past their due date and not marked paid",
+   "level": "HIGH",
+   "signal": "BILLS_OVERDUE",
+   "stream": "bills"
+  },
+  {
+   "currency": "usd",
    "detail": "2 disputes against 240 payments (0.83%) in the last 4 weeks",
    "level": "HIGH",
    "signal": "DISPUTE_RATE_HIGH",
    "stream": "disputes"
+  },
+  {
+   "currency": "usd",
+   "detail": "processor payouts of 34,021.00 over 3 month(s) and 30,879.00 deposited from processors: 3,142.00 is not in the bank lines",
+   "level": "HIGH",
+   "signal": "PAYOUTS_NOT_IN_BANK",
+   "stream": "transactions"
   },
   {
    "currency": "usd",
@@ -1319,13 +1334,55 @@
   },
   {
    "currency": "usd",
+   "detail": "money out in 2026-09 was 75% above the average of the three months before",
+   "level": "HIGH",
+   "signal": "SPEND_RISING",
+   "stream": "transactions"
+  },
+  {
+   "currency": "usd",
+   "detail": "cloud costs in 2026-09 were 45% above 2026-08",
+   "level": "MEDIUM",
+   "signal": "CLOUD_COST_RISING",
+   "stream": "cloud_costs"
+  },
+  {
+   "currency": "usd",
    "detail": "10 invoice(s) marked uncollectible",
    "level": "MEDIUM",
    "signal": "INVOICES_UNCOLLECTIBLE",
    "stream": "invoices"
+  },
+  {
+   "currency": "usd",
+   "detail": "OpenAI was paid for the first time in 2026-09",
+   "level": "MEDIUM",
+   "signal": "NEW_SUPPLIER_PAID",
+   "stream": "transactions"
   }
  ],
  "sources": [
+  {
+   "bytes": 680,
+   "columns_matched_only": [
+    "payee"
+   ],
+   "columns_not_read": 0,
+   "columns_used": [
+    "amount",
+    "created",
+    "currency",
+    "due",
+    "status"
+   ],
+   "file": "bills.csv",
+   "recognized_by": "columns",
+   "rows": 12,
+   "rows_used": 12,
+   "sha256": "c260fbeb3dd84fc432de86b5a221c690efa0273c64c54600adb8a2108cf8f2f4",
+   "status": "READ",
+   "stream": "bills"
+  },
   {
    "bytes": 379,
    "columns_not_read": 2,
@@ -1443,19 +1500,517 @@
    "stream": "subscriptions"
   },
   {
-   "bytes": 175,
-   "file": "bank/statement-october.csv",
-   "headers": [
-    "Posting Date",
-    "Narrative",
-    "Debit",
-    "Credit"
+   "bytes": 3270,
+   "columns_matched_only": [
+    "description"
    ],
-   "hint": "Add an entry for it in operations.json: which stream it is and which column holds each of amount, currency, created and status.",
-   "sha256": "962631eaea07a878514c808e76f84c269a6ef038bfbdb3e8c1f04e0311ce5aa7",
-   "status": "UNRECOGNIZED"
+   "columns_not_read": 0,
+   "columns_used": [
+    "amount",
+    "category",
+    "created"
+   ],
+   "file": "bank/business-account.csv",
+   "recognized_by": "operations.json",
+   "rows": 64,
+   "rows_used": 64,
+   "sha256": "d91dc036f8c895d30f311a7d6806c46f0489b97d88418d5a2eb981e0a8fd0690",
+   "status": "READ",
+   "stream": "transactions"
+  },
+  {
+   "bytes": 23962,
+   "columns_matched_only": [],
+   "columns_not_read": 3,
+   "columns_used": [
+    "cost",
+    "currency",
+    "service",
+    "usage_start"
+   ],
+   "file": "cloud/aws-cost-and-usage.csv",
+   "recognized_by": "columns",
+   "rows": 162,
+   "rows_used": 162,
+   "sha256": "cb8c85dd6649f7f6fd8bbd10ae87195c37e5a22e85c755915f1d48426f223f65",
+   "status": "READ",
+   "stream": "cloud_costs"
   }
  ],
+ "spend": {
+  "currencies": {
+   "usd": {
+    "first_month": "2026-05",
+    "last_month": "2026-10",
+    "months": {
+     "bills": [
+      {
+       "amount": null,
+       "count": 2,
+       "month": "2026-05",
+       "open": 0,
+       "open_amount": null,
+       "overdue": 0,
+       "overdue_amount": null,
+       "records": 2,
+       "suppliers": null,
+       "withheld": true
+      },
+      {
+       "amount": null,
+       "count": 2,
+       "month": "2026-06",
+       "open": 0,
+       "open_amount": null,
+       "overdue": 0,
+       "overdue_amount": null,
+       "records": 2,
+       "suppliers": null,
+       "withheld": true
+      },
+      {
+       "amount": null,
+       "count": 2,
+       "month": "2026-07",
+       "open": 0,
+       "open_amount": null,
+       "overdue": 0,
+       "overdue_amount": null,
+       "records": 2,
+       "suppliers": null,
+       "withheld": true
+      },
+      {
+       "amount": null,
+       "count": 2,
+       "month": "2026-08",
+       "open": 0,
+       "open_amount": null,
+       "overdue": 0,
+       "overdue_amount": null,
+       "records": 2,
+       "suppliers": null,
+       "withheld": true
+      },
+      {
+       "amount": null,
+       "count": 2,
+       "month": "2026-09",
+       "open": 1,
+       "open_amount": null,
+       "overdue": 1,
+       "overdue_amount": null,
+       "records": 2,
+       "suppliers": null,
+       "withheld": true
+      },
+      {
+       "amount": null,
+       "count": 2,
+       "month": "2026-10",
+       "open": 0,
+       "open_amount": null,
+       "overdue": 0,
+       "overdue_amount": null,
+       "records": 2,
+       "suppliers": null,
+       "withheld": true
+      }
+     ],
+     "cloud_costs": [
+      {
+       "cost": 1636.99,
+       "month": "2026-05",
+       "providers": {
+        "Amazon Web Services": 1636.99
+       },
+       "records": 33,
+       "services": {
+        "amazon elastic compute cloud": 1016.19,
+        "amazon relational database service": 510.48,
+        "amazon simple storage service": 110.32
+       }
+      },
+      {
+       "cost": 1522.34,
+       "month": "2026-06",
+       "providers": {
+        "Amazon Web Services": 1522.34
+       },
+       "records": 30,
+       "services": {
+        "amazon elastic compute cloud": 929.38,
+        "amazon relational database service": 480.61,
+        "amazon simple storage service": 112.35
+       }
+      },
+      {
+       "cost": 1655.88,
+       "month": "2026-07",
+       "providers": {
+        "Amazon Web Services": 1655.88
+       },
+       "records": 33,
+       "services": {
+        "amazon elastic compute cloud": 1005.07,
+        "amazon relational database service": 519.97,
+        "amazon simple storage service": 130.85
+       }
+      },
+      {
+       "cost": 1662.69,
+       "month": "2026-08",
+       "providers": {
+        "Amazon Web Services": 1662.69
+       },
+       "records": 33,
+       "services": {
+        "amazon elastic compute cloud": 1011.52,
+        "amazon relational database service": 524.89,
+        "amazon simple storage service": 126.28
+       }
+      },
+      {
+       "cost": 2412.19,
+       "month": "2026-09",
+       "providers": {
+        "Amazon Web Services": 2412.19
+       },
+       "records": 30,
+       "services": {
+        "amazon elastic compute cloud": 1824.91,
+        "amazon relational database service": 476.55,
+        "amazon simple storage service": 110.72
+       }
+      },
+      {
+       "cost": 153.37,
+       "month": "2026-10",
+       "providers": {
+        "Amazon Web Services": 153.37
+       },
+       "records": 3,
+       "services": {
+        "amazon elastic compute cloud": 90.49,
+        "amazon relational database service": 49.09,
+        "amazon simple storage service": 13.78
+       }
+      }
+     ],
+     "transactions": [
+      {
+       "categories": {
+        "hosting": 1176.0,
+        "office": 64.1,
+        "payroll": 9450.0,
+        "refunds": 49.0,
+        "rent": 2400.0,
+        "software": 218.35
+       },
+       "count_in": 0,
+       "count_out": 8,
+       "in": 0.0,
+       "month": "2026-05",
+       "out": 13357.45,
+       "processor_deposits": {},
+       "records": 8,
+       "suppliers": {
+        "Amazon Web Services": 1176.0,
+        "SendGrid": 89.95,
+        "Twilio": 128.4
+       }
+      },
+      {
+       "categories": {
+        "hosting": 1243.0,
+        "office": 57.1,
+        "payroll": 9450.0,
+        "refunds": 49.0,
+        "rent": 2400.0,
+        "software": 206.35
+       },
+       "count_in": 2,
+       "count_out": 8,
+       "in": 5617.0,
+       "month": "2026-06",
+       "out": 13405.45,
+       "processor_deposits": {
+        "Stripe": 5617.0
+       },
+       "records": 10,
+       "suppliers": {
+        "Amazon Web Services": 1243.0,
+        "SendGrid": 89.95,
+        "Twilio": 116.4
+       }
+      },
+      {
+       "categories": {
+        "hosting": 1304.0,
+        "office": 53.1,
+        "payroll": 9450.0,
+        "refunds": 49.0,
+        "rent": 2400.0,
+        "software": 219.35
+       },
+       "count_in": 4,
+       "count_out": 8,
+       "in": 12911.0,
+       "month": "2026-07",
+       "out": 13475.45,
+       "processor_deposits": {
+        "Stripe": 12911.0
+       },
+       "records": 12,
+       "suppliers": {
+        "Amazon Web Services": 1304.0,
+        "SendGrid": 89.95,
+        "Twilio": 129.4
+       }
+      },
+      {
+       "categories": {
+        "hosting": 1355.0,
+        "office": 76.1,
+        "payroll": 9450.0,
+        "refunds": 49.0,
+        "rent": 2400.0,
+        "software": 203.35
+       },
+       "count_in": 4,
+       "count_out": 8,
+       "in": 12351.0,
+       "month": "2026-08",
+       "out": 13533.45,
+       "processor_deposits": {
+        "Stripe": 12351.0
+       },
+       "records": 12,
+       "suppliers": {
+        "Amazon Web Services": 1355.0,
+        "SendGrid": 89.95,
+        "Twilio": 113.4
+       }
+      },
+      {
+       "categories": {
+        "hosting": 1419.0,
+        "legal": 9800.0,
+        "office": 74.1,
+        "payroll": 9450.0,
+        "refunds": 49.0,
+        "rent": 2400.0,
+        "software": 336.35
+       },
+       "count_in": 3,
+       "count_out": 10,
+       "in": 8933.0,
+       "month": "2026-09",
+       "out": 23528.45,
+       "processor_deposits": {
+        "Stripe": 8933.0
+       },
+       "records": 13,
+       "suppliers": {
+        "Amazon Web Services": 1419.0,
+        "OpenAI": 120.0,
+        "SendGrid": 89.95,
+        "Twilio": 126.4
+       }
+      },
+      {
+       "categories": {
+        "hosting": 1465.0,
+        "office": 92.1,
+        "payroll": 9450.0,
+        "refunds": 49.0,
+        "rent": 2400.0,
+        "software": 213.35
+       },
+       "count_in": 1,
+       "count_out": 8,
+       "in": 2731.0,
+       "month": "2026-10",
+       "out": 13669.45,
+       "processor_deposits": {
+        "Stripe": 2731.0
+       },
+       "records": 9,
+       "suppliers": {
+        "Amazon Web Services": 1465.0,
+        "SendGrid": 89.95,
+        "Twilio": 123.4
+       }
+      }
+     ]
+    },
+    "reconciliation": {
+     "deposits": 30879.0,
+     "gap": 3142.0,
+     "months": [
+      "2026-06",
+      "2026-07",
+      "2026-08"
+     ],
+     "note": "processor payouts against deposits from payment processors in the bank lines, over the months both cover; rough, since a payout can land a few days later",
+     "payouts": 34021.0
+    },
+    "suppliers_paid": [
+     {
+      "amount": 7962.0,
+      "category": "cloud and hosting",
+      "name": "Amazon Web Services"
+     },
+     {
+      "amount": 2700.0,
+      "category": "analytics and monitoring",
+      "name": "Datadog"
+     },
+     {
+      "amount": 737.4,
+      "category": "email and messaging",
+      "name": "Twilio"
+     },
+     {
+      "amount": 539.7,
+      "category": "email and messaging",
+      "name": "SendGrid"
+     },
+     {
+      "amount": 120.0,
+      "category": "AI models",
+      "name": "OpenAI"
+     }
+    ],
+    "totals": {
+     "bills": {
+      "amount": 9900.0,
+      "count": 12,
+      "open": 1,
+      "open_amount": 450.0,
+      "overdue": 1,
+      "overdue_amount": 450.0,
+      "records": 12,
+      "suppliers": {
+       "Datadog": 2700.0
+      }
+     },
+     "cloud_costs": {
+      "cost": 9043.47,
+      "providers": {
+       "Amazon Web Services": 9043.47
+      },
+      "records": 162,
+      "services": {
+       "amazon elastic compute cloud": 5877.58,
+       "amazon relational database service": 2561.59,
+       "amazon simple storage service": 604.3
+      }
+     },
+     "transactions": {
+      "categories": {
+       "hosting": 7962.0,
+       "legal": 9800.0,
+       "office": 416.6,
+       "payroll": 56700.0,
+       "refunds": 294.0,
+       "rent": 14400.0,
+       "software": 1397.1
+      },
+      "count_in": 14,
+      "count_out": 50,
+      "in": 42543.0,
+      "out": 90969.7,
+      "processor_deposits": {
+       "Stripe": 42543.0
+      },
+      "records": 64,
+      "suppliers": {
+       "Amazon Web Services": 7962.0,
+       "OpenAI": 120.0,
+       "SendGrid": 539.7,
+       "Twilio": 737.4
+      }
+     }
+    },
+    "unit_economics": {
+     "cloud_cost": 2412.19,
+     "cloud_share": 0.1236,
+     "month": "2026-09",
+     "payments_taken": 19510.0
+    }
+   }
+  },
+  "signals": [
+   {
+    "currency": "usd",
+    "detail": "money out in 2026-09 was 75% above the average of the three months before",
+    "level": "HIGH",
+    "signal": "SPEND_RISING",
+    "stream": "transactions"
+   },
+   {
+    "currency": "usd",
+    "detail": "cloud costs in 2026-09 were 45% above 2026-08",
+    "level": "MEDIUM",
+    "signal": "CLOUD_COST_RISING",
+    "stream": "cloud_costs"
+   },
+   {
+    "currency": "usd",
+    "detail": "1 bill(s) are past their due date and not marked paid",
+    "level": "HIGH",
+    "signal": "BILLS_OVERDUE",
+    "stream": "bills"
+   },
+   {
+    "currency": "usd",
+    "detail": "OpenAI was paid for the first time in 2026-09",
+    "level": "MEDIUM",
+    "signal": "NEW_SUPPLIER_PAID",
+    "stream": "transactions"
+   },
+   {
+    "currency": "usd",
+    "detail": "processor payouts of 34,021.00 over 3 month(s) and 30,879.00 deposited from processors: 3,142.00 is not in the bank lines",
+    "level": "HIGH",
+    "signal": "PAYOUTS_NOT_IN_BANK",
+    "stream": "transactions"
+   }
+  ],
+  "suppliers_vs_spend": [
+   {
+    "detail": "Amazon Web Services is paid (7,962.00 USD in these records) and the code does not use it: a tool people use, a service set up outside this repository, or one nobody needs any more",
+    "finding": "PAID_NOT_IN_CODE",
+    "supplier": "Amazon Web Services"
+   },
+   {
+    "detail": "Datadog is paid (2,700.00 USD in these records) and the code does not use it: a tool people use, a service set up outside this repository, or one nobody needs any more",
+    "finding": "PAID_NOT_IN_CODE",
+    "supplier": "Datadog"
+   },
+   {
+    "detail": "OpenAI is paid (120.00 USD in these records) and the code does not use it: a tool people use, a service set up outside this repository, or one nobody needs any more",
+    "finding": "PAID_NOT_IN_CODE",
+    "supplier": "OpenAI"
+   },
+   {
+    "detail": "the code uses SendGrid, and it is paid (539.70 USD in these records)",
+    "finding": "PAID_AND_IN_CODE",
+    "supplier": "SendGrid"
+   },
+   {
+    "detail": "Twilio is paid (737.40 USD in these records) and the code does not use it: a tool people use, a service set up outside this repository, or one nobody needs any more",
+    "finding": "PAID_NOT_IN_CODE",
+    "supplier": "Twilio"
+   },
+   {
+    "detail": "the code uses Sentry, and these records show no payment to it: a free plan, paid from another account or card, or not set up for production",
+    "finding": "IN_CODE_NOT_PAID",
+    "supplier": "Sentry"
+   }
+  ]
+ },
  "status": "OK",
  "streams_present": [
   "disputes",
@@ -1465,20 +2020,6 @@
   "refunds",
   "subscriptions"
  ],
- "unrecognized": [
-  {
-   "bytes": 175,
-   "file": "bank/statement-october.csv",
-   "headers": [
-    "Posting Date",
-    "Narrative",
-    "Debit",
-    "Credit"
-   ],
-   "hint": "Add an entry for it in operations.json: which stream it is and which column holds each of amount, currency, created and status.",
-   "sha256": "962631eaea07a878514c808e76f84c269a6ef038bfbdb3e8c1f04e0311ce5aa7",
-   "status": "UNRECOGNIZED"
-  }
- ],
+ "unrecognized": [],
  "week_in_progress": "2026-W40"
 }

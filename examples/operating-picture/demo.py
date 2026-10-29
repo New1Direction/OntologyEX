@@ -102,9 +102,9 @@ def write_operations(folder: Path, now: datetime) -> None:
           [[ident("dp_"), "149.00", ident("ch_"), stamp(when(13)), "usd", "fraudulent", "needs_response", stamp(when(15, 6))],
            [ident("dp_"), "49.00", ident("ch_"), stamp(when(14)), "usd", "product_not_received", "under_review", ""],
            [ident("dp_"), "99.00", ident("ch_"), stamp(when(6)), "usd", "fraudulent", "won", ""]])
-    write("payouts.csv", ["id", "Amount", "Arrival Date (UTC)", "Created (UTC)", "Currency", "Status", "Destination"],
-          [[ident("po_"), f"{2600 + rng.randrange(900)}.00", stamp(when(w, 3)), stamp(when(w, 1)), "usd",
-            "failed" if w == 14 else "paid", "ba_" + "9" * 12] for w in range(16)])
+    payouts = [[ident("po_"), f"{2600 + rng.randrange(900)}.00", stamp(when(w, 3)), stamp(when(w, 1)), "usd",
+                "failed" if w == 14 else "paid", "ba_" + "9" * 12] for w in range(16)]
+    write("payouts.csv", ["id", "Amount", "Arrival Date (UTC)", "Created (UTC)", "Currency", "Status", "Destination"], payouts)
     subscriptions = []
     for n in range(90):
         plan, amount_, interval = rng.choice([("Starter", "19.00", "month"), ("Team", "99.00", "month"),
@@ -126,9 +126,73 @@ def write_operations(folder: Path, now: datetime) -> None:
             stamp(when(rng.randrange(16))), status, ident("sub_")]
            for amount_, status in [(rng.choice(["19.00", "99.00"]), rng.choice(["paid"] * 12 + ["open", "uncollectible"]))
                                    for _ in range(120)]])
+    write_spend(folder, now, payouts, rng, write)
+
+
+def write_spend(folder: Path, now: datetime, payouts: list, rng, write) -> None:
+    """Six months of a business bank account, vendor bills and an AWS cost and usage report, all synthetic.
+    Payroll lines name fictional people (never kept); one paid payout never reaches the bank; spending jumps in
+    the last complete month, OpenAI is paid for the first time then, and EC2 costs climb."""
+    month0 = (now.replace(day=1) - timedelta(days=150)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    months = []
+    at = month0
+    while at <= now:
+        months.append(at)
+        at = (at + timedelta(days=32)).replace(day=1)
+    last_complete = months[-2]
+    day = lambda m, d: min(now, m + timedelta(days=d - 1, hours=10))  # noqa: E731
+    stamp = lambda t: t.strftime("%d/%m/%Y")  # noqa: E731
+    lines = []
+    for i, m in enumerate(months):
+        lines += [[stamp(day(m, 1)), "WEWORK MEMBERSHIP", "Rent", "-2400.00"],
+                  [stamp(day(m, 3)), f"AWS EMEA aws.amazon.com {rng.randrange(10**8)}", "Hosting",
+                   f"-{1150 + 60 * i + rng.randrange(40)}.00"],
+                  [stamp(day(m, 5)), "SENDGRID INC", "Software", "-89.95"],
+                  [stamp(day(m, 7)), "TWILIO INC SAN FRANCISCO", "Software", f"-{110 + rng.randrange(30)}.40"],
+                  [stamp(day(m, 15)), "PAYROLL Jordan Avery", "Payroll", "-4800.00"],
+                  [stamp(day(m, 15)), "PAYROLL Sam Okafor", "Payroll", "-4650.00"],
+                  [stamp(day(m, 20)), "STAPLES 0042", "Office", f"-{40 + rng.randrange(60)}.10"],
+                  [stamp(day(m, 22)), "REFUND TO CUSTOMER Riley Chen", "Refunds", "-49.00"]]
+        if m == last_complete:
+            lines += [[stamp(day(m, 9)), "OPENAI *CHATGPT API", "Software", "-120.00"],
+                      [stamp(day(m, 18)), "HARTWELL & CO LEGAL", "Legal", "-9800.00"]]
+    for row in payouts:  # each paid payout lands as a deposit from Stripe, except one
+        if row[5] == "paid" and row is not payouts[3]:
+            landed = datetime.strptime(row[2], "%Y-%m-%d %H:%M:%S")
+            lines.append([landed.strftime("%d/%m/%Y"), "STRIPE TRANSFER ST-" + str(rng.randrange(10**9)), "Sales", row[1]])
+    lines = [line for line in lines if datetime.strptime(line[0], "%d/%m/%Y") <= now.replace(tzinfo=None)]
     (folder / "bank").mkdir()
-    write("bank/statement-october.csv", ["Posting Date", "Narrative", "Debit", "Credit"],
-          [[stamp(when(w)), "CARD SETTLEMENT", "", "2900.00"] for w in range(3)])
+    write("bank/business-account.csv", ["Date", "Description", "Category", "Amount"], sorted(
+        lines, key=lambda r: datetime.strptime(r[0], "%d/%m/%Y")))
+    (folder / "operations.json").write_text(json.dumps({"files": [{
+        "match": "bank/*.csv", "stream": "transactions", "currency": "usd", "date_format": "%d/%m/%Y",
+        "columns": {"created": "Date", "description": "Description", "category": "Category", "amount": "Amount"}}]},
+        indent=2) + "\n", encoding="utf-8")
+    bills = []
+    for m in months:
+        bills.append([m.strftime("%Y-%m-%d"), "Datadog Inc", "450.00", "USD", (m + timedelta(days=30)).strftime("%Y-%m-%d"),
+                      "open" if m == months[-2] else "paid"])
+        bills.append([m.strftime("%Y-%m-%d"), "Hartwell & Co", "1200.00", "USD", (m + timedelta(days=14)).strftime("%Y-%m-%d"),
+                      "paid"])
+    write("bills.csv", ["Bill Date", "Vendor", "Amount", "Currency", "Due Date", "Status"],
+          [b for b in bills if b[0] <= now.strftime("%Y-%m-%d")])
+    usage = []
+    for m in months:
+        growth = 2.0 if m == last_complete else 1.0
+        for d in range(0, 31, 3):
+            t = m + timedelta(days=d)
+            if t.month != m.month or t > now:
+                continue
+            for code, name, base in (("AmazonEC2", "Amazon Elastic Compute Cloud", 90 * growth),
+                                     ("AmazonRDS", "Amazon Relational Database Service", 45),
+                                     ("AmazonS3", "Amazon Simple Storage Service", 9)):
+                usage.append([t.strftime("%Y-%m-%dT00:00:00Z"), code, name, f"{base + rng.random() * 5:.4f}", "USD",
+                              f"arn:aws:ec2:eu-west-1:{rng.randrange(10**12):012d}:instance/i-{rng.randrange(16**12):012x}",
+                              f"{rng.randrange(10**12):012d}"])
+    (folder / "cloud").mkdir()
+    write("cloud/aws-cost-and-usage.csv", ["lineItem/UsageStartDate", "lineItem/ProductCode", "product/ProductName",
+                                           "lineItem/UnblendedCost", "lineItem/CurrencyCode", "lineItem/ResourceId",
+                                           "lineItem/UsageAccountId"], usage)
 
 
 def build(out: Path, now: datetime | None = None, unlinked: bool = False) -> dict:
@@ -137,7 +201,8 @@ def build(out: Path, now: datetime | None = None, unlinked: bool = False) -> dic
     repo = out / "business"
     (repo / ".github/workflows").mkdir(parents=True)
     (repo / "compose.yml").write_text(COMPOSE, encoding="utf-8")
-    (repo / "package.json").write_text('{"name":"shop-web","private":true}\n', encoding="utf-8")
+    (repo / "package.json").write_text(json.dumps({"name": "shop-web", "private": True, "dependencies": {
+        "@sendgrid/mail": "^8.1.0", "@sentry/node": "^8.0.0"}}) + "\n", encoding="utf-8")
     (repo / ".github/workflows/ci.yml").write_text(
         "name: ci\non: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo test\n",
         encoding="utf-8")

@@ -64,6 +64,14 @@ SEVERITY = {
     "SUBSCRIPTIONS_PAST_DUE": (20, "subscriptions are past due"),
     "HAPPENS_NOT_IN_CODE": (20, "the records show the business doing something the sources do not show"),
     "IN_CODE_NOT_SEEN": (10, "something is built that the records never show in use"),
+    "PAYOUTS_NOT_IN_BANK": (60, "money the payment processor paid out is not in the bank lines"),
+    "DEPOSITS_WITHOUT_PAYOUTS": (30, "more arrived from payment processors than they paid out"),
+    "BILLS_OVERDUE": (40, "bills are past due"),
+    "SPEND_RISING": (35, "money out jumped against the months before"),
+    "CLOUD_COST_RISING": (30, "cloud costs jumped against the month before"),
+    "NEW_SUPPLIER_PAID": (12, "a supplier was paid for the first time"),
+    "PAID_NOT_IN_CODE": (12, "a supplier is paid that the code does not use"),
+    "IN_CODE_NOT_PAID": (10, "the code uses a supplier nobody is seen paying"),
 }
 CATEGORY = {"SYSTEM_ERROR": "Systems", "AT_RISK": "Business at risk", "POSSIBLY_IMPACTED": "Business at risk",
             "DEGRADED": "Business at risk", "STALE": "Business at risk", "STALE_CONFIRMATION": "Decisions",
@@ -75,7 +83,9 @@ CATEGORY = {"SYSTEM_ERROR": "Systems", "AT_RISK": "Business at risk", "POSSIBLY_
             **{k: "Operations" for k in ("DISPUTES_OPEN", "PAYOUT_FAILED", "REFUND_RATE_RISING", "REVENUE_DOWN",
                                          "DISPUTE_RATE_HIGH", "CHURN_RISING", "FAILED_PAYMENTS_HIGH",
                                          "INVOICES_UNCOLLECTIBLE", "SUBSCRIPTIONS_PAST_DUE", "HAPPENS_NOT_IN_CODE",
-                                         "IN_CODE_NOT_SEEN")}}
+                                         "IN_CODE_NOT_SEEN")},
+            **{k: "Spend" for k in ("PAYOUTS_NOT_IN_BANK", "DEPOSITS_WITHOUT_PAYOUTS", "BILLS_OVERDUE", "SPEND_RISING",
+                                    "CLOUD_COST_RISING", "NEW_SUPPLIER_PAID", "PAID_NOT_IN_CODE", "IN_CODE_NOT_PAID")}}
 NEXT_STEP = {
     "SYSTEM_ERROR": "Open the system, read what it reports, and check the business actions that run on it.",
     "AT_RISK": "Open the action: see which linked system fails and what else relies on it.",
@@ -111,12 +121,24 @@ NEXT_STEP = {
     "SUBSCRIPTIONS_PAST_DUE": "Check the failed renewals and the reminders those customers get.",
     "HAPPENS_NOT_IN_CODE": "Find where it is handled (a person, a dashboard, another system) and write it down.",
     "IN_CODE_NOT_SEEN": "Check whether it is used, handled by another processor, or missing from the exports.",
+    "PAYOUTS_NOT_IN_BANK": "Match each payout in the processor's dashboard to a bank deposit; ask the processor about any "
+                           "that never arrived.",
+    "DEPOSITS_WITHOUT_PAYOUTS": "Check for deposits from another processor or account that the exports leave out.",
+    "BILLS_OVERDUE": "Pay or dispute the overdue bills before the supplier stops the service.",
+    "SPEND_RISING": "Open Operations: see which category grew, and whether it was planned.",
+    "CLOUD_COST_RISING": "See which service grew on the Operations page and whether usage grew with it.",
+    "NEW_SUPPLIER_PAID": "Check who signed up for it and whether the code or a person uses it.",
+    "PAID_NOT_IN_CODE": "Ask who uses it; cancel it if nobody does.",
+    "IN_CODE_NOT_PAID": "Check which account pays for it, or whether production is on a free plan with limits.",
 }
 SIGNAL_TITLES = {"DISPUTES_OPEN": "Disputes waiting for a response", "PAYOUT_FAILED": "A payout failed",
                  "REFUND_RATE_RISING": "Refund rate rising", "REVENUE_DOWN": "Payments taken fell",
                  "DISPUTE_RATE_HIGH": "Dispute rate high", "CHURN_RISING": "Subscription cancellations rising",
                  "FAILED_PAYMENTS_HIGH": "Many payments fail", "INVOICES_UNCOLLECTIBLE": "Invoices written off",
-                 "SUBSCRIPTIONS_PAST_DUE": "Subscriptions past due"}
+                 "SUBSCRIPTIONS_PAST_DUE": "Subscriptions past due", "PAYOUTS_NOT_IN_BANK": "Payouts missing from the bank",
+                 "DEPOSITS_WITHOUT_PAYOUTS": "Deposits without payouts", "BILLS_OVERDUE": "Bills overdue",
+                 "SPEND_RISING": "Spending jumped", "CLOUD_COST_RISING": "Cloud costs jumped",
+                 "NEW_SUPPLIER_PAID": "A new supplier was paid"}
 # What a business in each field should be able to see; each found from supplier categories or names in the model.
 FIELDS = {
     "e-commerce": (r"order|cart|checkout|product|sku|inventor|catalog|coupon|fulfil|shipment|storefront", (
@@ -340,6 +362,13 @@ def report(bundle: dict) -> dict:
         items.append(_item(signal["signal"], None, f"{SIGNAL_TITLES[signal['signal']]} ({signal['currency'].upper()})",
                            signal["detail"][:1].upper() + signal["detail"][1:] + ".", reach.get(signal["stream"], []),
                            standing="SOURCE", links=[e["id"] for e in reach.get(signal["stream"], [])]))
+    for finding in (ops.get("spend") or {}).get("suppliers_vs_spend", []):  # suppliers paid against suppliers used
+        if finding["finding"] in ("PAID_NOT_IN_CODE", "IN_CODE_NOT_PAID"):
+            items.append(_item(finding["finding"], None,
+                               (f"{finding['supplier']} is paid, and the code does not use it"
+                                if finding["finding"] == "PAID_NOT_IN_CODE"
+                                else f"{finding['supplier']} is used, and nobody is seen paying it"),
+                               finding["detail"][:1].upper() + finding["detail"][1:] + ".", [], standing="INFERRED"))
     for finding in ops.get("code_vs_operations", []):
         if finding["finding"] in ("HAPPENS_NOT_IN_CODE", "IN_CODE_NOT_SEEN"):
             what = finding["stream"]

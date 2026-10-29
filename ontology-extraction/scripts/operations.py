@@ -45,10 +45,13 @@ import json
 import os
 from pathlib import Path
 import re
+import subprocess
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+
+import spend
 
 STREAMS = ("payments", "refunds", "disputes", "payouts", "subscriptions", "invoices")
 TITLES = {"payments": "Payments", "refunds": "Refunds", "disputes": "Disputes", "payouts": "Payouts",
@@ -233,6 +236,7 @@ class Ledger:
         self.cells: dict[tuple[str, str, str], dict] = {}
         self.snapshot: dict[str, dict] = {}  # subscriptions by status as exported, per currency
         self.spans: list[tuple] = []  # (currency, first week, last week or None while live, monthly, plan)
+        self.payout_months: dict[tuple[str, str], Decimal] = {}  # (currency, month landed) -> paid out
 
     def at(self, stream: str, currency: str, week: str) -> dict:
         key = (stream, currency, week)
@@ -288,6 +292,9 @@ class Ledger:
             if status in FAILED:
                 c["failed"] += 1
                 c["failed_amount"] += value
+            else:
+                landed = (r.get("arrival") or when).strftime("%Y-%m")
+                self.payout_months[(currency, landed)] = self.payout_months.get((currency, landed), Decimal(0)) + value
         elif stream == "invoices":
             c["count"] += 1
             due = r.get("amount_due") if r.get("amount_due") is not None else value
@@ -356,7 +363,7 @@ def mapping_for(folder: Path, rel: str) -> dict | None:
         raise OperationsError(f"operations.json: {exc}") from exc
     for entry in config.get("files", []) if type(config) is dict else []:
         if type(entry) is dict and fnmatch.fnmatch(rel.lower(), str(entry.get("match", "")).lower()):
-            if entry.get("stream") not in STREAMS or type(entry.get("columns")) is not dict:
+            if entry.get("stream") not in STREAMS + spend.STREAMS or type(entry.get("columns")) is not dict:
                 raise OperationsError(f"operations.json: {entry.get('match')!r} needs a stream and columns")
             return entry
     return None
@@ -365,7 +372,7 @@ def mapping_for(folder: Path, rel: str) -> dict | None:
 def recognize(rel: str, headers: list[str], mapping: dict | None) -> tuple[str | None, dict, str]:
     """(stream, canonical column -> header, how it was recognized) for one CSV file."""
     if mapping is not None:
-        wanted = {k: v for k, v in mapping["columns"].items() if k in COLUMNS and v in headers}
+        wanted = {k: v for k, v in mapping["columns"].items() if (k in COLUMNS or k in spend.COLUMNS) and v in headers}
         return mapping["stream"], wanted, "operations.json"
     by_norm = {norm(h): h for h in headers}
     found = {}
@@ -385,7 +392,7 @@ def recognize(rel: str, headers: list[str], mapping: dict | None) -> tuple[str |
     return None, found, ""
 
 
-def read_csv(path: Path, rel: str, folder: Path, ledger: Ledger) -> dict:
+def read_csv(path: Path, rel: str, folder: Path, ledger: Ledger, book: "spend.Book | None" = None) -> dict:
     mapping = mapping_for(folder, rel)
     with path.open("r", encoding="utf-8-sig", errors="replace", newline="") as handle:
         sample = handle.read(64 * 1024)
@@ -397,6 +404,12 @@ def read_csv(path: Path, rel: str, folder: Path, ledger: Ledger) -> dict:
         reader = csv.reader(handle, dialect)
         headers = next(reader, [])
         stream, columns, how = recognize(rel, headers, mapping)
+        if book is not None and (stream is None or stream in spend.STREAMS):
+            if mapping is None:
+                columns = spend.find_columns(headers, norm)
+                stream, how = spend.recognize(rel, columns)
+            if stream is not None:
+                return read_spend(reader, headers, rel, stream, columns, how, mapping, book)
         if stream is None:
             return {"file": rel, "status": "UNRECOGNIZED", "headers": [h[:60] for h in headers[:40]],
                     "hint": "Add an entry for it in operations.json: which stream it is and which column holds "
@@ -417,7 +430,7 @@ def read_csv(path: Path, rel: str, folder: Path, ledger: Ledger) -> dict:
             record = {"currency": currency, "status": status_map.get(status.lower(), status)}
             for k in ("amount", "fee", "amount_refunded", "amount_due", "amount_paid"):
                 record[k] = amount(get(k), minor, currency)
-            for k in ("created", "start", "canceled"):
+            for k in ("created", "start", "canceled", "arrival"):
                 record[k] = moment(get(k), date_format)
             for k in ("decline_reason", "reason", "interval", "plan"):
                 record[k] = get(k)
@@ -433,6 +446,42 @@ def read_csv(path: Path, rel: str, folder: Path, ledger: Ledger) -> dict:
     if placed < rows:
         found["hint"] = (f"{rows - placed} of {rows} rows have no readable date or currency, so they are not counted. "
                          "In operations.json, give this file a date_format (e.g. \"%m/%d/%Y\") or a currency.")
+    return found
+
+
+def read_spend(reader, headers: list[str], rel: str, stream: str, columns: dict, how: str, mapping: dict | None,
+               book: "spend.Book") -> dict:
+    """Bank and card lines, bills and cloud costs, into monthly aggregates."""
+    index = {canonical: headers.index(header) for canonical, header in columns.items() if header in headers}
+    date_format = (mapping or {}).get("date_format")
+    default_currency = (mapping or {}).get("currency")
+    flip = (mapping or {}).get("amounts") == "out_positive"  # card exports list charges as positive
+    provider = spend.provider_of(headers) if stream == "cloud_costs" else None
+    rows = placed = 0
+    for row in reader:
+        rows += 1
+        if rows > MAX_ROWS:
+            raise OperationsError(f"{rel}: more than {MAX_ROWS} rows")
+        get = lambda k: row[index[k]] if k in index and index[k] < len(row) else None  # noqa: E731
+        currency = get("currency") or default_currency or ""
+        when = get("usage_start") if stream == "cloud_costs" and get("usage_start") else get("created")
+        if when and re.fullmatch(r"\d{6}", when.strip()):  # an invoice month, YYYYMM
+            when = f"{when.strip()[:4]}-{when.strip()[4:]}-01"
+        record = {"currency": currency, "created": moment(when, date_format), "due": moment(get("due"), date_format),
+                  "status": get("status"), "payee": get("payee"), "description": get("description"),
+                  "category": get("category"), "service": get("service"), "provider": provider}
+        for k in ("amount", "debit", "credit", "cost"):
+            record[k] = amount(get(k), False, currency)
+        if flip and record["amount"] is not None:
+            record["amount"] = -record["amount"]
+        placed += book.add(stream, record, label)
+    found = {"file": rel, "status": "READ", "stream": stream, "recognized_by": how, "rows": rows, "rows_used": placed,
+             "columns_used": sorted(k for k in columns if k not in ("payee", "description")),
+             "columns_matched_only": sorted(k for k in columns if k in ("payee", "description")),
+             "columns_not_read": len(headers) - len(columns)}
+    if placed < rows:
+        found["hint"] = (f"{rows - placed} of {rows} rows have no readable date or currency, so they are not counted. "
+                         "In operations.json, give this file a currency (bank exports often have none) or a date_format.")
     return found
 
 
@@ -453,6 +502,8 @@ def api_record(obj: dict) -> tuple[str | None, dict]:
             record["amount"] = m(obj.get("amount_received") or obj.get("amount"))
     elif stream in ("refunds", "disputes"):
         record["reason"] = obj.get("reason")
+    elif stream == "payouts":
+        record["arrival"] = moment(obj.get("arrival_date"))
     elif stream == "invoices":
         record["amount_due"], record["amount_paid"] = m(obj.get("amount_due")), m(obj.get("amount_paid"))
     elif stream == "subscriptions":
@@ -480,7 +531,8 @@ def read_json(path: Path, rel: str, ledger: Ledger, aggregates: list) -> dict:
         return {"file": rel, "status": "UNREADABLE", "detail": str(exc)[:200]}
     if type(document) is dict and document.get("kind") == AGGREGATE_KIND:
         aggregates.append((rel, document))
-        return {"file": rel, "status": "READ", "stream": ",".join(sorted(document.get("streams", {}))),
+        return {"file": rel, "status": "READ", "stream": ",".join(sorted([*document.get("streams", {}),
+                                                                          *document.get("spend", {})])),
                 "recognized_by": "an aggregate written by operations.py pull", "rows": None,
                 "source": document.get("source")}
     objects = document.get("data") if type(document) is dict and document.get("object") == "list" else document
@@ -700,16 +752,32 @@ def report(folder: Path | None, entities: list[dict] | None = None, min_cell: in
         return {**base, "status": "NO_OPERATIONS_FOLDER", "folder": str(folder) if folder else None, "sources": [],
                 "currencies": {}, "signals": [], "code_vs_operations": [], "unrecognized": []}
     ledger, aggregates, sources = Ledger(), [], []
+    book = spend.Book(now or datetime.now(timezone.utc))
     for path in files_in(folder):
         rel = path.relative_to(folder).as_posix()
         try:
             source = (read_json(path, rel, ledger, aggregates) if path.suffix.lower() == ".json"
-                      else read_csv(path, rel, folder, ledger))
+                      else read_csv(path, rel, folder, ledger, book))
         except (OSError, UnicodeError, csv.Error) as exc:
             source = {"file": rel, "status": "UNREADABLE", "detail": str(exc)[:200]}
         sources.append({**source, "sha256": sha256(path), "bytes": path.stat().st_size})
     ledger.close()
     overlaps = merge_aggregates(ledger, aggregates, sources)
+    for _, document in aggregates:  # pulled spend (cloud costs by service) replaces files for the same month
+        for stream, by_currency in (document.get("spend") or {}).items():
+            if stream not in spend.STREAMS or type(by_currency) is not dict:
+                continue
+            for currency, months in by_currency.items():
+                for month, values in (months or {}).items():
+                    fresh = spend.cell(stream)
+                    for k, v in values.items():
+                        if isinstance(fresh.get(k), Decimal):
+                            fresh[k] = Decimal(str(v))
+                        elif isinstance(fresh.get(k), dict):
+                            fresh[k] = {name: Decimal(str(x)) for name, x in v.items()}
+                        elif k in fresh:
+                            fresh[k] = v
+                    book.cells[(stream, currency, month)] = fresh
     currencies: dict[str, dict] = {}
     signals = []
     for currency in sorted({c for (_, c, _) in ledger.cells} | set(ledger.snapshot)):
@@ -747,12 +815,28 @@ def report(folder: Path | None, entities: list[dict] | None = None, min_cell: in
             "streams": {s: [{"week": w, **shown(s, c, min_cell)} for w, c in rows] for s, rows in series.items() if rows},
             "totals": totals, "subscriptions_now": snapshot or None,
             "recent": recent_figures(series, current, min_cell)}
+    payouts_by_month: dict[str, dict] = {}
+    for (currency, month), value in ledger.payout_months.items():
+        payouts_by_month.setdefault(currency, {})[month] = value
+    for _, document in aggregates:
+        for currency, months in (document.get("payouts_by_month") or {}).items():
+            payouts_by_month[currency] = {m: Decimal(str(v)) for m, v in months.items()}
+    payments_by_month: dict[str, dict] = {}
+    for (stream, currency, week), c in ledger.cells.items():
+        if stream == "payments":  # a week counts in the month of its Thursday, as ISO weeks do
+            month = (week_start(week) + timedelta(days=3)).strftime("%Y-%m")
+            bucket = payments_by_month.setdefault(currency, {})
+            bucket[month] = bucket.get(month, Decimal(0)) + c["gross"]
+    spending = spend.section(book, min_cell, payouts_by_month, payments_by_month) if book.cells else None
+    if spending:
+        signals += spending["signals"]
     read = [s for s in sources if s["status"] == "READ"]
     present = {s for cur in currencies.values() for s in cur["streams"]} | (
         {"subscriptions"} if any(c["subscriptions_now"] for c in currencies.values()) else set())
     return {**base, "status": "OK" if read else "NO_RECORDS_READ", "folder": str(folder), "week_in_progress": current,
+            "month_in_progress": spend.month_of(now or datetime.now(timezone.utc)),
             "sources": sources, "unrecognized": [s for s in sources if s["status"] == "UNRECOGNIZED"],
-            "overlaps": overlaps, "streams_present": sorted(present), "currencies": currencies,
+            "overlaps": overlaps, "streams_present": sorted(present), "currencies": currencies, "spend": spending,
             "signals": sorted(signals, key=lambda s: ({"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2}[s["level"]], s["signal"])),
             "code_vs_operations": compare(present, entities or [], currencies)}
 
@@ -768,11 +852,14 @@ def folder_revision(folder: Path | None) -> str:
     return h.hexdigest()
 
 
-def with_comparison(answer: dict, entities: list[dict]) -> dict:
-    """The ledger with what it shows compared with the model and code as they are now."""
+def with_comparison(answer: dict, entities: list[dict], code_suppliers: list[dict] | None = None) -> dict:
+    """The ledger compared with the model, the code and the supplier map as they are now."""
     if answer["status"] != "OK":
         return answer
-    return {**answer, "code_vs_operations": compare(set(answer["streams_present"]), entities, answer["currencies"])}
+    out = {**answer, "code_vs_operations": compare(set(answer["streams_present"]), entities, answer["currencies"])}
+    if answer.get("spend") and code_suppliers is not None:
+        out["spend"] = {**answer["spend"], "suppliers_vs_spend": spend.compare(answer["spend"], code_suppliers)}
+    return out
 
 
 def compare(present: set, entities: list[dict], currencies: dict) -> list[dict]:
@@ -881,11 +968,63 @@ def pull_stripe(key: str, out: Path, days: int, base: str = "https://api.stripe.
     document = {"schema_version": 1, "kind": AGGREGATE_KIND, "source": "stripe_api",
                 "pulled_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "days": days, "objects_read": counts,
                 "streams": streams, "snapshot": {"subscriptions": ledger.snapshot},
+                "payouts_by_month": {c: {m: float(v) for (cur, m), v in sorted(ledger.payout_months.items()) if cur == c}
+                                     for c in sorted({c for c, _ in ledger.payout_months})},
                 "semantics": "AGGREGATES_ONLY_NO_RECORDS"}
     out.mkdir(parents=True, exist_ok=True)
     target = out / "stripe-api.ontologyex-aggregate.json"
     target.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", "utf-8")
     return {"status": "PULLED", "file": str(target), "objects_read": counts}
+
+
+def pull_aws(out: Path, months: int, aws: str = "aws", now: datetime | None = None) -> dict:
+    """Monthly cost by service from AWS Cost Explorer, through the aws command line and the credentials it is
+    already set up with (a read-only call, ce:GetCostAndUsage; AWS charges a small fee per request). Writes
+    aggregates only."""
+    now = now or datetime.now(timezone.utc)
+    first = now.replace(day=1)
+    for _ in range(max(1, months) - 1):
+        first = (first - timedelta(days=1)).replace(day=1)
+    cells: dict = {}
+    token, pages = None, 0
+    while pages < 50:
+        command = [aws, "ce", "get-cost-and-usage", "--time-period",
+                   f"Start={first:%Y-%m-%d},End={(now + timedelta(days=1)):%Y-%m-%d}", "--granularity", "MONTHLY",
+                   "--metrics", "UnblendedCost", "--group-by", "Type=DIMENSION,Key=SERVICE", "--output", "json",
+                   *(["--next-page-token", token] if token else [])]
+        try:
+            run = subprocess.run(command, capture_output=True, text=True, timeout=180)
+        except FileNotFoundError:
+            raise OperationsError("the aws command line is not installed (or not on PATH)") from None
+        if run.returncode != 0:
+            raise OperationsError("aws ce get-cost-and-usage failed: " + (run.stderr or run.stdout).strip()[:300])
+        answer = json.loads(run.stdout)
+        pages += 1
+        for period in answer.get("ResultsByTime", []):
+            month = str((period.get("TimePeriod") or {}).get("Start", ""))[:7]
+            for group in period.get("Groups", []):
+                metric = (group.get("Metrics") or {}).get("UnblendedCost") or {}
+                currency = str(metric.get("Unit", "")).lower()
+                cost = amount(metric.get("Amount"))
+                if not re.fullmatch(r"\d{4}-\d{2}", month) or not re.fullmatch(r"[a-z]{3}", currency) or cost is None:
+                    continue
+                c = cells.setdefault(currency, {}).setdefault(month, spend.cell("cloud_costs"))
+                c["records"] += 1
+                c["cost"] += cost
+                spend.add_to(c["services"], label((group.get("Keys") or ["unspecified"])[0]), cost)
+                spend.add_to(c["providers"], "Amazon Web Services", cost)
+        token = answer.get("NextPageToken")
+        if not token:
+            break
+    document = {"schema_version": 1, "kind": AGGREGATE_KIND, "source": "aws_cost_explorer",
+                "pulled_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "months": months,
+                "spend": {"cloud_costs": {cur: {m: spend.plain(c) for m, c in sorted(by.items())}
+                                          for cur, by in sorted(cells.items())}},
+                "semantics": "AGGREGATES_ONLY_NO_RECORDS"}
+    out.mkdir(parents=True, exist_ok=True)
+    target = out / "aws-cost-explorer.ontologyex-aggregate.json"
+    target.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", "utf-8")
+    return {"status": "PULLED", "file": str(target), "months": sorted({m for by in cells.values() for m in by})}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -896,9 +1035,11 @@ def main(argv: list[str] | None = None) -> int:
     rep.add_argument("--format", choices=("json", "markdown"), default="json")
     rep.add_argument("--min-cell", type=int, default=MIN_CELL)
     pull = sub.add_parser("pull", help="aggregate a read-only API into the folder")
-    pull.add_argument("provider", choices=("stripe",))
+    pull.add_argument("provider", choices=("stripe", "aws"))
     pull.add_argument("--out", type=Path, required=True)
     pull.add_argument("--days", type=int, default=180)
+    pull.add_argument("--months", type=int, default=6, help="aws: months of cost by service")
+    pull.add_argument("--aws", default="aws", help="aws: the aws command line to run")
     pull.add_argument("--key-env", default="STRIPE_API_KEY", help="the environment variable holding the key")
     pull.add_argument("--api-base", default="https://api.stripe.com")
     pull.add_argument("--allow-secret-key", action="store_true",
@@ -908,6 +1049,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "report":
             answer = report(args.dir, min_cell=max(1, args.min_cell))
             print(markdown(answer) if args.format == "markdown" else json.dumps(answer, indent=2, sort_keys=True))
+            return 0
+        if args.provider == "aws":
+            print(json.dumps(pull_aws(args.out, min(max(args.months, 1), 36), args.aws), indent=2))
             return 0
         key = os.environ.get(args.key_env, "")
         if not key:

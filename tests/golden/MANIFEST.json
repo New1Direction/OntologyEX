@@ -41,8 +41,8 @@
    "updated": "2026-10-29"
   },
   "demo/command_center.json": {
-   "reason": "Operations: the demo's synthetic payment-processor exports, read as weekly aggregates against the fixed clock, add a payout failure, open disputes, rising refunds, a high dispute rate and written-off invoices to the command center and digest, and pin the operations ledger itself.",
-   "sha256": "2952b1275b663293e003ef323063ac150e68ac2a345e5f65d9fbc9aac6dca570",
+   "reason": "Spend: the demo's bank statement, vendor bills and AWS cost report, read as monthly aggregates, add payouts missing from the bank, overdue bills, a spending jump, rising cloud costs and a first payment to OpenAI; its web app now declares SendGrid and Sentry, so suppliers paid are compared with suppliers used.",
+   "sha256": "fff27fc3615d9934350da55fd2921ed1237d2690edae437a3b819be481267e51",
    "updated": "2026-10-29"
   },
   "demo/context.json": {
@@ -51,13 +51,13 @@
    "updated": "2026-10-29"
   },
   "demo/digest.json": {
-   "reason": "Operations: the demo's synthetic payment-processor exports, read as weekly aggregates against the fixed clock, add a payout failure, open disputes, rising refunds, a high dispute rate and written-off invoices to the command center and digest, and pin the operations ledger itself.",
-   "sha256": "0813c3cb3455cc95ee8c95567130b58a9cd588f7c91d1c4475b6d5d4afc24ab4",
+   "reason": "Spend: the demo's bank statement, vendor bills and AWS cost report, read as monthly aggregates, add payouts missing from the bank, overdue bills, a spending jump, rising cloud costs and a first payment to OpenAI; its web app now declares SendGrid and Sentry, so suppliers paid are compared with suppliers used.",
+   "sha256": "03a9d1b67cb908fd863ecd3ea3857dc1fb0ec5359d3135a35077499a311e200d",
    "updated": "2026-10-29"
   },
   "demo/operations.json": {
-   "reason": "Operations: the demo's synthetic payment-processor exports, read as weekly aggregates against the fixed clock, add a payout failure, open disputes, rising refunds, a high dispute rate and written-off invoices to the command center and digest, and pin the operations ledger itself.",
-   "sha256": "4b16de0e7a1925fb6439dada082d1db5c85784a88c3c1ffe777c26692a939f86",
+   "reason": "Spend: the demo's bank statement, vendor bills and AWS cost report, read as monthly aggregates, add payouts missing from the bank, overdue bills, a spending jump, rising cloud costs and a first payment to OpenAI; its web app now declares SendGrid and Sentry, so suppliers paid are compared with suppliers used.",
+   "sha256": "59cf109b52329304fd7748311710c442eb1a63735b2072d3b6b9505f7643789b",
    "updated": "2026-10-29"
   },
   "shop/change_impact.json": {

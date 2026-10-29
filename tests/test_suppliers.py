@@ -106,7 +106,7 @@ class ServedTests(unittest.TestCase):
             tools = at.Tools(at.Source(base, None), at.load_policy(None),
                              at.Audit(Path(tmp) / "audit.jsonl", "claude", "Dana"), None)
             listed = tools.call("list_suppliers", {})
-            self.assertEqual([s["name"] for s in listed["suppliers"]], ["Stripe"])
+            self.assertEqual([s["name"] for s in listed["suppliers"]], ["Stripe", "SendGrid", "Sentry"])  # by criticality
             context = tools.call("get_entity_context", {"id": stripe["id"]})
             self.assertEqual(context["entity"]["kind"], "external_supplier")
             impact = tools.call("analyze_change", {"files": "payments/requirements.txt"})
