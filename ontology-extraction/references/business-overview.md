@@ -15,21 +15,24 @@ when you cloned it as [AGENTS.md](../../AGENTS.md) says.
 python "$SKILL_ROOT/scripts/overview.py" scan --repo REPO --out REPO/.ontologyex/overview
 ```
 
-`scan.json` lists, each with the file (and line) that shows it:
+It prints a summary; `scan.json` has the full lists, each with the file (and line)
+that shows it:
 
 - **apps**: folder, language, frameworks (Next.js, Remix, Hono, Django, Echo, ...);
   a package that only holds dev tooling is marked `role: tooling only`;
-- **services** and **datastores**: what compose files run, plus databases the
+- **services** and **datastores**: what compose files run (including overrides and
+  examples such as `compose.override.yml` or `compose.example.yml`), plus databases the
   dependencies show when nothing runs them (`inferred_from`: the psycopg library,
   the Prisma datasource, the Supabase config);
 - **integrations**: outside services the code depends on, grouped as payments,
   auth, email and messaging, AI, data and queues, cloud, analytics and monitoring
   (a family such as `@aws-sdk/*` is one row, the rest named under `also`);
-- **code**: routes and pages, GraphQL and RPC operations, tables, and jobs the code
-  declares, each with its file and line (the first 40 to 80; `code_surface.py --repo
-  REPO` prints all of them);
-- **docs**, in reading order: README, architecture and agent notes, decision records,
-  the rest;
+- **code**: routes and pages (with router prefixes and Rails namespaces), GraphQL and
+  RPC operations, tables, and jobs (Celery, ActiveJob, Sidekiq, cron schedules, ...) the
+  code declares, each with its file and line (the first 30 to 80; the `full_list`
+  command prints all of them);
+- **docs**, in reading order: README, architecture and agent notes (AGENTS.md,
+  CLAUDE.md, `.cursor/rules`), decision records, the rest;
 - **read_first**: entry points (what the Dockerfile or start script runs first),
   routes and APIs, data model, money, users and access, background jobs,
   configuration. Money and access files are ranked by what they import and say,
@@ -48,7 +51,10 @@ below; when the sources do not answer one, that is an **unknown**, not a guess.
 ## 3. Fill in the blueprint
 
 Replace the two `TODO`s (`purpose`, `stage`), correct the drafted systems where
-reading showed more (each says what is not traced yet), and add the sections below.
+reading showed more (each says what is not traced yet; delete, merge or rename any
+that are wrong, such as a library that is really a worker process), and add the
+sections below. Never copy a secret (a key, password or token from a config or `.env`
+file) into the blueprint: the page quotes every cited line.
 Every item has an `id` (letters, digits, `_.-`), a `name`, a `description`,
 `evidence` (IDs from the `evidence` list), and a `basis`:
 
@@ -68,21 +74,22 @@ Every item has an `id` (letters, digits, `_.-`), a `name`, a `description`,
 | `money_flows` | who pays whom for what (plans, prices, fees, payouts); `[]` if nothing in the code or docs shows money | `state`: `described` (default), `deployed_claim`, `gated`, `planned`, `unknown` |
 | `journeys` | how someone gets an outcome | `actor`, `outcome`, `steps`: 1 to 20, each with `id`, `name`, `description`, `evidence`, `basis`, `state` (as above) and optional `risk_ids` |
 | `systems` | apps, services, datastores, outside services (the draft has these) | `kind`: free text (`application`, `datastore`, `external: payments`, ...) |
-| `risks` | where it breaks | `severity` (required): `critical`, `high`, `medium`, `low`; `signal`: what would show it happening; `basis` is usually `proposed` |
+| `risks` | where it breaks | `severity` (required): `critical`, `high`, `medium`, `low`; `signal`: what would show it happening; `basis`: `derived_from_source` when you can follow the failure in the cited code, `proposed` when it is a judgment |
 | `unknowns` | the questions the sources leave open | `basis: unknown`; evidence may be empty |
 | `improvements` | suggested work | `priority`: `P0` to `P3` (default `P2`); `addresses`: risk IDs |
 
-One item of each kind:
+One item of each kind (citation IDs are yours to choose; these two would be added to
+`evidence` as `{"id": "plans", ...}` and `{"id": "webhook", ...}`):
 
 ```json
 {"money_flows": [{"id": "pro-plan", "name": "Team pays the Pro plan", "description": "$29 a month per seat through Stripe Checkout",
-                  "state": "described", "evidence": ["e12"], "basis": "observed_in_source"}],
+                  "state": "described", "evidence": ["plans"], "basis": "observed_in_source"}],
  "journeys": [{"id": "upgrade", "name": "Upgrade to Pro", "actor": "Team admin", "outcome": "Pro features unlocked",
-               "description": "From the pricing page to an active subscription", "evidence": ["e12"], "basis": "derived_from_source",
-               "steps": [{"id": "pay", "name": "Pay in Checkout", "description": "Stripe Checkout session", "evidence": ["e12"],
+               "description": "From the pricing page to an active subscription", "evidence": ["plans"], "basis": "derived_from_source",
+               "steps": [{"id": "pay", "name": "Pay in Checkout", "description": "Stripe Checkout session", "evidence": ["plans"],
                           "basis": "observed_in_source", "state": "described", "risk_ids": ["webhook-lost"]}]}],
  "risks": [{"id": "webhook-lost", "name": "A lost webhook leaves a paid team on Free", "description": "No retry or reconciliation",
-            "severity": "high", "signal": "Paid Checkout sessions with no active subscription row", "evidence": ["e13"],
+            "severity": "high", "signal": "Paid Checkout sessions with no active subscription row", "evidence": ["webhook"],
             "basis": "proposed"}],
  "unknowns": [{"id": "real-prices", "name": "Real prices", "description": "Prices live in Stripe, not in the repository",
                "evidence": [], "basis": "unknown"}],
@@ -112,8 +119,8 @@ the page records the cited lines, their SHA-256, and the commit the checkout is 
 Fix what it names and build again.
 
 The build checks that cited lines exist, not that they say what you claim. Its
-output lists `check_citations`, the first cited line of each; read them, and fix a
-range that is off by a few lines. `open` is the page's `file://` address: one file
+output lists `check_citations`, the first and last line of each range; read them,
+and fix a range that is off at either end. `open` is the page's `file://` address: one file
 that works offline. The cited text is inside the page, so it still reads when the
 file is shared, but the links point at the local checkout. To share the page, add
 `--github OWNER/NAME`: each citation then links to its lines on GitHub at the

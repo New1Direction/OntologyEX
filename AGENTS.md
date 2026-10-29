@@ -58,7 +58,7 @@ Then offer what fits:
   installs it as a Claude Code skill.
 
 Rules: read, do not run their code or install their dependencies; never send their
-source anywhere; ask before anything that downloads (`otel_setup.py run` installs
+source anywhere; never copy a secret (key, password, token) into the blueprint; ask before anything that downloads (`otel_setup.py run` installs
 OpenTelemetry from npm or PyPI on first use) or writes outside `REPO/.ontologyex`;
 when the sources do not say, write it down as unknown instead of guessing.
 

@@ -218,6 +218,12 @@ def _compose_builds(repo: Path, discovery: dict) -> dict[str, tuple[str, str]]:
             if type(context) is not str or "://" in context:
                 continue
             folder = os.path.normpath((Path(rel).parent / context).as_posix())
+            dockerfile = build.get("dockerfile") if isinstance(build, dict) else None
+            if type(dockerfile) is str and "/" in dockerfile.strip("/"):
+                # context: . with dockerfile: backend/Dockerfile builds the app in backend/
+                inner = os.path.normpath((Path(folder) / dockerfile).parent.as_posix())
+                if not inner.startswith("..") and (repo / inner).is_dir():
+                    folder = inner
             builds.setdefault(Path(folder).as_posix(), (str(name), discover_repo.canonical_id("service", rel, str(name))))
     return builds
 
