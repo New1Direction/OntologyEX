@@ -18,7 +18,7 @@ the same code behind the entity page; the Rust engine gives the same answers.
 Every tool declares its kind, and the kind decides what it may do:
 
 - READ_ONLY tools (search, context, explain, impact, recent decisions, open
-  suggestions, decisions whose evidence changed) change nothing.
+  suggestions, decisions whose evidence changed, change impact) change nothing.
 - ADDITIVE tools (propose_link) append a proposal to a proposals file and nothing
   else. A proposal is a suggestion: it shows in the control room beside the ranked
   ones, and only a person confirms or rejects it there, through the existing decision
@@ -46,7 +46,8 @@ import os
 from pathlib import Path, PurePosixPath
 import secrets
 import sys
-from urllib.parse import urlsplit
+import urllib.error
+from urllib.parse import urlencode, urlsplit
 import urllib.request
 
 import entity_context
@@ -113,6 +114,16 @@ TOOLS = {
         "description": "Proposals nobody has decided yet (ranked links, calls seen in traces, agent proposals), "
                        "with strength, signals and who proposed them; for one entity or for everything.",
         "input": _schema({}, {"id": ENTITY_ID})},
+    "analyze_change": {
+        "kind": READ_ONLY, "title": "Change impact",
+        "description": "What a change touches in the business and what relies on it, before it merges: systems "
+                       "declared in changed files, business objects and actions whose skill cites them, confirmed "
+                       "links that will need re-confirming, and everything that relies on those, with standings. "
+                       "Give base and head refs (head's changes since it left base; neither means the working tree "
+                       "against HEAD; needs a control room), or files: changed paths, one per line.",
+        "input": _schema({}, {"base": _text("base", "git ref to compare with", 200),
+                              "head": _text("head", "git ref whose changes to analyze (needs base)", 200),
+                              "files": _text("files", "changed file paths, one per line", 100_000)})},
     "list_stale_decisions": {
         "kind": READ_ONLY, "title": "Decisions to re-check",
         "description": "Confirmed links whose evidence (the file hashes recorded when a person confirmed them) "
@@ -274,8 +285,9 @@ def check_args(name: str, args) -> dict:
                         + (f"; missing {', '.join(missing)}" if missing else ""))
     for key, value in args.items():
         spec = schema["properties"][key]
+        lines_ok = key == "files"  # a list of paths, one per line
         if type(value) is not str or not spec["minLength"] <= len(value) <= spec["maxLength"] \
-                or not all(" " <= ch != "\x7f" for ch in value):
+                or not all(" " <= ch != "\x7f" or (lines_ok and ch == "\n") for ch in value):
             raise ToolError("INVALID_ARGUMENTS", f"{key} must be text of 1..{spec['maxLength']} characters "
                                                  "without control characters")
     return args
@@ -360,6 +372,31 @@ class Tools:
                                     if args["id"] in (s["source"]["id"], s["target"]["id"])]
             found["total"] = len(found["suggestions"])
         return self._out(found, hidden)
+
+    def analyze_change(self, args: dict) -> dict:
+        if "files" in args:  # paths the agent names: no git needed, lines unknown
+            if "base" in args or "head" in args:
+                raise ToolError("INVALID_ARGUMENTS", "give files, or base and head, not both")
+            paths = [p.strip() for p in args["files"].splitlines() if p.strip()]
+            bundle, hidden = self._model()
+            changes = {"files": [{"path": p} for p in dict.fromkeys(paths)]}
+            return self._out(entity_context.change_impact(bundle, changes), hidden)
+        if self.source.control_room is None:
+            raise ToolError("NOT_ALLOWED", "git refs need the control room (--control-room); with a bundle file, "
+                                           "pass files instead")
+        query = urlencode({k: args[k] for k in ("base", "head") if k in args})
+        try:
+            with self.source.opener.open(self.source.url.replace("/api/bundle", "/api/impact")
+                                         + (f"?{query}" if query else ""), timeout=60) as response:
+                answer = json.loads(response.read(MAX_BUNDLE))
+        except urllib.error.HTTPError as exc:
+            detail = json.loads(exc.read(4096) or b"{}")
+            raise ToolError("INVALID_ARGUMENTS", "the control room refused: "
+                            + str(detail.get("error") or detail.get("status") or exc.code)[:300]) from exc
+        except (OSError, ValueError) as exc:
+            raise ToolError("SOURCE_UNAVAILABLE", "could not reach the control room: " + str(exc)[:200]) from exc
+        _, hidden = self._model()
+        return self._out(answer, hidden)
 
     def list_stale_decisions(self, args: dict) -> dict:
         bundle, hidden = self._model()

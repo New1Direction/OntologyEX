@@ -100,7 +100,7 @@ def _entities(bundle: dict) -> dict[str, dict]:
             found[row["key"]] = {"id": row["key"], "layer": "business", "kind": kind, "label": row["id"],
                                  "skill": row["skill"], "status": row.get("health", "UNKNOWN"),
                                  "summary": row.get("definition") or row.get("verb_phrase") or "",
-                                 "quotes": [{"path": e.get("path"), "start": e.get("start"), "end": e.get("end"),
+                                 "quotes": [{"path": e.get("path"), "start": e.get("start_line"), "end": e.get("end_line"),
                                              "quote": e.get("quote")} for e in row.get("evidence", [])][:4],
                                  "rules": [{k: r.get(k) for k in ("id", "statement", "status", "grade", "grade_label")}
                                            for r in row.get("rules", [])][:20],
@@ -367,6 +367,138 @@ def search(bundle: dict, query: str) -> dict:
     hits.sort(key=lambda e: (e["layer"] != "business", len(e["label"]), e["id"]))
     return {"schema_version": 1, "kind": "ENTITY_SEARCH", "query": query, "results": hits[:MAX_SEARCH],
             "total": len(hits), "execution_authorized": False}
+
+
+MAX_CHANGED_FILES = 2000
+MAX_RANGES = 200
+MAX_TOUCHED = 500
+
+
+def _clean(text) -> bool:
+    return type(text) is str and 0 < len(text) <= 1024 and all(" " <= ch != "\x7f" for ch in text)
+
+
+def _changes(changes) -> tuple[list[dict], list[tuple[str, str]]]:
+    """Validate a change set: files (path, status, optional changed line ranges) and skill bindings."""
+    _check(isinstance(changes, dict) and set(changes) <= {"files", "bindings"}, "changes need files and/or bindings")
+    files, seen = changes.get("files", []), set()
+    _check(type(files) is list and len(files) <= MAX_CHANGED_FILES, "too many changed files")
+    for row in files:
+        _check(isinstance(row, dict) and set(row) <= {"path", "status", "ranges"} and _clean(row.get("path"))
+               and row.get("status", "M") in ("A", "M", "D", "R") and row["path"] not in seen, "invalid changed file")
+        seen.add(row["path"])
+        ranges = row.get("ranges")
+        _check(ranges is None or (type(ranges) is list and len(ranges) <= MAX_RANGES and all(
+            type(r) is list and len(r) == 2 and all(type(x) is int and x >= 1 for x in r) and r[0] <= r[1]
+            for r in ranges)), "invalid changed line ranges")
+    bindings = changes.get("bindings", [])
+    _check(type(bindings) is list and len(bindings) <= MAX_CHANGED_FILES and all(
+        isinstance(b, dict) and set(b) == {"skill", "binding"} and _clean(b["skill"]) and _clean(b["binding"])
+        for b in bindings), "invalid changed bindings")
+    return sorted(files, key=lambda f: f["path"]), sorted({(b["skill"], b["binding"]) for b in bindings})
+
+
+def _hit(ranges, start, end=None):
+    """Whether a cited line (or line span) falls in a changed range; None when either is unknown."""
+    if ranges is None or type(start) is not int:
+        return None
+    end = end if type(end) is int and end >= start else start
+    return any(a <= end and start <= b for a, b in ranges)
+
+
+def _names(cited, changed) -> bool:
+    """A skill cites paths relative to its own sources: the repository path may be longer."""
+    return type(cited) is str and bool(cited) and (changed == cited or changed.endswith("/" + cited))
+
+
+def change_impact(bundle: dict, changes: dict) -> dict:
+    """What a change touches, and what relies on what it touches.
+
+    Touched: systems declared in a changed file; business objects and actions whose
+    skill cites a changed file, whose binding's source code changed, or whose binding
+    changed in a new skill version; both ends of every confirmed
+    link whose recorded evidence includes a changed file (those links will need
+    re-confirming once the change lands). Impacted: what relies on a touched entity,
+    with the strongest path's standing. Declared reachability, not runtime impact.
+    """
+    _check(isinstance(bundle, dict) and isinstance(bundle.get("state"), dict), "expected a context bundle")
+    _check(bundle["state"].get("execution_authorized") is False, "context never reads an authorizing state")
+    files, bindings = _changes(changes)
+    entities = _entities(bundle)
+    picture = bundle.get("business") or {}
+    paths = {e["id"]: e.get("path") for e in bundle["state"].get("source_evidence", [])}
+    holders: dict[tuple, list[str]] = {}  # (skill, binding) -> business entities that use it
+    cited: dict[tuple, list[dict]] = {}  # (skill, binding) -> the source lines the skill binds to
+    for row in [*picture.get("actions", []), *picture.get("objects", [])]:
+        for binding in row.get("bindings", []):
+            key = (row["skill"], binding["id"] if isinstance(binding, dict) else binding)
+            holders.setdefault(key, []).append(row["key"])
+            if isinstance(binding, dict):
+                cited.setdefault(key, []).extend(binding.get("evidence", []))
+    touches: dict[str, dict] = {}
+
+    def touch(entity_id, reason, path, line_hit) -> bool:
+        """Record a touch; a file counts as mapped only when one lands on an entity."""
+        if entity_id in entities:
+            mapped.add(path)
+            seen = touches.setdefault(entity_id, {})
+            if (reason, path) not in seen:
+                seen[(reason, path)] = {"reason": reason, "path": path, "line_hit": line_hit}
+            elif line_hit is True or (line_hit is False and seen[(reason, path)]["line_hit"] is None):
+                seen[(reason, path)]["line_hit"] = line_hit  # any changed cited line wins; known beats unknown
+        return entity_id in entities
+
+    reconfirm, mapped = [], set()
+    for change in files:
+        path, ranges = change["path"], change.get("ranges")
+        for node in bundle["state"]["nodes"]:
+            if paths.get(node.get("evidence_id")) == path:
+                touch(node["id"], "DECLARED_IN_CHANGED_FILE", path, _hit(ranges, node.get("source_line")))
+        for entity in entities.values():
+            for quote in entity.get("quotes", []):
+                if _names(quote.get("path"), path):
+                    touch(entity["id"], "CITED_BY_SKILL", path, _hit(ranges, quote.get("start"), quote.get("end")))
+        for key, sources in cited.items():
+            for source in sources:
+                if _names(source.get("path"), path):
+                    for holder in holders.get(key, []):
+                        touch(holder, "BINDING_SOURCE_CHANGED", path,
+                              _hit(ranges, source.get("start_line"), source.get("end_line")))
+        for mark in picture.get("link_watermarks", []):
+            recorded = mark.get("recorded") if isinstance(mark.get("recorded"), dict) else {}
+            now = mark.get("now") if isinstance(mark.get("now"), dict) else {}
+            if path in recorded or path in now:
+                for holder in holders.get((mark.get("skill"), mark.get("binding")), []):
+                    touch(holder, "CONFIRMED_LINK_EVIDENCE_CHANGES", path, None)
+                touch(mark.get("component"), "CONFIRMED_LINK_EVIDENCE_CHANGES", path, None)
+                if path in recorded:
+                    reconfirm.append({"decision_id": mark.get("id"), "skill": mark.get("skill"),
+                                      "binding": mark.get("binding"), "component": mark.get("component"), "path": path})
+    for skill, binding in bindings:
+        for holder in holders.get((skill, binding), []):
+            touch(holder, "SKILL_BINDING_CHANGED", f"skill:{skill}/{binding}", None)
+    touched = sorted(touches, key=lambda i: (entities[i]["layer"] != "business", entities[i]["label"], i))
+    relationships = _relationships(bundle, entities, _history(bundle))
+    best: dict[str, dict] = {}
+    for origin in touched:
+        for row in _impact(origin, relationships, entities):
+            if row["id"] in touches:
+                continue
+            key = (WEAKNESS[row["standing"]], row["depth"], origin)
+            if row["id"] not in best or key < best[row["id"]]["_key"]:
+                best[row["id"]] = {**row, "via": origin, "_key": key}
+    impacted = sorted(best.values(), key=lambda r: (r["_key"], r["id"]))
+    reconfirm.sort(key=lambda r: (str(r["decision_id"]), r["path"]))
+    return {"schema_version": 1, "kind": "CHANGE_IMPACT", "changed_files": len(files),
+            "touched": [{**_side(entities, i), "reasons": sorted(touches[i].values(), key=lambda r: (r["reason"], r["path"]))}
+                        for i in touched[:MAX_TOUCHED]],
+            "touched_total": len(touched),
+            "impacted": [{k: v for k, v in r.items() if k != "_key"} for r in impacted[:MAX_IMPACT]],
+            "impacted_total": len(impacted),
+            "reconfirm_after_merge": reconfirm[:MAX_RELATIONSHIPS],
+            "unmapped_files": [f["path"] for f in files if f["path"] not in mapped][:MAX_RELATIONSHIPS],
+            "semantics": "DECLARED_REACHABILITY_FROM_CHANGED_FILES_NOT_RUNTIME_IMPACT",
+            "execution_authorized": False}
 
 
 def open_suggestions(bundle: dict, limit: int = MAX_RELATIONSHIPS) -> dict:

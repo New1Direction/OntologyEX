@@ -734,3 +734,63 @@ theorem p95_index_in_range (n : Nat) (h : 0 < n) : p95Index n < n := by
   omega
 
 end OntologyEX.Feeds
+
+/-!
+# Change impact (`entity_context.change_impact`, `engine/src/context.rs`)
+
+Each entity names the files it rests on (where it is declared, what its skill cites,
+what its confirmed links recorded). A change touches the entities that name a changed
+file; a changed file no entity names is reported as unmapped, never dropped.
+-/
+
+namespace OntologyEX.Impact
+
+structure Ent where
+  id : Nat
+  paths : List Nat
+deriving DecidableEq, Repr
+
+def touches (cs : List Nat) (e : Ent) : Bool := e.paths.any (fun p => decide (p ∈ cs))
+
+def touched (es : List Ent) (cs : List Nat) : List Ent := es.filter (touches cs)
+
+def unmapped (es : List Ent) (cs : List Nat) : List Nat :=
+  cs.filter (fun c => !es.any (fun e => decide (c ∈ e.paths)))
+
+/-- Adding changes never hides an entity a smaller change touches. -/
+theorem touched_monotone (es : List Ent) (cs ds : List Nat) (h : ∀ c ∈ cs, c ∈ ds)
+    (e : Ent) (he : e ∈ touched es cs) : e ∈ touched es ds := by
+  have hm := List.mem_filter.mp he
+  apply List.mem_filter.mpr
+  refine ⟨hm.1, ?_⟩
+  obtain ⟨p, hp, hpc⟩ := List.any_eq_true.mp hm.2
+  have hpc' : p ∈ cs := by simpa using hpc
+  exact List.any_eq_true.mpr ⟨p, hp, by simpa using h p hpc'⟩
+
+/-- Every changed file is accounted for: it touches some entity, or it is reported unmapped. -/
+theorem every_change_accounted (es : List Ent) (cs : List Nat) (c : Nat) (hc : c ∈ cs) :
+    (∃ e ∈ touched es cs, c ∈ e.paths) ∨ c ∈ unmapped es cs := by
+  by_cases hany : es.any (fun e => decide (c ∈ e.paths)) = true
+  · left
+    obtain ⟨e, he, hce⟩ := List.any_eq_true.mp hany
+    have hce' : c ∈ e.paths := by simpa using hce
+    exact ⟨e, List.mem_filter.mpr ⟨he, List.any_eq_true.mpr ⟨c, hce', by simpa using hc⟩⟩, hce'⟩
+  · right
+    apply List.mem_filter.mpr
+    refine ⟨hc, ?_⟩
+    show (!es.any (fun e => decide (c ∈ e.paths))) = true
+    cases h : es.any (fun e => decide (c ∈ e.paths))
+    · rfl
+    · exact absurd h hany
+
+/-- An unmapped file names no entity: the report never hides a touch behind "unmapped". -/
+theorem unmapped_touches_nothing (es : List Ent) (cs : List Nat) (c : Nat)
+    (h : c ∈ unmapped es cs) : ∀ e ∈ es, c ∉ e.paths := by
+  intro e he hce
+  have h2 : (!es.any (fun e => decide (c ∈ e.paths))) = true := (List.mem_filter.mp h).2
+  have hany : es.any (fun e => decide (c ∈ e.paths)) = true :=
+    List.any_eq_true.mpr ⟨e, he, by simpa using hce⟩
+  rw [hany] at h2
+  exact absurd h2 (by decide)
+
+end OntologyEX.Impact

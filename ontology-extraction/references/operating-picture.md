@@ -45,6 +45,10 @@ link is shown as needing re-confirmation (Business page, Decided list; or
 `link_suggest.py reconfirm`), and it no longer counts as confirmed until a person
 re-confirms or undoes it.
 
+Before a change merges, `/impact` (or `change_impact.py --markdown` for a review
+comment) lists what it touches in the business, what relies on that, and which
+confirmed links will need re-confirming.
+
 To see one entity across both layers (why it exists, what relies on it, every
 relationship with how it is known, and the files behind it), open `/entity`; to give
 agents the same model through permission-aware tools that can only propose, see

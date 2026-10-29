@@ -28,6 +28,7 @@ import discover_repo
 import evidence_grade
 import decisions
 import dependency_suggest
+import change_impact
 import entity_context
 import watermark
 import link_suggest
@@ -1142,6 +1143,31 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                         raise graph_view_api.ViewError("bundle takes no parameters")
                     payload, code = json.dumps(bundle(), sort_keys=True).encode(), 200
                 except graph_view_api.ViewError:
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, DomainError, discover_repo.DiscoveryError,
+                        github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
+            elif route.path == "/impact":  # base and head in the query are read by the page
+                page = (Path(__file__).resolve().parent / "impact_page.html").read_bytes()
+                payload, mime, code = page, "text/html; charset=utf-8", 200
+            elif route.path == "/api/impact":  # what the working tree or a branch changes, and what relies on it
+                mime = "application/json; charset=utf-8"
+                try:
+                    params = parse_qs(route.query, strict_parsing=True, max_num_fields=2) if route.query else {}
+                    if not set(params) <= {"base", "head"} or any(len(v) != 1 for v in params.values()):
+                        raise graph_view_api.ViewError("impact takes an optional base and head")
+                    if repo is None:
+                        raise change_impact.DiffError("change impact needs a local --repo")
+                    changes, omitted = change_impact.git_changes(
+                        repo.resolve(), params.get("base", [None])[0], params.get("head", [None])[0])
+                    data = bundle()
+                    answer = (native_view.execute({**data, "changes": changes}, "change-impact")
+                              if native_view is not None else entity_context.change_impact(data, changes))
+                    payload, code = json.dumps({**answer, "files_omitted": omitted}, sort_keys=True).encode(), 200
+                except change_impact.DiffError as exc:
+                    payload, code = json.dumps({"status": "DIFF_UNAVAILABLE", "error": str(exc)[:300]}).encode(), 400
+                except (graph_view_api.ViewError, entity_context.ContextError, ValueError,
+                        native_view_bridge.NativeViewError):
                     payload, code = b'{"status":"INVALID_QUERY"}', 400
                 except (RoomError, DomainError, discover_repo.DiscoveryError,
                         github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):

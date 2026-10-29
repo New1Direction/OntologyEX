@@ -36,6 +36,40 @@ evidence was not recorded; re-confirming records it. A binding file that the rep
 holds in more than one place is not guessed: only the skill's compiled hash is watched
 for it.
 
+## Before a change merges
+
+`/impact` (and `change_impact.py` on the command line) reads a change from git and
+says what it touches and what relies on that. Git is only read: `git diff` and
+`git ls-files`, no checkout, hooks or external diff programs.
+
+```bash
+python "$SKILL_ROOT/scripts/change_impact.py" --repo REPO --base main --head my-branch \
+  --control-room http://127.0.0.1:8765 --markdown
+```
+
+With no refs it is the working tree against HEAD (untracked files included); with
+`--base` alone, the working tree against that ref; with both, what the head branch
+changed since it left the base. `--skill-from OLD --skill-to NEW` adds the bindings a
+new compiled skill version changes (`change_plan.py`). `--markdown` prints a short
+review comment.
+
+A change touches:
+
+- systems declared in a changed file, marked when the declaring line itself changed;
+- business objects and actions whose binding's source code changed, or whose skill
+  cites a changed file (matched by path suffix, with line hits when lines are known);
+- business objects and actions whose binding changed in a new skill version;
+- both ends of every confirmed link whose recorded evidence includes a changed file.
+  Those links are listed as "re-confirm after merge": once the change lands they will
+  read as inferred until a person re-confirms them.
+
+What relies on the touched entities follows, each through its strongest path, with
+how it is known. Changed files that nothing in the model names are listed, not
+dropped; Lean proves every changed file is either mapped or listed, and that adding
+changes never hides an entity a smaller change touches. A compose file is one
+declaring file for every service in it, so changing any line touches all of them (a
+line hit marks the service whose own lines changed, when discovery knows the line).
+
 ## The page
 
 Start the control room as usual and open `http://127.0.0.1:8765/entity`, or follow
@@ -76,6 +110,7 @@ running control room, `--bundle FILE` reads a file from
 | `recent_changes` | read | the newest recorded decisions, for one entity or all |
 | `list_suggestions` | read | proposals nobody has decided, with strength, signals and proposer |
 | `list_stale_decisions` | read | confirmed links whose evidence changed since, with the changed files |
+| `analyze_change` | read | what a change (git refs, or a list of files) touches and what relies on it |
 | `propose_link` | additive | appends a link proposal; a person decides it |
 
 There are no tools that delete or change decisions, and the server refuses to

@@ -65,6 +65,13 @@ on exactly the evidence it recorded), `stale_link_taints_path` (no path through 
 link reads as CONFIRMED). The conformance table's `watermark` section (6 rows) is
 printed by Python, Rust and Lean.
 
+**Lean, change impact** (`OntologyEX.Impact`, `entity_context.change_impact`):
+`touched_monotone` (adding changes never hides an entity a smaller change touches),
+`every_change_accounted` (each changed file touches an entity or is reported as
+unmapped), `unmapped_touches_nothing` (a file reported as unmapped names no entity).
+Rust computes the same report as Python (`tests/rust_context_parity.py`, demo change
+sets and seeded random ones).
+
 **Bend** (`proofs/bend/business.bend`, checked by `bendlang/bend` at a pinned commit):
 `empty_is_unlinked`, `error_anywhere_is_at_risk`, `unknown_anywhere_is_not_ok`,
 `ladder_never_g4`, `rejection_is_g0`, `inferred_at_most_g1`,
