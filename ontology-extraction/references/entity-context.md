@@ -112,16 +112,22 @@ running control room, `--bundle FILE` reads a file from
 | `list_stale_decisions` | read | confirmed links whose evidence changed since, with the changed files |
 | `analyze_change` | read | what a change (git refs, or a list of files) touches and what relies on it |
 | `propose_link` | additive | appends a link proposal; a person decides it |
+| `propose_dependency` | additive | appends "A depends on B" with a reason; a person decides it |
 
 There are no tools that delete or change decisions, and the server refuses to
 register one.
 
-**Proposals.** `propose_link` needs a policy that allows it and `--proposals FILE`;
-start the control room with the same `--proposals FILE`. The proposal appears as a
-WEAK suggestion with the agent's reason, on the Business page and the entity page.
-Only a person confirms or rejects it, through the existing decision route and its
-history. A link a person rejected is refused if proposed again. After confirmation
-the decision records which agent proposed it.
+**Proposals.** `propose_link` and `propose_dependency` need a policy that allows them
+and `--proposals FILE`; start the control room with the same `--proposals FILE` (and
+`--dependencies FILE` to record dependency decisions). A proposal appears as a WEAK
+suggestion with the agent's reason: a link on the Business page and the entity page,
+a dependency beside the calls seen in traces. Only a person confirms or rejects it,
+through the existing decision route and its history. A confirmed dependency proposal
+keeps the agent's reason as its evidence (never invented trace counts) and becomes a
+DEPENDS_ON edge marked PROPOSED_BY_AGENT_CONFIRMED_BY_PERSON. A link or dependency a
+person rejected, one already confirmed, or a dependency the repository already
+declares is refused if proposed. After confirmation the decision records which agent
+proposed it. The same proposals file holds both kinds.
 
 **Policy.** A JSON file:
 

@@ -985,9 +985,14 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         except ValueError as exc:  # a calls file the feeds are rewriting, or one edited by hand
             observed = {"status": "CALLS_FILE_UNREADABLE", "detail": str(exc)[:200], "suggestions": [],
                         "corroborated": [], "gaps": [], "rejected_not_shown": 0, "execution_authorized": False}
+        if proposals is not None:  # agent dependency proposals join the same queue; only a person confirms them
+            observed = dependency_suggest.merge_proposals(observed, full, dep_confirmed, dep_rejected,
+                                                          dependency_suggest.read_proposals(proposals))
         for row in observed["suggestions"]:
             row["confirm_command"] = (" ".join(shlex.quote(part) for part in [
-                *dependency_command, "--id", row["id"], "--by", "YOUR_NAME"]) if dependency_command else None)
+                *dependency_command, "--id", row["id"], "--by", "YOUR_NAME",
+                *(["--proposals", str(proposals)] if proposals is not None and "calls" not in row["evidence"] else [])])
+                if dependency_command else None)
         result["dependency_suggestions"] = observed
         result["dependency_decisions"] = ("ENABLED_LOCAL_TOKEN" if write_token and dependencies is not None else
                                           "READ_ONLY_USE_CLI")
@@ -1072,7 +1077,8 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                     decisions.history_path(links) if links is not None else None),
                 "dependency_history": entity_context.read_history(
                     decisions.history_path(dependencies) if dependencies is not None else None),
-                "agent_proposals": link_suggest.read_proposals(proposals)}
+                "agent_proposals": link_suggest.read_proposals(proposals),
+                "agent_dependency_proposals": dependency_suggest.read_proposals(proposals)}
 
     if print_bundle:  # the same assembly the server answers from, for tests, parity and agents offline
         print(json.dumps(bundle(), sort_keys=True, separators=(",", ":")))

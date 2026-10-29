@@ -45,6 +45,11 @@ link is shown as needing re-confirmation (Business page, Decided list; or
 `link_suggest.py reconfirm`), and it no longer counts as confirmed until a person
 re-confirms or undoes it.
 
+Agents can propose dependencies too (`agent_tools.py`, `propose_dependency`); with
+`--proposals FILE` they appear beside the calls seen in traces, and
+`dependency_suggest.py confirm ... --proposals FILE --id ID --by NAME` decides one from
+the command line.
+
 Before a change merges, `/impact` (or `change_impact.py --markdown` for a review
 comment) lists what it touches in the business, what relies on that, and which
 confirmed links will need re-confirming.

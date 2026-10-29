@@ -8,6 +8,11 @@ on B", with how often and when it was seen. Only an explicit confirm decision ad
 to the dependencies file; the control room then draws it as a CALLS edge and carries
 possible impact along it. A reject keeps it from being suggested again.
 
+Agents can propose "A depends on B" too (agent_tools.py propose_dependency). A proposal
+joins the same queue with the agent's reason as its evidence; a person confirms it the
+same way, and it becomes a DEPENDS_ON edge marked as proposed by an agent and confirmed
+by a person.
+
 Traces are source-reported: a call seen is not proof that A needs B, and a
 confirmed dependency is a person's decision, recorded with who made it.
 
@@ -31,7 +36,21 @@ MAX_SHOWN = 100
 # Ordinal, by how often the call was seen; not a probability.
 STRENGTH = (("STRONG", 20), ("MODERATE", 5), ("WEAK", 1))
 EVIDENCE_KEYS = {"caller_services", "calls", "errors", "first_seen", "last_seen"}
+# A dependency an agent proposed carries the agent's stated reason instead of trace counts.
+AGENT_EVIDENCE_KEYS = {"proposed_by", "on_behalf_of", "reason", "proposed_at"}
+PROPOSAL_KIND = "ONTOLOGYEX_AGENT_DEPENDENCY_PROPOSAL"
+MAX_PROPOSALS = 2000
+MAX_PROPOSAL_BYTES = 4 * 1024 * 1024
+TRACE_STATE = "OBSERVED_IN_TRACES_CONFIRMED_BY_PERSON"
+AGENT_STATE = "PROPOSED_BY_AGENT_CONFIRMED_BY_PERSON"
 DECLARED = ("DEPENDS_ON", "CALLS")
+
+
+def valid_agent_evidence(evidence: dict) -> bool:
+    return (all(type(evidence[k]) is str for k in AGENT_EVIDENCE_KEYS)
+            and evidence["proposed_by"].startswith("agent:") and len(evidence["proposed_by"]) <= 128
+            and 0 < len(evidence["on_behalf_of"]) <= 128 and 0 < len(evidence["reason"]) <= 500
+            and feeds.STAMP.fullmatch(evidence["proposed_at"]) is not None)
 
 
 def _rows(rows: object, seen: set) -> list[dict]:
@@ -46,6 +65,9 @@ def _rows(rows: object, seen: set) -> list[dict]:
         require(type(row["declared_by"]) is str and 0 < len(row["declared_by"]) <= 120
                 and type(row["note"]) is str and len(row["note"]) <= 500, "dependencies: invalid decider or note")
         evidence = row["evidence"]
+        if type(evidence) is dict and set(evidence) == AGENT_EVIDENCE_KEYS:
+            require(valid_agent_evidence(evidence), "dependencies: invalid agent evidence")
+            continue
         require(type(evidence) is dict and set(evidence) == EVIDENCE_KEYS
                 and type(evidence["caller_services"]) is list and len(evidence["caller_services"]) <= 64
                 and all(type(x) is str and len(x) <= 404 for x in evidence["caller_services"])
@@ -144,8 +166,72 @@ def suggest(state: dict, calls: list[dict] | None, confirmed: list[dict], reject
             "auto_applied": 0, "execution_authorized": False}
 
 
+def valid_proposal(row) -> bool:
+    """One dependency line of an agent proposals file: who proposed A depends on B, for whom, and why."""
+    fields = {"kind", "id", "at", "proposed_by", "on_behalf_of", "source", "target", "reason"}
+    return (type(row) is dict and set(row) == fields and row["kind"] == PROPOSAL_KIND
+            and all(type(row[k]) is str for k in fields)
+            and feeds.IDENT.fullmatch(row["source"]) is not None and feeds.IDENT.fullmatch(row["target"]) is not None
+            and row["source"] != row["target"] and row["id"] == suggestion_id(row["source"], row["target"])
+            and valid_agent_evidence({"proposed_by": row["proposed_by"], "on_behalf_of": row["on_behalf_of"],
+                                      "reason": row["reason"], "proposed_at": row["at"]}))
+
+
+def read_proposals(path: Path | None) -> list[dict]:
+    """Agent dependency proposals, oldest first, from the proposals file links share."""
+    return [row for row in decisions.read_jsonl_tail(path, MAX_PROPOSAL_BYTES, MAX_PROPOSALS) if valid_proposal(row)]
+
+
+def append_proposal(path: Path, row: dict) -> None:
+    require(valid_proposal(row), "invalid agent dependency proposal")
+    decisions.append_jsonl(path, row)
+
+
+def merge_proposals(result: dict, state: dict, confirmed: list[dict], rejected: list[dict],
+                    proposals: list[dict]) -> dict:
+    """Show agent dependency proposals beside the ones seen in traces, as suggestions a person decides.
+
+    A proposal for a pair seen in traces adds a WEAK signal with the agent's reason and
+    never raises the strength. Otherwise it becomes a WEAK suggestion whose evidence is
+    the agent's stated reason, never invented trace counts. A pair already confirmed,
+    rejected by a person, or declared by the repository is not shown.
+    """
+    labels = {n["id"]: n["label"] for n in state["nodes"]}
+    declared = {(e["source"], e["target"]) for e in state["edges"] if e["relation"] in DECLARED}
+    decided = {(r["source"], r["target"]) for r in (*confirmed, *rejected)}
+    rows = {(r["source"], r["target"]): r for r in result["suggestions"]}
+    added, shown, hidden, counted, copied = [], 0, 0, {}, set()
+    for proposal in proposals:
+        pair = (proposal["source"], proposal["target"])
+        if pair[0] not in labels or pair[1] not in labels or pair in decided or pair in declared:
+            hidden += 1
+            continue
+        counted[pair] = counted.get(pair, 0) + 1
+        if counted[pair] > 3:
+            continue  # the same pair proposed again and again adds nothing a person needs to read
+        row = rows.get(pair)
+        if row is None:
+            row = rows[pair] = {
+                "id": suggestion_id(*pair), "source": pair[0], "target": pair[1],
+                "source_label": labels[pair[0]], "target_label": labels[pair[1]],
+                "evidence": {"proposed_by": proposal["proposed_by"], "on_behalf_of": proposal["on_behalf_of"],
+                             "reason": proposal["reason"], "proposed_at": proposal["at"]},
+                "strength": "WEAK", "status": "PROPOSED", "proposed_by": proposal["proposed_by"], "signals": []}
+            added.append(pair)
+        elif pair not in copied:  # a suggestion from the input: copy it once, never mutate the input
+            row = rows[pair] = {**row, "signals": list(row["signals"])}
+            copied.add(pair)
+        row["signals"].append({"signal": "AGENT_PROPOSAL", "strength": "WEAK",
+                               "detail": f"{proposal['proposed_by']} for {proposal['on_behalf_of']}: {proposal['reason']}"})
+        shown += 1
+    traced = [rows[(r["source"], r["target"])] for r in result["suggestions"]]
+    return {**result, "suggestions": traced + [rows[pair] for pair in added],
+            "agent_proposals": {"shown": shown, "new_suggestions": len(added), "not_shown": hidden}}
+
+
 def with_confirmed(topology: dict, confirmed: list[dict], source_name: str) -> dict:
-    """The topology plus a CALLS edge, with its own evidence record, per confirmed dependency."""
+    """The topology plus an edge, with its own evidence record, per confirmed dependency: CALLS for one
+    seen in traces, DEPENDS_ON for one an agent proposed."""
     ids = {n["id"] for n in topology["nodes"]}
     edges, evidence, gaps = list(topology["edges"]), list(topology["source_evidence"]), list(topology.get("gaps", []))
     for row in confirmed:
@@ -154,10 +240,12 @@ def with_confirmed(topology: dict, confirmed: list[dict], source_name: str) -> d
                          "reason": "CONFIRMED_DEPENDENCY_COMPONENT_MISSING"})
             continue
         record = digest(canonical(row))
-        edges.append({"source": row["source"], "target": row["target"], "relation": "CALLS",
-                      "evidence_id": record, "state": "OBSERVED_IN_TRACES_CONFIRMED_BY_PERSON"})
+        traced = "calls" in row["evidence"]
+        edges.append({"source": row["source"], "target": row["target"], "relation": "CALLS" if traced else "DEPENDS_ON",
+                      "evidence_id": record, "state": TRACE_STATE if traced else AGENT_STATE})
         evidence.append({"id": record, "path": source_name, "sha256": record,
-                         "source_kind": "PERSON_CONFIRMED_TRACE_OBSERVATION", "authenticity": "UNVERIFIED"})
+                         "source_kind": "PERSON_CONFIRMED_TRACE_OBSERVATION" if traced
+                         else "PERSON_CONFIRMED_AGENT_PROPOSAL", "authenticity": "UNVERIFIED"})
     return {**topology, "edges": edges, "source_evidence": evidence, "gaps": gaps}
 
 
@@ -198,6 +286,7 @@ def main() -> int:
         p.add_argument("--calls", type=Path, required=True,
                        help="the calls file the feeds write beside the observations (OBS.calls.json)")
         p.add_argument("--dependencies", type=Path, required=True)
+        p.add_argument("--proposals", type=Path, help="agent proposals (agent_tools.py); shown as suggestions")
         if name != "suggest":
             p.add_argument("--id", action="append", default=[],
                            help="suggestion ID from `suggest` (or, for undo, a decided dependency's ID); repeatable")
@@ -215,8 +304,11 @@ def main() -> int:
             require(args.id, "pass --id for each decided dependency to undo (see `suggest`'s decided list)")
             result = apply_decisions(args.dependencies, args.by, args.note, undo=args.id)
         else:
-            require(args.calls.is_file(), f"no calls file at {args.calls}; the feeds write it once traces arrive")
+            require(args.calls.is_file() or args.proposals,
+                    f"no calls file at {args.calls}; the feeds write it once traces arrive")
             result = suggest(state, read_calls(args.calls), confirmed, rejected)
+            if args.proposals:
+                result = merge_proposals(result, state, confirmed, rejected, read_proposals(args.proposals))
             if args.command != "suggest":
                 chosen = decisions.select(result["suggestions"], args.id, args.all_strong)
                 result = apply_decisions(args.dependencies, args.by, args.note, **{args.command: chosen})

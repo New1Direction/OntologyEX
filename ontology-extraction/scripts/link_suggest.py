@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from pathlib import Path, PurePosixPath
 import re
 
@@ -238,34 +237,14 @@ def valid_proposal(row) -> bool:
 
 
 def read_proposals(path: Path | None) -> list[dict]:
-    """Agent link proposals, oldest first. Lines that are torn or malformed are skipped, never trusted."""
-    if path is None or not path.is_file() or path.is_symlink():
-        return []
-    with path.open("rb") as handle:  # a long file is read from its newest end, never refused whole
-        size = handle.seek(0, os.SEEK_END)
-        handle.seek(max(0, size - MAX_PROPOSAL_BYTES))
-        text = handle.read(MAX_PROPOSAL_BYTES).decode("utf-8", "replace")
-    lines = text.splitlines()[1 if size > MAX_PROPOSAL_BYTES else 0:]
-    rows = []
-    for line in lines[-MAX_PROPOSALS:]:
-        try:
-            row = json.loads(line)
-        except ValueError:
-            continue
-        if valid_proposal(row):
-            rows.append(row)
-    return rows
+    """Agent link proposals, oldest first. Lines that are torn, malformed or of another kind are skipped."""
+    return [row for row in decisions.read_jsonl_tail(path, MAX_PROPOSAL_BYTES, MAX_PROPOSALS) if valid_proposal(row)]
 
 
 def append_proposal(path: Path, row: dict) -> None:
     """Append one proposal line. Append-only: nothing here rewrites or removes a line."""
     require(valid_proposal(row), "invalid agent proposal")
-    require(not path.is_symlink(), "agent proposals path must not be a symlink")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
-        handle.flush()
-        os.fsync(handle.fileno())
+    decisions.append_jsonl(path, row)
 
 
 def merge_proposals(result: dict, data: dict, proposals: list[dict]) -> dict:
@@ -281,7 +260,7 @@ def merge_proposals(result: dict, data: dict, proposals: list[dict]) -> dict:
     linked = {tuple(x) for x in data["linked"]}
     rejected = {tuple(x) for x in data["rejected"]}
     rows = {(r["skill"], r["binding"], r["component"]): r for r in result["suggestions"]}
-    added, shown, hidden, counted = [], 0, 0, {}
+    added, shown, hidden, counted, copied = [], 0, 0, {}, set()
     for proposal in proposals:
         key = (proposal["skill"], proposal["binding"], proposal["component"])
         if key[:2] not in bindings or key[2] not in components or key in linked or key in rejected:
@@ -297,14 +276,15 @@ def merge_proposals(result: dict, data: dict, proposals: list[dict]) -> dict:
                                "component": c["id"], "component_label": c["label"], "component_kind": c["kind"],
                                "strength": "WEAK", "signals": [], "status": "PROPOSED",
                                "proposed_by": proposal["proposed_by"]}
-            added.append(row)
-        else:
+            added.append(key)
+        elif key not in copied:  # a ranked suggestion from the input: copy it once, never mutate the input
             row = rows[key] = {**row, "signals": list(row["signals"])}
+            copied.add(key)
         row["signals"].append({"signal": "AGENT_PROPOSAL", "strength": "WEAK",
                                "detail": f"{proposal['proposed_by']} for {proposal['on_behalf_of']}: {proposal['reason']}"})
         shown += 1
     ranked = [rows[(r["skill"], r["binding"], r["component"])] for r in result["suggestions"]]
-    return {**result, "suggestions": ranked + added,
+    return {**result, "suggestions": ranked + [rows[key] for key in added],
             "agent_proposals": {"shown": shown, "new_suggestions": len(added), "not_shown": hidden}}
 
 

@@ -72,6 +72,13 @@ unmapped), `unmapped_touches_nothing` (a file reported as unmapped names no enti
 Rust computes the same report as Python (`tests/rust_context_parity.py`, demo change
 sets and seeded random ones).
 
+**Lean, the decision queue for any fact** (`OntologyEX.Queue`): `proposals_alone_change_nothing`,
+`blocked_proposal_never_queued` and `added_facts_were_confirmed` hold for any kind of
+fact, so they cover agent dependency proposals (`dependency_proposals_change_nothing`)
+as `OntologyEX.Business` covers links: a proposal adds nothing until a person confirms
+it, and a pair a person rejected, already confirmed, or the repository declares is
+never queued again.
+
 **Bend** (`proofs/bend/business.bend`, checked by `bendlang/bend` at a pinned commit):
 `empty_is_unlinked`, `error_anywhere_is_at_risk`, `unknown_anywhere_is_not_ok`,
 `ladder_never_g4`, `rejection_is_g0`, `inferred_at_most_g1`,

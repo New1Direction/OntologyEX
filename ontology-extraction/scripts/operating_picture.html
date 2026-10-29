@@ -128,7 +128,7 @@ footer{padding:8px 18px;border-top:1px solid var(--line);color:var(--faint);font
  <aside aria-label="Explorer">
   <div class="sec"><h2>Needs attention <em id="attn-count"></em></h2><div id="attention"></div></div>
   <div class="sec" id="sug-sec"><h2>Suggested links <em id="sug-count"></em></h2><div id="suggestions"></div></div>
-  <div class="sec" id="dep-sec"><h2>Observed dependencies <em id="dep-count"></em></h2><div id="dependencies"></div></div>
+  <div class="sec" id="dep-sec"><h2>Suggested dependencies <em id="dep-count"></em></h2><div id="dependencies"></div></div>
   <div class="sec"><h2>Actions <em id="n-actions"></em></h2><div id="list-actions" role="listbox" aria-label="Business actions"></div></div>
   <div class="sec"><h2>Objects <em id="n-objects"></em></h2><div id="list-objects" role="listbox" aria-label="Business objects"></div></div>
   <div class="sec"><h2>Linked systems <em id="n-systems"></em></h2><div id="list-systems" role="listbox" aria-label="Linked systems"></div></div>
@@ -387,10 +387,12 @@ function suggestionCard(s,pickable=false){
  const card=h("div",{class:"sug"},cardTitle("links",s,`${s.binding} → ${s.component_label}`,pickable),
   ...s.signals.map(g=>h("div",{class:"sig",text:`${g.signal.replace(/_/g," ").toLowerCase()}: ${g.detail}`})));
  return cardActions("links",s,card,"Confirm link")}
-function dependencyCard(s){const e=s.evidence;
+// A dependency is suggested from calls seen in traces, or proposed by an agent with its reason.
+function dependencyCard(s){const e=s.evidence,traced=e&&typeof e.calls==="number";
  const card=h("div",{class:"sug"},cardTitle("dependencies",s,`${s.source_label} → ${s.target_label}`,true),
-  h("div",{class:"sig",text:`Called ${e.calls.toLocaleString()} times in traces${e.errors?`, ${e.errors.toLocaleString()} failed`:""} · last seen ${ago(e.last_seen)}`}),
-  h("div",{class:"sig mono",text:e.caller_services.join(", ")}));
+  traced?h("div",{class:"sig",text:`Called ${e.calls.toLocaleString()} times in traces${e.errors?`, ${e.errors.toLocaleString()} failed`:""} · last seen ${ago(e.last_seen)}`}):null,
+  traced?h("div",{class:"sig mono",text:e.caller_services.join(", ")}):null,
+  ...s.signals.filter(g=>g.signal==="AGENT_PROPOSAL").map(g=>h("div",{class:"sig",text:"agent proposal: "+g.detail})));
  return cardActions("dependencies",s,card,"Confirm dependency")}
 function bulkBar(kind,items){const picked=PICKED[kind],status=h("div",{class:"sig"}),ids=new Set(items.map(s=>s.id));
  for(const id of [...picked])if(!ids.has(id))picked.delete(id);
@@ -433,11 +435,11 @@ function suggestionsPanel(){const box=$("suggestions");box.replaceChildren();con
  const hidden=data.link_suggestions.rejected_not_shown;if(hidden)box.append(h("p",{class:"muted",style:"font-size:11px",text:`${hidden} rejected suggestion(s) hidden.`}));
  const done=decidedList("links",data.link_decided,r=>`${r.binding} → ${r.component_label}`);if(done)box.append(done)}
 function dependenciesPanel(){const box=$("dependencies"),d=data&&data.dependency_suggestions;box.replaceChildren();
- const show=d&&(d.status!=="NO_OBSERVED_CALLS"||(data.dependency_decided||[]).length);$("dep-sec").style.display=show?"block":"none";if(!show)return;
+ const show=d&&(d.status!=="NO_OBSERVED_CALLS"||d.suggestions.length||(data.dependency_decided||[]).length);$("dep-sec").style.display=show?"block":"none";if(!show)return;
  $("dep-count").textContent=String(d.suggestions.length);
  if(d.status==="CALLS_FILE_UNREADABLE")box.append(h("p",{class:"muted",text:"The calls file could not be read: "+d.detail}));
  else{
-  box.append(h("p",{class:"muted",style:"margin:0 0 8px;font-size:12px",text:"Calls seen in traces that the repository does not declare. Confirming one adds it to the system map, where it carries possible impact. A call seen is not proof of a dependency."}));
+  box.append(h("p",{class:"muted",style:"margin:0 0 8px;font-size:12px",text:"Calls seen in traces, and dependencies agents proposed, that the repository does not declare. Confirming one adds it to the system map, where it carries possible impact. A call seen or an agent's reason is not proof of a dependency."}));
   if(canDecide("dependencies")&&(d.suggestions.length||LAST.dependencies)){if(!linkPanelDecides())box.append(whoInput("who-deps"));box.append(...bulkBar("dependencies",d.suggestions.slice(0,30)))}
   if(!d.suggestions.length)box.append(h("p",{class:"muted",text:"No new dependencies. Every observed call is declared, confirmed, or rejected."}));
   for(const s of d.suggestions.slice(0,30))box.append(dependencyCard(s));

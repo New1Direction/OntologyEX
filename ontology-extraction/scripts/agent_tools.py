@@ -19,8 +19,8 @@ Every tool declares its kind, and the kind decides what it may do:
 
 - READ_ONLY tools (search, context, explain, impact, recent decisions, open
   suggestions, decisions whose evidence changed, change impact) change nothing.
-- ADDITIVE tools (propose_link) append a proposal to a proposals file and nothing
-  else. A proposal is a suggestion: it shows in the control room beside the ranked
+- ADDITIVE tools (propose_link, propose_dependency) append a proposal to a proposals
+  file and nothing else. A proposal is a suggestion: it shows in the control room beside the ranked
   ones, and only a person confirms or rejects it there, through the existing decision
   route and its history. A rejected link stays rejected whoever proposes it again.
 - There are no destructive tools, and the server refuses to register one.
@@ -50,6 +50,7 @@ import urllib.error
 from urllib.parse import urlencode, urlsplit
 import urllib.request
 
+import dependency_suggest
 import entity_context
 import link_suggest
 
@@ -138,6 +139,15 @@ TOOLS = {
         "input": _schema({"skill": _text("skill", "the domain skill name", 200),
                           "binding": _text("binding", "the binding ID (an entity context names it in 'via')", 200),
                           "component": _text("component", "the system component's entity ID"),
+                          "reason": _text("reason", "why, in a sentence or two, citing files where you can", 500)})},
+    "propose_dependency": {
+        "kind": ADDITIVE, "title": "Propose a dependency",
+        "description": "Propose that one system component depends on another (source depends on target), with "
+                       "your reason. This only adds a suggestion beside the ones seen in traces: a person confirms "
+                       "or rejects it in the control room. Pairs the repository already declares, a person already "
+                       "confirmed, or a person rejected cannot be proposed.",
+        "input": _schema({"source": _text("source", "the component that depends (its entity ID)"),
+                          "target": _text("target", "the component it depends on (its entity ID)"),
                           "reason": _text("reason", "why, in a sentence or two, citing files where you can", 500)})},
 }
 for _name, _tool in TOOLS.items():  # every tool declares a kind, and none may destroy
@@ -300,14 +310,15 @@ class Tools:
     def call(self, name: str, args) -> dict:
         """Run one tool under the policy; audit it whatever happens."""
         kind = TOOLS[name]["kind"] if name in TOOLS else "UNKNOWN"
-        named = [v for k, v in (args.items() if type(args) is dict else []) if k in ("id", "from", "to", "component")
+        named = [v for k, v in (args.items() if type(args) is dict else [])
+                 if k in ("id", "from", "to", "component", "source", "target")
                  and type(v) is str][:10]
         try:
             if name not in TOOLS:
                 raise ToolError("UNKNOWN_TOOL", f"no tool named {name}; call tools/list")
             if name not in self.policy["allow_tools"]:
                 raise ToolError("NOT_ALLOWED", f"{name} is not allowed by the access policy ({self.policy['source']}). "
-                                + ("To allow it, pass --policy with a file whose allow_tools includes propose_link, "
+                                + (f"To allow it, pass --policy with a file whose allow_tools includes {name}, "
                                    "and --proposals FILE; a person still confirms each proposal in the control room."
                                    if kind == ADDITIVE else "Add it to allow_tools in the policy file."))
             args = check_args(name, args)
@@ -439,6 +450,44 @@ class Tools:
         return {"status": "PROPOSED", "id": proposal_id, "applied": False,
                 "next": "A person confirms or rejects it in the control room (Business page or the entity page). "
                         "Nothing changes until then.", "execution_authorized": False}
+
+
+    def propose_dependency(self, args: dict) -> dict:
+        if self.proposals is None:
+            raise ToolError("NOT_ALLOWED", "proposals are off: start agent_tools with --proposals FILE and the "
+                                           "control room with the same --proposals FILE")
+        source, target = args["source"], args["target"]
+        bundle, _ = self._model(source, target)
+        nodes = {n["id"] for n in bundle["state"]["nodes"]}
+        if source == target or any(i not in nodes or not dependency_suggest.feeds.IDENT.fullmatch(i)
+                                   for i in (source, target)):
+            raise ToolError("NOT_FOUND", "source and target must be two different discovered system components; "
+                                         "search_entities finds their IDs")
+        for edge in bundle["state"]["edges"]:
+            if (edge["source"], edge["target"]) == (source, target) and edge["relation"] in dependency_suggest.DECLARED:
+                if edge.get("state") in entity_context.CONFIRMED_EDGE_STATES:
+                    raise ToolError("ALREADY_DECIDED", "a person already confirmed this dependency")
+                raise ToolError("ALREADY_DECLARED", "the repository already declares this dependency")
+        for row in (bundle.get("business") or {}).get("dependency_decided", []):
+            if (row.get("source"), row.get("target")) == (source, target):
+                if row.get("decision") == "confirm":
+                    raise ToolError("ALREADY_DECIDED", "a person already confirmed this dependency")
+                raise ToolError("REJECTED_BY_PERSON", f"{row.get('declared_by') or 'a person'} rejected this "
+                                "dependency; rejections are sticky. Ask the operator to undo the rejection in the "
+                                "control room if the evidence changed.")
+        proposal_id = dependency_suggest.suggestion_id(source, target)
+        mine = f"agent:{self.audit.agent}"
+        if any(p["id"] == proposal_id and p["proposed_by"] == mine
+               for p in dependency_suggest.read_proposals(self.proposals)):
+            return {"status": "ALREADY_PROPOSED", "id": proposal_id, "execution_authorized": False}
+        dependency_suggest.append_proposal(self.proposals, {
+            "kind": dependency_suggest.PROPOSAL_KIND, "id": proposal_id,
+            "at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "proposed_by": mine,
+            "on_behalf_of": self.audit.operator, "source": source, "target": target, "reason": args["reason"]})
+        return {"status": "PROPOSED", "id": proposal_id, "applied": False,
+                "next": "A person confirms or rejects it in the control room (Business page, Suggested "
+                        "dependencies, or the entity page). Nothing changes until then; the control room needs "
+                        "--dependencies FILE to record the decision.", "execution_authorized": False}
 
 
 # ---------------------------------------------------------------- MCP over stdio
