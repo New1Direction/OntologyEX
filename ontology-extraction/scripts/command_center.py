@@ -50,13 +50,17 @@ SEVERITY = {
     "ONE_PERSON": (15, "only one person changed its code in a year"),
     "ONE_PERSON_REPOSITORY": (25, "only one person changed the whole repository in a year"),
     "NO_CODEOWNERS": (12, "no CODEOWNERS file names who owns any code"),
+    "CARD_FIELDS": (45, "fields named like card numbers or security codes are in the data model"),
+    "COMPLIANCE_GAPS": (18, "a standard that applies asks for controls the sources do not show"),
+    "COMPLIANCE_ASKED": (10, "customers usually ask for this standard, and the sources do not show all of it"),
 }
 CATEGORY = {"SYSTEM_ERROR": "Systems", "AT_RISK": "Business at risk", "POSSIBLY_IMPACTED": "Business at risk",
             "DEGRADED": "Business at risk", "STALE": "Business at risk", "STALE_CONFIRMATION": "Decisions",
             "DECISIONS_WAITING": "Decisions", "SINGLE_CRITICAL_SUPPLIER": "Suppliers", "SINGLE_HIGH_SUPPLIER": "Suppliers",
             "LINK_GAP": "Unknowns", "OPEN_QUESTION": "Unknowns", "NOT_LINKED": "Visibility", "NEVER_OBSERVED": "Visibility",
             "NO_BUSINESS_MODEL": "Visibility", "UNOBSERVED_SERVICES": "Visibility", "NO_OWNER": "Ownership",
-            "ONE_PERSON": "Ownership", "ONE_PERSON_REPOSITORY": "Ownership", "NO_CODEOWNERS": "Ownership"}
+            "ONE_PERSON": "Ownership", "ONE_PERSON_REPOSITORY": "Ownership", "NO_CODEOWNERS": "Ownership",
+            "CARD_FIELDS": "Compliance", "COMPLIANCE_GAPS": "Compliance", "COMPLIANCE_ASKED": "Compliance"}
 NEXT_STEP = {
     "SYSTEM_ERROR": "Open the system, read what it reports, and check the business actions that run on it.",
     "AT_RISK": "Open the action: see which linked system fails and what else relies on it.",
@@ -78,6 +82,9 @@ NEXT_STEP = {
     "ONE_PERSON": "Have a second person review or pair on it, so it does not depend on one person.",
     "ONE_PERSON_REPOSITORY": "Write down how the critical parts work and who else can change them.",
     "NO_CODEOWNERS": "Add a CODEOWNERS file: it names who reviews and answers for each part of the code.",
+    "CARD_FIELDS": "Confirm no card number or security code is stored; if one is, move it to the payments supplier.",
+    "COMPLIANCE_GAPS": "Open Compliance: each gap says what evidence would show it and what a person must provide.",
+    "COMPLIANCE_ASKED": "Open Compliance before a customer's security review asks for it.",
 }
 # What a business in each field should be able to see; each found from supplier categories or names in the model.
 FIELDS = {
@@ -280,6 +287,21 @@ def report(bundle: dict) -> dict:
         if found.get("codeowners") is None and found["entities"]:
             items.append(_item("NO_CODEOWNERS", None, "No CODEOWNERS file",
                                "Ownership can only be inferred from who changed the code.", [], standing="UNKNOWN"))
+    for pack in (bundle.get("compliance") or {}).get("packs", []):
+        missing = [c for c in pack["controls"] if c["status"] in ("NOT_SHOWN_IN_SOURCES", "PARTLY_SHOWN")]
+        if missing and pack["applies"] in ("APPLIES", "ASKED_BY_CUSTOMERS"):
+            kind = "COMPLIANCE_GAPS" if pack["applies"] == "APPLIES" else "COMPLIANCE_ASKED"
+            items.append(_item(kind, None, f"{pack['name']}: {len(missing)} of {len(pack['controls'])} controls not "
+                               "fully shown in the sources", pack["why"] + " Not fully shown: "
+                               + ", ".join(f"{c['id']} {c['title'].lower()}" for c in missing[:6])
+                               + ("..." if len(missing) > 6 else "") + ".", [], standing="UNKNOWN",
+                               extra=[{"factor": "volume", "points": min(12, 2 * len(missing)),
+                                       "detail": f"{len(missing)} control(s)"}]))
+        for risk in pack.get("risks", []):
+            if risk["risk"] == "CARD_FIELDS_IN_SCHEMA":
+                items.append(_item("CARD_FIELDS", None, "Card number fields in the data model", risk["detail"] + " "
+                                   + ", ".join(f"{e['path']}:{e['line']}" for e in risk["evidence"]), [],
+                                   standing="SOURCE"))
     for item in items:
         if item["subject"] and item["subject"]["id"] in owners:
             item["owner"] = owners[item["subject"]["id"]]

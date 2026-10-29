@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>OntologyEX / Compliance</title>
+<style>
+:root{color-scheme:dark;--bg:#060b12;--panel:#0b131d;--panel2:#0f1a26;--line:#1d2c3b;--line2:#2a3d50;
+--text:#dbe7f0;--muted:#7f93a6;--faint:#4d6176;--accent:#4cc3d9;--ok:#34d399;--warn:#f2c14e;--risk:#ff5d5d;--impact:#ff9a3c;--person:#a78bfa;
+--sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:13px/1.5 var(--sans);min-height:100vh}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+header{display:flex;align-items:center;gap:18px;padding:10px 18px;border-bottom:1px solid var(--line);background:#08101a;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15}
+.brand b{font:600 11px var(--mono);letter-spacing:.22em;color:var(--accent)}
+.brand span{font-weight:600;font-size:15px}
+nav{display:flex;flex-wrap:wrap;max-width:100%;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px}
+nav a{padding:6px 12px;border-radius:6px;color:var(--muted);font-weight:500}
+nav a[aria-current="page"]{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
+nav a:hover{text-decoration:none;color:var(--text)}
+main{max-width:1200px;margin:0 auto;padding:0 0 40px}
+.sec{padding:16px 20px;border-bottom:1px solid var(--line)}
+.sec h2{margin:0 0 10px;font:600 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.summary{font-size:18px;margin:0 0 6px;font-weight:600}.note{color:var(--muted);font-size:12px;margin:0}
+.tabs{display:flex;flex-wrap:wrap;gap:8px}
+.tab{background:var(--panel);color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:8px 12px;font:600 13px var(--sans);cursor:pointer;text-align:left}
+.tab small{display:block;font:600 10px var(--mono);letter-spacing:.06em;color:var(--muted);margin-top:2px}
+.tab[aria-pressed="true"]{border-color:var(--accent);background:var(--panel2)}
+.APPLIES{color:var(--impact)!important}.ASKED_BY_CUSTOMERS{color:var(--warn)!important}.NOT_INDICATED{color:var(--faint)!important}
+.bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--panel2);margin:10px 0 6px}
+.bar i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:var(--c)}
+.risk{border:1px solid #5a2a2a;background:#160b0b;border-radius:8px;padding:10px 12px;margin:10px 0 0}
+.risk b{color:var(--risk)}
+.ctl{border-top:1px solid var(--line);padding:10px 0}
+.ctl h3{margin:0;font-size:14px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.ctl h3 code{font:600 11px var(--mono);color:var(--muted)}
+.chip{display:inline-flex;padding:1px 7px;border-radius:999px;border:1px solid var(--line2);font:600 10px var(--mono);letter-spacing:.05em;white-space:nowrap}
+.SHOWN{color:var(--ok);border-color:#1f4a3a}.PARTLY_SHOWN{color:var(--warn);border-color:#5a4a1e}
+.NOT_SHOWN_IN_SOURCES{color:var(--risk);border-color:#5a2a2a}.NEEDS_A_PERSON{color:var(--person);border-color:#3d3060}
+.check{margin:6px 0 0 2px;font-size:12px;overflow-wrap:anywhere}
+.yes{color:var(--ok)}.no{color:var(--faint)}
+.cite{font:11px var(--mono);color:var(--faint);margin-left:16px;overflow-wrap:anywhere}
+.person{font-size:12px;color:var(--person);margin-top:6px}
+.bar2{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center}
+button.act{background:var(--panel);color:var(--muted);border:1px solid var(--line2);border-radius:999px;padding:3px 12px;font:500 12px var(--sans);cursor:pointer}
+button.act:hover{color:var(--text)}
+.empty{color:var(--faint);margin:0}
+</style></head>
+<body>
+<header>
+ <div class="brand"><b>ONTOLOGYEX</b><span>Compliance</span></div>
+ <nav><a href="/command">Command</a><a href="/digest">Digest</a><a href="/owners">Owners</a><a href="/compliance" aria-current="page">Compliance</a><a href="/">System map</a><a href="/business">Business</a><a href="/entity">Entity</a><a href="/impact">Change impact</a><a href="/suppliers">Suppliers</a></nav>
+</header>
+<main id="body"></main>
+<script>
+"use strict";
+// What each standard asks for, what the sources show for it (lines cited), and what only a person can provide.
+const $=id=>document.getElementById(id);
+function h(tag,attrs={},...kids){const el=document.createElement(tag);
+ for(const [k,v] of Object.entries(attrs)){if(v==null)continue;if(k==="text")el.textContent=v;else if(k==="class")el.className=v;else el.setAttribute(k,v)}
+ for(const c of kids){if(c!=null)el.append(c)}return el}
+const WORD={SHOWN:"SHOWN",PARTLY_SHOWN:"PARTLY SHOWN",NOT_SHOWN_IN_SOURCES:"NOT SHOWN",NEEDS_A_PERSON:"NEEDS A PERSON"};
+const COLOR={SHOWN:"var(--ok)",PARTLY_SHOWN:"var(--warn)",NOT_SHOWN_IN_SOURCES:"var(--risk)",NEEDS_A_PERSON:"var(--person)"};
+const APPLY={APPLIES:"APPLIES",ASKED_BY_CUSTOMERS:"ASKED BY CUSTOMERS",NOT_INDICATED:"NOT INDICATED"};
+let data=null,pack=new URLSearchParams(location.search).get("pack");
+function cite(e){return e.path?`${e.path}:${e.line}${e.text?" · "+e.text:""}`:(e.text||"")}
+function control(c){
+ return h("div",{class:"ctl"},h("h3",{},h("code",{text:c.id}),h("span",{text:c.title}),h("span",{class:"chip "+c.status,text:WORD[c.status]})),
+  ...c.checks.map(check=>{const hit=check.any_of.find(x=>x.found);
+   return h("div",{class:"check"},h("span",{class:hit?"yes":"no",text:hit?"✓ ":"✗ "}),
+    hit?hit.shows:check.any_of.map(x=>x.shows).join(" or "),
+    ...(hit?hit.evidence:[]).map(e=>h("div",{class:"cite",text:cite(e)})))}),
+  c.person?h("div",{class:"person",text:"A person provides: "+c.person}):null)}
+async function copy(btn){
+ try{const r=await fetch(`/api/compliance?pack=${pack}&format=markdown`,{cache:"no-store"});if(!r.ok)throw new Error(r.status);
+  await navigator.clipboard.writeText(await r.text());btn.textContent="Copied"}catch(_){btn.textContent="Copy failed: use Download"}
+ setTimeout(()=>{btn.textContent="Copy as Markdown"},2500)}
+function render(){
+ const d=data;
+ if(d.status!=="OK"){$("body").replaceChildren(h("div",{class:"sec"},h("p",{class:"empty",text:"Compliance needs a local repository (--repo)."})));return}
+ if(!d.packs.some(p=>p.id===pack))pack=(d.packs.find(p=>p.applies==="APPLIES")||d.packs[0]).id;
+ const tabs=h("div",{class:"tabs"},...d.packs.map(p=>{const b=h("button",{class:"tab",type:"button","aria-pressed":String(p.id===pack)},p.name,
+  h("small",{class:p.applies,text:`${APPLY[p.applies]} · ${p.counts.SHOWN}/${p.controls.length} shown`}));
+  b.addEventListener("click",()=>{pack=p.id;history.replaceState(null,"","/compliance?pack="+p.id);render()});return b}));
+ const p=d.packs.find(x=>x.id===pack),total=p.controls.length;
+ const copyBtn=h("button",{class:"act",type:"button",text:"Copy as Markdown"});copyBtn.addEventListener("click",()=>copy(copyBtn));
+ const head=h("div",{class:"sec"},h("h2",{text:"Standards"}),tabs);
+ const summary=h("div",{class:"sec"},h("h2",{},h("span",{text:p.reference}),h("span",{class:p.applies,text:APPLY[p.applies]})),
+  h("p",{class:"summary",text:`${p.counts.SHOWN} of ${total} controls shown in the sources`}),h("p",{class:"note",text:p.why}),
+  h("div",{class:"bar"},...Object.keys(WORD).map(k=>p.counts[k]?h("i",{style:`width:${100*p.counts[k]/total}%;background:${COLOR[k]}`,title:`${WORD[k]} ${p.counts[k]}`}):null)),
+  h("div",{class:"legend"},...Object.keys(WORD).map(k=>h("span",{style:`--c:${COLOR[k]}`,text:`${WORD[k].toLowerCase()} ${p.counts[k]}`}))),
+  ...p.risks.map(r=>h("div",{class:"risk"},h("b",{text:"Risk: "}),r.detail,...r.evidence.map(e=>h("div",{class:"cite",text:cite(e)})))));
+ const order={NOT_SHOWN_IN_SOURCES:0,PARTLY_SHOWN:1,NEEDS_A_PERSON:2,SHOWN:3};
+ const controls=h("div",{class:"sec"},h("div",{class:"bar2"},copyBtn,h("a",{href:`/api/compliance?pack=${pack}&format=markdown`,download:`${pack}-evidence.md`,text:"Download for the auditor"})),
+  h("h2",{text:"Controls, gaps first"}),...[...p.controls].sort((a,b)=>order[a.status]-order[b.status]).map(control));
+ $("body").replaceChildren(head,summary,controls,h("div",{class:"sec"},h("p",{class:"note",text:`An evidence map for preparing an audit: what the code and configuration show, with lines cited, and what only a person can provide. Not an audit, a certification or legal advice. ${d.files_read} of ${d.files_scanned} files read${d.truncated?" (stopped at the limit)":""}; files that commonly hold secrets are never read.`})))}
+async function load(){
+ try{const r=await fetch("/api/compliance",{cache:"no-store"});data=await r.json();if(!r.ok)throw new Error(data.status);render()}
+ catch(err){$("body").replaceChildren(h("div",{class:"sec"},h("p",{class:"empty",text:"Not available: "+err.message})))}}
+load();
+</script>
+</body></html>

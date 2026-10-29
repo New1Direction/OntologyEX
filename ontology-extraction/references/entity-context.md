@@ -118,6 +118,30 @@ and adds what a manager would want to know: business actions nobody owns, code o
 person changed in a year, a repository only one person changed, and no CODEOWNERS file.
 The digest carries the owner too; every entity page shows it; agents get `who_owns`.
 
+## Compliance
+
+`/compliance` (and `compliance.py --bundle BUNDLE --repo REPO [--pack pci] [--markdown]`)
+maps four standards to what the sources show: SOC 2 (Trust Services Criteria), PCI DSS
+v4.0, the HIPAA Security Rule and GDPR. Each pack is a short list of real controls, each
+with the evidence a codebase can show for it: a file (SECURITY.md, CODEOWNERS, a lockfile,
+Dependabot), a CI step (tests, CodeQL, secret scanning), a dependency (bcrypt, helmet,
+Sentry), a schema field or migration (roles, audit logs, passkeys, personal data), a route
+(account deletion, data export), a supplier, an owner. Every finding cites its line.
+
+A control is SHOWN, PARTLY_SHOWN or NOT_SHOWN_IN_SOURCES; some checks accept alternatives
+(own password hashing or an identity provider). What code cannot show (policies, contracts,
+training, business associate agreements, branch protection) is NEEDS_A_PERSON, with what
+the person provides. Whether a pack applies is read from the sources: PCI DSS with a
+payments supplier or card fields, HIPAA with at least two kinds of health-record fields,
+GDPR with personal-data fields; SOC 2 is what business customers ask for. Fields named
+like card numbers are a risk of their own.
+
+Files that commonly hold secrets are never read, a line that sets a key, token or password
+is cited without its text, and log messages, seeds and fixtures are not evidence. The
+command center ranks the gaps of each pack that applies; "Copy as Markdown" gives the map
+to an auditor; agents get `compliance_status`. It is an evidence map for preparing an
+audit, not an audit, a certification or legal advice.
+
 ## Before a change merges
 
 `/impact` (and `change_impact.py` on the command line) reads a change from git and
@@ -196,6 +220,7 @@ running control room, `--bundle FILE` reads a file from
 | `what_needs_attention` | read | everything that needs attention, ranked, with factors, next steps, coverage and field |
 | `weekly_digest` | read | what changed in the last N days: new, fixed, worse, better, decisions, code shipped |
 | `who_owns` | read | an entity's owner (CODEOWNERS line, or most commits in a year), or everyone and what they own |
+| `compliance_status` | read | SOC 2, PCI DSS, HIPAA, GDPR: what applies, each control's evidence (lines cited) or what a person provides |
 | `analyze_change` | read | what a change (git refs, or a list of files) touches and what relies on it |
 | `propose_link` | additive | appends a link proposal; a person decides it |
 | `propose_dependency` | additive | appends "A depends on B" with a reason; a person decides it |
