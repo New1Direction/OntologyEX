@@ -50,7 +50,8 @@ INTEGRATIONS = {
                  "chargebee", "recurly", "adyen", "@adyen/api-library", "square", "paypal", "@paypal/checkout-server-sdk",
                  "razorpay", "mollie", "@mollie/api-client", "avalara", "avatax", "stripe-rails", "laravel/cashier",
                  "dj-stripe", "@polar-sh/sdk", "@revenuecat/purchases-js", "stripe-ruby-mock", "pay",
-                 "stripe/stripe-php", "laravel/cashier-paddle", "mollie/*", "paypal/*", "braintree/braintree_php"),
+                 "stripe/stripe-php", "laravel/cashier-paddle", "mollie/*", "paypal/*", "braintree/braintree_php",
+                 "stripe-java", "com.stripe:*"),
     "banking and finance data": ("plaid", "plaid-python", "plaid-node", "react-plaid-link", "@plaid/*", "teller",
                                  "yodlee", "mx-platform-ruby", "mx-platform-node", "gocardless*", "truelayer*",
                                  "@finicity/*", "github.com/plaid/plaid-go*", "alpaca*", "yfinance"),
@@ -64,7 +65,8 @@ INTEGRATIONS = {
              "rack-attack", "passlib", "pwdlib", "bcrypt", "argon2-cffi", "itsdangerous", "omniauth-*",
              "django-guardian", "casbin", "oso", "laravel/socialite", "laravel/fortify", "laravel/jetstream",
              "laravel/breeze", "laravel/passport", "tymon/jwt-auth", "web-auth/*", "pragmarx/google2fa*",
-             "spatie/laravel-permission"),
+             "spatie/laravel-permission", "spring-boot-starter-security", "spring-boot-starter-oauth2-*",
+             "spring-security-*", "keycloak-*", "jjwt*", "java-jwt"),
     "email and messaging": ("nodemailer", "@sendgrid/mail", "sendgrid", "postmark", "resend", "mailgun.js", "mailgun",
                             "twilio", "@slack/*", "slack-sdk", "pusher", "@novu/*", "onesignal", "@react-email/*",
                             "react-email", "django-anymail", "@aws-sdk/client-ses", "@aws-sdk/client-sns",
@@ -74,7 +76,8 @@ INTEGRATIONS = {
                             "intercom-rails", "intercom", "intercom-client", "@intercom/*", "octokit",
                             "pusher/pusher-php-server", "symfony/mailgun-mailer", "symfony/postmark-mailer",
                             "symfony/*-mailer", "resend/resend-php", "twilio/sdk", "laravel/reverb",
-                            "laravel-notification-channels/*"),
+                            "laravel-notification-channels/*", "spring-boot-starter-mail", "jakarta.mail",
+                            "twilio", "sendgrid-java"),
     "AI": ("openai", "@anthropic-ai/sdk", "anthropic", "langchain", "@langchain/*", "llama-index", "llamaindex",
            "cohere", "cohere-ai", "@google/generative-ai", "@google/genai", "google-generativeai", "google-genai",
            "@google-cloud/vertexai", "google-cloud-aiplatform", "replicate", "transformers", "ai", "@ai-sdk/*",
@@ -89,12 +92,16 @@ INTEGRATIONS = {
                         "google-cloud-pubsub", "@google-cloud/pubsub", "sidekiq", "github.com/jackc/pgx*",
                         "github.com/lib/pq", "github.com/jmoiron/sqlx", "gorm.io/gorm", "github.com/redis/go-redis*",
                         "github.com/go-redis/redis*", "github.com/go-sql-driver/mysql", "better-sqlite3", "sqlite3",
-                        "predis/predis", "laravel/horizon", "laravel/scout", "meilisearch/*", "doctrine/dbal"),
+                        "predis/predis", "laravel/horizon", "laravel/scout", "meilisearch/*", "doctrine/dbal",
+                        "spring-boot-starter-data-*", "spring-kafka", "spring-boot-starter-amqp", "hibernate-core",
+                        "postgresql", "mysql-connector-j", "mysql-connector-java", "h2", "flyway-*", "liquibase-core",
+                        "jedis", "lettuce-core", "mongodb-driver-*"),
     "cloud": ("aws-sdk", "@aws-sdk/*", "boto3", "github.com/aws/aws-sdk-go*", "@google-cloud/*", "google-cloud-*",
               "@azure/*", "azure-*", "firebase", "@vercel/blob", "@vercel/kv", "@vercel/edge-config", "cloudinary",
               "minio", "github.com/minio/minio-go*", "github.com/rhnvrm/simples3", "@cloudflare/*", "cloudflare",
               "django-storages", "aws-sdk-*", "google-cloud-*", "azure-storage-*", "aws/aws-sdk-php",
-              "league/flysystem-aws-s3-v3", "google/cloud-*"),
+              "league/flysystem-aws-s3-v3", "google/cloud-*", "aws-java-sdk-*", "software.amazon.awssdk:*",
+              "spring-cloud-*"),
     "analytics and monitoring": ("posthog-js", "posthog-node", "posthog", "@segment/*", "analytics-node", "mixpanel",
                                  "@amplitude/*", "@sentry/*", "sentry-sdk", "github.com/getsentry/sentry-go",
                                  "dd-trace", "ddtrace", "newrelic", "@opentelemetry/*", "opentelemetry-*",
@@ -102,13 +109,16 @@ INTEGRATIONS = {
                                  "prometheus-client", "github.com/prometheus/client_golang", "sentry-*",
                                  "skylight", "logtail*", "@logtail/*", "scout_apm", "honeybadger", "rollbar",
                                  "bugsnag", "appsignal", "ahoy_matey", "lograge", "sentry/*", "laravel/telescope",
-                                 "laravel/pulse", "bugsnag/*"),
+                                 "laravel/pulse", "bugsnag/*", "spring-boot-starter-actuator", "micrometer-*",
+                                 "opentelemetry-*"),
 }
 # Libraries that show a datastore even when no compose file runs one.
 DRIVERS = {
     "postgres": ("psycopg", "psycopg2", "psycopg2-binary", "asyncpg", "pg", "postgres", "@neondatabase/serverless",
+                 "org.postgresql:postgresql",
                  "github.com/jackc/pgx*", "github.com/lib/pq", "pg-boss", "graphile-worker"),
-    "mysql": ("mysql2", "mysqlclient", "pymysql", "@planetscale/database", "github.com/go-sql-driver/mysql"),
+    "mysql": ("mysql2", "mysqlclient", "pymysql", "@planetscale/database", "github.com/go-sql-driver/mysql",
+              "mysql-connector-j", "mysql-connector-java"),
     "mongodb": ("mongoose", "mongodb", "pymongo", "motor"),
     "redis": ("redis", "ioredis", "@upstash/redis", "github.com/redis/go-redis*", "github.com/go-redis/redis*",
               "django-redis", "bullmq", "bull", "rq", "predis/predis"),
@@ -121,9 +131,11 @@ REVENUE = {"price", "pricing", "plan", "trial", "subscription", "checkout", "inv
 APP_CONSTRUCTOR = re.compile(r"\bFastAPI\s*\(|\bFlask\s*\(\s*__name__|\bexpress\s*\(\s*\)|\bnew\s+Hono\s*\(|"
                              r"\b[Ff]astify\s*\(|NestFactory\.create|http\.ListenAndServe|\becho\.New\(\)|"
                              r"\bgin\.(?:Default|New)\(\)|\bStarlette\s*\(|uvicorn\.run\s*\(|\bcreateServer\s*\(|"
-                             r"get_wsgi_application\(|get_asgi_application\(|class\s+Application\s*<\s*Rails::Application")
+                             r"get_wsgi_application\(|get_asgi_application\(|class\s+Application\s*<\s*Rails::Application|"
+                             r"@SpringBootApplication\b|@QuarkusMain\b|Micronaut\.run\(")
 CONSTRUCTOR_HINTS = ("FastAPI", "Flask", "express", "Hono", "astify", "NestFactory", "ListenAndServe", "echo.New",
-                     "gin.", "Starlette", "uvicorn.run", "createServer", "_application(", "Rails::Application")
+                     "gin.", "Starlette", "uvicorn.run", "createServer", "_application(", "Rails::Application",
+                     "@SpringBootApplication", "@QuarkusMain", "Micronaut.run")
 APP_FRAMEWORKS = {
     "node": ("next", "express", "fastify", "koa", "@nestjs/core", "@hapi/hapi", "hono", "react-router",
              "@remix-run/node", "@remix-run/react", "nuxt", "@sveltejs/kit", "astro", "@trpc/server", "@ts-rest/core",
@@ -135,6 +147,8 @@ APP_FRAMEWORKS = {
            "github.com/gorilla/mux", "google.golang.org/grpc", "connectrpc.com/connect"),
     "ruby": ("rails", "sinatra", "hanami", "sidekiq"),
     "php": ("laravel/framework", "symfony/framework-bundle", "slim/slim"),
+    "java": ("spring-boot-starter-web", "spring-boot-starter-webmvc", "spring-boot-starter-webflux", "quarkus-*",
+             "micronaut-*", "javalin", "spring-boot-starter-thymeleaf", "spring-boot-starter-data-jpa"),
     "rust": ("axum", "actix-web", "rocket", "warp", "poem", "tonic"),
 }
 READ_FIRST = [
@@ -160,7 +174,7 @@ READ_FIRST = [
 CONFIG = re.compile(r"(^|/)\.env\.(example|sample|template|dist)$|(^|/)settings(/[^/]+)?\.py$|(^|/)(core/)?config\.py$|(^|/)(docker-)?compose(\.[\w-]+)*\.ya?ml$|(^|/)supabase/config\.toml$|"
                     r"(^|/)(vercel|netlify|render|fly|app|railway|now)\.(json|toml|ya?ml)$|(^|/)Procfile$|"
                     r"(^|/)(Dockerfile|Containerfile)$|(^|/)config/[^/]+\.(ya?ml|toml|json|ts|js|php|rb)$|"
-                    r"(^|/)config\.(toml|ya?ml)(\.sample|\.example)?$|(^|/)(next|nuxt|vite|remix)\.config\.(js|mjs|ts)$")
+                    r"(^|/)config\.(toml|ya?ml)(\.sample|\.example)?$|(^|/)application(-[\w-]+)?\.(properties|ya?ml)$|(^|/)(next|nuxt|vite|remix)\.config\.(js|mjs|ts)$")
 CODE = re.compile(r"\.(py|js|jsx|ts|tsx|mjs|cjs|go|rb|java|kt|cs|php|rs|sql|prisma|proto|graphql|ya?ml|json)$")
 PROSE = re.compile(r"\.(md|mdx|rst|txt)$", re.I)
 TEMPLATES = re.compile(r"\.(erb|haml|slim|vue|svelte|astro|hbs|jinja2?|j2|twig|blade\.php|heex|eex)$")
@@ -207,6 +221,7 @@ def _evidence(repo: Path, rel: str, needle: str | None = None) -> dict:
 def _dependency_evidence(repo: Path, rel: str, library: str) -> dict:
     """The manifest line that declares `library` itself, not one that only contains its name."""
     text = (repo / rel).read_text("utf-8", "replace")
+    library = library.rsplit(":", 1)[-1] if Path(rel).name in ("pom.xml", "build.gradle", "build.gradle.kts") else library
     token = re.compile(r"(?<![\w@/.-])" + re.escape(library) + r"(?![\w.-])", re.I)
     for number, line in enumerate(text.splitlines(), 1):
         if token.search(line) and "// indirect" not in line and not line.lstrip().startswith(("#", "//")):
@@ -229,6 +244,18 @@ def _dependency_names(repo: Path, rel: str) -> set[str]:
             return set(re.findall(r"^\s*(?:require\s+)?([\w.\-/]+)\s+v\d[^\n/]*$", text, re.M))  # not // indirect
         if name == "Gemfile":
             return set(re.findall(r"""^\s*gem\s+['"]([^'"]+)['"]""", text, re.M))
+        if name == "pom.xml":  # Maven: artifactId and groupId:artifactId of each dependency
+            found = set()
+            for group, artifact in re.findall(r"<dependency>\s*<groupId>([^<]+)</groupId>\s*<artifactId>([^<]+)</artifactId>",
+                                              text):
+                found |= {artifact.strip(), f"{group.strip()}:{artifact.strip()}"}
+            return found
+        if name in ("build.gradle", "build.gradle.kts"):
+            found = set()
+            for group, artifact in re.findall(r"^\s*(?:implementation|api|runtimeOnly|compileOnly|kapt|annotationProcessor)"
+                                              r"\s*\(?\s*[\"']([\w.-]+):([\w.-]+)", text, re.M):
+                found |= {artifact, f"{group}:{artifact}"}
+            return found
         if name == "composer.json":
             data = json.loads(text)
             return set(data.get("require", {})) | set(data.get("require-dev", {})) if isinstance(data, dict) else set()
@@ -423,7 +450,8 @@ def scan(repo: Path) -> dict:
             (datastores if type(image) is str and DATASTORES.search(image.lower()) else services).append(row)
 
     manifests = [p for p in paths if Path(p).name in ("package.json", "pyproject.toml", "requirements.txt", "go.mod",
-                                                         "Cargo.toml", "Gemfile", "composer.json")]
+                                                         "Cargo.toml", "Gemfile", "composer.json", "pom.xml",
+                                                         "build.gradle", "build.gradle.kts")]
     dependencies = {rel: _dependency_names(repo, rel) for rel in manifests}
     dev_only = {rel: _dev_only(repo, rel) for rel in manifests}
     integrations: dict[str, list[dict]] = {}

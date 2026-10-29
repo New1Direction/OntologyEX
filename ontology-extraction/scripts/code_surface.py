@@ -8,13 +8,16 @@ declarations by their syntax, without running or importing anything, and names t
 file and line of each:
 
 - routes: Next.js app and pages routers (pages as PAGE), Remix / React Router file
-  routes, Express/Fastify/Koa/Hono, Flask, FastAPI, Django urls.py, Go (net/http, chi, gin, echo, gorilla), Spring, Rails, Laravel;
+  routes, Express/Fastify/Koa/Hono, Flask and FastAPI (with router prefixes), Django
+  urls.py, Go (net/http, chi, gin, echo, gorilla), Spring (with class-level prefixes),
+  Rails (with namespaces and nesting), Laravel (with route groups);
 - operations: GraphQL Query/Mutation/Subscription fields, tRPC procedures;
-- tables: Prisma models, SQL CREATE TABLE, Django, SQLAlchemy and SQLModel models, Drizzle,
-  TypeORM, Mongoose, Sequelize, Rails schema.rb, Laravel migrations, JPA @Table;
-- jobs: Celery tasks and beat schedules, Rails ActiveJob and Sidekiq jobs, Laravel queued jobs
-  and schedules, sidekiq-cron style
-  schedule.yml entries, BullMQ queues, node-cron, Inngest functions.
+- tables: Prisma models, SQL CREATE TABLE, Django, SQLAlchemy and SQLModel models,
+  Drizzle, TypeORM, Mongoose, Sequelize, Rails schema.rb, Laravel migrations, JPA
+  @Entity/@Table;
+- jobs: Celery tasks and beat schedules, Rails ActiveJob and Sidekiq jobs, Laravel
+  queued jobs and schedules, Spring @Scheduled, sidekiq-cron style schedule.yml
+  entries, BullMQ queues, node-cron, Inngest functions.
 
 Each finding is a candidate from syntax, not a verified endpoint or table: a route
 may be disabled, a table dropped by a later migration, and code built at runtime is
@@ -54,7 +57,10 @@ PY_METHODS = re.compile(r"methods\s*=\s*[\[(]([^\])]*)[\])]")
 DJANGO_PATH = re.compile(r"\b(?:re_)?path\s*\(\s*r?['\"]([^'\"]*)['\"]")
 GO_ROUTE = re.compile(r"\.\s*(GET|POST|PUT|PATCH|DELETE|Get|Post|Put|Patch|Delete|Handle|HandleFunc|Any|Method)\s*\(\s*"
                       r"(?:\"(GET|POST|PUT|PATCH|DELETE)\"\s*,\s*)?\"((?:(?:GET|POST|PUT|PATCH|DELETE)\s+)?/[^\"]*)\"")
-SPRING_ROUTE = re.compile(r"@(Get|Post|Put|Delete|Patch|Request)Mapping\s*\(\s*(?:(?:value|path)\s*=\s*)?\{?\s*\"(/[^\"]*)\"")
+SPRING_ROUTE = re.compile(r"@(Get|Post|Put|Delete|Patch|Request)Mapping\b(?:\s*\(([^)]*)\))?")
+SPRING_SCHEDULED = re.compile(r"@Scheduled\b[^\n]*\n(?:\s*@[^\n]*\n)*\s*(?:(?:public|protected|private|open|override)\s+)*"
+                              r"(?:void\s+|fun\s+)(\w+)\s*\(")
+JPA_ENTITY = re.compile(r"@Entity\b(?:\s*\([^)]*\))?")
 LARAVEL_ROUTE = re.compile(r"(?:Route::|\$router->|->)(get|post|put|patch|delete|any|options|resource|apiResource)"
                            r"\s*\(\s*['\"]([^'\"]*)['\"]")
 LARAVEL_TABLE = re.compile(r"Schema::create\s*\(\s*['\"](\w+)['\"]")
@@ -327,10 +333,30 @@ def scan_file(rel: str, text: str) -> dict[str, list[dict]]:
                 verb = explicit
             route(verb if verb.upper() in METHODS else "ANY", path, match.start(), "go")
     elif suffix in (".java", ".kt"):
+        declared = re.search(r"\b(?:class|interface|object)\s+\w+", text)
+        body = declared.start() if declared else 0
+        prefix = ""
         for match in SPRING_ROUTE.finditer(text):
-            route("ANY" if match.group(1) == "Request" else match.group(1), match.group(2), match.start(), "spring")
-        for match in JPA_TABLE.finditer(text):
-            table(match.group(1), match.start(), "jpa")
+            if text[text.rfind("\n", 0, match.start()) + 1:match.start()].lstrip().startswith(("*", "//", "/*")):
+                continue  # mentioned in a comment
+            paths = re.findall(r"\"(/?[^\"]*)\"", match.group(2) or "")
+            paths = [p for p in paths if p.startswith("/") or not p] if (match.group(2) or "").strip() else [""]
+            if match.start() < body:  # a class-level @RequestMapping prefixes the methods below it
+                prefix = (paths[0] if paths else "").rstrip("/")
+                continue
+            for path in paths or [""]:
+                full = (prefix + ("/" + path.lstrip("/") if path.strip("/") else "")) or "/"
+                route("ANY" if match.group(1) == "Request" else match.group(1), full, match.start(), "spring")
+        for match in JPA_ENTITY.finditer(text):
+            named = JPA_TABLE.search(text, match.end(), match.end() + 400)
+            owner = re.search(r"\b(?:class|data\s+class)\s+(\w+)", text[match.end():match.end() + 600])
+            if named and (not owner or named.start() < match.end() + owner.start()):
+                table(named.group(1), match.start(), "jpa")
+            elif owner:
+                table(owner.group(1), match.start(), "jpa")
+        for match in SPRING_SCHEDULED.finditer(text):
+            found["jobs"].append({"name": match.group(1), "file": rel, "line": _line(text, match.start()),
+                                  "kind": "spring scheduled"})
     elif suffix == ".rb":
         if name == "routes.rb":
             for method, path, offset in _rails_routes(text):

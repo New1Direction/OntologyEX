@@ -173,6 +173,22 @@ class Scan(unittest.TestCase):
                 [sys.executable, str(SCRIPTS / "overview.py"), "scan", "--repo", str(repo), "--out", str(repo / "ov")],
                 capture_output=True, text=True, check=True).stdout)
 
+    def test_a_spring_app_from_maven(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            write(repo, "pom.xml", "<project><artifactId>clinic</artifactId><dependencies>\n"
+                                   "<dependency>\n<groupId>org.springframework.boot</groupId>\n"
+                                   "<artifactId>spring-boot-starter-webmvc</artifactId>\n</dependency>\n"
+                                   "<dependency>\n<groupId>org.postgresql</groupId>\n<artifactId>postgresql</artifactId>\n"
+                                   "</dependency>\n</dependencies></project>\n")
+            write(repo, "src/main/java/clinic/ClinicApplication.java", "@SpringBootApplication\npublic class ClinicApplication {}\n")
+            write(repo, "src/main/resources/application.properties", "spring.datasource.url=jdbc:postgresql://db/clinic\n")
+            result = overview.scan(repo)
+            self.assertEqual([f["name"] for f in result["apps"][0]["frameworks"]], ["spring-boot-starter-webmvc"])
+            self.assertEqual([(d["name"], d["evidence"]["line"]) for d in result["datastores"]], [("postgres", 8)])  # the artifactId line
+            self.assertEqual(result["read_first"]["entry points"], ["src/main/java/clinic/ClinicApplication.java"])
+            self.assertIn("src/main/resources/application.properties", result["read_first"]["configuration"])
+
     def test_the_default_database_in_env_example(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
