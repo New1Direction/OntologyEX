@@ -38,6 +38,7 @@ import command_center
 import digest
 import ownership
 import compliance
+import background_scans
 import stale_view
 import github_discovery
 import snapshot_store
@@ -1056,6 +1057,18 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         worker = Thread(target=refresh_loop, name="ontologyex-github-readonly", daemon=True)
         worker.start()
 
+    scanner = None
+    if remote is None:  # the slow reads of the repository run in the background (background_scans.py)
+        def scan_nodes() -> list[dict]:
+            discovered = (native_view_bridge.native_discover(repo) if native_discovery else discover_repo.discover(repo))
+            return with_code_surface(discovered, repo, scanner.result("code", wait=False)[0])["nodes"]
+        scanner = background_scans.Scanner(repo, [
+            ("code", CODE_SURFACE_SECONDS, lambda: code_surface.scan(repo)),
+            ("suppliers", CODE_SURFACE_SECONDS, lambda: suppliers.scan(repo, scan_nodes())),
+            ("ownership", OWNERSHIP_SECONDS, lambda: ownership.scan_repo(repo, datetime.now(timezone.utc))),
+            ("compliance", OWNERSHIP_SECONDS, lambda: compliance.scan_repo(repo)),
+        ])
+
     def snapshot(observation_rows: list[dict] | None = None) -> dict:
         current = datetime.now(timezone.utc)
         if remote is not None:
@@ -1067,36 +1080,15 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                     state_cache["last_attempt"] = current
                     topology = (native_view_bridge.native_discover(repo) if native_discovery
                                 else discover_repo.discover(repo))
-                    scanned = state_cache.get("code_scanned")
-                    if scanned is None or (current - scanned).total_seconds() > CODE_SURFACE_SECONDS:
-                        try:
-                            state_cache["code"] = code_surface.scan(repo)
-                        except (ValueError, OSError):
-                            state_cache["code"] = None
-                        state_cache["code_scanned"] = current
-                    topology = (with_code_surface(topology, repo, state_cache["code"])
-                                if state_cache["code"] is not None else with_code_surface(topology, repo))
-                    # The outside companies the repository declares, as entities its services depend on.
-                    scanned = state_cache.get("suppliers_scanned")
-                    if scanned is None or (current - scanned).total_seconds() > CODE_SURFACE_SECONDS:
-                        try:
-                            state_cache["suppliers"] = suppliers.scan(repo, topology["nodes"])
-                        except (ValueError, OSError):
-                            state_cache["suppliers"] = None
-                        state_cache["suppliers_scanned"] = current
-                    if state_cache["suppliers"] is not None:
-                        topology = suppliers.with_suppliers(topology, state_cache["suppliers"], repo)
-                    scanned = state_cache.get("ownership_scanned")
-                    if scanned is None or (current - scanned).total_seconds() > OWNERSHIP_SECONDS:
-                        try:
-                            state_cache["ownership"] = ownership.scan_repo(repo, current)
-                        except (ValueError, OSError):
-                            state_cache["ownership"] = None
-                        try:
-                            state_cache["compliance"] = compliance.scan_repo(repo)
-                        except (ValueError, OSError):
-                            state_cache["compliance"] = None
-                        state_cache["ownership_scanned"] = current
+                    # The slow reads come from the background scans: the last result committed for an
+                    # unchanged repository, never a scan run while this request waits (background_scans.py).
+                    code, code_error = scanner.result("code")
+                    topology = (with_code_surface(topology, repo, code) if code is not None else
+                                {**topology, "gaps": [*topology.get("gaps", []),
+                                                      {"source": "code", "reason": f"code not scanned ({code_error})"}]})
+                    found, _ = scanner.result("suppliers")  # the outside companies, as entities services depend on
+                    if found is not None:
+                        topology = suppliers.with_suppliers(topology, found, repo)
                     state_cache["topology"] = topology
                     state_cache["last_success"] = current
                 topology = state_cache["topology"]
@@ -1121,7 +1113,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
 
     def supplier_report() -> dict:
         """The supplier map with what relies on each supplier, from the same model as every page."""
-        report = state_cache.get("suppliers") if remote is None else None
+        report = scanner.result("suppliers")[0] if scanner is not None else None
         return report if report is not None else {"schema_version": 1, "kind": "SUPPLIER_MAP", "suppliers": [],
                                                   "categories": [], "own_supplier_records": [],
                                                   "status": "NO_LOCAL_REPOSITORY" if remote is not None else "NOT_SCANNED",
@@ -1142,11 +1134,13 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
     def bundle() -> dict:
         """The model, with who owns each part of it."""
         data = model()
-        data["ownership"] = ownership.report(data, state_cache.get("ownership") if remote is None else None)
-        data["compliance"] = compliance.report(data, state_cache.get("compliance") if remote is None else None)
+        data["ownership"] = ownership.report(data, scanner.result("ownership")[0] if scanner is not None else None)
+        data["compliance"] = compliance.report(data, scanner.result("compliance")[0] if scanner is not None else None)
         return data
 
     if print_bundle:  # the same assembly the server answers from, for tests, parity and agents offline
+        if scanner is not None:
+            scanner.run_pending()  # one pass, here and now: there is no server to wait for
         print(json.dumps(bundle(), sort_keys=True, separators=(",", ":")))
         return
 
@@ -1205,6 +1199,14 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 except (RoomError, DomainError, discover_repo.DiscoveryError,
                         github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
                     payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
+            elif route.path == "/api/scans":  # what each background scan last did, and for which revision
+                mime = "application/json; charset=utf-8"
+                if route.query:
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                elif scanner is None:
+                    payload, code = b'{"status":"NO_LOCAL_REPOSITORY","scans":[]}', 200
+                else:
+                    payload, code = json.dumps(scanner.status(), sort_keys=True).encode(), 200
             elif route.path == "/api/views":  # fingerprints of what a page lets a person decide; read before the page
                 mime = "application/json; charset=utf-8"
                 try:
@@ -1612,12 +1614,16 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                   flush=True)
             if repo is not None:
                 print(f"Repository discovery: {'rust' if native_discovery else 'python'}", flush=True)
+            if scanner is not None:
+                scanner.start()
             if recorder is not None:
                 recorder.start()
                 print(f"Recording the ranking for the weekly digest: {history}", flush=True)
             server.serve_forever()
     finally:
         stop_worker.set()
+        if scanner is not None:
+            scanner.stop()
         for thread in (worker, recorder):
             if thread is not None and thread.is_alive():
                 thread.join(timeout=2)
