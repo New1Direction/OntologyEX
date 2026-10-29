@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "ontology-extraction/scripts"))
 import business_view
 import control_room
+import entity_context
 import evidence_grade
 
 STATUSES = ("ok", "warning", "error", "stale", "unknown")
@@ -59,16 +60,19 @@ def expected() -> dict:
         grades.append([list(flags), grade, reason])
     fusion = [[list(seq), fused(seq)] for length in range(4)
               for seq in itertools.product(range(len(SAMPLES)), repeat=length)]
+    # Path standing (entity_context.path_standing): every chain of 0..4 standings.
+    path = [[list(seq), entity_context.path_standing(entity_context.STANDINGS[i] for i in seq)]
+            for length in range(5) for seq in itertools.product(range(4), repeat=length)]
     return {"kind": "BUSINESS_CONFORMANCE_TABLE", "rollup": rollups, "grade": grades,
-            "fusion": fusion, "execution_authorized": False}
+            "fusion": fusion, "path_standing": path, "execution_authorized": False}
 
 
 def check(path: Path) -> int:
     actual = json.loads(path.read_text(encoding="utf-8"))
     reference = expected()
     failures = 0
-    # rollup and grade are required; fusion is compared when the table carries it.
-    for section in ("rollup", "grade", *(["fusion"] if "fusion" in actual else [])):
+    # rollup and grade are required; fusion and path_standing are compared when the table carries them.
+    for section in ("rollup", "grade", *[s for s in ("fusion", "path_standing") if s in actual]):
         want, got = reference[section], actual.get(section)
         if type(got) is not list or len(got) != len(want):
             print(f"{section}: expected {len(want)} rows, got {len(got) if type(got) is list else got!r}")
@@ -83,8 +87,9 @@ def check(path: Path) -> int:
         print("table must not authorize execution")
         failures += 1
     fusion = f", {len(reference['fusion'])} fusion rows" if "fusion" in actual else ""
+    path = f", {len(reference['path_standing'])} path rows" if "path_standing" in actual else ""
     print(f"conformance: {len(reference['rollup'])} rollup rows, {len(reference['grade'])} grade rows"
-          f"{fusion}, {failures} mismatch(es)")
+          f"{fusion}{path}, {failures} mismatch(es)")
     return 1 if failures else 0
 
 

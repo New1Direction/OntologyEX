@@ -24,6 +24,11 @@ on:
       - 'tests/rust_feeds_parity.py'
       - 'tests/test_feeds.py'
       - 'ontology-extraction/scripts/discover_repo.py'
+      - 'ontology-extraction/scripts/entity_context.py'
+      - 'ontology-extraction/scripts/agent_tools.py'
+      - 'tests/rust_context_parity.py'
+      - 'tests/test_entity_context.py'
+      - 'tests/test_agent_tools.py'
       - '.github/workflows/rust-proof-foundation.yml'
   push:
     branches: [main]
@@ -70,8 +75,12 @@ jobs:
         run: |
           engine/target/debug/ontologyex-feeds conformance > "$RUNNER_TEMP/feeds-table.json"
           python tests/feeds_conformance.py check "$RUNNER_TEMP/feeds-table.json"
+      - name: Verify Rust entity context, explanations and search against Python (demo + 120 seeded bundles)
+        run: python tests/rust_context_parity.py
       - name: Verify the control room reads native discovery like Python discovery
         run: python -m unittest tests.test_native_view_bridge -v
+      - name: Entity routes on the Rust engine, and agent tools end to end
+        run: python -m unittest tests.test_entity_context tests.test_agent_tools -v
       - name: Static graph-to-status fixture
         run: |
           cargo run --manifest-path engine/Cargo.toml --quiet --bin ontologyex-core --             engine/examples/topology.json engine/examples/observations.jsonl 2000 > /tmp/ontologyex-state.json

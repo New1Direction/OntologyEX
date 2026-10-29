@@ -314,7 +314,133 @@ theorem decisions_keep_links (links : List Link) (suggs : List Suggestion)
     (ds : List DecisionRec) (l : Link) (h : l ∈ links) : l ∈ applyDecisions links suggs ds :=
   List.mem_append.mpr (Or.inl h)
 
+/-! ## Agent proposals (`link_suggest.merge_proposals`, `agent_tools.py`)
+
+An agent's proposal joins the same queue as the ranked suggestions, unless the link is
+blocked (already linked, or rejected by a person). Nothing in the queue is a link until
+a person's confirm decision names it. -/
+
+def mergeProposals (blocked : Link → Bool) (suggs props : List Suggestion) : List Suggestion :=
+  suggs ++ props.filter (fun p => !blocked p.link)
+
+/-- Agent proposals, like any suggestion, change no link without a decision. -/
+theorem proposals_alone_change_nothing (links : List Link) (blocked : Link → Bool)
+    (suggs props : List Suggestion) :
+    applyDecisions links (mergeProposals blocked suggs props) [] = links :=
+  suggestions_alone_change_nothing links _
+
+/-- A link a person rejected is never queued again by an agent proposal. -/
+theorem blocked_proposal_never_queued (blocked : Link → Bool) (suggs props : List Suggestion)
+    (p : Suggestion) (hb : blocked p.link = true) (hs : p ∉ suggs) :
+    p ∉ mergeProposals blocked suggs props := by
+  intro h
+  rcases List.mem_append.mp h with h | h
+  · exact hs h
+  · have h2 := (List.mem_filter.mp h).2
+    simp [hb] at h2
+
+/-- Every link added after agent proposals carries a person's confirm decision. -/
+theorem agent_links_were_confirmed (links : List Link) (blocked : Link → Bool)
+    (suggs props : List Suggestion) (ds : List DecisionRec) (l : Link)
+    (h : l ∈ applyDecisions links (mergeProposals blocked suggs props) ds) :
+    l ∈ links ∨ ∃ s ∈ mergeProposals blocked suggs props,
+      (∃ d ∈ ds, d.id = s.id ∧ d.decision = .confirm) ∧ s.link = l :=
+  added_links_were_confirmed links _ ds l h
+
 end OntologyEX.Business
+
+/-!
+# Entity context (`entity_context.py`, `engine/src/context.rs`)
+
+Each relationship has a standing from where it comes from. A chain of relationships (an
+explanation path, or the route by which a change could reach something) is only as strong
+as its weakest link. These laws are what lets an operator read CONFIRMED as "a person
+decided every step".
+-/
+
+namespace OntologyEX.Context
+
+inductive Standing where
+  | confirmed | source | inferred | unknown
+deriving DecidableEq, Repr
+
+def Standing.rank : Standing → Nat
+  | .confirmed => 0 | .source => 1 | .inferred => 2 | .unknown => 3
+
+inductive Origin where
+  | declaredInFile | personDecision | rankedSuggestion | agentProposal | seenInTraces | gap
+deriving DecidableEq, Repr
+
+def standingOf : Origin → Standing
+  | .declaredInFile => .source
+  | .personDecision => .confirmed
+  | .rankedSuggestion => .inferred
+  | .agentProposal => .inferred
+  | .seenInTraces => .inferred
+  | .gap => .unknown
+
+/-- Only a person's decision makes a relationship CONFIRMED. -/
+theorem confirmed_only_by_person (o : Origin) : standingOf o = .confirmed ↔ o = .personDecision := by
+  cases o <;> decide
+
+/-- An agent's proposal is never CONFIRMED, whoever the agent acts for. -/
+theorem agent_proposal_is_inferred : standingOf .agentProposal = .inferred := rfl
+
+/-- The weaker of two standings; the first on ties. -/
+def weaker (a b : Standing) : Standing := if a.rank < b.rank then b else a
+
+def pathStanding : List Standing → Standing
+  | [] => .confirmed
+  | s :: rest => weaker s (pathStanding rest)
+
+theorem weaker_ge_left (a b : Standing) : a.rank ≤ (weaker a b).rank := by
+  cases a <;> cases b <;> decide
+
+theorem weaker_ge_right (a b : Standing) : b.rank ≤ (weaker a b).rank := by
+  cases a <;> cases b <;> decide
+
+theorem weaker_cases (a b : Standing) : weaker a b = a ∨ weaker a b = b := by
+  cases a <;> cases b <;> decide
+
+theorem weaker_confirmed (a b : Standing) :
+    weaker a b = .confirmed ↔ a = .confirmed ∧ b = .confirmed := by
+  cases a <;> cases b <;> decide
+
+/-- No hop is weaker than the path: a path never reads stronger than any of its hops. -/
+theorem hop_no_weaker_than_path : ∀ (hs : List Standing) (h : Standing), h ∈ hs →
+    h.rank ≤ (pathStanding hs).rank
+  | [], _, hh => by cases hh
+  | s :: rest, h, hh => by
+    rcases List.mem_cons.mp hh with he | hr
+    · rw [he]; exact weaker_ge_left s (pathStanding rest)
+    · exact Nat.le_trans (hop_no_weaker_than_path rest h hr) (weaker_ge_right s (pathStanding rest))
+
+/-- A path is CONFIRMED exactly when a person confirmed every hop. -/
+theorem path_confirmed_iff : ∀ hs : List Standing,
+    pathStanding hs = .confirmed ↔ ∀ h ∈ hs, h = .confirmed
+  | [] => by simp [pathStanding]
+  | s :: rest => by
+    show weaker s (pathStanding rest) = .confirmed ↔ _
+    rw [weaker_confirmed, path_confirmed_iff rest]
+    simp
+
+/-- One inferred hop makes the whole path at best INFERRED. -/
+theorem inferred_hop_taints_path (hs : List Standing) (h : Standing.inferred ∈ hs) :
+    2 ≤ (pathStanding hs).rank :=
+  hop_no_weaker_than_path hs .inferred h
+
+/-- A non-empty path's standing is the standing of one of its hops. -/
+theorem path_is_a_hop : ∀ hs : List Standing, hs ≠ [] → pathStanding hs ∈ hs
+  | [], h => (h rfl).elim
+  | [s], _ => by cases s <;> first | decide | simp [pathStanding, weaker, Standing.rank]
+  | s :: t :: rest, _ => by
+    have ih := path_is_a_hop (t :: rest) (List.cons_ne_nil _ _)
+    show weaker s (pathStanding (t :: rest)) ∈ s :: t :: rest
+    rcases weaker_cases s (pathStanding (t :: rest)) with h | h
+    · rw [h]; exact List.mem_cons_self ..
+    · rw [h]; exact List.mem_cons_of_mem _ ih
+
+end OntologyEX.Context
 
 /-!
 # Combining several observation sources (`control_room.build_state`)

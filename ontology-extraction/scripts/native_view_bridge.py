@@ -19,7 +19,9 @@ MAX_OUTPUT_BYTES = 8 * 1024 * 1024
 MAX_BINARY_BYTES = 64 * 1024 * 1024
 MAX_CONCURRENT = 2
 TIMEOUT_SECONDS = 5.0
-COMMANDS = frozenset({"summary", "page", "neighborhood", "node", "incident", "suggest-links"})
+COMMANDS = frozenset({"summary", "page", "neighborhood", "node", "incident", "suggest-links",
+                      "context", "explain", "search"})
+CONTEXT_COMMANDS = frozenset({"context", "explain", "search"})  # read a bundle: {"state", "business", ...}
 KINDS = {
     "summary": "LOCAL_CONTROL_ROOM_SUMMARY",
     "page": "BOUNDED_GRAPH_PAGE",
@@ -27,6 +29,9 @@ KINDS = {
     "node": "BOUNDED_NODE_DETAIL",
     "incident": "UNATTESTED_INCIDENT_INVESTIGATION",
     "suggest-links": "LINK_SUGGESTIONS",
+    "context": "ENTITY_CONTEXT",
+    "explain": "RELATIONSHIP_EXPLANATION",
+    "search": "ENTITY_SEARCH",
 }
 
 
@@ -129,13 +134,15 @@ class NativeView:
         if command not in COMMANDS or any(type(arg) is not str for arg in args):
             raise NativeViewError("invalid native view invocation")
         expected_args = {"summary": 0, "page": 3, "neighborhood": 2,
-                         "node": 1, "incident": 1, "suggest-links": 0}
+                         "node": 1, "incident": 1, "suggest-links": 0,
+                         "context": 1, "explain": 2, "search": 1}
         if len(args) != expected_args[command] or any(
             len(arg) > 1024 or (not arg and (command != "page" or i != 1))
             for i, arg in enumerate(args)
         ):
             raise NativeViewError("invalid native view arguments")
-        if full.get("execution_authorized") is not False:
+        subject = full.get("state") if command in CONTEXT_COMMANDS else full
+        if type(subject) is not dict or subject.get("execution_authorized") is not False:
             raise NativeViewError("native input cannot authorize execution")
         if command == "incident":
             if type(observation_rows) is not list or len(observation_rows) > 4096:
@@ -215,6 +222,16 @@ class NativeView:
                     or result.get("auto_applied") != 0
                     or any(type(r) is not dict or r.get("status") != "PROPOSED" for r in rows)):
                 raise NativeViewError("native suggestions violate the confirmation contract")
+        elif command in CONTEXT_COMMANDS:  # bounded answers about entities, never the whole graph
+            if command == "context":
+                ok = (type(result.get("relationships")) is list and len(result["relationships"]) <= 200
+                      and type(result.get("relied_on_by")) is list and len(result["relied_on_by"]) <= 100)
+            elif command == "explain":
+                ok = type(result.get("paths")) is list and len(result["paths"]) <= 10
+            else:
+                ok = type(result.get("results")) is list and len(result["results"]) <= 25
+            if not ok or "nodes" in result or "edges" in result:
+                raise NativeViewError("native entity answer budget violated")
         elif "nodes" in result or "edges" in result or "source_evidence" in result:
             raise NativeViewError("native summary contains full graph")
         return result

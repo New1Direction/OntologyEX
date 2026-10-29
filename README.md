@@ -193,6 +193,13 @@ For the wider business story (users, journeys, money flows, and where they can b
 the **Business X-Ray** preview compiles authored, source-linked blueprints into one offline
 page. See [Business X-Ray](business/README.md).
 
+Every business object, action and system also has an **entity page** (`/entity`): why
+it exists, what a person confirmed and what is only inferred, what relies on it, and
+the files behind each relationship. Agents get the same model through an MCP server
+(`agent_tools.py`) whose tools read, or propose a link for a person to decide, under a
+per-agent policy with every call audited. See [entity context](ontology-extraction/references/entity-context.md)
+and [what OntologyEX took from Macro](docs/macro-comparison.md).
+
 Live health comes from real telemetry: `feeds.py` receives OpenTelemetry traces and
 polls Prometheus and HTTP health checks (`python examples/operating-picture/live.py`).
 For your own repository, `feed_setup.py propose` lists the feeds its compose files

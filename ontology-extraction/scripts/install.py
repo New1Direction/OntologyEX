@@ -16,6 +16,8 @@ PACKAGE = (
     "scripts/business_view.py", "scripts/discover_repo.py",
     # Operating picture runtime: control room, its views, live feeds, and RDF export.
     "scripts/control_room.py", "scripts/operating_picture.html", "scripts/layout_engine.js",
+    "scripts/entity_context.py", "scripts/entity_page.html", "scripts/agent_tools.py",
+    "references/entity-context.md",
     "scripts/github_discovery.py", "scripts/code_imports.py", "scripts/snapshot_store.py",
     "scripts/graph_view_api.py", "scripts/incident_view.py", "scripts/native_view_bridge.py",
     "scripts/feeds.py", "scripts/rdf_export.py", "scripts/graph_view.py", "scripts/fetch_engine.py",

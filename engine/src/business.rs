@@ -264,7 +264,8 @@ pub fn conformance_table() -> Value {
         grades.push(json!([as_ints, grade, reason]));
     }
     json!({"kind": "BUSINESS_CONFORMANCE_TABLE", "rollup": rollups, "grade": grades,
-           "fusion": fusion_rows(), "execution_authorized": false})
+           "fusion": fusion_rows(), "path_standing": crate::context::path_standing_rows(),
+           "execution_authorized": false})
 }
 
 /// Source combining through the reference core: each sample comes from its own
