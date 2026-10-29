@@ -50,7 +50,7 @@ class BusinessBlueprintTests(unittest.TestCase):
         import os
         import stat
         with tempfile.TemporaryDirectory() as folder:
-            template = ROOT / "business/business_xray_template.html"
+            template = ROOT / "ontology-extraction/scripts/business_xray_template.html"
             one = Path(folder) / "one.html"
             two = Path(folder) / "two.json"
             # Do not rely on command-line execution; test the same safe
@@ -129,7 +129,7 @@ class BusinessBlueprintTests(unittest.TestCase):
 
     def test_rendered_html_has_no_live_network_dependency(self):
         compiled = business.compile_blueprints([load("repoing.json")])
-        result = business.render_html(compiled, ROOT / "business/business_xray_template.html")
+        result = business.render_html(compiled, ROOT / "ontology-extraction/scripts/business_xray_template.html")
         self.assertIn("Business X-Ray", result)
         self.assertIn('connect-src &#39;none&#39;', result) if False else None
         self.assertIn("connect-src 'none'", result)

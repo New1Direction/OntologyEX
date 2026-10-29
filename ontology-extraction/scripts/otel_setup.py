@@ -55,7 +55,7 @@ MAX_FILES = 50_000
 MAX_MANIFEST = 1024 * 1024
 LANGUAGES = {"package.json": "node", "pyproject.toml": "python", "requirements.txt": "python", "setup.py": "python",
              "Pipfile": "python", "pom.xml": "java", "build.gradle": "java", "build.gradle.kts": "java",
-             "go.mod": "go", "Gemfile": "ruby", "composer.json": "php"}
+             "go.mod": "go", "Cargo.toml": "rust", "Gemfile": "ruby", "composer.json": "php"}
 FRAMEWORKS = {
     "node": ("express", "fastify", "koa", "@nestjs/core", "next", "@hapi/hapi", "graphql", "@apollo/server",
              "axios", "pg", "mysql2", "mongodb", "redis", "ioredis", "kafkajs", "amqplib", "@prisma/client"),
@@ -69,6 +69,7 @@ INSTRUMENTED = {"node": ("@opentelemetry/sdk-node", "@opentelemetry/auto-instrum
 NEEDS = {
     "java": "attach the OpenTelemetry Java agent (-javaagent:opentelemetry-javaagent.jar); not automated here yet",
     "go": "Go has no zero-code agent; add the OpenTelemetry Go SDK and otelhttp to the code",
+    "rust": "add the opentelemetry and tracing-opentelemetry crates to the code; not automated here yet",
     "dotnet": "use OpenTelemetry .NET automatic instrumentation; not automated here yet",
     "ruby": "add opentelemetry-sdk and opentelemetry-instrumentation-all to the Gemfile; not automated here yet",
     "php": "use OpenTelemetry PHP auto-instrumentation (the opentelemetry extension); not automated here yet",
@@ -140,6 +141,10 @@ def _dependencies(rel: str, text: str) -> tuple[str | None, set[str], dict]:
         deps = {_normal(re.split(r"[\s<>=!~;\[(]", str(s), maxsplit=1)[0]) for s in specs if str(s).strip()}
         declared = project.get("name") or poetry.get("name")
         return (declared if isinstance(declared, str) else None), deps, {}
+    if name == "Cargo.toml":
+        package = tomllib.loads(text).get("package", {})
+        return (package.get("name") if isinstance(package, dict) and isinstance(package.get("name"), str) else None), \
+            set(), {}
     if name == "requirements.txt":
         deps = {_normal(re.split(r"[\s<>=!~;\[@]", line.strip(), maxsplit=1)[0]) for line in text.splitlines()
                 if line.strip() and not line.strip().startswith(("#", "-"))}
