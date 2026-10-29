@@ -172,7 +172,9 @@ TOOLS = {
                        "read-only pulls), as weekly aggregates per currency: payments taken, refund, failure and "
                        "dispute rates, payouts, recurring revenue and churn, invoices; spend by month (money in and "
                        "out by category, suppliers paid and whether the code uses them, cloud costs by service, "
-                       "whether processor payouts reached the bank, unpaid bills); the signals that need a person "
+                       "whether processor payouts reached the bank, unpaid bills); support and sales by week "
+                       "(tickets, backlog, time to solve, ratings, topics, business items tickets mention, deals won "
+                       "and lost and why); the signals that need a person "
                        "(each with its numbers); and what the records show that the business model or code does not "
                        "name, and the reverse. Aggregates only: no customer, row or identifier is ever in it. Give "
                        "weeks to include the weekly series too.",

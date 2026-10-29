@@ -41,8 +41,8 @@
    "updated": "2026-10-29"
   },
   "demo/command_center.json": {
-   "reason": "Spend: the demo's bank statement, vendor bills and AWS cost report, read as monthly aggregates, add payouts missing from the bank, overdue bills, a spending jump, rising cloud costs and a first payment to OpenAI; its web app now declares SendGrid and Sentry, so suppliers paid are compared with suppliers used.",
-   "sha256": "fff27fc3615d9934350da55fd2921ed1237d2690edae437a3b819be481267e51",
+   "reason": "Customers: the demo's helpdesk and CRM exports, read as weekly aggregates, add rising tickets, a growing backlog, slower solving, worse ratings, a CSV-export spike nothing in the model names, a falling win rate lost mostly to price, and refunds confirmed by refund tickets; the operations ledger gains a customers section.",
+   "sha256": "054f2d79fa4ca840e51783da10050eccd261dc527396037d0c75aeb597dae069",
    "updated": "2026-10-29"
   },
   "demo/context.json": {
@@ -51,13 +51,13 @@
    "updated": "2026-10-29"
   },
   "demo/digest.json": {
-   "reason": "Spend: the demo's bank statement, vendor bills and AWS cost report, read as monthly aggregates, add payouts missing from the bank, overdue bills, a spending jump, rising cloud costs and a first payment to OpenAI; its web app now declares SendGrid and Sentry, so suppliers paid are compared with suppliers used.",
-   "sha256": "03a9d1b67cb908fd863ecd3ea3857dc1fb0ec5359d3135a35077499a311e200d",
+   "reason": "Customers: the demo's helpdesk and CRM exports, read as weekly aggregates, add rising tickets, a growing backlog, slower solving, worse ratings, a CSV-export spike nothing in the model names, a falling win rate lost mostly to price, and refunds confirmed by refund tickets; the operations ledger gains a customers section.",
+   "sha256": "eeecb4f4d666dafbd83adff96a035f09025931de10c507d85735fe79c45debbe",
    "updated": "2026-10-29"
   },
   "demo/operations.json": {
-   "reason": "Spend: the demo's bank statement, vendor bills and AWS cost report, read as monthly aggregates, add payouts missing from the bank, overdue bills, a spending jump, rising cloud costs and a first payment to OpenAI; its web app now declares SendGrid and Sentry, so suppliers paid are compared with suppliers used.",
-   "sha256": "59cf109b52329304fd7748311710c442eb1a63735b2072d3b6b9505f7643789b",
+   "reason": "Customers: the demo's helpdesk and CRM exports, read as weekly aggregates, add rising tickets, a growing backlog, slower solving, worse ratings, a CSV-export spike nothing in the model names, a falling win rate lost mostly to price, and refunds confirmed by refund tickets; the operations ledger gains a customers section.",
+   "sha256": "eb4432065c34389484eaadbe3ac8127e05ebb0c4d4eb31f182cd47fd1af71cfa",
    "updated": "2026-10-29"
   },
   "shop/change_impact.json": {

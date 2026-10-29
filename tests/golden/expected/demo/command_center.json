@@ -1,9 +1,9 @@
 {
  "by_level": {
-  "CRITICAL": 7,
+  "CRITICAL": 8,
   "HIGH": 1,
-  "LOW": 13,
-  "MEDIUM": 11
+  "LOW": 18,
+  "MEDIUM": 16
  },
  "coverage": {
   "rows": [
@@ -97,6 +97,40 @@
    },
    "title": "payments reports an error",
    "why": "payments is in error and 4 business item(s) rely on it."
+  },
+  {
+   "category": "Customers",
+   "factors": [
+    {
+     "detail": "refunds and tickets about refunds rose together: two sources agree",
+     "factor": "severity",
+     "points": 50
+    },
+    {
+     "detail": "2 business object(s) or action(s) reach it: IssueRefund, Refund",
+     "factor": "reach",
+     "points": 16
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "8b8b48939842e0a7",
+   "kind": "REFUNDS_CONFIRMED_BY_TICKETS",
+   "level": "CRITICAL",
+   "links": [
+    "payments-domain:object:Refund",
+    "payments-domain:action:IssueRefund"
+   ],
+   "next_step": "Read the refund reasons and the refund tickets together, and find what changed in the refund journey.",
+   "owner": null,
+   "score": 81,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Refunds and refund tickets rose together (USD)",
+   "why": "Refunds rose to 6.2% of payments (0.4% before), and tickets mentioning IssueRefund, Refund rose to 48 (23 before): two sources agree, so look at what changed in the refund journey."
   },
   {
    "category": "Operations",
@@ -455,6 +489,48 @@
    "why": "No CODEOWNERS rule covers its code, and nobody changed it in the last year."
   },
   {
+   "category": "Customers",
+   "factors": [
+    {
+     "detail": "more customers rate their support as bad",
+     "factor": "severity",
+     "points": 40
+    }
+   ],
+   "id": "d52d16245d661b28",
+   "kind": "SATISFACTION_DROPPING",
+   "level": "MEDIUM",
+   "links": [],
+   "next_step": "Read the badly rated tickets of the last weeks: which topics, which channel, how long.",
+   "owner": null,
+   "score": 40,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Support ratings dropping",
+   "why": "31% of rated tickets were rated bad in the last 4 weeks, 9% in the 4 before."
+  },
+  {
+   "category": "Customers",
+   "factors": [
+    {
+     "detail": "fewer of the deals that close are won",
+     "factor": "severity",
+     "points": 40
+    }
+   ],
+   "id": "4d9f64de11e3b0f2",
+   "kind": "WIN_RATE_DOWN",
+   "level": "MEDIUM",
+   "links": [],
+   "next_step": "Read why the recent deals were lost, and compare with what changed in price or product.",
+   "owner": null,
+   "score": 40,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Win rate down",
+   "why": "21% of closed deals were won in the last 4 weeks, 54% in the 4 before."
+  },
+  {
    "category": "Spend",
    "factors": [
     {
@@ -641,6 +717,74 @@
    "why": "The supplied requirements do not specify who can approve an exception."
   },
   {
+   "category": "Customers",
+   "factors": [
+    {
+     "detail": "one kind of ticket jumped",
+     "factor": "severity",
+     "points": 30
+    }
+   ],
+   "id": "ad633be8dc75aa68",
+   "kind": "TOPIC_SPIKE",
+   "level": "MEDIUM",
+   "links": [],
+   "next_step": "Find what changed in that part of the product the week the tickets started.",
+   "owner": null,
+   "score": 30,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "A kind of ticket jumped: export_csv",
+   "why": "Tickets tagged 'export_csv' went from 4 to 34 against the 4 weeks before."
+  },
+  {
+   "category": "Customers",
+   "factors": [
+    {
+     "detail": "one kind of ticket jumped",
+     "factor": "severity",
+     "points": 30
+    }
+   ],
+   "id": "84980ed0692ad1a8",
+   "kind": "TOPIC_SPIKE",
+   "level": "MEDIUM",
+   "links": [],
+   "next_step": "Find what changed in that part of the product the week the tickets started.",
+   "owner": null,
+   "score": 30,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "A kind of ticket jumped: vip",
+   "why": "Tickets tagged 'vip' went from 3 to 12 against the 4 weeks before."
+  },
+  {
+   "category": "Customers",
+   "factors": [
+    {
+     "detail": "customers keep raising something nothing in the model is named for",
+     "factor": "severity",
+     "points": 15
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "c51b0a5680c4f2e0",
+   "kind": "TOPIC_NOT_MODELED",
+   "level": "MEDIUM",
+   "links": [],
+   "next_step": "Write it down: add it to a domain skill, so changes to it reach the business model.",
+   "owner": null,
+   "score": 30,
+   "standing": "INFERRED",
+   "subject": null,
+   "title": "Customers raise 'billing'; the model does not name it",
+   "why": "25 tickets in the last 4 weeks are tagged 'billing', and nothing in the business model is named for it: a part of the business customers deal with that is not written down."
+  },
+  {
    "category": "Spend",
    "factors": [
     {
@@ -702,6 +846,48 @@
    "why": "No CODEOWNERS rule covers its code, and nobody changed it in the last year."
   },
   {
+   "category": "Customers",
+   "factors": [
+    {
+     "detail": "unsolved tickets pile up",
+     "factor": "severity",
+     "points": 25
+    }
+   ],
+   "id": "1bf7717ea8f8cfb3",
+   "kind": "BACKLOG_GROWING",
+   "level": "LOW",
+   "links": [],
+   "next_step": "Check whether the team is short, or one kind of ticket is stuck.",
+   "owner": null,
+   "score": 25,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Support backlog growing",
+   "why": "33 tickets open at the end of the last complete week, 12 four weeks earlier."
+  },
+  {
+   "category": "Customers",
+   "factors": [
+    {
+     "detail": "tickets take longer to solve",
+     "factor": "severity",
+     "points": 25
+    }
+   ],
+   "id": "f354a30449c08252",
+   "kind": "RESOLUTION_SLOWER",
+   "level": "LOW",
+   "links": [],
+   "next_step": "See which topics take longest, and whether they wait on a person or another team.",
+   "owner": null,
+   "score": 25,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Tickets take longer to solve",
+   "why": "The median ticket took 16.2 hours to solve in the last 4 weeks, 8.6 in the 4 before."
+  },
+  {
    "category": "Spend",
    "factors": [
     {
@@ -752,6 +938,27 @@
    "subject": null,
    "title": "SOC 2: 9 of 13 controls not fully shown in the sources",
    "why": "Business customers usually ask for a SOC 2 report before buying. Not fully shown: CC2.2 security responsibilities are communicated, CC6.1 sign-in and access are controlled, CC6.1-MFA multi-factor sign-in, CC6.7 data is encrypted in transit, CC6.8 unauthorized or vulnerable software is prevented, CC7.1 vulnerabilities are found...."
+  },
+  {
+   "category": "Customers",
+   "factors": [
+    {
+     "detail": "one reason loses most deals",
+     "factor": "severity",
+     "points": 20
+    }
+   ],
+   "id": "baa27a17d205a96c",
+   "kind": "LOSS_REASON_DOMINANT",
+   "level": "LOW",
+   "links": [],
+   "next_step": "Take the reason to whoever owns pricing or the product it names.",
+   "owner": null,
+   "score": 20,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Deals lost to one reason",
+   "why": "9 of 19 deals lost in the last 4 weeks were lost to 'price'."
   },
   {
    "category": "Operations",
@@ -808,6 +1015,48 @@
    },
    "title": "SendGrid is the only email and messaging supplier",
    "why": "No second email and messaging supplier is declared in the sources."
+  },
+  {
+   "category": "Customers",
+   "factors": [
+    {
+     "detail": "customers keep raising something nothing in the model is named for",
+     "factor": "severity",
+     "points": 15
+    }
+   ],
+   "id": "14b93b4d6a420273",
+   "kind": "TOPIC_NOT_MODELED",
+   "level": "LOW",
+   "links": [],
+   "next_step": "Write it down: add it to a domain skill, so changes to it reach the business model.",
+   "owner": null,
+   "score": 15,
+   "standing": "INFERRED",
+   "subject": null,
+   "title": "Customers raise 'export_csv'; the model does not name it",
+   "why": "34 tickets in the last 4 weeks are tagged 'export_csv', and nothing in the business model is named for it: a part of the business customers deal with that is not written down."
+  },
+  {
+   "category": "Customers",
+   "factors": [
+    {
+     "detail": "customers keep raising something nothing in the model is named for",
+     "factor": "severity",
+     "points": 15
+    }
+   ],
+   "id": "ac1afab8431e173d",
+   "kind": "TOPIC_NOT_MODELED",
+   "level": "LOW",
+   "links": [],
+   "next_step": "Write it down: add it to a domain skill, so changes to it reach the business model.",
+   "owner": null,
+   "score": 15,
+   "standing": "INFERRED",
+   "subject": null,
+   "title": "Customers raise 'login'; the model does not name it",
+   "why": "46 tickets in the last 4 weeks are tagged 'login', and nothing in the business model is named for it: a part of the business customers deal with that is not written down."
   },
   {
    "category": "Visibility",
@@ -1028,5 +1277,5 @@
  ],
  "schema_version": 1,
  "semantics": "IMPORTANCE_RANKS_ATTENTION_NOT_PROBABILITY_OR_APPROVAL",
- "total": 32
+ "total": 43
 }

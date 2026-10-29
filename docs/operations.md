@@ -106,6 +106,48 @@ What spend adds:
 Cloud costs describe services, not people, so they are never withheld. Bank lines and bills
 follow the small-count rule below.
 
+### Customers: support and sales
+
+Helpdesk and CRM exports in the same folder, kept as **weekly** aggregates:
+
+| Records | Read from | Kept |
+|---|---|---|
+| Support tickets | Zendesk, Freshdesk, Intercom, Help Scout or any helpdesk export with a created time and status | opened, solved, the backlog open at each week's end, time to solve, topics (the helpdesk's tags, else its type), priority, channel, good and bad ratings, and how many tickets mention each business item |
+| Sales deals | HubSpot, Salesforce or any CRM export with a stage and a created date | created, won, lost, amounts per currency, win rate, days to close, why deals were lost, where they came from, open deals |
+
+- **What is never kept:** a ticket's subject or body, a requester, an agent, a deal's name, its
+  company or its owner.
+- **Subjects are only matched.** A subject is read for one thing, whether it names an item of the
+  business model (`Refund`, `IssueRefund`, `Payment`), so tickets count against the business.
+  The subject itself is dropped.
+- **Durations go into fixed buckets.** Time to solve and days to close are counted into buckets,
+  never as one number per ticket or deal; medians are read from the buckets.
+- **Pulls** (read-only, aggregates only):
+
+  ```bash
+  ZENDESK_OAUTH_TOKEN=... python ontology-extraction/scripts/operations.py pull zendesk --subdomain acme --out DIR --days 120
+  HUBSPOT_TOKEN=pat-... python ontology-extraction/scripts/operations.py pull hubspot --out DIR
+  ```
+
+  - **Zendesk:** an OAuth token with the read scope (or `ZENDESK_EMAIL` and `ZENDESK_API_TOKEN`;
+    API tokens can also write, so OAuth with read is safer). It follows the next page only on the
+    same Zendesk host.
+  - **HubSpot:** a private app token with `crm.objects.deals.read`. Won and lost come from each
+    pipeline's stage metadata.
+  - A pull outside the control room does not know the business items, so it counts no mentions;
+    exports read by the control room do.
+
+![Customers: tickets, backlog, time to solve, ratings, deals, and what two sources agree on](media/control-room-customers.png)
+
+**Signals:** `TICKETS_RISING`, `BACKLOG_GROWING`, `RESOLUTION_SLOWER`, `SATISFACTION_DROPPING`,
+`TOPIC_SPIKE`, `WIN_RATE_DOWN`, `LOSS_REASON_DOMINANT`.
+
+**With the rest of the records:**
+- **Two sources agree** when refunds rose in the payment records and tickets mentioning refunds
+  rose too. That ranks above either signal alone.
+- **Not in the model** names a topic customers keep raising (10 or more tickets in four weeks) that
+  nothing in the business model is named for.
+
 ## What is read, and what is not
 
 - From each file only the columns a stream needs: amounts, dates, statuses, reasons, plans and

@@ -145,8 +145,8 @@ def demo_outputs(tmp: Path, engines: dict) -> tuple[dict, dict, str]:
     folder = Path(built["repo"]) / ".ontologyex/operations"  # the exports again, against the fixed clock
     shutil.rmtree(folder)
     demo.write_operations(folder, NOW)
-    bundle["operations"] = operations.with_comparison(operations.report(folder, now=NOW),
-                                                      list(entity_context._entities(bundle).values()),
+    entities = list(entity_context._entities(bundle).values())
+    bundle["operations"] = operations.with_comparison(operations.report(folder, entities, now=NOW), entities,
                                                       bundle["suppliers"]["suppliers"])
     report = command_center.report(bundle)
     business = sorted(i for i, e in entity_context._entities(bundle).items() if e["layer"] == "business")

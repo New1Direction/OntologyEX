@@ -69,6 +69,7 @@ def write_operations(folder: Path, now: datetime) -> None:
     ident = lambda prefix: prefix + "".join(rng.choice("abcdefghijklmnopqrstuvwxyz0123456789") for _ in range(14))  # noqa: E731
 
     def write(name, header, rows):
+        (folder / name).parent.mkdir(parents=True, exist_ok=True)
         with (folder / name).open("w", newline="", encoding="utf-8") as handle:
             out = csv.writer(handle)
             out.writerow(header)
@@ -127,6 +128,56 @@ def write_operations(folder: Path, now: datetime) -> None:
            for amount_, status in [(rng.choice(["19.00", "99.00"]), rng.choice(["paid"] * 12 + ["open", "uncollectible"]))
                                    for _ in range(120)]])
     write_spend(folder, now, payouts, rng, write)
+    write_customers(folder, first, now, rng, write)
+
+
+def write_customers(folder: Path, first: datetime, now: datetime, rng, write) -> None:
+    """Sixteen weeks of a helpdesk export and a CRM deals export, shaped like Zendesk's and HubSpot's, with the
+    requester, company and owner columns such exports carry (all fictional) so the tests can show they are never
+    kept. In the last four weeks refund questions climb with the refunds, CSV export tickets spike (nothing in the
+    model is named for exporting), ratings and solve times get worse, and deals are lost to price."""
+    tickets = []
+    subjects = {"refund_request": ["Where is my refund?", "Refund for order {n}", "Please refund the duplicate charge"],
+                "billing": ["Charged twice for one payment", "Invoice copy for my payment", "Update the card on file"],
+                "login": ["Cannot log in", "Password reset email never arrives", "Locked out of my account"],
+                "export_csv": ["CSV export is empty", "Export to CSV times out", "Exported CSV has wrong dates"]}
+    for week in range(16):
+        late = week >= 12
+        for _ in range((40 if late else 24) + rng.randrange(6)):
+            tag = rng.choices(list(subjects), weights=[5 if late else 2, 3, 3, 4 if late else 0.2])[0]
+            created = min(now, first + timedelta(weeks=week, days=rng.randrange(7), seconds=rng.randrange(86400)))
+            hours = rng.uniform(2, 40 if late else 14)
+            solved = created + timedelta(hours=hours)
+            open_ = solved > now or rng.random() < (0.12 if late else 0.03)
+            rating = rng.choices(["good", "bad", ""], weights=[3, 2 if late else 0.4, 5])[0]
+            tickets.append([str(100000 + len(tickets)), rng.choice(subjects[tag]).format(n=f"#{rng.randrange(10**5)}"),
+                            "open" if open_ else "solved", rng.choice(["low", "normal", "normal", "high"]),
+                            f"Customer {rng.randrange(900)}", f"buyer{rng.randrange(900)}@example.test",
+                            created.strftime("%Y-%m-%d %H:%M:%S +0000"),
+                            "" if open_ else solved.strftime("%Y-%m-%d %H:%M:%S +0000"),
+                            f"{tag} vip" if rng.random() < 0.1 else tag, rng.choice(["email", "web", "chat"]), rating,
+                            rng.choice(["Ana Ruiz", "Ben Cole"])])
+    write("support/zendesk-tickets.csv", ["Id", "Subject", "Status", "Priority", "Requester", "Requester email", "Created at",
+                                          "Solved at", "Tags", "Via", "Satisfaction Score", "Assignee"], tickets)
+    deals = []
+    for week in range(16):
+        late = week >= 10
+        for _ in range(7 + rng.randrange(4)):
+            created = min(now, first + timedelta(weeks=week, days=rng.randrange(7)))
+            roll = rng.random()
+            stage = ("closedwon" if roll < (0.12 if late else 0.35) else "closedlost" if roll < 0.75 else
+                     rng.choice(["appointmentscheduled", "contractsent"]))
+            closed = min(now, created + timedelta(days=rng.randrange(3, 25))) if stage.startswith("closed") else None
+            reason = rng.choices(["Price", "Went with a competitor", "No budget", "Timing"],
+                                 weights=[6 if late else 1, 2, 2, 1])[0] if stage == "closedlost" else ""
+            deals.append([str(900000 + len(deals)), f"Acme Widgets {rng.randrange(400)} - Team plan", stage,
+                          f"{rng.choice([1188, 2388, 5940])}.00", "USD", created.strftime("%Y-%m-%d %H:%M"),
+                          closed.strftime("%Y-%m-%d %H:%M") if closed else "", rng.choice(["Ana Ruiz", "Ben Cole"]),
+                          f"Acme Widgets {rng.randrange(400)}", rng.choice(["Organic search", "Referrals", "Paid search"]),
+                          reason])
+    write("crm/hubspot-deals.csv", ["Record ID", "Deal Name", "Deal Stage", "Amount", "Deal currency code", "Create Date",
+                                    "Close Date", "Deal owner", "Associated Company", "Original Source",
+                                    "Closed Lost Reason"], deals)
 
 
 def write_spend(folder: Path, now: datetime, payouts: list, rng, write) -> None:
