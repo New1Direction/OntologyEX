@@ -53,6 +53,9 @@ on:
       - 'ontology-extraction/scripts/compliance.py'
       - 'ontology-extraction/scripts/stale_view.py'
       - 'ontology-extraction/scripts/background_scans.py'
+      - 'tests/bench_rust_engines.py'
+      - 'tests/test_bench.py'
+      - 'docs/benchmarks/**'
       - '.github/workflows/rust-proof-foundation.yml'
   push:
     branches: [main]
@@ -103,6 +106,8 @@ jobs:
         run: python tests/rust_context_parity.py
       - name: Golden fixtures, Python and Rust against the same expected answers (demo, shop, clinic)
         run: python tests/golden.py check --engine-dir engine/target/debug --require-rust
+      - name: Benchmark smoke, a correctness gate (debug builds, quick runs; the times are not quoted anywhere)
+        run: python tests/bench_rust_engines.py --engine-dir engine/target/debug --quick --json "$RUNNER_TEMP/bench.json" --markdown "$GITHUB_STEP_SUMMARY"
       - name: Verify the control room reads native discovery like Python discovery
         run: python -m unittest tests.test_native_view_bridge -v
       - name: Entity routes on the Rust engine, and agent tools end to end
