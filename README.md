@@ -24,12 +24,18 @@ to the lines it rests on. Then it can show your systems live, trace the calls be
 your services, or build a domain skill before you change a workflow.
 Instructions for the agent: [AGENTS.md](AGENTS.md).
 
-**Example:** [Vercel's Next.js subscription starter, explained](https://new1direction.github.io/OntologyEX/docs/examples/nextjs-subscription-payments.html), written by an
-agent from the public repository. Every claim links to its lines at commit `bdd0813`;
-the risks are the agent's reading, not observed incidents.
-([blueprint](examples/overview/nextjs-subscription-payments.blueprint.json))
+[![An agent scans a repository, reads what matters, and builds the page; then the page: journeys, money, where it breaks, each with the cited lines](docs/media/ontologyex-demo.gif)](https://new1direction.github.io/OntologyEX/docs/examples/nextjs-subscription-payments.html)
 
-[![Where it breaks, in the example overview: each risk with its cited source lines](docs/images/overview-example.jpg)](https://new1direction.github.io/OntologyEX/docs/examples/nextjs-subscription-payments.html)
+**Examples**, each written by an agent from a public repository, every claim linked to its
+lines at a pinned commit (the risks are the agent's reading, not observed incidents):
+
+- [Vercel's Next.js subscription starter](https://new1direction.github.io/OntologyEX/docs/examples/nextjs-subscription-payments.html): a SaaS skeleton with Stripe and
+  Supabase ([blueprint](examples/overview/nextjs-subscription-payments.blueprint.json))
+- [Saleor](https://new1direction.github.io/OntologyEX/docs/examples/saleor.html): an open-source commerce platform, payments through apps over
+  webhooks ([blueprint](examples/overview/saleor.blueprint.json))
+
+It has been tried by fresh agents on Go, Next.js, Remix, Django, Rails, FastAPI,
+Laravel and Spring apps, a 7,700-file monorepo, and a company handbook with no code.
 
 ## Onboard your repository from one request
 

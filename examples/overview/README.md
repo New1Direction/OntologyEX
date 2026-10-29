@@ -1,4 +1,4 @@
-# Example overview: nextjs-subscription-payments
+# Example overviews
 
 [The page](https://new1direction.github.io/OntologyEX/docs/examples/nextjs-subscription-payments.html)
 is the Business X-Ray an agent wrote for
@@ -19,3 +19,19 @@ python ontology-extraction/scripts/overview.py build --repo /tmp/nsp \
 ```
 
 The build fails if any cited line no longer exists at that commit.
+
+## Saleor
+
+[The page](https://new1direction.github.io/OntologyEX/docs/examples/saleor.html) was
+written the same way for [saleor/saleor](https://github.com/saleor/saleor) (BSD-3). Its
+critical risk (checkout waits on synchronous app webhooks with a 2 s + 18 s timeout, and
+the circuit breaker is off by default) and the telemetry and transaction-token claims
+were checked against the cited lines by hand before publishing.
+
+```bash
+git clone https://github.com/saleor/saleor /tmp/saleor
+git -C /tmp/saleor checkout c982006cc04c77a97def93218dedac8d715eb041
+python ontology-extraction/scripts/overview.py build --repo /tmp/saleor \
+  --blueprint examples/overview/saleor.blueprint.json \
+  --out docs/examples/saleor.html --github saleor/saleor
+```
