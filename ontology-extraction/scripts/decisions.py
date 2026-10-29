@@ -123,6 +123,37 @@ def apply(path: Path, *, read: Callable[[Path], tuple[list[dict], list[dict]]], 
             "unchanged": unchanged, "history": logged, "authenticated": False}
 
 
+def read_jsonl_tail(path: Path | None, max_bytes: int, max_lines: int) -> list:
+    """The newest JSON lines of an append-only file; torn or malformed lines are skipped.
+
+    A long file is read from its newest end, never refused whole, so one writer cannot
+    make the file unreadable by appending to it.
+    """
+    if path is None or not path.is_file() or path.is_symlink():
+        return []
+    with path.open("rb") as handle:
+        size = handle.seek(0, os.SEEK_END)
+        handle.seek(max(0, size - max_bytes))
+        text = handle.read(max_bytes).decode("utf-8", "replace")
+    rows = []
+    for line in text.splitlines()[1 if size > max_bytes else 0:][-max_lines:]:
+        try:
+            rows.append(json.loads(line))
+        except ValueError:
+            continue
+    return rows
+
+
+def append_jsonl(path: Path, row: dict) -> None:
+    """Append one line and make it durable. Nothing here rewrites or removes a line."""
+    require(not path.is_symlink(), f"{path.name} must not be a symlink")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
 def select(suggestions: list[dict], ids: list[str], all_strong: bool) -> list[dict]:
     """The current suggestions a command line names, by ID or as every STRONG one."""
     require(ids or all_strong, "pass --id (repeatable) or --all-strong")

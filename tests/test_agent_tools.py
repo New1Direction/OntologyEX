@@ -54,7 +54,7 @@ class KindTests(unittest.TestCase):
             self.assertFalse(hints["destructiveHint"], name)
             self.assertEqual(hints["readOnlyHint"], tool["kind"] == at.READ_ONLY, name)
             self.assertFalse(tool["input"]["additionalProperties"], name)
-        self.assertEqual([n for n, t in at.TOOLS.items() if t["kind"] == at.ADDITIVE], ["propose_link"])
+        self.assertEqual([n for n, t in at.TOOLS.items() if t["kind"] == at.ADDITIVE], ["propose_link", "propose_dependency"])
 
 
 class PolicyTests(Harness):
@@ -195,6 +195,16 @@ class ProposalTests(Harness):
         self.assertEqual(sum(s["signal"] == "AGENT_PROPOSAL" for s in merged["suggestions"][0]["signals"]), 3)
         self.assertEqual(merged["agent_proposals"]["not_shown"], 2)
         self.assertEqual(len(ranked["suggestions"][0]["signals"]), 1)  # the input is not mutated
+
+    def test_repeated_proposals_for_a_new_link_keep_every_reason(self):
+        data = {"bindings": [{"skill": "s", "binding": "b"}],
+                "components": [{"id": "x", "label": "x", "kind": "declared_service"}], "linked": [], "rejected": []}
+        rows = [{"kind": ls.PROPOSAL_KIND, "id": ls.suggestion_id("s", "b", "x"), "at": "t", "proposed_by": by,
+                 "on_behalf_of": "Dana", "skill": "s", "binding": "b", "component": "x", "reason": by}
+                for by in ("agent:a", "agent:b")]
+        merged = ls.merge_proposals({"suggestions": []}, data, rows)
+        self.assertEqual([s["detail"] for s in merged["suggestions"][0]["signals"]],
+                         ["agent:a for Dana: agent:a", "agent:b for Dana: agent:b"])
 
     def test_malformed_proposal_lines_are_skipped(self):
         path = self.tmp / "p.jsonl"

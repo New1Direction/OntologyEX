@@ -38,6 +38,8 @@ MAX_IMPACT = 100
 MAX_IMPACT_DEPTH = 4
 MAX_CHANGES = 25
 MAX_SEARCH = 25
+# Edge states a person's decision produced: a call seen in traces, or a dependency an agent proposed.
+CONFIRMED_EDGE_STATES = ("OBSERVED_IN_TRACES_CONFIRMED_BY_PERSON", "PROPOSED_BY_AGENT_CONFIRMED_BY_PERSON")
 # Relations along which a change to the target can reach the source (source relies on target).
 RELIES_ON = {"DEPENDS_ON", "CALLS", "RUNS_ON", "IMPLEMENTED_BY", "CONSUMES"}
 
@@ -148,15 +150,20 @@ def _relationships(bundle: dict, entities: dict, history: list[dict]) -> list[di
     """Every relationship both layers know, as one list of directed, provenance-carrying edges."""
     state, picture = bundle["state"], bundle.get("business") or {}
     out = []
+    dependency_proposers: dict[tuple, str] = {}  # which agent proposed a dependency a person then confirmed
+    for proposal in bundle.get("agent_dependency_proposals", []):
+        dependency_proposers.setdefault((proposal.get("source"), proposal.get("target")), proposal.get("proposed_by"))
     for edge in state["edges"]:
-        confirmed = edge.get("state") == "OBSERVED_IN_TRACES_CONFIRMED_BY_PERSON"
+        confirmed = edge.get("state") in CONFIRMED_EDGE_STATES
+        decision = (_decision_for(history, "dependencies", {"source": edge["source"], "target": edge["target"]})
+                    if confirmed else None)
+        if decision and (edge["source"], edge["target"]) in dependency_proposers:
+            decision = {**decision, "proposed_by": dependency_proposers[(edge["source"], edge["target"])]}
         out.append({"source": edge["source"], "target": edge["target"], "relation": edge["relation"],
                     "standing": "CONFIRMED" if confirmed else "SOURCE",
                     "basis": edge.get("state") or "DECLARED_IN_SOURCE",
                     "evidence_ids": [edge["evidence_id"]] if edge.get("evidence_id") else [],
-                    "decision": _decision_for(history, "dependencies", {"source": edge["source"],
-                                                                         "target": edge["target"]})
-                    if confirmed else None})
+                    "decision": decision})
     # Business edges: links a person confirmed, and relations the skills declare.
     decided = {(r["skill"], r["binding"], r["component"]): r for r in picture.get("link_decided", [])
                if r.get("decision") in ("confirm", "confirmed")}
@@ -209,11 +216,13 @@ def _relationships(bundle: dict, entities: dict, history: list[dict]) -> list[di
                                        "proposed_by": row.get("proposed_by", "ranked suggestion")},
                         "evidence_ids": [], "decision": None})
     for row in (picture.get("dependency_suggestions") or {}).get("suggestions", []):
-        out.append({"source": row["source"], "target": row["target"], "relation": "CALLS",
-                    "standing": "INFERRED", "basis": "SEEN_IN_TRACES_NOT_CONFIRMED",
+        traced = isinstance(row.get("evidence"), dict) and "calls" in row["evidence"]
+        out.append({"source": row["source"], "target": row["target"], "relation": "CALLS" if traced else "DEPENDS_ON",
+                    "standing": "INFERRED",
+                    "basis": "SEEN_IN_TRACES_NOT_CONFIRMED" if traced else "AGENT_PROPOSAL_NOT_CONFIRMED",
                     "suggestion": {"id": row["id"], "strength": row.get("strength"),
-                                   "signals": [f"{row.get('calls', 0)} calls, last seen {row.get('last_seen')}"],
-                                   "proposed_by": "trace observation"},
+                                   "signals": [s.get("detail") or s.get("signal") for s in row.get("signals", [])][:6],
+                                   "proposed_by": row.get("proposed_by", "trace observation")},
                     "evidence_ids": [], "decision": None})
     # Gaps the sources leave open.
     for gap in picture.get("link_gaps", []):

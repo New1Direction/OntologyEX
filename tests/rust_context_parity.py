@@ -76,7 +76,8 @@ def random_bundle(rng: random.Random) -> dict:
     edges = [{"source": rng.choice(ids), "target": rng.choice(ids),
               "relation": rng.choice(["DEPENDS_ON", "DECLARES", "CALLS"]),
               **({"evidence_id": f"e{rng.randrange(3)}"} if rng.random() < 0.7 else {}),
-              **({"state": "OBSERVED_IN_TRACES_CONFIRMED_BY_PERSON"} if rng.random() < 0.2 else {})}
+              **({"state": rng.choice(["OBSERVED_IN_TRACES_CONFIRMED_BY_PERSON",
+                                       "PROPOSED_BY_AGENT_CONFIRMED_BY_PERSON"])} if rng.random() < 0.2 else {})}
              for _ in range(rng.randrange(0, 12))]
     skill = rng.choice(["s", "pay"])
     actions, objects, decided, suggestions, gaps, graph = [], [], [], [], [], []
@@ -119,8 +120,19 @@ def random_bundle(rng: random.Random) -> dict:
                for _ in range(rng.randrange(0, 6))]
     dep_history = [{"at": "2026-10-27T00:00:00Z", "by": "Ana", "action": "confirm", "note": "",
                     "row": {"source": e["source"], "target": e["target"]}} for e in edges if e.get("state")]
-    deps = [{"id": f"d{i}", "source": rng.choice(ids), "target": rng.choice(ids), "strength": "STRONG",
-             "calls": rng.randrange(1, 90), "last_seen": "2026-10-28T11:00:00Z"} for i in range(rng.randrange(0, 3))]
+    def dependency(i):
+        traced = rng.random() < 0.6
+        evidence = ({"caller_services": ["a -> b"], "calls": rng.randrange(1, 90), "errors": 0,
+                     "first_seen": "2026-10-28T10:00:00Z", "last_seen": "2026-10-28T11:00:00Z"} if traced else
+                    {"proposed_by": "agent:claude", "on_behalf_of": "Dana", "reason": "client.py calls it",
+                     "proposed_at": "2026-10-28T11:00:00Z"})
+        signals = ([{"signal": "OBSERVED_CALLS", "detail": f"called {evidence['calls']} times"}] if traced else []) + (
+            [{"signal": "AGENT_PROPOSAL", "detail": "agent:claude for Dana: client.py calls it"}]
+            if not traced or rng.random() < 0.3 else [])
+        return {"id": f"d{i}", "source": rng.choice(ids), "target": rng.choice(ids),
+                "strength": "STRONG" if traced else "WEAK", "evidence": evidence, "signals": signals,
+                **({} if traced else {"proposed_by": "agent:claude"})}
+    deps = [dependency(i) for i in range(rng.randrange(0, 3))]
     shas = ["a" * 64, "b" * 64]
     def evidence():
         return rng.choice([None, {}, {"compose.yml": rng.choice(shas)},
@@ -138,7 +150,10 @@ def random_bundle(rng: random.Random) -> dict:
             "link_history": history, "dependency_history": dep_history,
             "agent_proposals": [{"skill": skill, "binding": f"b{rng.randrange(3)}", "component": rng.choice(ids),
                                  "proposed_by": rng.choice(["agent:claude", "agent:ci"])}
-                                for _ in range(rng.randrange(0, 4))]}
+                                for _ in range(rng.randrange(0, 4))],
+            "agent_dependency_proposals": [{"source": e["source"], "target": e["target"],
+                                            "proposed_by": rng.choice(["agent:claude", "agent:ci"])}
+                                           for e in edges if e.get("state") and rng.random() < 0.7]}
 
 
 PATHS = ["f0.yml", "f1.yml", "f2.yml", "compose.yml", "req.md", "docs/req.md", "src/é.py", "README.md",

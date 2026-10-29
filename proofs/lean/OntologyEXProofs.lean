@@ -794,3 +794,84 @@ theorem unmapped_touches_nothing (es : List Ent) (cs : List Nat) (c : Nat)
   exact absurd h2 (by decide)
 
 end OntologyEX.Impact
+
+/-!
+# The decision queue, for any kind of fact (`decisions.py`, `link_suggest`, `dependency_suggest`)
+
+Links and dependencies go through the same queue: ranked or trace-seen suggestions,
+plus agent proposals that are not blocked (already decided, already declared, or
+rejected by a person). These laws hold for any fact type, so they cover dependency
+proposals (a fact is a source and target) as they cover link proposals.
+-/
+
+namespace OntologyEX.Queue
+
+open OntologyEX.Business (Decision DecisionRec)
+
+structure Sugg (α : Type) where
+  id : Nat
+  item : α
+
+def confirmedBy {α : Type} (ds : List DecisionRec) (s : Sugg α) : Bool :=
+  ds.any (fun d => d.id == s.id && d.decision == Decision.confirm)
+
+/-- The facts after decisions: only confirmed suggestions are added. -/
+def applyAll {α : Type} (facts : List α) (suggs : List (Sugg α)) (ds : List DecisionRec) : List α :=
+  facts ++ (suggs.filter (confirmedBy ds)).map (·.item)
+
+def mergeProposals {α : Type} (blocked : α → Bool) (suggs props : List (Sugg α)) : List (Sugg α) :=
+  suggs ++ props.filter (fun p => !blocked p.item)
+
+theorem confirmed_has_decision {α : Type} (ds : List DecisionRec) (s : Sugg α)
+    (h : confirmedBy ds s = true) : ∃ d ∈ ds, d.id = s.id ∧ d.decision = .confirm := by
+  obtain ⟨d, hd, hp⟩ := List.any_eq_true.mp h
+  simp only [Bool.and_eq_true, beq_iff_eq] at hp
+  exact ⟨d, hd, hp.1, hp.2⟩
+
+theorem filter_unconfirmed {α : Type} (suggs : List (Sugg α)) (ds : List DecisionRec)
+    (h : ∀ s ∈ suggs, confirmedBy ds s = false) : suggs.filter (confirmedBy ds) = [] := by
+  induction suggs with
+  | nil => rfl
+  | cons s t ih =>
+    have hs : confirmedBy ds s = false := h s (List.mem_cons_self ..)
+    have ht : ∀ x ∈ t, confirmedBy ds x = false := fun x hx => h x (List.mem_cons_of_mem _ hx)
+    simp [hs, ih ht]
+
+/-- Agent proposals of any kind, like any suggestion, change no fact without a decision. -/
+theorem proposals_alone_change_nothing {α : Type} (facts : List α) (blocked : α → Bool)
+    (suggs props : List (Sugg α)) :
+    applyAll facts (mergeProposals blocked suggs props) [] = facts := by
+  rw [applyAll, filter_unconfirmed _ [] (fun _ _ => rfl)]
+  simp
+
+/-- A blocked fact (rejected by a person, already decided or declared) is never queued by a proposal. -/
+theorem blocked_proposal_never_queued {α : Type} (blocked : α → Bool) (suggs props : List (Sugg α))
+    (p : Sugg α) (hb : blocked p.item = true) (hs : p ∉ suggs) :
+    p ∉ mergeProposals blocked suggs props := by
+  intro h
+  rcases List.mem_append.mp h with h | h
+  · exact hs h
+  · have h2 := (List.mem_filter.mp h).2
+    simp [hb] at h2
+
+/-- Every fact added after decisions is an existing one or carries a person's confirm decision. -/
+theorem added_facts_were_confirmed {α : Type} (facts : List α) (suggs : List (Sugg α))
+    (ds : List DecisionRec) (x : α) (h : x ∈ applyAll facts suggs ds) :
+    x ∈ facts ∨ ∃ s ∈ suggs, (∃ d ∈ ds, d.id = s.id ∧ d.decision = .confirm) ∧ s.item = x := by
+  unfold applyAll at h
+  rcases List.mem_append.mp h with h | h
+  · exact Or.inl h
+  · obtain ⟨s, hs, rfl⟩ := List.mem_map.mp h
+    have hf := List.mem_filter.mp hs
+    exact Or.inr ⟨s, hf.1, confirmed_has_decision ds s hf.2, rfl⟩
+
+/-- A dependency is a source and a target component. -/
+abbrev Dependency := Nat × Nat
+
+/-- An agent's dependency proposals change no dependency until a person confirms one. -/
+theorem dependency_proposals_change_nothing (deps : List Dependency) (blocked : Dependency → Bool)
+    (suggs props : List (Sugg Dependency)) :
+    applyAll deps (mergeProposals blocked suggs props) [] = deps :=
+  proposals_alone_change_nothing deps blocked suggs props
+
+end OntologyEX.Queue

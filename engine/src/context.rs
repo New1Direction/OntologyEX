@@ -15,7 +15,8 @@ const MAX_IMPACT_DEPTH: usize = 4;
 const MAX_CHANGES: usize = 25;
 const MAX_SEARCH: usize = 25;
 const RELIES_ON: [&str; 5] = ["DEPENDS_ON", "CALLS", "RUNS_ON", "IMPLEMENTED_BY", "CONSUMES"];
-const CONFIRMED_TRACE: &str = "OBSERVED_IN_TRACES_CONFIRMED_BY_PERSON";
+/// Edge states a person's decision produced: a call seen in traces, or a dependency an agent proposed.
+const CONFIRMED_EDGE_STATES: [&str; 2] = ["OBSERVED_IN_TRACES_CONFIRMED_BY_PERSON", "PROPOSED_BY_AGENT_CONFIRMED_BY_PERSON"];
 
 fn error(message: &str) -> String {
     message.to_owned()
@@ -247,8 +248,12 @@ fn relationships(bundle: &Value, history: &[Event]) -> Vec<Rel> {
     let state = get(bundle, "state");
     let picture = get(bundle, "business");
     let mut out = Vec::new();
+    let mut dependency_proposers: HashMap<(String, String), &Value> = HashMap::new();
+    for p in arr(bundle, "agent_dependency_proposals") {
+        dependency_proposers.entry((key_str(get(p, "source")), key_str(get(p, "target")))).or_insert(get(p, "proposed_by"));
+    }
     for edge in arr(state, "edges") {
-        let confirmed = get(edge, "state") == &json!(CONFIRMED_TRACE);
+        let confirmed = get(edge, "state").as_str().is_some_and(|x| CONFIRMED_EDGE_STATES.contains(&x));
         let mut rel = Rel::new(get(edge, "source").clone(), get(edge, "target").clone(), s(get(edge, "relation")),
                                if confirmed { "CONFIRMED" } else { "SOURCE" },
                                or(get(edge, "state"), &json!("DECLARED_IN_SOURCE")).clone());
@@ -256,6 +261,10 @@ fn relationships(bundle: &Value, history: &[Event]) -> Vec<Rel> {
         if confirmed {
             rel.decision = decision_for(history, "dependencies",
                                         &[("source", get(edge, "source")), ("target", get(edge, "target"))]);
+            let pair = (key_str(get(edge, "source")), key_str(get(edge, "target")));
+            if let (Some(decision), Some(by)) = (rel.decision.as_object_mut(), dependency_proposers.get(&pair)) {
+                decision.insert("proposed_by".into(), (*by).clone());
+            }
         }
         out.push(rel);
     }
@@ -337,12 +346,14 @@ fn relationships(bundle: &Value, history: &[Event]) -> Vec<Rel> {
         }
     }
     for row in arr(get(picture, "dependency_suggestions"), "suggestions") {
-        let calls = row.get("calls").cloned().unwrap_or(json!(0));
-        let mut rel = Rel::new(get(row, "source").clone(), get(row, "target").clone(), "CALLS", "INFERRED",
-                               json!("SEEN_IN_TRACES_NOT_CONFIRMED"));
-        rel.suggestion = Some(json!({"id": get(row, "id"), "strength": get(row, "strength"),
-            "signals": [format!("{} calls, last seen {}", pystr(&calls), pystr(get(row, "last_seen")))],
-            "proposed_by": "trace observation"}));
+        let traced = get(row, "evidence").as_object().is_some_and(|e| e.contains_key("calls"));
+        let mut rel = Rel::new(get(row, "source").clone(), get(row, "target").clone(),
+                               if traced { "CALLS" } else { "DEPENDS_ON" }, "INFERRED",
+                               json!(if traced { "SEEN_IN_TRACES_NOT_CONFIRMED" } else { "AGENT_PROPOSAL_NOT_CONFIRMED" }));
+        let signals: Vec<Value> = arr(row, "signals").iter().map(|x| or(get(x, "detail"), get(x, "signal")).clone())
+            .take(6).collect();
+        rel.suggestion = Some(json!({"id": get(row, "id"), "strength": get(row, "strength"), "signals": signals,
+            "proposed_by": row.get("proposed_by").cloned().unwrap_or(json!("trace observation"))}));
         out.push(rel);
     }
     for gap in arr(picture, "link_gaps") {

@@ -199,7 +199,7 @@ the files behind each relationship. A confirmation records the hashes of the fil
 rested on; when one changes, the link waits for a person to re-confirm it. Before a change
 merges, `/impact` (or `change_impact.py --markdown`) shows what it touches in the
 business and what relies on it. Agents get the same model through an MCP server
-(`agent_tools.py`) whose tools read, or propose a link for a person to decide, under a
+(`agent_tools.py`) whose tools read, or propose a link or a dependency for a person to decide, under a
 per-agent policy with every call audited. See [entity context](ontology-extraction/references/entity-context.md)
 and [what OntologyEX took from Macro](docs/macro-comparison.md).
 
