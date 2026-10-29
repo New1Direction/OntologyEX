@@ -1,0 +1,1535 @@
+{
+  "schema_version": 1,
+  "id": "local/saleor",
+  "name": "saleor",
+  "purpose": "Saleor is an open-source (BSD-3), headless, GraphQL-only commerce backend: merchants and their developers run it to sell products across channels, currencies and warehouses, and plug in payments, taxes, shipping and custom logic as separate apps over webhooks.",
+  "stage": "Live, mature product: version 3.24.0-a.0 on main (3.x is the production line), deployed as many identical pods on Kubernetes, with Saleor Cloud as the company's hosted offering.",
+  "audiences": [
+    {
+      "id": "merchant",
+      "name": "Merchants (store owners)",
+      "description": "Businesses that sell through Saleor; they configure channels, catalog, prices, discounts and payment strategy, usually through the separate Dashboard.",
+      "evidence": [
+        "features",
+        "channel",
+        "components"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "staff",
+      "name": "Merchant staff",
+      "description": "Staff users with permission groups who manage orders, refunds, gift cards and customers.",
+      "evidence": [
+        "user_model",
+        "granted_refund",
+        "adr1"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "shopper",
+      "name": "Shoppers",
+      "description": "End customers, signed-in or guest, who browse via a storefront, check out and pay.",
+      "evidence": [
+        "checkout_model",
+        "complete_doc"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "developer",
+      "name": "Storefront and integration developers",
+      "description": "Developers who build storefronts and apps against the GraphQL API; Saleor targets teams that deploy daily and need uptime.",
+      "evidence": [
+        "special",
+        "tagline"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "app_vendor",
+      "name": "App and payment-provider builders",
+      "description": "Third parties whose apps install from a manifest, get permissions and a token, and answer payment, tax and shipping webhooks.",
+      "evidence": [
+        "app_model",
+        "app_install",
+        "sync_events"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "cloud_customer",
+      "name": "Saleor Cloud customers",
+      "description": "Teams who use Saleor Commerce's hosted Saleor Cloud instead of self-hosting.",
+      "evidence": [
+        "cloud",
+        "talk"
+      ],
+      "basis": "observed_in_source"
+    }
+  ],
+  "value": [
+    {
+      "id": "v_api",
+      "name": "One GraphQL API for all of commerce",
+      "description": "Catalog, checkout, orders, payments, discounts and taxes behind a single /graphql/ endpoint; no lock-in to a frontend stack.",
+      "evidence": [
+        "tagline",
+        "special",
+        "urls"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "v_multichannel",
+      "name": "Multi-channel, multi-currency selling",
+      "description": "Each Channel has its own currency, country, stock allocation, payment and order rules, and per-channel prices.",
+      "evidence": [
+        "channel",
+        "variant_listing",
+        "special"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "v_payments",
+      "name": "Payment orchestration without core changes",
+      "description": "Any PSP can be plugged in as an app answering TRANSACTION_* webhooks; Saleor keeps the ledger of authorized, charged, refunded amounts.",
+      "evidence": [
+        "sync_events",
+        "tx_item",
+        "tx_events",
+        "features"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "v_promo",
+      "name": "Promotions, vouchers and gift cards",
+      "description": "Promotion rules, voucher codes and bearer gift cards reduce what the shopper pays.",
+      "evidence": [
+        "voucher",
+        "promotion",
+        "giftcard",
+        "features"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "v_extend",
+      "name": "Extend by apps, not plugins",
+      "description": "Apps are deployed independently and receive events over HTTP, AWS SQS or Google Pub/Sub, so custom logic does not touch the core.",
+      "evidence": [
+        "transport_kinds",
+        "app_install",
+        "special"
+      ],
+      "basis": "derived_from_source"
+    },
+    {
+      "id": "v_free",
+      "name": "Free and open source",
+      "description": "Everything in the repository is free to use under the license; no hidden charges.",
+      "evidence": [
+        "license",
+        "special"
+      ],
+      "basis": "observed_in_source"
+    }
+  ],
+  "money_flows": [
+    {
+      "id": "mf_tx",
+      "name": "Shopper pays merchant through a payment app (transaction flow)",
+      "description": "The storefront calls transactionInitialize/transactionProcess; Saleor forwards TRANSACTION_INITIALIZE_SESSION / TRANSACTION_PROCESS_SESSION sync webhooks to the payment app, which talks to the PSP. Results are stored as TransactionItem amounts (authorized, charged, refunded, canceled). Money moves between shopper, PSP and merchant; Saleor records it but does not hold funds.",
+      "evidence": [
+        "tx_init",
+        "tx_process",
+        "webhook_plugin_tx",
+        "tx_item",
+        "tx_events"
+      ],
+      "basis": "derived_from_source",
+      "state": "described"
+    },
+    {
+      "id": "mf_legacy",
+      "name": "Legacy payment flow (Payment model and gateway plugins)",
+      "description": "Older Payment objects with ChargeStatus and the built-in Stripe gateway plugin, which handles Stripe payment intents and verifies the stripe-signature header. Channel default is still PAYMENT_FLOW.",
+      "evidence": [
+        "payment_model",
+        "charge_status",
+        "stripe_wh",
+        "plugins",
+        "channel"
+      ],
+      "basis": "derived_from_source",
+      "state": "described"
+    },
+    {
+      "id": "mf_refund",
+      "name": "Merchant refunds shopper",
+      "description": "Staff grant refunds (OrderGrantedRefund) and request refund/charge/cancel actions; Saleor sends TRANSACTION_REFUND_REQUESTED / CHARGE / CANCELATION to the app that owns the transaction.",
+      "evidence": [
+        "granted_refund",
+        "tx_actions",
+        "sync_events"
+      ],
+      "basis": "derived_from_source",
+      "state": "described"
+    },
+    {
+      "id": "mf_release",
+      "name": "Funds released on abandoned checkouts",
+      "description": "A task every 10 minutes cancels or refunds payments on checkouts that were paid but never completed, when the channel opts in (release_funds_for_expired_checkouts, default off; TTL 6 hours).",
+      "evidence": [
+        "beat",
+        "release_funds",
+        "channel"
+      ],
+      "basis": "derived_from_source",
+      "state": "gated"
+    },
+    {
+      "id": "mf_giftcard",
+      "name": "Gift cards as stored value",
+      "description": "Gift cards are bearer instruments with a balance; they can be bought as order lines, are fulfilled and sent to the buyer, and spent at checkout. Balance changes must be atomic.",
+      "evidence": [
+        "giftcard",
+        "giftcard_fulfil",
+        "adr1",
+        "adr4"
+      ],
+      "basis": "derived_from_source",
+      "state": "described"
+    },
+    {
+      "id": "mf_discounts",
+      "name": "Discounts reduce the price",
+      "description": "Promotions (catalogue and order rules) and vouchers lower line and order prices; the discounted price is recalculated by scheduled tasks.",
+      "evidence": [
+        "promotion",
+        "voucher",
+        "beat"
+      ],
+      "basis": "derived_from_source",
+      "state": "described"
+    },
+    {
+      "id": "mf_tax",
+      "name": "Taxes calculated by flat rates or a tax app",
+      "description": "Per channel and country, tax is either flat rates kept in Saleor or computed by a tax app over CHECKOUT_CALCULATE_TAXES / ORDER_CALCULATE_TAXES; a deprecated built-in Avalara plugin remains.",
+      "evidence": [
+        "tax_strategy",
+        "tax_config",
+        "sync_events",
+        "avatax"
+      ],
+      "basis": "derived_from_source",
+      "state": "described"
+    },
+    {
+      "id": "mf_vendor",
+      "name": "How Saleor Commerce (the company) earns money",
+      "description": "The README points to Saleor Cloud sign-up and a sales contact, but no pricing, plans or billing code are in this repository.",
+      "evidence": [
+        "cloud",
+        "talk"
+      ],
+      "basis": "unknown",
+      "state": "unknown"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "j_buy",
+      "name": "Shopper buys with a payment app",
+      "actor": "Shopper",
+      "outcome": "A placed, paid order and reserved stock",
+      "steps": [
+        {
+          "id": "s1",
+          "name": "Browse catalog in a channel",
+          "description": "Storefront queries products with per-channel prices and availability through /graphql/.",
+          "evidence": [
+            "urls",
+            "variant_listing",
+            "product"
+          ],
+          "basis": "derived_from_source",
+          "state": "described"
+        },
+        {
+          "id": "s2",
+          "name": "Create checkout and add lines",
+          "description": "checkoutCreate / checkoutLinesAdd; stock can be reserved per checkout line.",
+          "evidence": [
+            "checkout_model",
+            "reservation"
+          ],
+          "basis": "derived_from_source",
+          "state": "described"
+        },
+        {
+          "id": "s3",
+          "name": "Pick delivery and get taxes",
+          "description": "Shipping methods and taxes may come from apps through sync webhooks.",
+          "evidence": [
+            "sync_events",
+            "tax_strategy"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "r_sync_wh"
+          ]
+        },
+        {
+          "id": "s4",
+          "name": "Apply vouchers, promotions, gift cards",
+          "description": "Discounts and gift cards change the total.",
+          "evidence": [
+            "voucher",
+            "promotion",
+            "adr1"
+          ],
+          "basis": "derived_from_source",
+          "state": "described"
+        },
+        {
+          "id": "s5",
+          "name": "Pay through a payment app",
+          "description": "transactionInitialize then transactionProcess call the payment app; the TransactionItem records authorized or charged amounts.",
+          "evidence": [
+            "tx_init",
+            "tx_process",
+            "tx_item"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "r_sync_wh",
+            "r_tx_token"
+          ]
+        },
+        {
+          "id": "s6",
+          "name": "Complete checkout",
+          "description": "checkoutComplete creates the order once transactions cover the total (or unpaid orders are allowed); a lock prevents double completion. It can also run automatically for fully paid checkouts.",
+          "evidence": [
+            "complete",
+            "complete_doc",
+            "cklock",
+            "auto_complete"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "r_two_flows",
+            "r_concurrency"
+          ]
+        },
+        {
+          "id": "s7",
+          "name": "Apps are notified",
+          "description": "ORDER_CREATED and similar async events go to subscribed apps, deferred and built from the replica.",
+          "evidence": [
+            "adr11"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "r_deferred"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "j_fulfil",
+      "name": "Merchant fulfils, refunds or expires an order",
+      "actor": "Merchant staff",
+      "outcome": "Order moves to fulfilled, returned, refunded, canceled or expired",
+      "steps": [
+        {
+          "id": "f1",
+          "name": "Confirm the order",
+          "description": "Channels confirm new orders automatically by default; otherwise staff confirm.",
+          "evidence": [
+            "channel",
+            "order_status"
+          ],
+          "basis": "derived_from_source",
+          "state": "described"
+        },
+        {
+          "id": "f2",
+          "name": "Fulfil from warehouses",
+          "description": "Stock is allocated per warehouse; gift card lines are fulfilled and sent automatically.",
+          "evidence": [
+            "stock",
+            "giftcard_fulfil"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "r_concurrency"
+          ]
+        },
+        {
+          "id": "f3",
+          "name": "Charge or refund",
+          "description": "Staff grant refunds and request charge/refund/cancel on transactions; the payment app executes them.",
+          "evidence": [
+            "granted_refund",
+            "tx_actions"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "r_sync_wh"
+          ]
+        },
+        {
+          "id": "f4",
+          "name": "Expire unpaid orders",
+          "description": "A beat task expires unpaid orders after the channel's expire_orders_after and deletes them later.",
+          "evidence": [
+            "beat",
+            "expire_orders",
+            "channel"
+          ],
+          "basis": "derived_from_source",
+          "state": "gated",
+          "risk_ids": [
+            "r_tenancy"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "j_app",
+      "name": "Developer installs an app (e.g. a payment or tax app)",
+      "actor": "Developer",
+      "outcome": "An app with permissions and webhooks that Saleor calls",
+      "steps": [
+        {
+          "id": "a1",
+          "name": "Install from a manifest",
+          "description": "install_app reads the manifest, creates the App with granted permissions, its webhooks and dashboard extensions.",
+          "evidence": [
+            "app_install",
+            "app_model"
+          ],
+          "basis": "derived_from_source",
+          "state": "described"
+        },
+        {
+          "id": "a2",
+          "name": "Receive events",
+          "description": "Webhooks go out over HTTP, AWS SQS or Google Pub/Sub; payloads can be deferred or immediate.",
+          "evidence": [
+            "transport_kinds",
+            "transport_impl",
+            "payload_gen"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "r_deferred"
+          ]
+        },
+        {
+          "id": "a3",
+          "name": "Verify signatures",
+          "description": "Saleor publishes its public keys at /.well-known/jwks.json so receivers can verify signed payloads.",
+          "evidence": [
+            "jwks",
+            "urls"
+          ],
+          "basis": "derived_from_source",
+          "state": "described"
+        },
+        {
+          "id": "a4",
+          "name": "Answer sync webhooks",
+          "description": "Payment, tax and shipping apps must answer within the sync timeout.",
+          "evidence": [
+            "sync_events",
+            "timeouts"
+          ],
+          "basis": "derived_from_source",
+          "state": "described",
+          "risk_ids": [
+            "r_sync_wh"
+          ]
+        }
+      ]
+    }
+  ],
+  "systems": [
+    {
+      "id": "app-1",
+      "name": "saleor (package.json)",
+      "basis": "derived_from_source",
+      "kind": "application",
+      "evidence": [
+        "pkgjson"
+      ],
+      "description": "Not an app: package.json only holds release-it tooling for versioning (3.24.0-a.0)."
+    },
+    {
+      "id": "app-2",
+      "name": "Saleor API (Django + GraphQL)",
+      "basis": "derived_from_source",
+      "kind": "application",
+      "evidence": [
+        "e2",
+        "docker",
+        "urls"
+      ],
+      "description": "Python 3.12 Django app served by uvicorn (saleor.asgi:application), exposing /graphql/, plugin webhooks, thumbnails and JWKS; Celery workers run background tasks."
+    },
+    {
+      "id": "ext-3",
+      "name": "stripe",
+      "basis": "derived_from_source",
+      "kind": "external: payments",
+      "evidence": [
+        "e3",
+        "stripe_wh",
+        "plugins"
+      ],
+      "description": "Stripe SDK used by the built-in legacy Stripe gateway plugin (payment intents, signed webhooks)."
+    },
+    {
+      "id": "ext-4",
+      "name": "authlib",
+      "basis": "derived_from_source",
+      "kind": "external: auth",
+      "evidence": [
+        "e4",
+        "plugins"
+      ],
+      "description": "OAuth/OIDC library, used by the OpenID Connect plugin for staff/customer login."
+    },
+    {
+      "id": "ext-5",
+      "name": "pyjwt",
+      "basis": "derived_from_source",
+      "kind": "external: auth",
+      "evidence": [
+        "e5",
+        "jwks"
+      ],
+      "description": "JWT tokens for API auth and signing; public keys at /.well-known/jwks.json."
+    },
+    {
+      "id": "ext-6",
+      "name": "psycopg",
+      "basis": "derived_from_source",
+      "kind": "external: data and queues",
+      "evidence": [
+        "e6",
+        "deploy"
+      ],
+      "description": "Postgres driver; Postgres (with read replicas) is the shared system of record."
+    },
+    {
+      "id": "ext-7",
+      "name": "redis",
+      "basis": "derived_from_source",
+      "kind": "external: data and queues",
+      "evidence": [
+        "e7",
+        "deploy",
+        "breaker"
+      ],
+      "description": "Redis/Valkey client: cache, Celery broker, circuit-breaker storage."
+    },
+    {
+      "id": "ext-8",
+      "name": "celery",
+      "basis": "derived_from_source",
+      "kind": "external: data and queues",
+      "evidence": [
+        "e8",
+        "beat"
+      ],
+      "description": "Celery workers and beat schedule (expiry, cleanups, price recalculation, auto-completion)."
+    },
+    {
+      "id": "ext-9",
+      "name": "boto3",
+      "basis": "derived_from_source",
+      "kind": "external: cloud",
+      "evidence": [
+        "e9",
+        "transport_impl"
+      ],
+      "description": "AWS SDK: S3 media storage and SQS webhook transport."
+    },
+    {
+      "id": "ext-10",
+      "name": "google-cloud-storage",
+      "basis": "derived_from_source",
+      "kind": "external: cloud",
+      "evidence": [
+        "e10"
+      ],
+      "description": "Google Cloud Storage for media files."
+    },
+    {
+      "id": "ext-11",
+      "name": "sentry-sdk",
+      "basis": "derived_from_source",
+      "kind": "external: analytics and monitoring",
+      "evidence": [
+        "e11"
+      ],
+      "description": "Error reporting to Sentry when configured."
+    },
+    {
+      "id": "ds-postgres",
+      "name": "Postgres (primary + read replicas)",
+      "description": "Shared database for every pod; the scaling bottleneck.",
+      "evidence": [
+        "deploy"
+      ],
+      "basis": "derived_from_source",
+      "kind": "datastore"
+    },
+    {
+      "id": "ext-payapps",
+      "name": "Payment apps (external)",
+      "description": "Any PSP integration as a Saleor app answering TRANSACTION_* and PAYMENT_GATEWAY_INITIALIZE_SESSION webhooks.",
+      "evidence": [
+        "sync_events",
+        "webhook_plugin_tx"
+      ],
+      "basis": "derived_from_source",
+      "kind": "external: payments"
+    },
+    {
+      "id": "ext-taxapps",
+      "name": "Tax apps and Avalara",
+      "description": "Tax apps over CHECKOUT/ORDER_CALCULATE_TAXES; deprecated built-in Avalara plugin.",
+      "evidence": [
+        "tax_strategy",
+        "avatax",
+        "sync_events"
+      ],
+      "basis": "derived_from_source",
+      "kind": "external: tax"
+    },
+    {
+      "id": "ext-pubsub",
+      "name": "Google Cloud Pub/Sub and AWS SQS",
+      "description": "Alternative webhook transports to HTTP.",
+      "evidence": [
+        "pubsub",
+        "transport_kinds",
+        "transport_impl"
+      ],
+      "basis": "derived_from_source",
+      "kind": "external: messaging"
+    },
+    {
+      "id": "ext-azure",
+      "name": "Azure Blob Storage",
+      "description": "Optional media storage backend.",
+      "evidence": [
+        "azure"
+      ],
+      "basis": "derived_from_source",
+      "kind": "external: cloud"
+    },
+    {
+      "id": "ext-otel",
+      "name": "OpenTelemetry",
+      "description": "Built-in tracing and metrics instrumentation (psycopg, celery, redis, requests, botocore).",
+      "evidence": [
+        "otel"
+      ],
+      "basis": "derived_from_source",
+      "kind": "external: monitoring"
+    },
+    {
+      "id": "ext-telemetry",
+      "name": "Saleor usage telemetry",
+      "description": "Daily usage report to usage-telemetry.saleor.io, on by default.",
+      "evidence": [
+        "telemetry_set",
+        "telemetry_url"
+      ],
+      "basis": "derived_from_source",
+      "kind": "external: analytics"
+    },
+    {
+      "id": "ext-dashboard",
+      "name": "Dashboard and storefront (other repositories)",
+      "description": "Admin UI and example Next.js storefront live in separate repositories.",
+      "evidence": [
+        "components",
+        "features"
+      ],
+      "basis": "observed_in_source",
+      "kind": "external: clients"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "e2",
+      "repo": "local",
+      "path": "pyproject.toml",
+      "start": 6,
+      "end": 6,
+      "label": "saleor-2"
+    },
+    {
+      "id": "e3",
+      "repo": "local",
+      "path": "pyproject.toml",
+      "start": 61,
+      "end": 61,
+      "label": "stripe"
+    },
+    {
+      "id": "e4",
+      "repo": "local",
+      "path": "pyproject.toml",
+      "start": 15,
+      "end": 15,
+      "label": "authlib"
+    },
+    {
+      "id": "e5",
+      "repo": "local",
+      "path": "pyproject.toml",
+      "start": 51,
+      "end": 51,
+      "label": "pyjwt"
+    },
+    {
+      "id": "e6",
+      "repo": "local",
+      "path": "pyproject.toml",
+      "start": 65,
+      "end": 65,
+      "label": "psycopg"
+    },
+    {
+      "id": "e7",
+      "repo": "local",
+      "path": "pyproject.toml",
+      "start": 55,
+      "end": 55,
+      "label": "redis"
+    },
+    {
+      "id": "e8",
+      "repo": "local",
+      "path": "pyproject.toml",
+      "start": 78,
+      "end": 79,
+      "label": "celery[redis, sqs] and kombu[sqs]"
+    },
+    {
+      "id": "e9",
+      "repo": "local",
+      "path": "pyproject.toml",
+      "start": 20,
+      "end": 20,
+      "label": "boto3"
+    },
+    {
+      "id": "e10",
+      "repo": "local",
+      "path": "pyproject.toml",
+      "start": 36,
+      "end": 36,
+      "label": "google-cloud-storage"
+    },
+    {
+      "id": "e11",
+      "repo": "local",
+      "path": "pyproject.toml",
+      "start": 60,
+      "end": 60,
+      "label": "sentry-sdk"
+    },
+    {
+      "id": "tagline",
+      "repo": "local",
+      "path": "README.md",
+      "start": 11,
+      "end": 17,
+      "label": "GraphQL native, API-only composable commerce"
+    },
+    {
+      "id": "special",
+      "repo": "local",
+      "path": "README.md",
+      "start": 75,
+      "end": 87,
+      "label": "What makes Saleor special"
+    },
+    {
+      "id": "features",
+      "repo": "local",
+      "path": "README.md",
+      "start": 112,
+      "end": 125,
+      "label": "Feature list"
+    },
+    {
+      "id": "cloud",
+      "repo": "local",
+      "path": "README.md",
+      "start": 142,
+      "end": 156,
+      "label": "Saleor Cloud developer accounts"
+    },
+    {
+      "id": "talk",
+      "repo": "local",
+      "path": "README.md",
+      "start": 21,
+      "end": 26,
+      "label": "Talk to a human / cloud signup"
+    },
+    {
+      "id": "components",
+      "repo": "local",
+      "path": "README.md",
+      "start": 164,
+      "end": 180,
+      "label": "Platform, storefront and dashboard live elsewhere"
+    },
+    {
+      "id": "license",
+      "repo": "local",
+      "path": "README.md",
+      "start": 190,
+      "end": 192,
+      "label": "Open and free under the license"
+    },
+    {
+      "id": "deploy",
+      "repo": "local",
+      "path": "AGENTS.md",
+      "start": 3,
+      "end": 26,
+      "label": "Deployment model: many pods, shared Postgres and Redis"
+    },
+    {
+      "id": "tenancy",
+      "repo": "local",
+      "path": "AGENTS.md",
+      "start": 28,
+      "end": 45,
+      "label": "Several sites from one process"
+    },
+    {
+      "id": "pkgjson",
+      "repo": "local",
+      "path": "package.json",
+      "start": 1,
+      "end": 24,
+      "label": "package.json only holds release-it tooling"
+    },
+    {
+      "id": "urls",
+      "repo": "local",
+      "path": "saleor/urls.py",
+      "start": 17,
+      "end": 53,
+      "label": "HTTP routes"
+    },
+    {
+      "id": "docker",
+      "repo": "local",
+      "path": "Dockerfile",
+      "start": 67,
+      "end": 67,
+      "label": "uvicorn saleor.asgi:application"
+    },
+    {
+      "id": "plugins",
+      "repo": "local",
+      "path": "saleor/settings.py",
+      "start": 944,
+      "end": 963,
+      "label": "Built-in plugins"
+    },
+    {
+      "id": "beat",
+      "repo": "local",
+      "path": "saleor/settings.py",
+      "start": 673,
+      "end": 770,
+      "label": "Celery beat schedule"
+    },
+    {
+      "id": "timeouts",
+      "repo": "local",
+      "path": "saleor/settings.py",
+      "start": 1154,
+      "end": 1163,
+      "label": "Sync webhook timeout 2s connect + 18s read"
+    },
+    {
+      "id": "breaker",
+      "repo": "local",
+      "path": "saleor/settings.py",
+      "start": 1197,
+      "end": 1214,
+      "label": "Circuit breaker off by default"
+    },
+    {
+      "id": "cklock",
+      "repo": "local",
+      "path": "saleor/settings.py",
+      "start": 1150,
+      "end": 1152,
+      "label": "Checkout completion lock time"
+    },
+    {
+      "id": "telemetry_set",
+      "repo": "local",
+      "path": "saleor/settings.py",
+      "start": 1295,
+      "end": 1299,
+      "label": "SEND_USAGE_TELEMETRY defaults to True"
+    },
+    {
+      "id": "telemetry_url",
+      "repo": "local",
+      "path": "saleor/asgi/usage_telemetry.py",
+      "start": 170,
+      "end": 171,
+      "label": "usage-telemetry.saleor.io"
+    },
+    {
+      "id": "channel",
+      "repo": "local",
+      "path": "saleor/channel/models.py",
+      "start": 12,
+      "end": 75,
+      "label": "Channel settings: currency, payment strategy, unpaid orders, expiry"
+    },
+    {
+      "id": "channel_enums",
+      "repo": "local",
+      "path": "saleor/channel/__init__.py",
+      "start": 19,
+      "end": 47,
+      "label": "MarkAsPaidStrategy and TransactionFlowStrategy"
+    },
+    {
+      "id": "complete",
+      "repo": "local",
+      "path": "saleor/checkout/complete_checkout.py",
+      "start": 1717,
+      "end": 1790,
+      "label": "complete_checkout chooses transaction or payment flow"
+    },
+    {
+      "id": "complete_doc",
+      "repo": "local",
+      "path": "saleor/graphql/checkout/mutations/checkout_complete.py",
+      "start": 108,
+      "end": 119,
+      "label": "checkoutComplete creates the order"
+    },
+    {
+      "id": "tx_events",
+      "repo": "local",
+      "path": "saleor/payment/__init__.py",
+      "start": 170,
+      "end": 213,
+      "label": "TransactionEventType"
+    },
+    {
+      "id": "charge_status",
+      "repo": "local",
+      "path": "saleor/payment/__init__.py",
+      "start": 94,
+      "end": 114,
+      "label": "Legacy ChargeStatus"
+    },
+    {
+      "id": "tx_item",
+      "repo": "local",
+      "path": "saleor/payment/models.py",
+      "start": 31,
+      "end": 80,
+      "label": "TransactionItem amounts"
+    },
+    {
+      "id": "payment_model",
+      "repo": "local",
+      "path": "saleor/payment/models.py",
+      "start": 291,
+      "end": 325,
+      "label": "Legacy Payment model"
+    },
+    {
+      "id": "sync_events",
+      "repo": "local",
+      "path": "saleor/webhook/event_types.py",
+      "start": 875,
+      "end": 905,
+      "label": "Sync webhook events for payments, taxes, shipping"
+    },
+    {
+      "id": "tx_init",
+      "repo": "local",
+      "path": "saleor/graphql/payment/mutations/transaction/transaction_initialize.py",
+      "start": 88,
+      "end": 95,
+      "label": "transactionInitialize triggers TRANSACTION_INITIALIZE_SESSION"
+    },
+    {
+      "id": "tx_process",
+      "repo": "local",
+      "path": "saleor/graphql/payment/mutations/transaction/transaction_process.py",
+      "start": 78,
+      "end": 81,
+      "label": "transactionProcess triggers TRANSACTION_PROCESS_SESSION"
+    },
+    {
+      "id": "webhook_plugin_tx",
+      "repo": "local",
+      "path": "saleor/plugins/webhook/plugin.py",
+      "start": 3316,
+      "end": 3333,
+      "label": "WebhookPlugin sends transaction session webhooks"
+    },
+    {
+      "id": "tx_actions",
+      "repo": "local",
+      "path": "saleor/payment/gateway.py",
+      "start": 94,
+      "end": 135,
+      "label": "request_charge_action / request_refund_action"
+    },
+    {
+      "id": "stripe_wh",
+      "repo": "local",
+      "path": "saleor/payment/gateways/stripe/webhooks.py",
+      "start": 51,
+      "end": 80,
+      "label": "Stripe webhook signature check"
+    },
+    {
+      "id": "transport_kinds",
+      "repo": "local",
+      "path": "saleor/webhook/transport/utils.py",
+      "start": 60,
+      "end": 63,
+      "label": "Webhook transports: http, awssqs, gcpubsub"
+    },
+    {
+      "id": "transport_impl",
+      "repo": "local",
+      "path": "saleor/webhook/transport/utils.py",
+      "start": 290,
+      "end": 346,
+      "label": "SQS and Pub/Sub senders"
+    },
+    {
+      "id": "payload_gen",
+      "repo": "local",
+      "path": "saleor/webhook/models.py",
+      "start": 18,
+      "end": 30,
+      "label": "Webhook payload generation deferred/immediate"
+    },
+    {
+      "id": "tax_strategy",
+      "repo": "local",
+      "path": "saleor/tax/__init__.py",
+      "start": 1,
+      "end": 5,
+      "label": "FLAT_RATES or TAX_APP"
+    },
+    {
+      "id": "tax_config",
+      "repo": "local",
+      "path": "saleor/tax/models.py",
+      "start": 51,
+      "end": 66,
+      "label": "TaxConfiguration"
+    },
+    {
+      "id": "avatax",
+      "repo": "local",
+      "path": "saleor/plugins/avatax/plugin.py",
+      "start": 79,
+      "end": 79,
+      "label": "DeprecatedAvataxPlugin"
+    },
+    {
+      "id": "giftcard",
+      "repo": "local",
+      "path": "saleor/giftcard/models.py",
+      "start": 45,
+      "end": 77,
+      "label": "GiftCard model"
+    },
+    {
+      "id": "giftcard_fulfil",
+      "repo": "local",
+      "path": "saleor/giftcard/utils.py",
+      "start": 216,
+      "end": 260,
+      "label": "Gift cards bought in an order are fulfilled and sent"
+    },
+    {
+      "id": "adr1",
+      "repo": "local",
+      "path": "docs/adr/0001-gift-cards-remain-bearer-instruments.md",
+      "start": 1,
+      "end": 7,
+      "label": "Gift cards are bearer instruments"
+    },
+    {
+      "id": "adr4",
+      "repo": "local",
+      "path": "docs/adr/0004-race-safe-balance-adjustments.md",
+      "start": 1,
+      "end": 7,
+      "label": "Balance adjustments must be atomic"
+    },
+    {
+      "id": "adr6",
+      "repo": "local",
+      "path": "docs/adr/0006-storefront-traffic-blocking-accepted-risks.md",
+      "start": 1,
+      "end": 43,
+      "label": "Accepted risks of storefront traffic blocking"
+    },
+    {
+      "id": "adr7",
+      "repo": "local",
+      "path": "docs/adr/0007-storefront-traffic-blocking-applies-to-introspection-and-auth.md",
+      "start": 1,
+      "end": 29,
+      "label": "Blocking applies to auth too"
+    },
+    {
+      "id": "adr10",
+      "repo": "local",
+      "path": "docs/adr/0010-order-payment-history-is-a-projection-not-an-opened-transaction.md",
+      "start": 1,
+      "end": 19,
+      "label": "Transaction token is a capability"
+    },
+    {
+      "id": "adr11",
+      "repo": "local",
+      "path": "docs/adr/0011-deferred-webhook-payloads-reflect-state-at-generation-time.md",
+      "start": 1,
+      "end": 37,
+      "label": "Deferred webhook payloads"
+    },
+    {
+      "id": "adr11b",
+      "repo": "local",
+      "path": "docs/adr/0011-thumbnail-size-rounds-up-by-default.md",
+      "start": 1,
+      "end": 3,
+      "label": "Second ADR numbered 0011"
+    },
+    {
+      "id": "order_status",
+      "repo": "local",
+      "path": "saleor/order/__init__.py",
+      "start": 9,
+      "end": 25,
+      "label": "Order statuses"
+    },
+    {
+      "id": "voucher",
+      "repo": "local",
+      "path": "saleor/discount/models.py",
+      "start": 122,
+      "end": 126,
+      "label": "Voucher"
+    },
+    {
+      "id": "promotion",
+      "repo": "local",
+      "path": "saleor/discount/models.py",
+      "start": 363,
+      "end": 368,
+      "label": "Promotion"
+    },
+    {
+      "id": "stock",
+      "repo": "local",
+      "path": "saleor/warehouse/models.py",
+      "start": 527,
+      "end": 535,
+      "label": "Stock with quantity_allocated"
+    },
+    {
+      "id": "reservation",
+      "repo": "local",
+      "path": "saleor/warehouse/models.py",
+      "start": 668,
+      "end": 690,
+      "label": "Reservation of stock for checkout lines"
+    },
+    {
+      "id": "app_model",
+      "repo": "local",
+      "path": "saleor/app/models.py",
+      "start": 54,
+      "end": 81,
+      "label": "App with permissions and manifest"
+    },
+    {
+      "id": "app_install",
+      "repo": "local",
+      "path": "saleor/app/installation_utils.py",
+      "start": 240,
+      "end": 346,
+      "label": "install_app creates app, webhooks, extensions, token"
+    },
+    {
+      "id": "granted_refund",
+      "repo": "local",
+      "path": "saleor/order/models.py",
+      "start": 940,
+      "end": 960,
+      "label": "OrderGrantedRefund"
+    },
+    {
+      "id": "release_funds",
+      "repo": "local",
+      "path": "saleor/payment/tasks.py",
+      "start": 23,
+      "end": 60,
+      "label": "Which transactions get funds released"
+    },
+    {
+      "id": "auto_complete",
+      "repo": "local",
+      "path": "saleor/checkout/tasks.py",
+      "start": 140,
+      "end": 141,
+      "label": "trigger_automatic_checkout_completion_task"
+    },
+    {
+      "id": "expire_orders",
+      "repo": "local",
+      "path": "saleor/order/tasks.py",
+      "start": 175,
+      "end": 179,
+      "label": "expire_orders_task uses Site.objects.get_current()"
+    },
+    {
+      "id": "context_md",
+      "repo": "local",
+      "path": "docs/agents/domain.md",
+      "start": 5,
+      "end": 12,
+      "label": "CONTEXT.md glossary expected at repo root"
+    },
+    {
+      "id": "product",
+      "repo": "local",
+      "path": "saleor/product/models.py",
+      "start": 183,
+      "end": 183,
+      "label": "Product"
+    },
+    {
+      "id": "variant_listing",
+      "repo": "local",
+      "path": "saleor/product/models.py",
+      "start": 492,
+      "end": 492,
+      "label": "ProductVariantChannelListing (per-channel price)"
+    },
+    {
+      "id": "checkout_model",
+      "repo": "local",
+      "path": "saleor/checkout/models.py",
+      "start": 110,
+      "end": 110,
+      "label": "Checkout"
+    },
+    {
+      "id": "user_model",
+      "repo": "local",
+      "path": "saleor/account/models.py",
+      "start": 169,
+      "end": 169,
+      "label": "User"
+    },
+    {
+      "id": "jwks",
+      "repo": "local",
+      "path": "saleor/core/views.py",
+      "start": 24,
+      "end": 25,
+      "label": "JWKS endpoint"
+    },
+    {
+      "id": "azure",
+      "repo": "local",
+      "path": "pyproject.toml",
+      "start": 16,
+      "end": 18,
+      "label": "azure-storage-blob"
+    },
+    {
+      "id": "pubsub",
+      "repo": "local",
+      "path": "pyproject.toml",
+      "start": 35,
+      "end": 35,
+      "label": "google-cloud-pubsub"
+    },
+    {
+      "id": "otel",
+      "repo": "local",
+      "path": "pyproject.toml",
+      "start": 68,
+      "end": 77,
+      "label": "OpenTelemetry"
+    }
+  ],
+  "risks": [
+    {
+      "id": "r_sync_wh",
+      "name": "Checkout depends on synchronous calls to apps",
+      "description": "Payment sessions, taxes and shipping-method lists are sync webhooks with a 2s connect + 18s read timeout. A slow or down app stalls or breaks checkout; the circuit breaker exists but is off by default and must be configured per event.",
+      "evidence": [
+        "sync_events",
+        "timeouts",
+        "breaker"
+      ],
+      "basis": "proposed",
+      "severity": "critical",
+      "signal": "p95 latency and error rate of sync webhooks by event type and app; breaker trips"
+    },
+    {
+      "id": "r_two_flows",
+      "name": "Two payment models coexist",
+      "description": "complete_checkout picks the transaction flow or the legacy payment flow from authorize status, active payment, allowUnpaidOrders and the channel's mark-as-paid strategy. Misconfigured channels can create unpaid orders or block completion.",
+      "evidence": [
+        "complete",
+        "channel",
+        "channel_enums"
+      ],
+      "basis": "proposed",
+      "severity": "high",
+      "signal": "orders created with charge status below total; checkoutComplete errors by channel"
+    },
+    {
+      "id": "r_tx_token",
+      "name": "Transaction token is a bearer capability",
+      "description": "The transaction id/token is accepted by unauthenticated transactionInitialize/transactionProcess, so exposing it leaks a capability; ADR-0010 builds a projection to avoid that.",
+      "evidence": [
+        "adr10",
+        "tx_init"
+      ],
+      "basis": "proposed",
+      "severity": "high",
+      "signal": "any new field or log that returns TransactionItem.token to public callers"
+    },
+    {
+      "id": "r_deferred",
+      "name": "Async webhooks carry current, not historical, state",
+      "description": "Deferred payloads are built in a background task from the read replica; two quick mutations give identical deliveries and a deleted object gives none. Integrations that replay changes in order can go wrong.",
+      "evidence": [
+        "adr11",
+        "payload_gen"
+      ],
+      "basis": "proposed",
+      "severity": "medium",
+      "signal": "FAILED deliveries for deleted objects; app complaints about missing intermediate states"
+    },
+    {
+      "id": "r_concurrency",
+      "name": "Shared database under concurrent pods",
+      "description": "Every request can run on any pod against one Postgres; check-then-act code, long select_for_update or N+1 queries are the main scaling and correctness risk (gift card balance, stock allocation, checkout completion lock).",
+      "evidence": [
+        "deploy",
+        "adr4",
+        "cklock",
+        "stock"
+      ],
+      "basis": "proposed",
+      "severity": "high",
+      "signal": "lock waits, deadlocks, negative or drifted quantity_allocated, double-charged gift cards"
+    },
+    {
+      "id": "r_tenancy",
+      "name": "Background tasks and multi-site deployments",
+      "description": "One process may serve several sites, and Site.objects.get_current() falls back to the request host. Beat tasks such as expire_orders_task have no request, so in a multi-site deployment they may apply one site's settings to all.",
+      "evidence": [
+        "tenancy",
+        "expire_orders"
+      ],
+      "basis": "proposed",
+      "severity": "medium",
+      "signal": "orders expiring or not expiring per site differently from their site settings"
+    },
+    {
+      "id": "r_storefront_block",
+      "name": "Storefront traffic blocking is not a security control",
+      "description": "When enabled it rejects after parsing, may lag because of cache and replica, and also blocks login and introspection; deployers must still run a WAF.",
+      "evidence": [
+        "adr6",
+        "adr7"
+      ],
+      "basis": "proposed",
+      "severity": "low",
+      "signal": "401 rate and CPU on HTTP workers while blocking is on"
+    },
+    {
+      "id": "r_telemetry",
+      "name": "Usage telemetry is on by default",
+      "description": "SEND_USAGE_TELEMETRY defaults to True and posts usage data to usage-telemetry.saleor.io; self-hosters with data-residency rules may not expect this.",
+      "evidence": [
+        "telemetry_set",
+        "telemetry_url"
+      ],
+      "basis": "proposed",
+      "severity": "low",
+      "signal": "outbound requests to usage-telemetry.saleor.io"
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "u_pricing",
+      "name": "How does Saleor Commerce make money?",
+      "description": "The README links to Saleor Cloud and a sales contact, but plans, prices and billing are not in this repository.",
+      "evidence": [
+        "cloud",
+        "talk"
+      ],
+      "basis": "unknown"
+    },
+    {
+      "id": "u_psps",
+      "name": "Which payment providers are used in practice?",
+      "description": "Only Stripe is built in (legacy plugin). Real PSPs (Adyen, Stripe app, etc.) live in separate app repositories this checkout does not contain.",
+      "evidence": [
+        "plugins",
+        "sync_events"
+      ],
+      "basis": "unknown"
+    },
+    {
+      "id": "u_prod",
+      "name": "Real deployment and scale",
+      "description": "AGENTS.md describes Kubernetes pods with shared Postgres and Redis, but no manifests, compose files or capacity numbers are here.",
+      "evidence": [
+        "deploy"
+      ],
+      "basis": "unknown"
+    },
+    {
+      "id": "u_context",
+      "name": "Domain glossary is missing",
+      "description": "docs/agents/domain.md expects CONTEXT.md at the repo root; it does not exist in this checkout.",
+      "evidence": [
+        "context_md"
+      ],
+      "basis": "unknown"
+    },
+    {
+      "id": "u_adr_number",
+      "name": "Two ADRs share number 0011",
+      "description": "Deferred webhook payloads and thumbnail rounding are both 0011; which one later references mean is unclear.",
+      "evidence": [
+        "adr11",
+        "adr11b"
+      ],
+      "basis": "observed_in_source"
+    },
+    {
+      "id": "u_legacy_end",
+      "name": "When will the legacy payment flow be removed?",
+      "description": "Channels still default to PAYMENT_FLOW and the Stripe plugin is built in; no removal date is stated.",
+      "evidence": [
+        "channel",
+        "plugins"
+      ],
+      "basis": "unknown"
+    }
+  ],
+  "improvements": [
+    {
+      "id": "i_breaker",
+      "name": "Turn on the circuit breaker for checkout-critical sync events",
+      "description": "Enable BREAKER_BOARD for payment, tax and shipping events (dry-run first) so one failing app does not take checkout down.",
+      "evidence": [
+        "breaker"
+      ],
+      "basis": "proposed",
+      "addresses": [
+        "r_sync_wh"
+      ],
+      "priority": "P0"
+    },
+    {
+      "id": "i_flow",
+      "name": "Pick one payment flow per channel and alert on mixed state",
+      "description": "Move channels to TRANSACTION_FLOW and monitor orders created under the other flow.",
+      "evidence": [
+        "channel",
+        "complete"
+      ],
+      "basis": "proposed",
+      "addresses": [
+        "r_two_flows"
+      ],
+      "priority": "P1"
+    },
+    {
+      "id": "i_tenant_tasks",
+      "name": "Make beat tasks iterate sites explicitly",
+      "description": "Resolve each site in background tasks instead of get_current() without a request.",
+      "evidence": [
+        "expire_orders",
+        "tenancy"
+      ],
+      "basis": "proposed",
+      "addresses": [
+        "r_tenancy"
+      ],
+      "priority": "P2"
+    },
+    {
+      "id": "i_glossary",
+      "name": "Add the CONTEXT.md glossary the agent docs expect",
+      "description": "Write down terms like channel, transaction, granted refund, checkout problem.",
+      "evidence": [
+        "context_md"
+      ],
+      "basis": "proposed",
+      "addresses": [],
+      "priority": "P3"
+    },
+    {
+      "id": "i_telemetry_doc",
+      "name": "Document usage telemetry in self-hosting guides",
+      "description": "State that SEND_USAGE_TELEMETRY is on by default and how to turn it off.",
+      "evidence": [
+        "telemetry_set"
+      ],
+      "basis": "proposed",
+      "addresses": [
+        "r_telemetry"
+      ],
+      "priority": "P3"
+    }
+  ]
+}
