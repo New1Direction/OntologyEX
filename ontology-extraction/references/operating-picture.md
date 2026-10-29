@@ -171,12 +171,13 @@ not approvals: every result keeps `execution_authorized: false`. Do not report
 
 What the business actually does comes from its records, not its code. Ask the user for
 exports from their payment processor (payments, refunds, disputes, payouts, subscriptions,
-invoices), their business bank or card statements, vendor bills, and cloud cost exports, and
-have them put the files in `REPO/.ontologyex/operations/`; `/operations` and
+invoices), their business bank or card statements, vendor bills, cloud cost exports, and their
+helpdesk tickets and CRM deals exports, and have them put the files in
+`REPO/.ontologyex/operations/`; `/operations` and
 `operations_status` read them as weekly aggregates per currency. Never copy a record, a
 customer, or an identifier into anything you write: report the aggregates and signals.
-A pull (`operations.py pull stripe`, or `pull aws`, which runs their `aws` command line) goes
-over the network: ask first. Stripe needs a restricted, read-only key the user sets in their
+A pull (`operations.py pull stripe|aws|zendesk|hubspot`; `aws` runs their `aws` command line)
+goes over the network: ask first. Stripe needs a restricted, read-only key the user sets in their
 own environment; never ask for a key in chat, and never use a secret key. When a file is not recognized, write its `operations.json` entry
 from the column names the page lists. See `docs/operations.md`.
 

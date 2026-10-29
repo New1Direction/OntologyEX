@@ -80,12 +80,14 @@ function h(tag,attrs={},...kids){const el=document.createElement(tag);
  for(const c of kids){if(c!=null)el.append(c)}return el}
 function s(tag,attrs={}){const el=document.createElementNS("http://www.w3.org/2000/svg",tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,v);return el}
 const TITLE={payments:"Payments",refunds:"Refunds",disputes:"Disputes",payouts:"Payouts",subscriptions:"Subscriptions",invoices:"Invoices",
- transactions:"Bank and card",bills:"Bills",cloud_costs:"Cloud costs"};
+ transactions:"Bank and card",bills:"Bills",cloud_costs:"Cloud costs",tickets:"Support tickets",deals:"Sales deals"};
 const SIGNAL={DISPUTES_OPEN:"Disputes waiting for a response",PAYOUT_FAILED:"A payout failed",REFUND_RATE_RISING:"Refund rate rising",
  REVENUE_DOWN:"Payments taken fell",DISPUTE_RATE_HIGH:"Dispute rate high",CHURN_RISING:"Cancellations rising",FAILED_PAYMENTS_HIGH:"Many payments fail",
  INVOICES_UNCOLLECTIBLE:"Invoices written off",SUBSCRIPTIONS_PAST_DUE:"Subscriptions past due",PAYOUTS_NOT_IN_BANK:"Payouts missing from the bank",
  DEPOSITS_WITHOUT_PAYOUTS:"Deposits without payouts",BILLS_OVERDUE:"Bills overdue",SPEND_RISING:"Spending jumped",CLOUD_COST_RISING:"Cloud costs jumped",
- NEW_SUPPLIER_PAID:"A new supplier was paid"};
+ NEW_SUPPLIER_PAID:"A new supplier was paid",SATISFACTION_DROPPING:"Support ratings dropping",WIN_RATE_DOWN:"Win rate down",
+ TICKETS_RISING:"Support tickets rising",TOPIC_SPIKE:"A kind of ticket jumped",BACKLOG_GROWING:"Support backlog growing",
+ RESOLUTION_SLOWER:"Tickets take longer to solve",LOSS_REASON_DOMINANT:"Deals lost to one reason"};
 const FINDING={HAPPENS_NOT_IN_CODE:"HAPPENS, NOT IN THE SOURCES",IN_CODE_NOT_SEEN:"BUILT, NOT SEEN",SEEN_AND_MODELED:"SEEN AND MODELED"};
 function money(v,cur){if(v==null)return "withheld";try{return new Intl.NumberFormat(undefined,{style:"currency",currency:cur.toUpperCase(),maximumFractionDigits:0}).format(v)}catch(_){return v.toLocaleString()+" "+cur.toUpperCase()}}
 const pct=v=>v==null?"–":(100*v).toFixed(v<0.01?2:1)+"%";
@@ -157,6 +159,32 @@ function spendSection(d){const sp=d.spend;if(!sp||!Object.keys(sp.currencies).le
    ...unpaid.map(f=>h("p",{class:"note",style:"margin-top:6px"},h("b",{text:"In the code, not paid: "}),f.detail[0].toUpperCase()+f.detail.slice(1)+".")),
    h("p",{class:"note",style:"margin-top:8px",text:"Only suppliers OntologyEX knows are named; any other payee counts under its category, never by name."})))}
  return out}
+// Customers: what they ask support about and what sales closes, joined with the payment records.
+function counted(title,obj){const rows=Object.entries(obj||{}).sort((a,b)=>b[1]-a[1]);if(!rows.length)return null;
+ return h("div",{},h("h3",{text:title}),h("ul",{class:"list"},...rows.slice(0,8).map(([k,v])=>h("li",{},h("span",{text:k.replace(/_/g," ")}),h("span",{text:String(v)})))))}
+function ticketBars(rows,live){const W=1000,H=150,pad=18,bw=(W-pad)/Math.max(1,rows.length),max=Math.max(1,...rows.map(r=>Math.max(r.opened,r.backlog)));
+ const svg=s("svg",{class:"chart",viewBox:`0 0 ${W} ${H}`,role:"img","aria-label":"Tickets opened and open backlog by week"});
+ rows.forEach((r,i)=>{const x=pad+i*bw,hgt=(H-24)*r.opened/max,isLive=r.week>=live;
+  const bar=s("rect",{x:x+2,y:H-16-hgt,width:Math.max(2,bw-4),height:hgt,rx:2,fill:isLive?"#24485a":"#a78bfa",opacity:0.9});
+  bar.append(s("title"));bar.lastChild.textContent=`${r.week}${isLive?" (in progress)":""}: ${r.opened} opened, ${r.solved} solved, ${r.backlog} open at the end`;svg.append(bar);
+  const dot=s("circle",{cx:x+bw/2,cy:H-16-(H-24)*r.backlog/max,r:3,fill:"#f2c14e",opacity:isLive?0.35:1});svg.append(dot);
+  if(i%Math.ceil(rows.length/8)===0){const t=s("text",{x:x+bw/2,y:H-3,"text-anchor":"middle",fill:"#7f93a6","font-size":"12"});t.textContent=r.week.slice(5);svg.append(t)}});
+ return h("div",{class:"wrap"},svg)}
+function customersSection(d){const c=d.customers;if(!c)return [];const r=c.recent||{},t=r.tickets,dl=r.deals,tiles=h("div",{class:"tiles"});
+ if(t)tiles.append(tile("Tickets, 4 weeks",String(t.opened),delta(t.opened,t.opened_before,true)),
+  tile("Open at week's end",String(t.backlog),t.backlog_before!=null?h("span",{},`${t.backlog_before} four weeks earlier`):null),
+  tile("Median time to solve",t.median_hours==null?"–":`${t.median_hours} h`,t.median_hours_before!=null?h("span",{},`${t.median_hours_before} h the 4 weeks before`):null),
+  tile("Rated bad",pct(t.bad_share),t.bad_share_before!=null?h("span",{},`${pct(t.bad_share_before)} the 4 weeks before`):null));
+ if(dl)tiles.append(tile("Deals won, 4 weeks",`${dl.won} of ${dl.won+dl.lost}`,h("span",{class:dl.win_rate_before&&dl.win_rate<dl.win_rate_before?"up":"flat",text:`win rate ${pct(dl.win_rate)}, ${pct(dl.win_rate_before)} before`})),
+  tile("Open deals",String(dl.open),dl.median_days_to_close!=null?h("span",{},`median ${dl.median_days_to_close} days to close`):null));
+ const tk=(c.streams||{}).tickets||[],totals=c.totals||{};
+ const joined=(c.joined||[]).map(f=>h("div",{class:"find"},h("b",{text:f.finding==="REFUNDS_CONFIRMED_BY_TICKETS"?"TWO SOURCES AGREE":"NOT IN THE MODEL"}),f.detail[0].toUpperCase()+f.detail.slice(1)+"."));
+ return [h("div",{class:"sec"},h("h2",{},h("span",{text:"Customers · support and sales"}),h("span",{text:"last 4 complete weeks"})),tiles,
+  tk.length?ticketBars(tk,d.week_in_progress):null,tk.length?h("div",{class:"legend"},h("span",{style:"--c:#a78bfa",text:"tickets opened"}),h("span",{style:"--c:#f2c14e",text:"open at the week's end"})):null,
+  h("div",{class:"cols"},counted("What tickets are about (last 4 weeks)",t&&t.topics),counted("Business items tickets mention",t&&t.mentions),
+   counted("Why deals were lost (last 4 weeks)",dl&&dl.lost_reasons),counted("Where deals came from",totals.deals&&totals.deals.sources)),
+  joined.length?h("div",{style:"margin-top:12px"},h("h3",{text:"Tickets and the rest of the records"}),...joined):null,
+  h("p",{class:"note",style:"margin-top:8px",text:"No subject, requester, agent, deal name, company or owner is kept. A subject is read only to count which business item it mentions."}))]}
 function empty(d){return h("div",{class:"sec"},h("p",{class:"summary",text:"No records read yet"}),
  h("p",{class:"note",text:"Operations shows what the business actually does, from its own records, kept as weekly aggregates only. Drop exports in this folder:"}),
  h("pre",{text:d.folder||"REPO/.ontologyex/operations"}),
@@ -169,10 +197,11 @@ function render(d){
  const sigs=h("div",{class:"sec"},h("h2",{},h("span",{text:"What needs a person"}),h("span",{text:`${d.signals.length}`})));
  if(!d.signals.length)sigs.append(h("p",{class:"empty",text:"Nothing in the last four complete weeks stands out."}));
  for(const g of d.signals)sigs.append(h("div",{class:"sig"},h("span",{class:"chip "+g.level,text:g.level}),
-  h("p",{},h("strong",{text:`${SIGNAL[g.signal]||g.signal} (${g.currency.toUpperCase()})`}),g.detail[0].toUpperCase()+g.detail.slice(1)+".")));
+  h("p",{},h("strong",{text:`${SIGNAL[g.signal]||g.signal}${g.topic?": "+g.topic:""}${g.currency?" ("+g.currency.toUpperCase()+")":""}`}),g.detail[0].toUpperCase()+g.detail.slice(1)+".")));
  parts.push(sigs);
  for(const [cur,c] of Object.entries(d.currencies))parts.push(currencySection(cur,c,d));
  parts.push(...spendSection(d));
+ parts.push(...customersSection(d));
  if(d.code_vs_operations.length)parts.push(h("div",{class:"sec"},h("h2",{text:"Code and operations"}),
   h("p",{class:"note",style:"margin-bottom:6px",text:"What the records show the business doing, against what the business model and the code name. Matched by words, so it is inferred."}),
   ...d.code_vs_operations.map(f=>h("div",{class:"find"},h("b",{text:FINDING[f.finding]}),`${TITLE[f.stream]}: ${f.detail}`,

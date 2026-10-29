@@ -72,6 +72,15 @@ SEVERITY = {
     "NEW_SUPPLIER_PAID": (12, "a supplier was paid for the first time"),
     "PAID_NOT_IN_CODE": (12, "a supplier is paid that the code does not use"),
     "IN_CODE_NOT_PAID": (10, "the code uses a supplier nobody is seen paying"),
+    "REFUNDS_CONFIRMED_BY_TICKETS": (50, "refunds and tickets about refunds rose together: two sources agree"),
+    "SATISFACTION_DROPPING": (40, "more customers rate their support as bad"),
+    "WIN_RATE_DOWN": (40, "fewer of the deals that close are won"),
+    "TICKETS_RISING": (35, "customers contact support more than before"),
+    "TOPIC_SPIKE": (30, "one kind of ticket jumped"),
+    "BACKLOG_GROWING": (25, "unsolved tickets pile up"),
+    "RESOLUTION_SLOWER": (25, "tickets take longer to solve"),
+    "LOSS_REASON_DOMINANT": (20, "one reason loses most deals"),
+    "TOPIC_NOT_MODELED": (15, "customers keep raising something nothing in the model is named for"),
 }
 CATEGORY = {"SYSTEM_ERROR": "Systems", "AT_RISK": "Business at risk", "POSSIBLY_IMPACTED": "Business at risk",
             "DEGRADED": "Business at risk", "STALE": "Business at risk", "STALE_CONFIRMATION": "Decisions",
@@ -85,7 +94,10 @@ CATEGORY = {"SYSTEM_ERROR": "Systems", "AT_RISK": "Business at risk", "POSSIBLY_
                                          "INVOICES_UNCOLLECTIBLE", "SUBSCRIPTIONS_PAST_DUE", "HAPPENS_NOT_IN_CODE",
                                          "IN_CODE_NOT_SEEN")},
             **{k: "Spend" for k in ("PAYOUTS_NOT_IN_BANK", "DEPOSITS_WITHOUT_PAYOUTS", "BILLS_OVERDUE", "SPEND_RISING",
-                                    "CLOUD_COST_RISING", "NEW_SUPPLIER_PAID", "PAID_NOT_IN_CODE", "IN_CODE_NOT_PAID")}}
+                                    "CLOUD_COST_RISING", "NEW_SUPPLIER_PAID", "PAID_NOT_IN_CODE", "IN_CODE_NOT_PAID")},
+            **{k: "Customers" for k in ("REFUNDS_CONFIRMED_BY_TICKETS", "SATISFACTION_DROPPING", "WIN_RATE_DOWN",
+                                        "TICKETS_RISING", "TOPIC_SPIKE", "BACKLOG_GROWING", "RESOLUTION_SLOWER",
+                                        "LOSS_REASON_DOMINANT", "TOPIC_NOT_MODELED")}}
 NEXT_STEP = {
     "SYSTEM_ERROR": "Open the system, read what it reports, and check the business actions that run on it.",
     "AT_RISK": "Open the action: see which linked system fails and what else relies on it.",
@@ -130,6 +142,16 @@ NEXT_STEP = {
     "NEW_SUPPLIER_PAID": "Check who signed up for it and whether the code or a person uses it.",
     "PAID_NOT_IN_CODE": "Ask who uses it; cancel it if nobody does.",
     "IN_CODE_NOT_PAID": "Check which account pays for it, or whether production is on a free plan with limits.",
+    "REFUNDS_CONFIRMED_BY_TICKETS": "Read the refund reasons and the refund tickets together, and find what changed in "
+                                    "the refund journey.",
+    "SATISFACTION_DROPPING": "Read the badly rated tickets of the last weeks: which topics, which channel, how long.",
+    "WIN_RATE_DOWN": "Read why the recent deals were lost, and compare with what changed in price or product.",
+    "TICKETS_RISING": "See which topics grew on the Operations page; they point at the journey that changed.",
+    "TOPIC_SPIKE": "Find what changed in that part of the product the week the tickets started.",
+    "BACKLOG_GROWING": "Check whether the team is short, or one kind of ticket is stuck.",
+    "RESOLUTION_SLOWER": "See which topics take longest, and whether they wait on a person or another team.",
+    "LOSS_REASON_DOMINANT": "Take the reason to whoever owns pricing or the product it names.",
+    "TOPIC_NOT_MODELED": "Write it down: add it to a domain skill, so changes to it reach the business model.",
 }
 SIGNAL_TITLES = {"DISPUTES_OPEN": "Disputes waiting for a response", "PAYOUT_FAILED": "A payout failed",
                  "REFUND_RATE_RISING": "Refund rate rising", "REVENUE_DOWN": "Payments taken fell",
@@ -138,7 +160,10 @@ SIGNAL_TITLES = {"DISPUTES_OPEN": "Disputes waiting for a response", "PAYOUT_FAI
                  "SUBSCRIPTIONS_PAST_DUE": "Subscriptions past due", "PAYOUTS_NOT_IN_BANK": "Payouts missing from the bank",
                  "DEPOSITS_WITHOUT_PAYOUTS": "Deposits without payouts", "BILLS_OVERDUE": "Bills overdue",
                  "SPEND_RISING": "Spending jumped", "CLOUD_COST_RISING": "Cloud costs jumped",
-                 "NEW_SUPPLIER_PAID": "A new supplier was paid"}
+                 "NEW_SUPPLIER_PAID": "A new supplier was paid", "SATISFACTION_DROPPING": "Support ratings dropping",
+                 "WIN_RATE_DOWN": "Win rate down", "TICKETS_RISING": "Support tickets rising",
+                 "TOPIC_SPIKE": "A kind of ticket jumped", "BACKLOG_GROWING": "Support backlog growing",
+                 "RESOLUTION_SLOWER": "Tickets take longer to solve", "LOSS_REASON_DOMINANT": "Deals lost to one reason"}
 # What a business in each field should be able to see; each found from supplier categories or names in the model.
 FIELDS = {
     "e-commerce": (r"order|cart|checkout|product|sku|inventor|catalog|coupon|fulfil|shipment|storefront", (
@@ -359,7 +384,8 @@ def report(bundle: dict) -> dict:
     reach = {f["stream"]: [{**e, "layer": "business"} for e in f.get("entities", [])]
              for f in ops.get("code_vs_operations", []) if f["finding"] == "SEEN_AND_MODELED"}
     for signal in ops.get("signals", []):  # from the business's own records, as aggregates
-        items.append(_item(signal["signal"], None, f"{SIGNAL_TITLES[signal['signal']]} ({signal['currency'].upper()})",
+        title = SIGNAL_TITLES[signal["signal"]] + (f": {signal['topic']}" if signal.get("topic") else "")
+        items.append(_item(signal["signal"], None, title + (f" ({signal['currency'].upper()})" if signal.get("currency") else ""),
                            signal["detail"][:1].upper() + signal["detail"][1:] + ".", reach.get(signal["stream"], []),
                            standing="SOURCE", links=[e["id"] for e in reach.get(signal["stream"], [])]))
     for finding in (ops.get("spend") or {}).get("suppliers_vs_spend", []):  # suppliers paid against suppliers used
@@ -368,6 +394,15 @@ def report(bundle: dict) -> dict:
                                (f"{finding['supplier']} is paid, and the code does not use it"
                                 if finding["finding"] == "PAID_NOT_IN_CODE"
                                 else f"{finding['supplier']} is used, and nobody is seen paying it"),
+                               finding["detail"][:1].upper() + finding["detail"][1:] + ".", [], standing="INFERRED"))
+    refund_items = [{**e, "layer": "business"} for e in reach.get("refunds", [])]
+    for finding in (ops.get("customers") or {}).get("joined", []):  # what tickets and payment records say together
+        if finding["finding"] == "REFUNDS_CONFIRMED_BY_TICKETS":
+            items.append(_item(finding["finding"], None, f"Refunds and refund tickets rose together ({finding['currency'].upper()})",
+                               finding["detail"][:1].upper() + finding["detail"][1:] + ".", refund_items,
+                               links=[e["id"] for e in refund_items]))
+        elif finding["finding"] == "TOPIC_NOT_MODELED":
+            items.append(_item(finding["finding"], None, f"Customers raise {finding['topic']!r}; the model does not name it",
                                finding["detail"][:1].upper() + finding["detail"][1:] + ".", [], standing="INFERRED"))
     for finding in ops.get("code_vs_operations", []):
         if finding["finding"] in ("HAPPENS_NOT_IN_CODE", "IN_CODE_NOT_SEEN"):

@@ -51,6 +51,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+import customers
 import spend
 
 STREAMS = ("payments", "refunds", "disputes", "payouts", "subscriptions", "invoices")
@@ -172,6 +173,7 @@ def moment(text, date_format: str | None = None) -> datetime | None:
         return parsed.replace(tzinfo=parsed.tzinfo or timezone.utc).astimezone(timezone.utc)
     t = t.replace("Z", "+00:00")
     t = re.sub(r"\s+(UTC|GMT)$", "", t)
+    t = re.sub(r"(?<=\d)\s*([+-]\d{2}):?(\d{2})$", r"\1:\2", t) if re.search(r"[T ]\d{2}:\d{2}", t) else t  # "+0000"
     try:
         parsed = datetime.fromisoformat(t.replace(" ", "T", 1) if re.match(r"\d{4}-\d{2}-\d{2} ", t) else t)
     except ValueError:
@@ -363,7 +365,7 @@ def mapping_for(folder: Path, rel: str) -> dict | None:
         raise OperationsError(f"operations.json: {exc}") from exc
     for entry in config.get("files", []) if type(config) is dict else []:
         if type(entry) is dict and fnmatch.fnmatch(rel.lower(), str(entry.get("match", "")).lower()):
-            if entry.get("stream") not in STREAMS + spend.STREAMS or type(entry.get("columns")) is not dict:
+            if entry.get("stream") not in STREAMS + spend.STREAMS + customers.STREAMS or type(entry.get("columns")) is not dict:
                 raise OperationsError(f"operations.json: {entry.get('match')!r} needs a stream and columns")
             return entry
     return None
@@ -372,7 +374,8 @@ def mapping_for(folder: Path, rel: str) -> dict | None:
 def recognize(rel: str, headers: list[str], mapping: dict | None) -> tuple[str | None, dict, str]:
     """(stream, canonical column -> header, how it was recognized) for one CSV file."""
     if mapping is not None:
-        wanted = {k: v for k, v in mapping["columns"].items() if (k in COLUMNS or k in spend.COLUMNS) and v in headers}
+        wanted = {k: v for k, v in mapping["columns"].items()
+                  if (k in COLUMNS or k in spend.COLUMNS or k in customers.COLUMNS) and v in headers}
         return mapping["stream"], wanted, "operations.json"
     by_norm = {norm(h): h for h in headers}
     found = {}
@@ -392,7 +395,8 @@ def recognize(rel: str, headers: list[str], mapping: dict | None) -> tuple[str |
     return None, found, ""
 
 
-def read_csv(path: Path, rel: str, folder: Path, ledger: Ledger, book: "spend.Book | None" = None) -> dict:
+def read_csv(path: Path, rel: str, folder: Path, ledger: Ledger, book: "spend.Book | None" = None,
+             desk: "customers.Desk | None" = None) -> dict:
     mapping = mapping_for(folder, rel)
     with path.open("r", encoding="utf-8-sig", errors="replace", newline="") as handle:
         sample = handle.read(64 * 1024)
@@ -404,6 +408,14 @@ def read_csv(path: Path, rel: str, folder: Path, ledger: Ledger, book: "spend.Bo
         reader = csv.reader(handle, dialect)
         headers = next(reader, [])
         stream, columns, how = recognize(rel, headers, mapping)
+        if desk is not None and (stream is None or stream in customers.STREAMS):
+            if mapping is None:
+                found = customers.find_columns(headers, norm)
+                found_stream, found_how = customers.recognize(rel, found)
+                if found_stream is not None:
+                    stream, columns, how = found_stream, found, found_how
+            if stream in customers.STREAMS:
+                return read_customers(reader, headers, rel, stream, columns, how, mapping, desk)
         if book is not None and (stream is None or stream in spend.STREAMS):
             if mapping is None:
                 columns = spend.find_columns(headers, norm)
@@ -485,6 +497,35 @@ def read_spend(reader, headers: list[str], rel: str, stream: str, columns: dict,
     return found
 
 
+def read_customers(reader, headers: list[str], rel: str, stream: str, columns: dict, how: str, mapping: dict | None,
+                   desk: "customers.Desk") -> dict:
+    """Support tickets and sales deals, into weekly aggregates. A subject is only matched, never kept."""
+    index = {canonical: headers.index(header) for canonical, header in columns.items() if header in headers}
+    date_format = (mapping or {}).get("date_format")
+    default_currency = (mapping or {}).get("currency")
+    rows = placed = 0
+    for row in reader:
+        rows += 1
+        if rows > MAX_ROWS:
+            raise OperationsError(f"{rel}: more than {MAX_ROWS} rows")
+        get = lambda k: row[index[k]] if k in index and index[k] < len(row) else None  # noqa: E731
+        record = {k: get(k) for k in ("status", "priority", "topic", "ticket_type", "channel", "satisfaction", "subject",
+                                      "stage", "lost_reason", "source")}
+        record["currency"] = get("currency") or default_currency
+        record["amount"] = amount(get("amount"), False, record["currency"] or "")
+        for k in ("created", "solved", "close"):
+            record[k] = moment(get(k), date_format)
+        placed += desk.add(stream, record, label)
+    found = {"file": rel, "status": "READ", "stream": stream, "recognized_by": how, "rows": rows, "rows_used": placed,
+             "columns_used": sorted(k for k in columns if k != "subject"),
+             "columns_matched_only": ["subject"] if "subject" in columns else [],
+             "columns_not_read": len(headers) - len(columns)}
+    if placed < rows:
+        found["hint"] = (f"{rows - placed} of {rows} rows have no readable date, so they are not counted. In "
+                         "operations.json, give this file a date_format.")
+    return found
+
+
 def api_record(obj: dict) -> tuple[str | None, dict]:
     """The whitelisted fields of one API object (Stripe's shapes), amounts converted from minor units."""
     stream = API_OBJECTS.get(obj.get("object"))
@@ -532,7 +573,8 @@ def read_json(path: Path, rel: str, ledger: Ledger, aggregates: list) -> dict:
     if type(document) is dict and document.get("kind") == AGGREGATE_KIND:
         aggregates.append((rel, document))
         return {"file": rel, "status": "READ", "stream": ",".join(sorted([*document.get("streams", {}),
-                                                                          *document.get("spend", {})])),
+                                                                          *document.get("spend", {}),
+                                                                          *document.get("customers", {})])),
                 "recognized_by": "an aggregate written by operations.py pull", "rows": None,
                 "source": document.get("source")}
     objects = document.get("data") if type(document) is dict and document.get("object") == "list" else document
@@ -753,11 +795,12 @@ def report(folder: Path | None, entities: list[dict] | None = None, min_cell: in
                 "currencies": {}, "signals": [], "code_vs_operations": [], "unrecognized": []}
     ledger, aggregates, sources = Ledger(), [], []
     book = spend.Book(now or datetime.now(timezone.utc))
+    desk = customers.Desk(now or datetime.now(timezone.utc), week_of, customers.vocabulary(entities or []))
     for path in files_in(folder):
         rel = path.relative_to(folder).as_posix()
         try:
             source = (read_json(path, rel, ledger, aggregates) if path.suffix.lower() == ".json"
-                      else read_csv(path, rel, folder, ledger, book))
+                      else read_csv(path, rel, folder, ledger, book, desk))
         except (OSError, UnicodeError, csv.Error) as exc:
             source = {"file": rel, "status": "UNREADABLE", "detail": str(exc)[:200]}
         sources.append({**source, "sha256": sha256(path), "bytes": path.stat().st_size})
@@ -830,6 +873,24 @@ def report(folder: Path | None, entities: list[dict] | None = None, min_cell: in
     spending = spend.section(book, min_cell, payouts_by_month, payments_by_month) if book.cells else None
     if spending:
         signals += spending["signals"]
+    pulled = set()
+    for _, document in aggregates:  # pulled tickets or deals replace what files say about them
+        for stream, weeks in (document.get("customers") or {}).items():
+            if stream not in customers.STREAMS or type(weeks) is not dict:
+                continue
+            pulled.add(stream)
+            for week, values in weeks.items():
+                fresh = customers.cell(stream)
+                for k, v in values.items():
+                    if k in ("won_amount", "lost_amount"):
+                        fresh[k] = {cur: Decimal(str(x)) for cur, x in v.items()}
+                    elif k in fresh:
+                        fresh[k] = v
+                desk.cells[(stream, week)] = fresh
+    desk.spans = [span for span in desk.spans if span[0] not in pulled]
+    customer = customers.section(desk, current, min_cell, weeks_between)
+    if customer:
+        signals += customer["signals"]
     read = [s for s in sources if s["status"] == "READ"]
     present = {s for cur in currencies.values() for s in cur["streams"]} | (
         {"subscriptions"} if any(c["subscriptions_now"] for c in currencies.values()) else set())
@@ -837,6 +898,7 @@ def report(folder: Path | None, entities: list[dict] | None = None, min_cell: in
             "month_in_progress": spend.month_of(now or datetime.now(timezone.utc)),
             "sources": sources, "unrecognized": [s for s in sources if s["status"] == "UNRECOGNIZED"],
             "overlaps": overlaps, "streams_present": sorted(present), "currencies": currencies, "spend": spending,
+            "customers": customer,
             "signals": sorted(signals, key=lambda s: ({"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2}[s["level"]], s["signal"])),
             "code_vs_operations": compare(present, entities or [], currencies)}
 
@@ -859,6 +921,9 @@ def with_comparison(answer: dict, entities: list[dict], code_suppliers: list[dic
     out = {**answer, "code_vs_operations": compare(set(answer["streams_present"]), entities, answer["currencies"])}
     if answer.get("spend") and code_suppliers is not None:
         out["spend"] = {**answer["spend"], "suppliers_vs_spend": spend.compare(answer["spend"], code_suppliers)}
+    if answer.get("customers"):
+        out["customers"] = {**answer["customers"],
+                            "joined": customers.joined(answer["customers"], answer["currencies"], entities)}
     return out
 
 
@@ -907,8 +972,8 @@ def markdown(answer: dict) -> str:
             lines.append(f"| {TITLES[stream]} | {total['records']:,} | {', '.join(parts)} |")
         lines.append("")
     if answer["signals"]:
-        lines += ["## Signals", ""] + [f"- **{s['signal']}** ({s['currency'].upper()}): {s['detail']}"
-                                       for s in answer["signals"]] + [""]
+        lines += ["## Signals", ""] + [f"- **{s['signal']}**" + (f" ({s['currency'].upper()})" if s.get("currency") else "")
+                                       + f": {s['detail']}" for s in answer["signals"]] + [""]
     if answer["code_vs_operations"]:
         lines += ["## Code and operations", ""] + [f"- **{f['finding']}** ({f['stream']}): {f['detail']}"
                                                    for f in answer["code_vs_operations"]] + [""]
@@ -977,6 +1042,98 @@ def pull_stripe(key: str, out: Path, days: int, base: str = "https://api.stripe.
     return {"status": "PULLED", "file": str(target), "objects_read": counts}
 
 
+def _get_json(url: str, headers: dict, what: str) -> dict:
+    request = urllib.request.Request(url, headers={**headers, "Accept": "application/json",
+                                                   "User-Agent": "ontologyex-operations"})
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            return json.loads(response.read())
+    except urllib.error.HTTPError as exc:
+        if exc.code in (401, 403):
+            raise OperationsError(f"{what}: the token may not read this ({exc.code}); give it read access") from None
+        raise OperationsError(f"{what}: HTTP {exc.code}") from None
+
+
+def _write_customers(out: Path, name: str, source: str, desk: "customers.Desk", now: datetime, counts: dict) -> dict:
+    weeks = sorted({w for (_, w) in desk.cells})
+    if weeks:
+        desk.close(weeks_between)
+    document = {"schema_version": 1, "kind": AGGREGATE_KIND, "source": source,
+                "pulled_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "objects_read": counts,
+                "customers": {stream: {w: plain(c) for (st, w), c in sorted(desk.cells.items()) if st == stream}
+                              for stream in sorted({st for (st, _) in desk.cells})},
+                "semantics": "AGGREGATES_ONLY_NO_RECORDS"}
+    out.mkdir(parents=True, exist_ok=True)
+    target = out / name
+    target.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", "utf-8")
+    return {"status": "PULLED", "file": str(target), "objects_read": counts}
+
+
+def pull_zendesk(base: str, auth: dict, out: Path, days: int, now: datetime | None = None,
+                 entities: list[dict] | None = None) -> dict:
+    """Tickets from Zendesk's incremental export (with solve times from metric sets), read with a token, aggregated
+    as each page arrives. Subjects are matched against the business items' names (when given) and dropped; no
+    ticket, requester or subject is written."""
+    now = now or datetime.now(timezone.utc)
+    host = urllib.parse.urlsplit(base).netloc
+    desk = customers.Desk(now, week_of, customers.vocabulary(entities or []))
+    url = f"{base}/api/v2/incremental/tickets/cursor.json?start_time={int((now - timedelta(days=days)).timestamp())}" \
+          "&include=metric_sets"
+    count = pages = 0
+    while url and pages < MAX_PAGES:
+        if urllib.parse.urlsplit(url).netloc != host:
+            raise OperationsError("zendesk: the next page is on another host; not following it with the token")
+        page = _get_json(url, auth, "zendesk tickets")
+        pages += 1
+        solved = {m.get("ticket_id"): m.get("solved_at") for m in page.get("metric_sets") or []}
+        for t in page.get("tickets") or []:
+            tags = t.get("tags") or []
+            desk.add("tickets", {"created": moment(t.get("created_at")), "solved": moment(solved.get(t.get("id"))),
+                                 "status": t.get("status"), "priority": t.get("priority"),
+                                 "topic": ",".join(tags) if tags else t.get("type"),
+                                 "channel": (t.get("via") or {}).get("channel"),
+                                 "satisfaction": (t.get("satisfaction_rating") or {}).get("score"),
+                                 "subject": t.get("subject")}, label)
+            count += 1
+        if page.get("end_of_stream") or not page.get("after_url"):
+            break
+        url = page["after_url"]
+    return _write_customers(out, "zendesk-api.ontologyex-aggregate.json", "zendesk_api", desk, now, {"tickets": count})
+
+
+HUBSPOT_PROPERTIES = "dealstage,amount,deal_currency_code,createdate,closedate,closed_lost_reason,hs_analytics_source"
+
+
+def pull_hubspot(token: str, out: Path, now: datetime | None = None, base: str = "https://api.hubapi.com") -> dict:
+    """Deals from HubSpot with a private app token that can read deals; won and lost come from each pipeline's
+    stage metadata. No deal name, company or owner is read."""
+    now = now or datetime.now(timezone.utc)
+    auth = {"Authorization": f"Bearer {token}"}
+    kinds = {}
+    for pipeline in _get_json(f"{base}/crm/v3/pipelines/deals", auth, "hubspot pipelines").get("results", []):
+        for stage in pipeline.get("stages", []):
+            meta = stage.get("metadata") or {}
+            closed = str(meta.get("isClosed", "")).lower() == "true"
+            won = closed and float(meta.get("probability") or 0) >= 1
+            kinds[stage.get("id")] = "closedwon" if won else "closedlost" if closed else "open"
+    desk = customers.Desk(now, week_of)
+    url, count, pages = f"{base}/crm/v3/objects/deals?limit=100&properties={HUBSPOT_PROPERTIES}", 0, 0
+    while url and pages < MAX_PAGES:
+        page = _get_json(url, auth, "hubspot deals")
+        pages += 1
+        for deal in page.get("results") or []:
+            p = deal.get("properties") or {}
+            desk.add("deals", {"created": moment(p.get("createdate")), "close": moment(p.get("closedate")),
+                               "stage": kinds.get(p.get("dealstage"), p.get("dealstage") or ""),
+                               "amount": amount(p.get("amount")), "currency": p.get("deal_currency_code"),
+                               "lost_reason": p.get("closed_lost_reason"), "source": p.get("hs_analytics_source")}, label)
+            count += 1
+        after = ((page.get("paging") or {}).get("next") or {}).get("after")
+        url = f"{base}/crm/v3/objects/deals?limit=100&properties={HUBSPOT_PROPERTIES}&after={urllib.parse.quote(str(after))}" \
+            if after else None
+    return _write_customers(out, "hubspot-api.ontologyex-aggregate.json", "hubspot_api", desk, now, {"deals": count})
+
+
 def pull_aws(out: Path, months: int, aws: str = "aws", now: datetime | None = None) -> dict:
     """Monthly cost by service from AWS Cost Explorer, through the aws command line and the credentials it is
     already set up with (a read-only call, ce:GetCostAndUsage; AWS charges a small fee per request). Writes
@@ -1035,7 +1192,8 @@ def main(argv: list[str] | None = None) -> int:
     rep.add_argument("--format", choices=("json", "markdown"), default="json")
     rep.add_argument("--min-cell", type=int, default=MIN_CELL)
     pull = sub.add_parser("pull", help="aggregate a read-only API into the folder")
-    pull.add_argument("provider", choices=("stripe", "aws"))
+    pull.add_argument("provider", choices=("stripe", "aws", "zendesk", "hubspot"))
+    pull.add_argument("--subdomain", help="zendesk: your Zendesk subdomain (the part before .zendesk.com)")
     pull.add_argument("--out", type=Path, required=True)
     pull.add_argument("--days", type=int, default=180)
     pull.add_argument("--months", type=int, default=6, help="aws: months of cost by service")
@@ -1052,6 +1210,28 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.provider == "aws":
             print(json.dumps(pull_aws(args.out, min(max(args.months, 1), 36), args.aws), indent=2))
+            return 0
+        days = min(max(args.days, 1), 3650)
+        if args.provider == "zendesk":
+            if not args.subdomain or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,62}", args.subdomain):
+                raise OperationsError("give --subdomain, the part of your Zendesk address before .zendesk.com")
+            oauth = os.environ.get("ZENDESK_OAUTH_TOKEN", "")
+            email, token = os.environ.get("ZENDESK_EMAIL", ""), os.environ.get("ZENDESK_API_TOKEN", "")
+            if oauth:
+                auth = {"Authorization": f"Bearer {oauth}"}
+            elif email and token:
+                import base64
+                auth = {"Authorization": "Basic " + base64.b64encode(f"{email}/token:{token}".encode()).decode()}
+            else:
+                raise OperationsError("set ZENDESK_OAUTH_TOKEN (an OAuth token with the read scope), or ZENDESK_EMAIL "
+                                      "and ZENDESK_API_TOKEN")
+            print(json.dumps(pull_zendesk(f"https://{args.subdomain}.zendesk.com", auth, args.out, days), indent=2))
+            return 0
+        if args.provider == "hubspot":
+            token = os.environ.get("HUBSPOT_TOKEN", "")
+            if not token:
+                raise OperationsError("set HUBSPOT_TOKEN to a private app token with the crm.objects.deals.read scope")
+            print(json.dumps(pull_hubspot(token, args.out), indent=2))
             return 0
         key = os.environ.get(args.key_env, "")
         if not key:

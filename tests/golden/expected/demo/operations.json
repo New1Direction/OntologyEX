@@ -1277,6 +1277,1062 @@
    }
   }
  },
+ "customers": {
+  "joined": [
+   {
+    "currency": "usd",
+    "detail": "refunds rose to 6.2% of payments (0.4% before), and tickets mentioning IssueRefund, Refund rose to 48 (23 before): two sources agree, so look at what changed in the refund journey",
+    "finding": "REFUNDS_CONFIRMED_BY_TICKETS",
+    "standing": "SOURCE"
+   },
+   {
+    "detail": "46 tickets in the last 4 weeks are tagged 'login', and nothing in the business model is named for it: a part of the business customers deal with that is not written down",
+    "finding": "TOPIC_NOT_MODELED",
+    "standing": "INFERRED",
+    "topic": "login"
+   },
+   {
+    "detail": "34 tickets in the last 4 weeks are tagged 'export_csv', and nothing in the business model is named for it: a part of the business customers deal with that is not written down",
+    "finding": "TOPIC_NOT_MODELED",
+    "standing": "INFERRED",
+    "topic": "export_csv"
+   },
+   {
+    "detail": "25 tickets in the last 4 weeks are tagged 'billing', and nothing in the business model is named for it: a part of the business customers deal with that is not written down",
+    "finding": "TOPIC_NOT_MODELED",
+    "standing": "INFERRED",
+    "topic": "billing"
+   }
+  ],
+  "recent": {
+   "deals": {
+    "created": 35,
+    "lost": 19,
+    "lost_reasons": {
+     "no budget": 4,
+     "price": 9,
+     "timing": 1,
+     "went with a competitor": 5
+    },
+    "median_days_to_close": 14.0,
+    "open": 44,
+    "win_rate": 0.208,
+    "win_rate_before": 0.536,
+    "won": 5
+   },
+   "tickets": {
+    "backlog": 33,
+    "backlog_before": 12,
+    "bad_share": 0.314,
+    "bad_share_before": 0.087,
+    "median_hours": 16.2,
+    "median_hours_before": 8.6,
+    "mentions": {
+     "IssueRefund": 48,
+     "Payment": 12,
+     "Refund": 48
+    },
+    "mentions_before": {
+     "IssueRefund": 23,
+     "Payment": 17,
+     "Refund": 23
+    },
+    "opened": 153,
+    "opened_before": 107,
+    "topics": {
+     "billing": 25,
+     "export_csv": 34,
+     "login": 46,
+     "refund_request": 48,
+     "vip": 12
+    }
+   }
+  },
+  "signals": [
+   {
+    "detail": "33 tickets open at the end of the last complete week, 12 four weeks earlier",
+    "level": "MEDIUM",
+    "signal": "BACKLOG_GROWING",
+    "stream": "tickets"
+   },
+   {
+    "detail": "the median ticket took 16.2 hours to solve in the last 4 weeks, 8.6 in the 4 before",
+    "level": "MEDIUM",
+    "signal": "RESOLUTION_SLOWER",
+    "stream": "tickets"
+   },
+   {
+    "detail": "31% of rated tickets were rated bad in the last 4 weeks, 9% in the 4 before",
+    "level": "HIGH",
+    "signal": "SATISFACTION_DROPPING",
+    "stream": "tickets"
+   },
+   {
+    "detail": "tickets tagged 'export_csv' went from 4 to 34 against the 4 weeks before",
+    "level": "MEDIUM",
+    "signal": "TOPIC_SPIKE",
+    "stream": "tickets",
+    "topic": "export_csv"
+   },
+   {
+    "detail": "tickets tagged 'vip' went from 3 to 12 against the 4 weeks before",
+    "level": "MEDIUM",
+    "signal": "TOPIC_SPIKE",
+    "stream": "tickets",
+    "topic": "vip"
+   },
+   {
+    "detail": "21% of closed deals were won in the last 4 weeks, 54% in the 4 before",
+    "level": "HIGH",
+    "signal": "WIN_RATE_DOWN",
+    "stream": "deals"
+   },
+   {
+    "detail": "9 of 19 deals lost in the last 4 weeks were lost to 'price'",
+    "level": "MEDIUM",
+    "signal": "LOSS_REASON_DOMINANT",
+    "stream": "deals"
+   }
+  ],
+  "streams": {
+   "deals": [
+    {
+     "created": 9,
+     "lost": 0,
+     "lost_amount": {},
+     "lost_reasons": {},
+     "median_days_to_close": null,
+     "open": 9,
+     "records": 9,
+     "sources": {
+      "organic search": 2,
+      "paid search": 6,
+      "referrals": 1
+     },
+     "week": "2026-W25",
+     "won": 0,
+     "won_amount": {}
+    },
+    {
+     "created": 7,
+     "lost": 2,
+     "lost_amount": {
+      "usd": 7128.0
+     },
+     "lost_reasons": {
+      "no budget": 1,
+      "went with a competitor": 1
+     },
+     "median_days_to_close": 3.0,
+     "open": 14,
+     "records": 7,
+     "sources": {
+      "organic search": 1,
+      "paid search": 1,
+      "referrals": 5
+     },
+     "week": "2026-W26",
+     "won": 0,
+     "won_amount": {}
+    },
+    {
+     "created": 8,
+     "lost": 1,
+     "lost_amount": {
+      "usd": 1188.0
+     },
+     "lost_reasons": {
+      "price": 1
+     },
+     "median_days_to_close": 5.0,
+     "open": 21,
+     "records": 8,
+     "sources": {
+      "organic search": 2,
+      "referrals": 6
+     },
+     "week": "2026-W27",
+     "won": 0,
+     "won_amount": {}
+    },
+    {
+     "created": 8,
+     "lost": 7,
+     "lost_amount": {
+      "usd": 16668.0
+     },
+     "lost_reasons": {
+      "no budget": 3,
+      "price": 1,
+      "timing": 2,
+      "went with a competitor": 1
+     },
+     "median_days_to_close": 12.2,
+     "open": 20,
+     "records": 8,
+     "sources": {
+      "organic search": 2,
+      "paid search": 3,
+      "referrals": 3
+     },
+     "week": "2026-W28",
+     "won": 2,
+     "won_amount": {
+      "usd": 3576.0
+     }
+    },
+    {
+     "created": 8,
+     "lost": 4,
+     "lost_amount": {
+      "usd": 11904.0
+     },
+     "lost_reasons": {
+      "no budget": 2,
+      "price": 1,
+      "went with a competitor": 1
+     },
+     "median_days_to_close": 10.5,
+     "open": 20,
+     "records": 8,
+     "sources": {
+      "organic search": 1,
+      "paid search": 6,
+      "referrals": 1
+     },
+     "week": "2026-W29",
+     "won": 4,
+     "won_amount": {
+      "usd": 9504.0
+     }
+    },
+    {
+     "created": 9,
+     "lost": 1,
+     "lost_amount": {
+      "usd": 5940.0
+     },
+     "lost_reasons": {
+      "went with a competitor": 1
+     },
+     "median_days_to_close": 14.0,
+     "open": 25,
+     "records": 9,
+     "sources": {
+      "organic search": 5,
+      "paid search": 3,
+      "referrals": 1
+     },
+     "week": "2026-W30",
+     "won": 3,
+     "won_amount": {
+      "usd": 13068.0
+     }
+    },
+    {
+     "created": 10,
+     "lost": 0,
+     "lost_amount": {},
+     "lost_reasons": {},
+     "median_days_to_close": 10.5,
+     "open": 32,
+     "records": 10,
+     "sources": {
+      "organic search": 3,
+      "paid search": 5,
+      "referrals": 2
+     },
+     "week": "2026-W31",
+     "won": 3,
+     "won_amount": {
+      "usd": 17820.0
+     }
+    },
+    {
+     "created": 7,
+     "lost": 3,
+     "lost_amount": {
+      "usd": 9516.0
+     },
+     "lost_reasons": {
+      "no budget": 1,
+      "timing": 1,
+      "went with a competitor": 1
+     },
+     "median_days_to_close": 9.5,
+     "open": 30,
+     "records": 7,
+     "sources": {
+      "organic search": 1,
+      "paid search": 3,
+      "referrals": 3
+     },
+     "week": "2026-W32",
+     "won": 6,
+     "won_amount": {
+      "usd": 19032.0
+     }
+    },
+    {
+     "created": 7,
+     "lost": 4,
+     "lost_amount": {
+      "usd": 10704.0
+     },
+     "lost_reasons": {
+      "no budget": 1,
+      "timing": 1,
+      "went with a competitor": 2
+     },
+     "median_days_to_close": 12.8,
+     "open": 30,
+     "records": 7,
+     "sources": {
+      "organic search": 3,
+      "paid search": 3,
+      "referrals": 1
+     },
+     "week": "2026-W33",
+     "won": 3,
+     "won_amount": {
+      "usd": 9516.0
+     }
+    },
+    {
+     "created": 8,
+     "lost": 5,
+     "lost_amount": {
+      "usd": 17844.0
+     },
+     "lost_reasons": {
+      "no budget": 3,
+      "went with a competitor": 2
+     },
+     "median_days_to_close": 10.5,
+     "open": 28,
+     "records": 8,
+     "sources": {
+      "organic search": 3,
+      "paid search": 3,
+      "referrals": 2
+     },
+     "week": "2026-W34",
+     "won": 5,
+     "won_amount": {
+      "usd": 9540.0
+     }
+    },
+    {
+     "created": 7,
+     "lost": 1,
+     "lost_amount": {
+      "usd": 5940.0
+     },
+     "lost_reasons": {
+      "no budget": 1
+     },
+     "median_days_to_close": 14.0,
+     "open": 33,
+     "records": 7,
+     "sources": {
+      "organic search": 2,
+      "paid search": 2,
+      "referrals": 3
+     },
+     "week": "2026-W35",
+     "won": 1,
+     "won_amount": {
+      "usd": 5940.0
+     }
+    },
+    {
+     "created": 10,
+     "lost": 1,
+     "lost_amount": {
+      "usd": 1188.0
+     },
+     "lost_reasons": {
+      "went with a competitor": 1
+     },
+     "median_days_to_close": 21.0,
+     "open": 41,
+     "records": 10,
+     "sources": {
+      "organic search": 4,
+      "paid search": 5,
+      "referrals": 1
+     },
+     "week": "2026-W36",
+     "won": 1,
+     "won_amount": {
+      "usd": 2388.0
+     }
+    },
+    {
+     "created": 8,
+     "lost": 6,
+     "lost_amount": {
+      "usd": 28536.0
+     },
+     "lost_reasons": {
+      "no budget": 2,
+      "price": 3,
+      "went with a competitor": 1
+     },
+     "median_days_to_close": 12.8,
+     "open": 40,
+     "records": 8,
+     "sources": {
+      "organic search": 2,
+      "paid search": 3,
+      "referrals": 3
+     },
+     "week": "2026-W37",
+     "won": 3,
+     "won_amount": {
+      "usd": 14268.0
+     }
+    },
+    {
+     "created": 8,
+     "lost": 3,
+     "lost_amount": {
+      "usd": 10716.0
+     },
+     "lost_reasons": {
+      "price": 2,
+      "went with a competitor": 1
+     },
+     "median_days_to_close": 14.0,
+     "open": 44,
+     "records": 8,
+     "sources": {
+      "organic search": 4,
+      "paid search": 2,
+      "referrals": 2
+     },
+     "week": "2026-W38",
+     "won": 1,
+     "won_amount": {
+      "usd": 1188.0
+     }
+    },
+    {
+     "created": 9,
+     "lost": 9,
+     "lost_amount": {
+      "usd": 27348.0
+     },
+     "lost_reasons": {
+      "no budget": 2,
+      "price": 4,
+      "timing": 1,
+      "went with a competitor": 2
+     },
+     "median_days_to_close": 12.8,
+     "open": 44,
+     "records": 9,
+     "sources": {
+      "organic search": 4,
+      "paid search": 2,
+      "referrals": 3
+     },
+     "week": "2026-W39",
+     "won": 0,
+     "won_amount": {}
+    },
+    {
+     "created": 9,
+     "lost": 21,
+     "lost_amount": {
+      "usd": 72564.0
+     },
+     "lost_reasons": {
+      "no budget": 4,
+      "price": 11,
+      "went with a competitor": 6
+     },
+     "median_days_to_close": 9.3,
+     "open": 31,
+     "records": 9,
+     "sources": {
+      "organic search": 4,
+      "paid search": 2,
+      "referrals": 3
+     },
+     "week": "2026-W40",
+     "won": 1,
+     "won_amount": {
+      "usd": 5940.0
+     }
+    }
+   ],
+   "tickets": [
+    {
+     "backlog": 0,
+     "bad": 1,
+     "channels": {
+      "chat": 8,
+      "email": 9,
+      "web": 11
+     },
+     "good": 11,
+     "median_hours_to_solve": 8.0,
+     "mentions": {
+      "IssueRefund": 7,
+      "Payment": 10,
+      "Refund": 7
+     },
+     "opened": 28,
+     "priorities": {
+      "high": 9,
+      "low": 5,
+      "normal": 14
+     },
+     "records": 28,
+     "solved": 28,
+     "topics": {
+      "billing": 12,
+      "login": 9,
+      "refund_request": 7,
+      "vip": 3
+     },
+     "week": "2026-W25"
+    },
+    {
+     "backlog": 1,
+     "bad": 2,
+     "channels": {
+      "chat": 10,
+      "email": 9,
+      "web": 8
+     },
+     "good": 14,
+     "median_hours_to_solve": 9.0,
+     "mentions": {
+      "IssueRefund": 10,
+      "Payment": 6,
+      "Refund": 10
+     },
+     "opened": 27,
+     "priorities": {
+      "high": 8,
+      "low": 4,
+      "normal": 15
+     },
+     "records": 27,
+     "solved": 26,
+     "topics": {
+      "billing": 9,
+      "export_csv": 1,
+      "login": 7,
+      "refund_request": 10,
+      "vip": 6
+     },
+     "week": "2026-W26"
+    },
+    {
+     "backlog": 2,
+     "bad": 0,
+     "channels": {
+      "chat": 8,
+      "email": 7,
+      "web": 10
+     },
+     "good": 9,
+     "median_hours_to_solve": 8.6,
+     "mentions": {
+      "IssueRefund": 9,
+      "Payment": 5,
+      "Refund": 9
+     },
+     "opened": 25,
+     "priorities": {
+      "high": 7,
+      "low": 3,
+      "normal": 15
+     },
+     "records": 25,
+     "solved": 24,
+     "topics": {
+      "billing": 7,
+      "login": 9,
+      "refund_request": 9,
+      "vip": 2
+     },
+     "week": "2026-W27"
+    },
+    {
+     "backlog": 3,
+     "bad": 0,
+     "channels": {
+      "chat": 12,
+      "email": 8,
+      "web": 9
+     },
+     "good": 13,
+     "median_hours_to_solve": 8.4,
+     "mentions": {
+      "IssueRefund": 7,
+      "Payment": 6,
+      "Refund": 7
+     },
+     "opened": 29,
+     "priorities": {
+      "high": 9,
+      "low": 5,
+      "normal": 15
+     },
+     "records": 29,
+     "solved": 28,
+     "topics": {
+      "billing": 10,
+      "export_csv": 5,
+      "login": 7,
+      "refund_request": 7,
+      "vip": 4
+     },
+     "week": "2026-W28"
+    },
+    {
+     "backlog": 6,
+     "bad": 1,
+     "channels": {
+      "chat": 14,
+      "email": 5,
+      "web": 8
+     },
+     "good": 8,
+     "median_hours_to_solve": 8.4,
+     "mentions": {
+      "IssueRefund": 6,
+      "Payment": 3,
+      "Refund": 6
+     },
+     "opened": 27,
+     "priorities": {
+      "high": 7,
+      "low": 7,
+      "normal": 13
+     },
+     "records": 27,
+     "solved": 24,
+     "topics": {
+      "billing": 6,
+      "login": 15,
+      "refund_request": 6,
+      "vip": 2
+     },
+     "week": "2026-W29"
+    },
+    {
+     "backlog": 7,
+     "bad": 0,
+     "channels": {
+      "chat": 9,
+      "email": 11,
+      "web": 6
+     },
+     "good": 8,
+     "median_hours_to_solve": 7.8,
+     "mentions": {
+      "IssueRefund": 7,
+      "Payment": 5,
+      "Refund": 7
+     },
+     "opened": 26,
+     "priorities": {
+      "high": 7,
+      "low": 7,
+      "normal": 12
+     },
+     "records": 26,
+     "solved": 25,
+     "topics": {
+      "billing": 10,
+      "login": 9,
+      "refund_request": 7
+     },
+     "week": "2026-W30"
+    },
+    {
+     "backlog": 7,
+     "bad": 2,
+     "channels": {
+      "chat": 7,
+      "email": 9,
+      "web": 12
+     },
+     "good": 14,
+     "median_hours_to_solve": 9.6,
+     "mentions": {
+      "IssueRefund": 6,
+      "Payment": 11,
+      "Refund": 6
+     },
+     "opened": 28,
+     "priorities": {
+      "high": 9,
+      "low": 7,
+      "normal": 12
+     },
+     "records": 28,
+     "solved": 28,
+     "topics": {
+      "billing": 13,
+      "login": 9,
+      "refund_request": 6,
+      "vip": 3
+     },
+     "week": "2026-W31"
+    },
+    {
+     "backlog": 10,
+     "bad": 1,
+     "channels": {
+      "chat": 7,
+      "email": 5,
+      "web": 14
+     },
+     "good": 6,
+     "median_hours_to_solve": 9.8,
+     "mentions": {
+      "IssueRefund": 4,
+      "Payment": 5,
+      "Refund": 4
+     },
+     "opened": 26,
+     "priorities": {
+      "high": 6,
+      "low": 5,
+      "normal": 15
+     },
+     "records": 26,
+     "solved": 23,
+     "topics": {
+      "billing": 9,
+      "export_csv": 1,
+      "login": 12,
+      "refund_request": 4,
+      "vip": 1
+     },
+     "week": "2026-W32"
+    },
+    {
+     "backlog": 8,
+     "bad": 1,
+     "channels": {
+      "chat": 10,
+      "email": 9,
+      "web": 9
+     },
+     "good": 11,
+     "median_hours_to_solve": 8.4,
+     "mentions": {
+      "IssueRefund": 7,
+      "Payment": 2,
+      "Refund": 7
+     },
+     "opened": 28,
+     "priorities": {
+      "high": 11,
+      "low": 4,
+      "normal": 13
+     },
+     "records": 28,
+     "solved": 30,
+     "topics": {
+      "billing": 5,
+      "login": 16,
+      "refund_request": 7,
+      "vip": 1
+     },
+     "week": "2026-W33"
+    },
+    {
+     "backlog": 11,
+     "bad": 0,
+     "channels": {
+      "chat": 10,
+      "email": 7,
+      "web": 12
+     },
+     "good": 14,
+     "median_hours_to_solve": 7.4,
+     "mentions": {
+      "IssueRefund": 6,
+      "Payment": 6,
+      "Refund": 6
+     },
+     "opened": 29,
+     "priorities": {
+      "high": 10,
+      "low": 7,
+      "normal": 12
+     },
+     "records": 29,
+     "solved": 26,
+     "topics": {
+      "billing": 11,
+      "export_csv": 1,
+      "login": 11,
+      "refund_request": 6,
+      "vip": 1
+     },
+     "week": "2026-W34"
+    },
+    {
+     "backlog": 12,
+     "bad": 2,
+     "channels": {
+      "chat": 6,
+      "email": 11,
+      "web": 7
+     },
+     "good": 11,
+     "median_hours_to_solve": 8.4,
+     "mentions": {
+      "IssueRefund": 6,
+      "Payment": 4,
+      "Refund": 6
+     },
+     "opened": 24,
+     "priorities": {
+      "high": 11,
+      "low": 5,
+      "normal": 8
+     },
+     "records": 24,
+     "solved": 23,
+     "topics": {
+      "billing": 5,
+      "export_csv": 2,
+      "login": 11,
+      "refund_request": 6
+     },
+     "week": "2026-W35"
+    },
+    {
+     "backlog": 13,
+     "bad": 1,
+     "channels": {
+      "chat": 3,
+      "email": 7,
+      "web": 14
+     },
+     "good": 5,
+     "median_hours_to_solve": 9.4,
+     "mentions": {
+      "IssueRefund": 4,
+      "Payment": 1,
+      "Refund": 4
+     },
+     "opened": 24,
+     "priorities": {
+      "high": 6,
+      "low": 3,
+      "normal": 15
+     },
+     "records": 24,
+     "solved": 23,
+     "topics": {
+      "billing": 3,
+      "export_csv": 1,
+      "login": 16,
+      "refund_request": 4,
+      "vip": 3
+     },
+     "week": "2026-W36"
+    },
+    {
+     "backlog": 24,
+     "bad": 5,
+     "channels": {
+      "chat": 12,
+      "email": 13,
+      "web": 17
+     },
+     "good": 17,
+     "median_hours_to_solve": 19.8,
+     "mentions": {
+      "IssueRefund": 14,
+      "Payment": 4,
+      "Refund": 14
+     },
+     "opened": 42,
+     "priorities": {
+      "high": 11,
+      "low": 13,
+      "normal": 18
+     },
+     "records": 42,
+     "solved": 31,
+     "topics": {
+      "billing": 6,
+      "export_csv": 13,
+      "login": 9,
+      "refund_request": 14,
+      "vip": 1
+     },
+     "week": "2026-W37"
+    },
+    {
+     "backlog": 28,
+     "bad": 6,
+     "channels": {
+      "chat": 9,
+      "email": 16,
+      "web": 19
+     },
+     "good": 16,
+     "median_hours_to_solve": 21.2,
+     "mentions": {
+      "IssueRefund": 14,
+      "Payment": 3,
+      "Refund": 14
+     },
+     "opened": 44,
+     "priorities": {
+      "high": 11,
+      "low": 15,
+      "normal": 18
+     },
+     "records": 44,
+     "solved": 40,
+     "topics": {
+      "billing": 7,
+      "export_csv": 14,
+      "login": 9,
+      "refund_request": 14,
+      "vip": 3
+     },
+     "week": "2026-W38"
+    },
+    {
+     "backlog": 33,
+     "bad": 10,
+     "channels": {
+      "chat": 16,
+      "email": 16,
+      "web": 11
+     },
+     "good": 10,
+     "median_hours_to_solve": 16.0,
+     "mentions": {
+      "IssueRefund": 16,
+      "Payment": 4,
+      "Refund": 16
+     },
+     "opened": 43,
+     "priorities": {
+      "high": 8,
+      "low": 12,
+      "normal": 23
+     },
+     "records": 43,
+     "solved": 38,
+     "topics": {
+      "billing": 9,
+      "export_csv": 6,
+      "login": 12,
+      "refund_request": 16,
+      "vip": 5
+     },
+     "week": "2026-W39"
+    },
+    {
+     "backlog": 57,
+     "bad": 8,
+     "channels": {
+      "chat": 16,
+      "email": 17,
+      "web": 12
+     },
+     "good": 11,
+     "median_hours_to_solve": 21.4,
+     "mentions": {
+      "IssueRefund": 16,
+      "Payment": 10,
+      "Refund": 16
+     },
+     "opened": 45,
+     "priorities": {
+      "high": 5,
+      "low": 10,
+      "normal": 30
+     },
+     "records": 45,
+     "solved": 21,
+     "topics": {
+      "billing": 13,
+      "export_csv": 11,
+      "login": 5,
+      "refund_request": 16,
+      "vip": 3
+     },
+     "week": "2026-W40"
+    }
+   ]
+  },
+  "totals": {
+   "deals": {
+    "created": 132,
+    "lost": 68,
+    "lost_amount": {
+     "usd": 227184.0
+    },
+    "lost_reasons": {
+     "no budget": 20,
+     "price": 23,
+     "timing": 5,
+     "went with a competitor": 20
+    },
+    "median_days_to_close": 11.1,
+    "open": 31,
+    "records": 132,
+    "sources": {
+     "organic search": 43,
+     "paid search": 49,
+     "referrals": 40
+    },
+    "won": 33,
+    "won_amount": {
+     "usd": 111780.0
+    }
+   },
+   "tickets": {
+    "backlog": 57,
+    "bad": 40,
+    "channels": {
+     "chat": 157,
+     "email": 159,
+     "web": 179
+    },
+    "good": 178,
+    "median_hours_to_solve": 10.0,
+    "mentions": {
+     "IssueRefund": 139,
+     "Payment": 85,
+     "Refund": 139
+    },
+    "opened": 495,
+    "priorities": {
+     "high": 135,
+     "low": 112,
+     "normal": 248
+    },
+    "records": 495,
+    "solved": 438,
+    "topics": {
+     "billing": 135,
+     "export_csv": 55,
+     "login": 166,
+     "refund_request": 139,
+     "vip": 38
+    }
+   }
+  }
+ },
  "execution_authorized": false,
  "folder": "<root>/demo/business/.ontologyex/operations",
  "kind": "OPERATIONS_LEDGER",
@@ -1333,11 +2389,29 @@
    "stream": "refunds"
   },
   {
+   "detail": "31% of rated tickets were rated bad in the last 4 weeks, 9% in the 4 before",
+   "level": "HIGH",
+   "signal": "SATISFACTION_DROPPING",
+   "stream": "tickets"
+  },
+  {
    "currency": "usd",
    "detail": "money out in 2026-09 was 75% above the average of the three months before",
    "level": "HIGH",
    "signal": "SPEND_RISING",
    "stream": "transactions"
+  },
+  {
+   "detail": "21% of closed deals were won in the last 4 weeks, 54% in the 4 before",
+   "level": "HIGH",
+   "signal": "WIN_RATE_DOWN",
+   "stream": "deals"
+  },
+  {
+   "detail": "33 tickets open at the end of the last complete week, 12 four weeks earlier",
+   "level": "MEDIUM",
+   "signal": "BACKLOG_GROWING",
+   "stream": "tickets"
   },
   {
    "currency": "usd",
@@ -1354,11 +2428,37 @@
    "stream": "invoices"
   },
   {
+   "detail": "9 of 19 deals lost in the last 4 weeks were lost to 'price'",
+   "level": "MEDIUM",
+   "signal": "LOSS_REASON_DOMINANT",
+   "stream": "deals"
+  },
+  {
    "currency": "usd",
    "detail": "OpenAI was paid for the first time in 2026-09",
    "level": "MEDIUM",
    "signal": "NEW_SUPPLIER_PAID",
    "stream": "transactions"
+  },
+  {
+   "detail": "the median ticket took 16.2 hours to solve in the last 4 weeks, 8.6 in the 4 before",
+   "level": "MEDIUM",
+   "signal": "RESOLUTION_SLOWER",
+   "stream": "tickets"
+  },
+  {
+   "detail": "tickets tagged 'export_csv' went from 4 to 34 against the 4 weeks before",
+   "level": "MEDIUM",
+   "signal": "TOPIC_SPIKE",
+   "stream": "tickets",
+   "topic": "export_csv"
+  },
+  {
+   "detail": "tickets tagged 'vip' went from 3 to 12 against the 4 weeks before",
+   "level": "MEDIUM",
+   "signal": "TOPIC_SPIKE",
+   "stream": "tickets",
+   "topic": "vip"
   }
  ],
  "sources": [
@@ -1535,6 +2635,50 @@
    "sha256": "cb8c85dd6649f7f6fd8bbd10ae87195c37e5a22e85c755915f1d48426f223f65",
    "status": "READ",
    "stream": "cloud_costs"
+  },
+  {
+   "bytes": 18112,
+   "columns_matched_only": [],
+   "columns_not_read": 4,
+   "columns_used": [
+    "amount",
+    "close",
+    "created",
+    "currency",
+    "lost_reason",
+    "source",
+    "stage"
+   ],
+   "file": "crm/hubspot-deals.csv",
+   "recognized_by": "columns",
+   "rows": 132,
+   "rows_used": 132,
+   "sha256": "2577dda10e31f9109cfd7015dbfbb139b74d30d935ac0ff9db96cc6d5b34c17a",
+   "status": "READ",
+   "stream": "deals"
+  },
+  {
+   "bytes": 77581,
+   "columns_matched_only": [
+    "subject"
+   ],
+   "columns_not_read": 4,
+   "columns_used": [
+    "channel",
+    "created",
+    "priority",
+    "satisfaction",
+    "solved",
+    "status",
+    "topic"
+   ],
+   "file": "support/zendesk-tickets.csv",
+   "recognized_by": "columns",
+   "rows": 495,
+   "rows_used": 495,
+   "sha256": "a8e6dd877a1e04db96d7d737c2c1205ba106cf3a74685df84e1de9b3f4bf9a01",
+   "status": "READ",
+   "stream": "tickets"
   }
  ],
  "spend": {

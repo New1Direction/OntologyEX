@@ -1173,12 +1173,14 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         """The operations ledger, read again only when a file in the folder or the week changed;
         compared each time with the model and code as they are now."""
         now = datetime.now(timezone.utc)
-        key = (operations.week_of(now), operations.folder_revision(operations_dir))
-        if operations_cache.get("key") != key:
-            operations_cache["key"], operations_cache["report"] = key, operations.report(operations_dir, now=now)
+        entities = list(entity_context._entities(data).values())
+        names = tuple(sorted(e.get("label") or "" for e in entities if e.get("layer") == "business"))
+        key = (operations.week_of(now), operations.folder_revision(operations_dir), names)
+        if operations_cache.get("key") != key:  # ticket subjects are matched against the business items' names
+            operations_cache["key"], operations_cache["report"] = key, operations.report(operations_dir, entities,
+                                                                                         now=now)
         found = operations_cache["report"]
-        return operations.with_comparison(found, list(entity_context._entities(data).values()),
-                                          (data.get("suppliers") or {}).get("suppliers"))
+        return operations.with_comparison(found, entities, (data.get("suppliers") or {}).get("suppliers"))
 
     def bundle() -> dict:
         """The model, with who owns each part of it."""

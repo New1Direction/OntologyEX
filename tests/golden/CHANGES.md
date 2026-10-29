@@ -36,3 +36,9 @@ here with its reason, or CI fails.
 - `demo/command_center.json`
 - `demo/digest.json`
 - `demo/operations.json`
+
+## 2026-10-29: Customers: the demo's helpdesk and CRM exports, read as weekly aggregates, add rising tickets, a growing backlog, slower solving, worse ratings, a CSV-export spike nothing in the model names, a falling win rate lost mostly to price, and refunds confirmed by refund tickets; the operations ledger gains a customers section.
+
+- `demo/command_center.json`
+- `demo/digest.json`
+- `demo/operations.json`

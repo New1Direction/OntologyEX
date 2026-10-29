@@ -63,7 +63,8 @@ class DemoTests(Folder):
                          {"payments.csv": "payments", "refunds.csv": "refunds", "disputes.csv": "disputes",
                           "payouts.csv": "payouts", "subscriptions.csv": "subscriptions", "invoices.csv": "invoices",
                           "bank/business-account.csv": "transactions", "bills.csv": "bills",
-                          "cloud/aws-cost-and-usage.csv": "cloud_costs"})
+                          "cloud/aws-cost-and-usage.csv": "cloud_costs", "support/zendesk-tickets.csv": "tickets",
+                          "crm/hubspot-deals.csv": "deals"})
         self.assertNotIn("customer", " ".join(by_file["payments.csv"]["columns_used"]).lower())
         self.assertEqual(by_file["payments.csv"]["columns_not_read"], 6)
         self.assertEqual(by_file["bank/business-account.csv"]["recognized_by"], "operations.json")
@@ -216,6 +217,170 @@ class SpendFormatTests(Folder):
         with self.assertRaises(ops.OperationsError) as caught:
             ops.pull_aws(out, 3, str(broken), now=NOW)
         self.assertIn("AccessDenied", str(caught.exception))
+
+
+class CustomersDemoTests(Folder):
+    ENTITIES = [{"id": "s:refund", "label": "Refund", "layer": "business"},
+                {"id": "s:issue", "label": "IssueRefund", "layer": "business"},
+                {"id": "s:payment", "label": "Payment", "layer": "business"}]
+
+    def setUp(self):
+        super().setUp()
+        demo.write_operations(self.dir / "ops", NOW)
+        self.answer = ops.with_comparison(ops.report(self.dir / "ops", self.ENTITIES, now=NOW), self.ENTITIES, [])
+        self.c = self.answer["customers"]
+
+    def test_no_subject_requester_agent_deal_or_company_leaves_the_records(self):
+        text = json.dumps(self.answer)
+        for needle in ("example.test", "Customer ", "Acme", "Ana Ruiz", "Ben Cole", "Where is my", "CSV export is",
+                       "Team plan", "100001", "900001"):
+            self.assertNotIn(needle, text, needle)
+        tickets = next(x for x in self.answer["sources"] if x.get("stream") == "tickets")
+        self.assertEqual(tickets["columns_matched_only"], ["subject"])
+        self.assertNotIn("subject", tickets["columns_used"])
+
+    def test_signals_and_what_two_sources_say_together(self):
+        self.assertEqual({s["signal"] for s in self.c["signals"]},
+                         {"TICKETS_RISING", "BACKLOG_GROWING", "RESOLUTION_SLOWER", "SATISFACTION_DROPPING",
+                          "TOPIC_SPIKE", "WIN_RATE_DOWN", "LOSS_REASON_DOMINANT"})
+        joined = {(f["finding"], f.get("topic")) for f in self.c["joined"]}
+        self.assertIn(("REFUNDS_CONFIRMED_BY_TICKETS", None), joined)
+        self.assertIn(("TOPIC_NOT_MODELED", "export_csv"), joined)
+        mentions = self.c["recent"]["tickets"]["mentions"]
+        self.assertEqual(mentions["Refund"], mentions["IssueRefund"])  # the same tickets, counted once each
+        items = command_center.report({"state": {"nodes": [], "edges": []}, "operations": self.answer})["items"]
+        top = next(i for i in items if i["kind"] == "REFUNDS_CONFIRMED_BY_TICKETS")
+        self.assertEqual(top["category"], "Customers")
+        self.assertGreater(top["score"], next(i for i in items if i["kind"] == "TICKETS_RISING")["score"])
+
+    def test_bucket_medians(self):
+        import customers
+        bins = [0] * (len(customers.HOUR_BINS) + 1)
+        for hours in (3, 5, 6, 7, 9, 10, 11, 13, 20, 30):
+            customers.into(bins, customers.HOUR_BINS, hours)
+        self.assertEqual(customers.median_of(bins, customers.HOUR_BINS), 9.3)  # exact median 9.5
+        self.assertIsNone(customers.median_of([0] * 14, customers.HOUR_BINS))
+
+
+class CustomersFormatTests(Folder):
+    def test_a_freshdesk_export_and_a_salesforce_export_through_a_mapping(self):
+        write(self.dir, "tickets.csv", "Ticket ID,Subject,Status,Priority,Source,Type,Created time,Resolved time,Tags,"
+              "Contact\n1,Refund please,Resolved,Low,Email,Refund,2026-10-05 10:00:00,2026-10-05 16:00:00,,a@x.test\n"
+              "2,Login,Open,High,Phone,Problem,2026-10-06 10:00:00,,,b@x.test\n"
+              "3,Refund again,Closed,Low,Email,Refund,2026-10-07 10:00:00,2026-10-08 10:00:00,,c@x.test\n")
+        write(self.dir, "opportunities.csv", "Opportunity Name,Account Name,Stage,Amount,Close Date,Created Date,Lead Source,"
+              "Opportunity Owner\nBig deal,Initech,Closed Won,5000,10/08/2026,10/01/2026,Web,Pat\n"
+              "Small deal,Globex,Closed Lost,900,10/09/2026,10/02/2026,Partner,Pat\n")
+        write(self.dir, "operations.json", json.dumps({"files": [{"match": "opportunities.csv", "stream": "deals",
+                                                                  "currency": "usd", "date_format": "%m/%d/%Y",
+                                                                  "columns": {"stage": "Stage", "amount": "Amount",
+                                                                              "close": "Close Date", "created": "Created Date",
+                                                                              "source": "Lead Source"}}]}))
+        answer = ops.report(self.dir, min_cell=1, now=NOW)
+        c = answer["customers"]
+        week = c["streams"]["tickets"][0]
+        self.assertEqual((week["week"], week["opened"], week["solved"], week["topics"]),
+                         ("2026-W41", 3, 2, {"refund": 2, "problem": 1}))
+        self.assertEqual(c["totals"]["tickets"]["backlog"], 1)
+        deals = c["totals"]["deals"]
+        self.assertEqual((deals["won"], deals["lost"], deals["won_amount"], deals["sources"]),
+                         (1, 1, {"usd": 5000.0}, {"web": 1, "partner": 1}))
+        text = json.dumps(answer)
+        for needle in ("Initech", "Globex", "Big deal", "Pat", "a@x.test", "Refund please"):
+            self.assertNotIn(needle, text, needle)
+
+
+class Fake(BaseHTTPRequestHandler):
+    routes = {}
+    seen = []
+
+    def do_GET(self):
+        Fake.seen.append((self.path, self.headers.get("Authorization")))
+        body = Fake.routes.get(self.path.split("?")[0] + ("?" + self.path.split("?")[1] if "?" in self.path and
+                                                           self.path.split("?")[0] + "?" + self.path.split("?")[1]
+                                                           in Fake.routes else ""))
+        if body is None:
+            body = Fake.routes.get(self.path.split("?")[0])
+        payload = json.dumps(body(self.path) if callable(body) else body).encode()
+        self.send_response(200 if body is not None else 404)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def log_message(self, *args):
+        pass
+
+
+class CustomerPullTests(Folder):
+    def setUp(self):
+        super().setUp()
+        Fake.routes, Fake.seen = {}, []
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
+
+    def tearDown(self):
+        self.server.shutdown()
+        super().tearDown()
+
+    def test_zendesk_pull(self):
+        base = self.base
+
+        def tickets(path):
+            if "cursor=next" in path:
+                return {"tickets": [{"id": 3, "created_at": "2026-10-07T10:00:00Z", "status": "open", "tags": ["login"],
+                                     "subject": "cannot log in", "requester_id": 77}], "end_of_stream": True}
+            return {"tickets": [{"id": 1, "created_at": "2026-10-05T10:00:00Z", "status": "solved", "tags": ["refund_request"],
+                                 "subject": "Where is my refund", "via": {"channel": "email"},
+                                 "satisfaction_rating": {"score": "bad"}},
+                                {"id": 2, "created_at": "2026-10-06T10:00:00Z", "status": "solved", "tags": [],
+                                 "type": "question", "subject": "Payment failed"}],
+                    "metric_sets": [{"ticket_id": 1, "solved_at": "2026-10-05T14:00:00Z"},
+                                    {"ticket_id": 2, "solved_at": "2026-10-06T12:00:00Z"}],
+                    "after_url": f"{base}/api/v2/incremental/tickets/cursor.json?cursor=next", "end_of_stream": False}
+        Fake.routes["/api/v2/incremental/tickets/cursor.json"] = tickets
+        result = ops.pull_zendesk(base, {"Authorization": "Bearer zd"}, self.dir, 30, now=NOW,
+                                  entities=CustomersDemoTests.ENTITIES)
+        self.assertEqual(result["objects_read"], {"tickets": 3})
+        written = (self.dir / "zendesk-api.ontologyex-aggregate.json").read_text()
+        for needle in ("Where is my", "cannot log in", "requester", "Bearer"):
+            self.assertNotIn(needle, written)
+        c = ops.report(self.dir, min_cell=1, now=NOW)["customers"]
+        week = c["streams"]["tickets"][0]
+        self.assertEqual((week["opened"], week["solved"], week["bad"], week["mentions"]),
+                         (3, 2, 1, {"Refund": 1, "IssueRefund": 1, "Payment": 1}))
+        self.assertEqual(c["totals"]["tickets"]["backlog"], 1)
+        self.assertTrue(all(auth == "Bearer zd" for _, auth in Fake.seen))
+        Fake.routes["/api/v2/incremental/tickets/cursor.json"] = lambda path: {
+            "tickets": [], "after_url": "https://elsewhere.example/api/next", "end_of_stream": False}
+        with self.assertRaises(ops.OperationsError) as caught:
+            ops.pull_zendesk(base, {"Authorization": "Bearer zd"}, self.dir, 30, now=NOW)
+        self.assertIn("another host", str(caught.exception))
+
+    def test_hubspot_pull(self):
+        Fake.routes["/crm/v3/pipelines/deals"] = {"results": [{"stages": [
+            {"id": "123", "metadata": {"isClosed": "true", "probability": "1.0"}},
+            {"id": "124", "metadata": {"isClosed": "true", "probability": "0.0"}},
+            {"id": "125", "metadata": {"isClosed": "false", "probability": "0.4"}}]}]}
+
+        def deals(path):
+            if "after=2" in path:
+                return {"results": [{"properties": {"dealstage": "125", "amount": "300", "createdate": "2026-10-07T00:00:00Z",
+                                                    "dealname": "Secret Co"}}]}
+            return {"results": [{"properties": {"dealstage": "123", "amount": "1000", "deal_currency_code": "EUR",
+                                                 "createdate": "2026-10-01T00:00:00Z", "closedate": "2026-10-06T00:00:00Z",
+                                                 "hs_analytics_source": "ORGANIC_SEARCH", "dealname": "Secret Co"}},
+                                 {"properties": {"dealstage": "124", "amount": "500", "deal_currency_code": "EUR",
+                                                 "createdate": "2026-10-02T00:00:00Z", "closedate": "2026-10-07T00:00:00Z",
+                                                 "closed_lost_reason": "Price"}}],
+                    "paging": {"next": {"after": "2"}}}
+        Fake.routes["/crm/v3/objects/deals"] = deals
+        result = ops.pull_hubspot("pat-1", self.dir, now=NOW, base=self.base)
+        self.assertEqual(result["objects_read"], {"deals": 3})
+        self.assertNotIn("Secret Co", (self.dir / "hubspot-api.ontologyex-aggregate.json").read_text())
+        deals = ops.report(self.dir, min_cell=1, now=NOW)["customers"]["totals"]["deals"]
+        self.assertEqual((deals["won"], deals["lost"], deals["won_amount"], deals["lost_reasons"], deals["open"]),
+                         (1, 1, {"eur": 1000.0}, {"price": 1}, 1))
 
 
 class AgentToolTests(Folder):
