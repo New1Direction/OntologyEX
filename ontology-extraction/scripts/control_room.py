@@ -28,6 +28,7 @@ import discover_repo
 import evidence_grade
 import decisions
 import dependency_suggest
+import entity_context
 import link_suggest
 import github_discovery
 import snapshot_store
@@ -351,7 +352,8 @@ background:#071018;color:#d5e9eb}*{box-sizing:border-box}body{margin:0;backgroun
 min-height:100vh}header{padding:20px 24px;border-bottom:1px solid #254452;display:flex;align-items:center;
 justify-content:space-between;gap:20px}h1{font-size:19px;letter-spacing:.12em;margin:0}small,.muted{color:#839fab}
 header small{display:block;letter-spacing:.11em;margin-bottom:6px;color:#50b5af}
-#business-view{display:inline-block;margin-top:6px;font-size:12px;color:#7fd6d2}
+#business-view,#entity-view{display:inline-block;margin-top:6px;font-size:12px;color:#7fd6d2}
+#entity-page{display:block;margin-top:8px;font-size:12px;color:#7fd6d2}
 main#workspace{position:relative;display:flex;flex-direction:column;gap:12px;padding:12px;
 width:100%;min-height:520px;overflow:visible}
 #workspace>section{position:relative;min-width:0;min-height:120px;box-sizing:border-box;overflow:auto;
@@ -392,7 +394,7 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 @media(prefers-reduced-motion:reduce){#workspace>section{transition:none!important}}
 </style></head>
 <body><header><div><small>ONTOLOGYEX // LOCAL OBSERVABILITY</small>
-<h1>BUSINESS CONTROL ROOM</h1><a id="business-view" href="/business">Business operating picture →</a></div><div><select id="lens" aria-label="Graph lens">
+<h1>BUSINESS CONTROL ROOM</h1><a id="business-view" href="/business">Business operating picture →</a> <a id="entity-view" href="/entity">Entities →</a></div><div><select id="lens" aria-label="Graph lens">
 <option value="all">ALL SYSTEMS</option><option value="api">API ROUTES</option>
 <option value="database">DATABASE</option><option value="services">SERVICES</option>
 </select> <input id="graph-search" type="search" aria-label="Find graph node" maxlength="90" placeholder="Find node…"/>
@@ -411,7 +413,7 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 </div><p id="graph-scope" aria-live="polite">Select a node to explore its connected neighbors.</p><svg id="svg" role="img" aria-label="Interactive dependency diagram"></svg></section>
 <section id="incidents" class="priority-critical"><h2>Incidents and risks</h2><ul id="incident-list"></ul></section>
 <section id="integrity" class="priority-critical"><h2>System integrity</h2><div id="counts"></div></section>
-<section id="details-panel"><h2>Selected component</h2><div id="details">Select a node to inspect its source and status.</div><button type="button" id="investigate-node" disabled>Investigate evidence</button><pre id="incident-report" aria-live="polite">Select a node to inspect its observations and possible exposures.</pre></section>
+<section id="details-panel"><h2>Selected component</h2><div id="details">Select a node to inspect its source and status.</div><button type="button" id="investigate-node" disabled>Investigate evidence</button><a id="entity-page" href="/entity" hidden>Entity page: why it exists, what relies on it →</a><pre id="incident-report" aria-live="polite">Select a node to inspect its observations and possible exposures.</pre></section>
 <section id="coverage-panel"><h2>Coverage and blind spots</h2><div id="coverage" class="muted"></div></section>
 <section id="versions-panel" data-collapsed="false"><h2>Saved source revisions</h2>
 <button id="toggle-versions" type="button" aria-expanded="true" aria-controls="versions">Collapse revisions</button>
@@ -702,6 +704,8 @@ function detail(n,s){
  "","Database table names are source-syntax candidates until verified.",
  "No causal root cause is asserted."];
  text("details",lines.join("\n"));
+ const entityPage=document.getElementById("entity-page");
+ entityPage.href="/entity?id="+encodeURIComponent(n.id);entityPage.hidden=false;
 }
 async function loadPage(){
  const seq=++requestEpoch;
@@ -873,7 +877,8 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
           view_engine: str = "python", skills: list[Path] | None = None,
           links: Path | None = None, events: Path | None = None,
           allow_link_decisions: bool = False, decision_model: bool = False,
-          discovery_engine: str = "python", dependencies: Path | None = None) -> None:
+          discovery_engine: str = "python", dependencies: Path | None = None,
+          print_bundle: bool = False, proposals: Path | None = None) -> None:
     check(0 <= port <= 65535, "invalid port")
     check(view_engine in ("python", "rust"), "unsupported graph view backend")
     native_view = native_view_bridge.NativeView() if view_engine == "rust" else None
@@ -932,6 +937,10 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                                 if links is not None and links.exists() else ([], [])))
         result = business_view.project(skills, full, link_rows, events)
         suggestions = link_suggest.suggest(skills, full, link_rows, rejected, native_view, decider)
+        if proposals is not None:  # agent proposals join the same queue; only a person confirms them
+            suggestions = link_suggest.merge_proposals(
+                suggestions, link_suggest.prepare(skills, full, link_rows, rejected),
+                link_suggest.read_proposals(proposals))
         if decider is not None:
             try:
                 rows = [row for path in skills for row in evidence_grade.triage(path, decider)["rows"]]
@@ -1041,6 +1050,20 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             result["gaps"].append({"source": "github", "reason": "GITHUB_REFRESH_UNAVAILABLE"})
         return result
 
+    def bundle() -> dict:
+        """What the entity context reads: the state, the business picture, and the decision history."""
+        full = snapshot()
+        return {"state": full, "business": business(full) if skills or dependencies is not None else {},
+                "link_history": entity_context.read_history(
+                    decisions.history_path(links) if links is not None else None),
+                "dependency_history": entity_context.read_history(
+                    decisions.history_path(dependencies) if dependencies is not None else None),
+                "agent_proposals": link_suggest.read_proposals(proposals)}
+
+    if print_bundle:  # the same assembly the server answers from, for tests, parity and agents offline
+        print(json.dumps(bundle(), sort_keys=True, separators=(",", ":")))
+        return
+
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             host_headers = self.headers.get_all("Host", [])
@@ -1089,6 +1112,72 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                         raise graph_view_api.ViewError("business view takes no parameters")
                     payload, code = json.dumps(business(snapshot()), sort_keys=True).encode(), 200
                 except graph_view_api.ViewError:
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, DomainError, discover_repo.DiscoveryError,
+                        github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
+            elif route.path == "/entity":
+                page = (Path(__file__).resolve().parent / "entity_page.html").read_text(encoding="utf-8")
+                page = page.replace('<meta name="ontologyex-write-token" content=""/>',
+                                    f'<meta name="ontologyex-write-token" content="{write_token}"/>'
+                                    if write_token else '<meta name="ontologyex-write-token" content=""/>')
+                payload, mime, code = page.encode("utf-8"), "text/html; charset=utf-8", 200
+            elif route.path == "/api/bundle":  # what agent_tools.py reads: the same model as the pages
+                mime = "application/json; charset=utf-8"
+                try:
+                    if route.query:
+                        raise graph_view_api.ViewError("bundle takes no parameters")
+                    payload, code = json.dumps(bundle(), sort_keys=True).encode(), 200
+                except graph_view_api.ViewError:
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, DomainError, discover_repo.DiscoveryError,
+                        github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
+            elif route.path == "/api/explain":
+                mime = "application/json; charset=utf-8"
+                try:
+                    params = parse_qs(route.query, strict_parsing=True, max_num_fields=2)
+                    if set(params) != {"from", "to"} or any(len(v) != 1 for v in params.values()):
+                        raise graph_view_api.ViewError("explain takes one from and one to")
+                    data = bundle()
+                    source, target = params["from"][0], params["to"][0]
+                    if native_view is not None:
+                        known = entity_context.entity_ids(data)
+                        if source not in known or target not in known:
+                            raise entity_context.ContextError("entity not found")
+                        answer = native_view.execute(data, "explain", source, target)
+                    else:
+                        answer = entity_context.explain(data, source, target)
+                    payload, code = json.dumps(answer, sort_keys=True).encode(), 200
+                except entity_context.ContextError as exc:
+                    payload, code = json.dumps({"status": "NOT_FOUND", "error": str(exc)[:200]}).encode(), 404
+                except (graph_view_api.ViewError, ValueError, native_view_bridge.NativeViewError):
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, DomainError, discover_repo.DiscoveryError,
+                        github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
+            elif route.path in ("/api/context", "/api/search"):
+                mime = "application/json; charset=utf-8"
+                try:
+                    params = parse_qs(route.query, strict_parsing=True, max_num_fields=1)
+                    name = "id" if route.path == "/api/context" else "q"
+                    value = params.get(name, [""])
+                    if set(params) != {name} or len(value) != 1:
+                        raise graph_view_api.ViewError(f"takes one {name}")
+                    data = bundle()
+                    if native_view is not None:  # the Rust engine, checked against Python by rust_context_parity
+                        if name == "id" and value[0] not in entity_context.entity_ids(data):
+                            raise entity_context.ContextError("entity not found")
+                        answer = native_view.execute(data, "context" if name == "id" else "search", value[0])
+                    else:
+                        answer = (entity_context.context(data, value[0]) if name == "id"
+                                  else entity_context.search(data, value[0]))
+                    payload, code = json.dumps(answer, sort_keys=True).encode(), 200
+                except entity_context.ContextError as exc:
+                    payload = json.dumps({"status": "NOT_FOUND" if "not found" in str(exc) else "INVALID_QUERY",
+                                          "error": str(exc)[:200]}).encode()
+                    code = 404 if "not found" in str(exc) else 400
+                except (graph_view_api.ViewError, ValueError, native_view_bridge.NativeViewError):
                     payload, code = b'{"status":"INVALID_QUERY"}', 400
                 except (RoomError, DomainError, discover_repo.DiscoveryError,
                         github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
@@ -1255,6 +1344,8 @@ def main():
     parser.add_argument("--thresholds", type=Path, default=None)
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--state-only", action="store_true")
+    parser.add_argument("--bundle-only", action="store_true",
+                        help="print the entity-context bundle (state, business picture, decision history) and exit")
     parser.add_argument("--view-engine", choices=("python", "rust"), default="python",
                         help="read-only projection backend; rust requires compiled ontologyex-view")
     parser.add_argument("--discovery-engine", choices=("auto", "python", "rust"), default="auto",
@@ -1268,6 +1359,8 @@ def main():
                         help="evidence grade events file (see evidence_grade.py)")
     parser.add_argument("--dependencies", type=Path, default=None,
                         help="dependencies confirmed from observed calls (JSON; see dependency_suggest.py)")
+    parser.add_argument("--proposals", type=Path, default=None,
+                        help="agent link proposals (JSON lines written by agent_tools.py); shown as suggestions")
     parser.add_argument("--allow-link-decisions", action="store_true",
                         help="let the local business page confirm or reject link and dependency suggestions")
     parser.add_argument("--decision-model", action="store_true",
@@ -1314,7 +1407,8 @@ def main():
                   discovery_engine=args.discovery_engine,
                   skills=args.skill, links=args.links, events=args.events,
                   allow_link_decisions=args.allow_link_decisions,
-                  decision_model=args.decision_model, dependencies=args.dependencies)
+                  decision_model=args.decision_model, dependencies=args.dependencies,
+                  print_bundle=args.bundle_only, proposals=args.proposals)
         return 0
     except (OSError, RoomError, discover_repo.DiscoveryError,
             github_discovery.GitHubDiscoveryError, snapshot_store.SnapshotError,

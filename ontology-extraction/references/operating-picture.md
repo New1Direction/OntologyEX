@@ -40,6 +40,11 @@ IDs). To let the user click Confirm/Reject (one at a time or selected together, 
 Undo) in the page instead, add `--links links.json --allow-link-decisions` to
 `control_room.py`.
 
+To see one entity across both layers (why it exists, what relies on it, every
+relationship with how it is known, and the files behind it), open `/entity`; to give
+agents the same model through permission-aware tools that can only propose, see
+[entity context](entity-context.md).
+
 ## 3. Add live health (optional)
 
 Propose feeds from what the repository declares, show them to the user, and write

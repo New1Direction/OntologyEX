@@ -41,6 +41,22 @@ one feed cannot hide another feed's fresh error), `fuse_ok_sound`, `all_expired_
 section (259 rows) is computed by Python through `control_room.build_state`, by the
 Rust core's `project`, and by Lean's `fuse`, and all three must agree.
 
+**Lean, agent proposals** (`OntologyEX.Business`, `link_suggest.merge_proposals`):
+`proposals_alone_change_nothing` (an agent's proposal, like any suggestion, adds no
+link without a decision), `blocked_proposal_never_queued` (a link a person rejected,
+or one already linked, is never queued again by a proposal), `agent_links_were_confirmed`
+(every link added after proposals carries a person's confirm decision).
+
+**Lean, entity context** (`OntologyEX.Context`, `entity_context.py`, `engine/src/context.rs`):
+`confirmed_only_by_person` (only a person's decision gives CONFIRMED),
+`agent_proposal_is_inferred`, `hop_no_weaker_than_path` (a chain never reads stronger
+than any of its links), `path_confirmed_iff` (a path is CONFIRMED exactly when every
+hop is), `inferred_hop_taints_path`, `path_is_a_hop`. The conformance table's
+`path_standing` section (341 rows: every chain of up to four standings) is computed
+by Python's `path_standing`, Rust's `path_standing` and Lean's `pathStanding`, and all
+three must agree; `tests/rust_context_parity.py` then checks the whole Rust entity
+context, explanations and search against Python on the demo and 120 seeded bundles.
+
 **Bend** (`proofs/bend/business.bend`, checked by `bendlang/bend` at a pinned commit):
 `empty_is_unlinked`, `error_anywhere_is_at_risk`, `unknown_anywhere_is_not_ok`,
 `ladder_never_g4`, `rejection_is_g0`, `inferred_at_most_g1`,

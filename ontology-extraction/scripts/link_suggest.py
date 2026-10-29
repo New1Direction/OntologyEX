@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path, PurePosixPath
 import re
 
@@ -25,6 +26,9 @@ MAX_PER_BINDING = 5
 MAX_ROUTE_OPTIONS = 254          # Jev allows 255 choices; one is "none"
 MODEL_MIN_PROBABILITY = 0.5
 MAX_CANDIDATES = 4096
+PROPOSAL_KIND = "ONTOLOGYEX_AGENT_LINK_PROPOSAL"
+MAX_PROPOSALS = 2000
+MAX_PROPOSAL_BYTES = 4 * 1024 * 1024
 STOPWORDS = frozenset({
     "the", "and", "for", "get", "set", "apply", "type", "class", "def", "func", "function",
     "impl", "src", "lib", "libs", "app", "apps", "main", "index", "init", "core", "common",
@@ -221,6 +225,87 @@ def merge_model_routes(result: dict, routes: list[dict]) -> dict:
             out.append(row)
             per[(row["skill"], row["binding"])] = n + 1
     return {**result, "suggestions": out}
+
+
+def valid_proposal(row) -> bool:
+    """One line of an agent proposals file: who proposed which link, for whom, and why."""
+    fields = {"kind": 40, "id": 64, "at": 40, "proposed_by": 128, "on_behalf_of": 128,
+              "skill": 200, "binding": 200, "component": 1024, "reason": 500}
+    return (type(row) is dict and set(row) == set(fields) and row["kind"] == PROPOSAL_KIND
+            and all(type(row[k]) is str and 0 < len(row[k]) <= n for k, n in fields.items())
+            and row["proposed_by"].startswith("agent:")
+            and row["id"] == suggestion_id(row["skill"], row["binding"], row["component"]))
+
+
+def read_proposals(path: Path | None) -> list[dict]:
+    """Agent link proposals, oldest first. Lines that are torn or malformed are skipped, never trusted."""
+    if path is None or not path.is_file() or path.is_symlink():
+        return []
+    with path.open("rb") as handle:  # a long file is read from its newest end, never refused whole
+        size = handle.seek(0, os.SEEK_END)
+        handle.seek(max(0, size - MAX_PROPOSAL_BYTES))
+        text = handle.read(MAX_PROPOSAL_BYTES).decode("utf-8", "replace")
+    lines = text.splitlines()[1 if size > MAX_PROPOSAL_BYTES else 0:]
+    rows = []
+    for line in lines[-MAX_PROPOSALS:]:
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if valid_proposal(row):
+            rows.append(row)
+    return rows
+
+
+def append_proposal(path: Path, row: dict) -> None:
+    """Append one proposal line. Append-only: nothing here rewrites or removes a line."""
+    require(valid_proposal(row), "invalid agent proposal")
+    require(not path.is_symlink(), "agent proposals path must not be a symlink")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
+def merge_proposals(result: dict, data: dict, proposals: list[dict]) -> dict:
+    """Show agent proposals beside the ranked suggestions, as suggestions a person decides.
+
+    A proposal adds a WEAK signal with the agent's stated reason; it never raises a
+    suggestion's strength and never links anything. A proposal for a binding or
+    component that does not exist, a link already confirmed, or one a person rejected
+    is not shown: rejections stay sticky whoever proposes again.
+    """
+    bindings = {(b["skill"], b["binding"]) for b in data["bindings"]}
+    components = {c["id"]: c for c in data["components"]}
+    linked = {tuple(x) for x in data["linked"]}
+    rejected = {tuple(x) for x in data["rejected"]}
+    rows = {(r["skill"], r["binding"], r["component"]): r for r in result["suggestions"]}
+    added, shown, hidden, counted = [], 0, 0, {}
+    for proposal in proposals:
+        key = (proposal["skill"], proposal["binding"], proposal["component"])
+        if key[:2] not in bindings or key[2] not in components or key in linked or key in rejected:
+            hidden += 1
+            continue
+        counted[key] = counted.get(key, 0) + 1
+        if counted[key] > 3:
+            continue  # the same link proposed again and again adds nothing a person needs to read
+        row = rows.get(key)
+        if row is None:
+            c = components[key[2]]
+            row = rows[key] = {"id": suggestion_id(*key), "skill": key[0], "binding": key[1],
+                               "component": c["id"], "component_label": c["label"], "component_kind": c["kind"],
+                               "strength": "WEAK", "signals": [], "status": "PROPOSED",
+                               "proposed_by": proposal["proposed_by"]}
+            added.append(row)
+        else:
+            row = rows[key] = {**row, "signals": list(row["signals"])}
+        row["signals"].append({"signal": "AGENT_PROPOSAL", "strength": "WEAK",
+                               "detail": f"{proposal['proposed_by']} for {proposal['on_behalf_of']}: {proposal['reason']}"})
+        shown += 1
+    ranked = [rows[(r["skill"], r["binding"], r["component"])] for r in result["suggestions"]]
+    return {**result, "suggestions": ranked + added,
+            "agent_proposals": {"shown": shown, "new_suggestions": len(added), "not_shown": hidden}}
 
 
 def suggest(skills: list[Path], state: dict, links: list[dict], rejected: list[dict],

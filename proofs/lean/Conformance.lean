@@ -1,6 +1,6 @@
 import OntologyEXProofs
 
-/-! Prints the rollup, ladder, fusion, and feeds tables from the proven definitions, in
+/-! Prints the rollup, ladder, fusion, path-standing and feeds tables from the proven definitions, in
 the formats of tests/conformance.py and tests/feeds_conformance.py, so CI can compare
 them with Python and Rust. -/
 
@@ -69,12 +69,23 @@ def retainRows : List String :=
 def p95Rows : List String :=
   (List.range 100000).map fun i => toString (OntologyEX.Feeds.p95Index (i + 1))
 
+def standingName : OntologyEX.Context.Standing → String
+  | .confirmed => "CONFIRMED" | .source => "SOURCE" | .inferred => "INFERRED" | .unknown => "UNKNOWN"
+
+def standings : List OntologyEX.Context.Standing := [.confirmed, .source, .inferred, .unknown]
+
+def pathRow (seq : List Nat) : String :=
+  let hs := seq.map (fun i => standings.getD i .confirmed)
+  "[" ++ natList seq ++ ", \"" ++ standingName (OntologyEX.Context.pathStanding hs) ++ "\"]"
+
 def main : IO Unit := do
   let rows := (seqs 10 0 ++ seqs 10 1 ++ seqs 10 2 ++ seqs 10 3).map rollupRow
   let grades := (List.range 64).map gradeRow
   let fusion := (seqs 6 0 ++ seqs 6 1 ++ seqs 6 2 ++ seqs 6 3).map fusionRow
+  let paths := (seqs 4 0 ++ seqs 4 1 ++ seqs 4 2 ++ seqs 4 3 ++ seqs 4 4).map pathRow
   IO.println ("{\"kind\": \"BUSINESS_CONFORMANCE_TABLE\", \"execution_authorized\": false, " ++
     "\"rollup\": [" ++ ", ".intercalate rows ++ "], \"grade\": [" ++
     ", ".intercalate grades ++ "], \"fusion\": [" ++ ", ".intercalate fusion ++ "], " ++
+    "\"path_standing\": [" ++ ", ".intercalate paths ++ "], " ++
     "\"classify\": [" ++ ", ".intercalate classifyRows ++ "], \"retain\": [" ++
     ", ".intercalate retainRows ++ "], \"p95\": [" ++ ", ".intercalate p95Rows ++ "]}")

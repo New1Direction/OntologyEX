@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>OntologyEX / Entity</title>
+<meta name="ontologyex-write-token" content=""/>
+<style>
+:root{color-scheme:dark;--bg:#060b12;--panel:#0b131d;--panel2:#0f1a26;--line:#1d2c3b;--line2:#2a3d50;
+--text:#dbe7f0;--muted:#7f93a6;--faint:#4d6176;--accent:#4cc3d9;--ok:#34d399;--warn:#f2c14e;--unknown:#7d8fa3;--risk:#ff5d5d;
+--sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:13px/1.5 var(--sans);min-height:100vh}
+button,input{font:inherit;color:inherit}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+.mono{font-family:var(--mono)}.muted{color:var(--muted)}.faint{color:var(--faint)}
+header{display:flex;align-items:center;gap:18px;padding:10px 18px;border-bottom:1px solid var(--line);background:#08101a;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15}
+.brand b{font:600 11px var(--mono);letter-spacing:.22em;color:var(--accent)}
+.brand span{font-weight:600;font-size:15px}
+nav{display:flex;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px}
+nav a{padding:6px 12px;border-radius:6px;color:var(--muted);font-weight:500}
+nav a[aria-current="page"]{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
+nav a:hover{text-decoration:none;color:var(--text)}
+.find{position:relative;flex:1 1 260px;max-width:460px}
+.find input{width:100%;background:#0d1a26;border:1px solid #2f5d73;border-radius:8px;padding:8px 12px}
+input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.results{position:absolute;left:0;right:0;top:calc(100% + 4px);background:var(--panel);border:1px solid var(--line2);border-radius:8px;z-index:5;max-height:360px;overflow:auto}
+.results:empty{display:none}
+.hit{display:flex;gap:8px;align-items:center;width:100%;padding:7px 10px;border:0;background:none;text-align:left;cursor:pointer}
+.hit:hover,.hit:focus{background:var(--panel2);outline:none}
+.mode{margin-left:auto;font:11px var(--mono);color:var(--muted)}
+main{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:0;max-width:1400px;margin:0 auto}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+.col{min-width:0}.side{border-left:1px solid var(--line);background:var(--panel)}
+@media (max-width:900px){.side{border-left:0;border-top:1px solid var(--line)}}
+.sec{padding:16px 20px;border-bottom:1px solid var(--line)}
+.sec h2{margin:0 0 10px;font:600 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.sec h2 em{font-style:normal;color:var(--faint)}
+.kind{font:600 10px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+h1{margin:4px 0 6px;font-size:22px;font-weight:600;overflow-wrap:anywhere}
+.idline{font:11px var(--mono);color:var(--faint);overflow-wrap:anywhere}
+.counts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;border:1px solid var(--line2);font:600 10px var(--mono);letter-spacing:.06em;white-space:nowrap}
+.CONFIRMED{color:var(--ok);border-color:#2f7d62}.SOURCE{color:var(--accent);border-color:#2f5d73}
+.INFERRED{color:var(--warn);border-color:#5a4a1e;border-style:dashed}.UNKNOWN{color:var(--unknown);border-color:#3a4a5c;border-style:dotted}
+ul.why{margin:0;padding-left:18px}ul.why li{margin:3px 0}
+.rel{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;padding:9px 10px;border-radius:7px;border:1px solid var(--line);background:var(--panel);margin-bottom:6px}
+.rel.inferred{border-style:dashed;border-color:var(--line2);background:var(--bg)}
+.rel .dir{font:11px var(--mono);color:var(--muted);white-space:nowrap;padding-top:1px}
+.rel .main{min-width:0;overflow-wrap:anywhere}
+.rel .meta{grid-column:2;color:var(--muted);font-size:11.5px}
+.rel .ev{grid-column:2;font:11px var(--mono);color:var(--faint);overflow-wrap:anywhere}
+.act{grid-column:2;display:flex;gap:6px;align-items:center;margin-top:4px;flex-wrap:wrap}
+.btn{background:var(--panel2);border:1px solid var(--line2);border-radius:6px;padding:4px 10px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}.btn.yes{border-color:#2f7d62;color:#7ff0b4}.btn.no{border-color:#5a2a2a;color:#ffaaaa}
+.btn:disabled{opacity:.5;cursor:default}
+.who{background:var(--bg);border:1px solid var(--line2);border-radius:6px;padding:4px 8px;width:220px}
+details>summary{cursor:pointer;color:var(--muted);font-size:12px;margin:6px 0}
+.item{padding:7px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}.item:first-of-type{border-top:0}
+.path{font:11px var(--mono);color:var(--faint);overflow-wrap:anywhere}
+.hop{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;padding:4px 0}
+.empty{color:var(--faint);margin:0}
+.note{color:var(--muted);font-size:12px;margin:0}
+.welcome{padding:40px 20px;max-width:720px}
+</style></head>
+<body>
+<header>
+ <div class="brand"><b>ONTOLOGYEX</b><span>Entity</span></div>
+ <nav><a href="/">System map</a><a href="/business">Business</a><a href="/entity" aria-current="page">Entity</a></nav>
+ <div class="find"><input id="q" type="search" autocomplete="off" maxlength="200" placeholder="Find a business object, action or system…" aria-label="Find an entity"/>
+  <div class="results" id="results" role="listbox"></div></div>
+ <span class="mode" id="mode">READ ONLY</span>
+</header>
+<main><div class="col" id="body"></div><div class="side col" id="side"></div></main>
+<script>
+"use strict";
+// One entity across both layers: what declares it, what a person confirmed, what is only suggested, and what is unknown.
+const TOKEN=(document.querySelector('meta[name="ontologyex-write-token"]')||{}).content||"";
+const $=id=>document.getElementById(id);
+function h(tag,attrs={},...kids){const el=document.createElement(tag);
+ for(const [k,v] of Object.entries(attrs)){if(v==null)continue;if(k==="text")el.textContent=v;else if(k==="class")el.className=v;else el.setAttribute(k,v)}
+ for(const c of kids){if(c==null)continue;el.append(c)}return el}
+const WORD={CONFIRMED:"Confirmed by a person",SOURCE:"Declared in a source file",INFERRED:"Inferred, not decided",UNKNOWN:"Unknown"};
+const LAYER={business:"Business",system:"System",unknown:"Unknown"};
+let who="";try{who=localStorage.getItem("ontologyex-decider")||""}catch(_){}
+let current=null,ctx=null;
+if(TOKEN)$("mode").textContent="READ ONLY EXCEPT DECISIONS";
+
+function chip(standing){return h("span",{class:"chip "+standing,title:WORD[standing],text:standing})}
+function href(id){return "/entity?id="+encodeURIComponent(id)}
+function entityLink(o){if(!o||!o.id)return h("span",{class:"muted",text:(o&&o.label)||"unknown"});
+ const a=h("a",{href:href(o.id),"data-id":o.id,text:o.label||o.id});a.addEventListener("click",e=>{if(e.metaKey||e.ctrlKey)return;e.preventDefault();open(o.id,true)});return a}
+function words(s){return String(s||"").replace(/_/g," ").toLowerCase()}
+function day(ts){return ts?String(ts).slice(0,10):""}
+function section(title,count,...kids){return h("div",{class:"sec"},h("h2",{},h("span",{text:title}),count==null?null:h("em",{text:String(count)})),...kids)}
+
+async function getJSON(url){const r=await fetch(url,{cache:"no-store"});let d={};try{d=await r.json()}catch(_){}
+ if(!r.ok)throw new Error(d.error||d.status||String(r.status));return d}
+
+// Search: the header box and the explain box share it.
+function searchBox(input,list,pick){let timer=null,seq=0;
+ input.addEventListener("input",()=>{clearTimeout(timer);const q=input.value.trim();if(!q){list.replaceChildren();return}
+  timer=setTimeout(async()=>{const mine=++seq;try{const d=await getJSON("/api/search?q="+encodeURIComponent(q));if(mine!==seq)return;
+   list.replaceChildren(...(d.results.length?d.results.map(r=>{const b=h("button",{class:"hit",type:"button",role:"option"},
+     h("span",{class:"chip",text:LAYER[r.layer]||r.layer}),h("span",{text:r.label}),h("span",{class:"faint mono",text:words(r.kind)}));
+     b.addEventListener("click",()=>{list.replaceChildren();input.value="";pick(r)});return b})
+    :[h("div",{class:"hit muted",text:"Nothing matches."})]))}catch(err){if(mine===seq)list.replaceChildren(h("div",{class:"hit muted",text:"Search unavailable: "+err.message}))}},140)});
+ input.addEventListener("keydown",e=>{if(e.key==="Escape"){list.replaceChildren();input.blur()}
+  if(e.key==="Enter"){const first=list.querySelector("button.hit");if(first)first.click()}})}
+searchBox($("q"),$("results"),r=>open(r.id,true));
+
+async function open(id,push){current=id;if(push)history.pushState({id},"",href(id));
+ $("body").replaceChildren(section("Loading",null,h("p",{class:"muted",text:"Reading the sources…"})));$("side").replaceChildren();
+ try{ctx=await getJSON("/api/context?id="+encodeURIComponent(id));if(current!==id)return;render()}
+ catch(err){if(current!==id)return;$("body").replaceChildren(section("Not available",null,h("p",{class:"muted",text:err.message==="entity not found"?"No entity has that id. Search above.":"Could not read it: "+err.message})))}}
+window.addEventListener("popstate",e=>{const id=(e.state&&e.state.id)||new URLSearchParams(location.search).get("id");id?open(id,false):welcome()});
+
+function evidence(ids){const by=new Map(ctx.source_evidence.map(e=>[e.id,e]));
+ const rows=ids.map(i=>by.get(i)).filter(Boolean);if(!rows.length)return null;
+ return h("div",{class:"ev"},...rows.map((e,n)=>h("span",{title:`${e.source_kind} · ${e.authenticity}`,text:(n?" · ":"")+`${e.path} sha256:${(e.sha256||"").slice(0,12)}`})))}
+function decisionLine(d){if(!d)return null;
+ return h("div",{class:"meta",text:`Confirmed by ${d.by||"unnamed"}${d.at?" on "+day(d.at):""}${d.proposed_by?", proposed by "+d.proposed_by:""}${d.note?" — "+d.note:""}`})}
+function relRow(r){const isIn=r.direction==="in";
+ const main=h("div",{class:"main"},isIn?entityLink(r.other):h("span",{class:"muted",text:"this "}),
+  h("span",{class:"mono",text:` ${words(r.relation)} `}),isIn?h("span",{class:"muted",text:"this"}):entityLink(r.other),
+  r.label?h("span",{class:"muted",text:` (${r.label})`}):null);
+ const row=h("div",{class:"rel"+(r.standing==="INFERRED"?" inferred":"")},h("div",{class:"dir",text:isIn?"← in":"out →"}),main,
+  h("div",{class:"meta",text:words(r.basis)+(r.via?" · via "+r.via:"")}),decisionLine(r.decision),evidence(r.evidence_ids||[]));
+ if(r.suggestion)row.append(...suggestionParts(r));
+ return row}
+function suggestionParts(r){const s=r.suggestion,parts=[];
+ parts.push(h("div",{class:"meta"},chip("INFERRED")," ",h("b",{text:s.strength||""}),` · proposed by ${s.proposed_by}`));
+ for(const sig of s.signals||[])parts.push(h("div",{class:"meta",text:"· "+sig}));
+ const kind=r.basis==="LINK_SUGGESTION"?"links":"dependencies";
+ if(TOKEN){const status=h("span",{class:"muted"}),yes=h("button",{class:"btn yes",type:"button",text:"Confirm"}),no=h("button",{class:"btn no",type:"button",text:"Reject"});
+  yes.addEventListener("click",()=>decide(kind,s.id,"confirm",status,[yes,no]));no.addEventListener("click",()=>decide(kind,s.id,"reject",status,[yes,no]));
+  parts.push(h("div",{class:"act"},yes,no,status))}
+ else parts.push(h("div",{class:"meta faint",text:"Start the control room with --allow-link-decisions to decide here."}));
+ return parts}
+async function decide(kind,id,decision,status,btns){
+ if(!who.trim()){status.textContent="Enter your name in Suggested changes first.";return}
+ btns.forEach(b=>b.disabled=true);status.textContent=decision==="confirm"?"Confirming…":"Rejecting…";
+ try{const r=await fetch(`/api/${kind}/decision`,{method:"POST",headers:{"Content-Type":"application/json","X-OntologyEX-Token":TOKEN},
+   body:JSON.stringify({ids:[id],decision,by:who.trim().slice(0,120),note:""})});
+  const d=await r.json();if(!r.ok)throw new Error(d.status||String(r.status));
+  status.textContent=d.applied.length?(decision==="confirm"?"Confirmed.":"Rejected."):"Already decided.";await open(current,false)}
+ catch(err){status.textContent="Not saved: "+err.message;btns.forEach(b=>b.disabled=false)}}
+
+function render(){const e=ctx.entity,c=ctx.standing_counts;document.title="OntologyEX / "+e.label;
+ const head=h("div",{class:"sec"},h("div",{class:"kind",text:`${LAYER[e.layer]||e.layer} · ${words(e.kind)}${e.skill?" · "+e.skill:""}`}),
+  h("h1",{text:e.label}),h("div",{class:"idline",text:e.id}),
+  h("div",{class:"counts"},...["CONFIRMED","SOURCE","INFERRED","UNKNOWN"].map(s=>h("span",{class:"chip "+s,title:WORD[s],text:`${s} ${c[s]}`})),
+   h("span",{class:"chip",text:"status "+words(e.status)}),e.observed_at?h("span",{class:"chip",text:"observed "+day(e.observed_at)}):null));
+ const why=section("Why it exists",ctx.why.length,ctx.why.length?h("ul",{class:"why"},...ctx.why.map(w=>h("li",{text:w}))):h("p",{class:"empty",text:"No source or decision says why. That is an unknown."}));
+ if(e.quotes&&e.quotes.length)why.append(h("details",{},h("summary",{text:`Quoted from the sources (${e.quotes.length})`}),
+  ...e.quotes.map(q=>h("div",{class:"item"},h("div",{class:"path",text:q.path+(q.start?`:${q.start}${q.end&&q.end!==q.start?"-"+q.end:""}`:"")}),h("div",{text:q.quote})))));
+ const groups=["CONFIRMED","SOURCE","INFERRED"].map(s=>{const rows=ctx.relationships.filter(r=>r.standing===s&&!r.suggestion);
+  return rows.length?h("div",{},h("h2",{style:"margin-top:12px"},h("span",{},chip(s)," ",WORD[s]),h("em",{text:String(rows.length)})),...rows.map(relRow)):null});
+ const rels=section("Relationships",ctx.relationships_total,...groups.filter(Boolean),
+  ctx.relationships_omitted?h("p",{class:"note",text:`${ctx.relationships_omitted} more not shown.`}):null,
+  ctx.relationships.length?null:h("p",{class:"empty",text:"No relationships in the sources."}));
+ const whoBox=h("input",{class:"who",type:"text",maxlength:"120",placeholder:"Your name (recorded with each decision)",value:who});
+ whoBox.addEventListener("input",ev=>{who=ev.target.value;try{localStorage.setItem("ontologyex-decider",who)}catch(_){}});
+ const sugg=section("Suggested changes",ctx.suggestions.length,
+  ctx.suggestions.length?h("p",{class:"note",text:"Nothing below changes the model until a person confirms it. Agent proposals land here too."}):h("p",{class:"empty",text:"No open suggestions touch this entity."}),
+  ctx.suggestions.length&&TOKEN?h("div",{style:"margin:8px 0"},whoBox):null,...ctx.suggestions.map(relRow));
+ $("body").replaceChildren(head,why,sugg,rels,explainBox());
+ const impact=section("What relies on this",ctx.relied_on_by.length,
+  h("p",{class:"note",text:"Declared reachability, not a measured blast radius. A path is only as strong as its weakest hop."}),
+  ...ctx.relied_on_by.map(r=>h("div",{class:"item"},h("div",{},chip(r.standing)," ",entityLink(r),h("span",{class:"faint",text:` · ${r.depth} hop${r.depth>1?"s":""}`})),
+   h("div",{class:"path",text:r.path.join(" → ")}))),
+  ctx.relied_on_by.length?null:h("p",{class:"empty",text:"Nothing in the sources relies on it."}));
+ const changes=section("Recent decisions",ctx.recent_changes.length,
+  ...ctx.recent_changes.map(r=>h("div",{class:"item"},h("div",{},h("b",{text:r.action})," ",h("span",{text:r.summary.replace(/^\w+ /,"")})),
+   h("div",{class:"muted",text:`${r.by||"unnamed"} · ${day(r.at)||"no time"}${r.note?" — "+r.note:""}`}))),
+  ctx.recent_changes.length?null:h("p",{class:"empty",text:"No recorded decision touches it."}));
+ const unknown=section("Unknowns and open questions",ctx.unknowns.length,
+  ...ctx.unknowns.map(r=>h("div",{class:"item"},chip("UNKNOWN")," ",h("span",{text:r.other.label||r.other.id||"unknown"}),h("div",{class:"faint mono",text:words(r.basis)}))),
+  ctx.unknowns.length?null:h("p",{class:"empty",text:"None recorded. That does not mean none exist."}));
+ const ev=section("Source evidence",ctx.source_evidence.length,
+  ...ctx.source_evidence.map(e=>h("div",{class:"item"},h("div",{class:"mono",text:e.path}),h("div",{class:"faint mono",text:`sha256 ${e.sha256} · ${words(e.source_kind)} · ${words(e.authenticity)}`}))),
+  ctx.source_evidence.length?null:h("p",{class:"empty",text:"No file evidence attached."}));
+ $("side").replaceChildren(impact,changes,unknown,ev,
+  section("Boundaries",null,h("p",{class:"note",text:"This is a reading of local sources and recorded decisions. Status is source-reported. Nothing here runs or approves an action."})))}
+
+function explainBox(){const input=h("input",{type:"search",autocomplete:"off",maxlength:"200",placeholder:"How is this connected to… (search)","aria-label":"Explain a connection"});
+ const list=h("div",{class:"results"}),out=h("div",{});
+ searchBox(input,list,async r=>{out.replaceChildren(h("p",{class:"muted",text:"Tracing…"}));
+  try{const d=await getJSON(`/api/explain?from=${encodeURIComponent(ctx.entity.id)}&to=${encodeURIComponent(r.id)}`);out.replaceChildren(explanation(d))}
+  catch(err){out.replaceChildren(h("p",{class:"muted",text:"Could not trace: "+err.message}))}});
+ return section("Explain a connection",null,h("div",{class:"find",style:"max-width:none"},input,list),out)}
+function explanation(d){if(!d.paths.length)return h("p",{class:"empty",text:`No path within three hops between ${d.source.label} and ${d.target.label}. The sources do not connect them.`});
+ // Each hop reads in the edge's own direction, so every line is a true statement from the sources.
+ const card=p=>h("div",{class:"item"},h("div",{},chip(p.standing),h("span",{class:"faint",text:" the weakest hop decides"})),
+  ...p.hops.map(x=>{const [a,b]=x.direction==="in"?[x.to,x.from]:[x.from,x.to];
+   return h("div",{class:"hop"},chip(x.standing),entityLink(a),h("span",{class:"mono",text:` ${words(x.relation)} →`}),entityLink(b),
+    h("span",{class:"faint",text:words(x.basis)+(x.decision?` · ${x.decision.by||"unnamed"}${x.decision.at?" "+day(x.decision.at):""}`:"")}))}));
+ const shown=d.paths.slice(0,3),rest=d.paths.slice(3);
+ return h("div",{},h("p",{class:"note",text:`${d.paths.length} path${d.paths.length>1?"s":""} from ${d.source.label} to ${d.target.label}, strongest first.`}),
+  ...shown.map(card),rest.length?h("details",{},h("summary",{text:`${rest.length} more path${rest.length>1?"s":""}`}),...rest.map(card)):null)}
+
+function welcome(){current=null;ctx=null;document.title="OntologyEX / Entity";$("side").replaceChildren();
+ $("body").replaceChildren(h("div",{class:"welcome"},h("h1",{text:"Start from any part of the business"}),
+  h("p",{class:"muted",text:"Search for a business object, an action or a system. Each page shows why it exists, what a person confirmed, what is only inferred, what relies on it, and the files behind it."})));
+ $("q").focus()}
+const start=new URLSearchParams(location.search).get("id");
+if(start){history.replaceState({id:start},"",href(start));open(start,false)}else welcome();
+</script>
+</body></html>
