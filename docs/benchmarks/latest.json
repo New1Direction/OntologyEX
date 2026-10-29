@@ -1,0 +1,287 @@
+{
+  "schema_version": 1,
+  "kind": "ONTOLOGYEX_BENCHMARK",
+  "conditions": {
+    "measured_at": "2026-10-29T16:27:57Z",
+    "machine": {
+      "cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+      "architecture": "x86_64",
+      "logical_cpus": 4,
+      "usable_cpus": 4,
+      "cgroup_cpu_limit": null,
+      "memory_gib": 15.7,
+      "load_average_at_start": [
+        1.29,
+        0.81,
+        0.48
+      ]
+    },
+    "os": "Linux-6.18.44-fc-v185-x86_64-with-glibc2.39",
+    "python": "CPython 3.13.17",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "engine_version": "0.1.0",
+    "engines": {
+      "discovery": {
+        "name": "ontologyex-discover",
+        "sha256": "69349610548e721cd866a23f84900b4d03e570db888cc3d9442929091caa0cc4",
+        "bytes": 901368,
+        "profile": "release"
+      },
+      "entity_context": {
+        "name": "ontologyex-view",
+        "sha256": "7620c7ed2dd585a4bbe04fa34d6387bfabfed52857fe44d55fbfc1d12cf54343",
+        "bytes": 1322904,
+        "profile": "release"
+      },
+      "otlp_receiver": {
+        "name": "ontologyex-feeds",
+        "sha256": "e3669005bf0907a363744d43f9706fee036749cf21e498935257510ed1ddbb39",
+        "bytes": 3857616,
+        "profile": "release"
+      }
+    },
+    "commit": "1745e81907d8cbbb452e30c1363c9a39b68f709b",
+    "uncommitted_changes": false,
+    "settings": {
+      "repo_modules": 165,
+      "runs": 10,
+      "context_runs": 10,
+      "receiver_runs": 3,
+      "seconds": 8.0,
+      "clients": 4,
+      "quick": false
+    }
+  },
+  "workloads": [
+    {
+      "workload": "discovery",
+      "title": "Repository discovery",
+      "input": {
+        "files": 5900,
+        "manifests": 125
+      },
+      "method": "CLI to CLI, process start included, on a generated repository (synthetic)",
+      "engines": {
+        "python": {
+          "status": "MEASURED",
+          "runs": 10,
+          "warmup_runs": 1,
+          "wall_seconds": {
+            "median": 1.5449,
+            "p10": 1.3831,
+            "p90": 1.6559,
+            "min": 1.3831,
+            "max": 1.68,
+            "n": 10,
+            "spread_pct": 17.7
+          },
+          "cpu_seconds": {
+            "median": 1.5229,
+            "p10": 1.358,
+            "p90": 1.6362,
+            "min": 1.358,
+            "max": 1.6397,
+            "n": 10,
+            "spread_pct": 18.3
+          },
+          "cores_used": 0.99,
+          "peak_rss_mib": 24.4,
+          "files_per_cpu_second": 3874,
+          "output_sha256": "9cd6efd8d92954afb2b631c6f912680e7252c6aa829dad4196805fc9a78d0054"
+        },
+        "rust": {
+          "status": "MEASURED",
+          "runs": 10,
+          "warmup_runs": 1,
+          "wall_seconds": {
+            "median": 0.0876,
+            "p10": 0.0788,
+            "p90": 0.0996,
+            "min": 0.0788,
+            "max": 0.1081,
+            "n": 10,
+            "spread_pct": 23.8
+          },
+          "cpu_seconds": {
+            "median": 0.0855,
+            "p10": 0.077,
+            "p90": 0.099,
+            "min": 0.077,
+            "max": 0.0997,
+            "n": 10,
+            "spread_pct": 25.8
+          },
+          "cores_used": 0.98,
+          "peak_rss_mib": 11.6,
+          "files_per_cpu_second": 69029,
+          "output_sha256": "9cd6efd8d92954afb2b631c6f912680e7252c6aa829dad4196805fc9a78d0054"
+        }
+      },
+      "correctness": {
+        "status": "SAME",
+        "detail": "byte-identical output in every run (1,319,391 bytes, sha256 9cd6efd8d929)"
+      },
+      "comparison": {
+        "wall_time": 17.636,
+        "cpu_time": 17.812,
+        "memory": 2.103
+      }
+    },
+    {
+      "workload": "entity_context",
+      "title": "Entity context, every entity of the demo",
+      "input": {
+        "entities": 16
+      },
+      "method": "as the control room computes it: Python in its own process, Rust one ontologyex-view process per answer; the demo bundle (synthetic)",
+      "engines": {
+        "python": {
+          "status": "MEASURED",
+          "runs": 10,
+          "warmup_runs": 1,
+          "wall_seconds": {
+            "median": 0.00208,
+            "p10": 0.00185,
+            "p90": 0.00236,
+            "min": 0.00185,
+            "max": 0.00376,
+            "n": 10,
+            "spread_pct": 24.4
+          },
+          "cpu_seconds": {
+            "median": 0.00205,
+            "p10": 0.00185,
+            "p90": 0.0022,
+            "min": 0.00185,
+            "max": 0.00374,
+            "n": 10,
+            "spread_pct": 17.0
+          },
+          "cores_used": 1.0,
+          "peak_rss_mib": null,
+          "peak_rss_note": "not measured: answers inside the calling process",
+          "answers_per_second": 7705
+        },
+        "rust": {
+          "status": "MEASURED",
+          "runs": 10,
+          "warmup_runs": 1,
+          "wall_seconds": {
+            "median": 0.08164,
+            "p10": 0.06685,
+            "p90": 0.08677,
+            "min": 0.06685,
+            "max": 0.09337,
+            "n": 10,
+            "spread_pct": 24.4
+          },
+          "cpu_seconds": {
+            "median": 0.08623,
+            "p10": 0.06818,
+            "p90": 0.09046,
+            "min": 0.06818,
+            "max": 0.09759,
+            "n": 10,
+            "spread_pct": 25.8
+          },
+          "cores_used": 1.04,
+          "peak_rss_mib": null,
+          "peak_rss_note": "not measured: a short process per answer",
+          "answers_per_second": 196
+        }
+      },
+      "correctness": {
+        "status": "SAME",
+        "detail": "the same answer for all 16 entities, in every run"
+      },
+      "comparison": {
+        "wall_time": 0.025,
+        "cpu_time": 0.024,
+        "memory": null
+      }
+    },
+    {
+      "workload": "otlp_receiver",
+      "title": "OTLP receiver under load",
+      "input": {
+        "spans_per_request": 1000,
+        "clients": 4,
+        "seconds": 8.0
+      },
+      "method": "OTLP/HTTP protobuf from Python client processes on the same machine, a fresh receiver per run (synthetic spans)",
+      "engines": {
+        "python": {
+          "status": "MEASURED",
+          "runs": 3,
+          "warmup_runs": 0,
+          "seconds_per_run": 8.0,
+          "clients": 4,
+          "spans_per_second": {
+            "median": 66941.0,
+            "p10": 64275.0,
+            "p90": 69338.0,
+            "min": 64275.0,
+            "max": 69338.0,
+            "n": 3,
+            "spread_pct": 7.6
+          },
+          "server_cpu_seconds": {
+            "median": 7.97,
+            "p10": 7.96,
+            "p90": 8.06,
+            "min": 7.96,
+            "max": 8.06,
+            "n": 3,
+            "spread_pct": 1.3
+          },
+          "cores_used": 0.99,
+          "spans_per_cpu_second": 67588,
+          "client_cores_used": 0.08,
+          "peak_rss_mib": 45.9,
+          "failed_requests": 0
+        },
+        "rust": {
+          "status": "MEASURED",
+          "runs": 3,
+          "warmup_runs": 0,
+          "seconds_per_run": 8.0,
+          "clients": 4,
+          "spans_per_second": {
+            "median": 2318115.0,
+            "p10": 2278457.0,
+            "p90": 2336525.0,
+            "min": 2278457.0,
+            "max": 2336525.0,
+            "n": 3,
+            "spread_pct": 2.5
+          },
+          "server_cpu_seconds": {
+            "median": 14.23,
+            "p10": 14.14,
+            "p90": 14.4,
+            "min": 14.14,
+            "max": 14.4,
+            "n": 3,
+            "spread_pct": 1.8
+          },
+          "cores_used": 1.78,
+          "spans_per_cpu_second": 1288264,
+          "client_cores_used": 1.07,
+          "peak_rss_mib": 11.2,
+          "failed_requests": 0
+        }
+      },
+      "correctness": {
+        "status": "SAME",
+        "detail": "every acknowledged span was counted, and the observation each engine emitted after the load equals the Python reference window computed on the same spans"
+      },
+      "comparison": {
+        "throughput": 34.629,
+        "work_per_cpu_second": 19.061,
+        "memory": 4.098
+      }
+    }
+  ],
+  "caveats": [],
+  "answers_differ": []
+}

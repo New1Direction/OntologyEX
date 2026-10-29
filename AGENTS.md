@@ -82,4 +82,7 @@ when the sources do not say, write it down as unknown instead of guessing.
   `python tests/golden.py check` (add `--engine-dir engine/target/debug --require-rust` for Rust).
   When a change is meant to alter an answer, run `python tests/golden.py update --reason "why"`;
   the reason is recorded per file in `tests/golden/MANIFEST.json` and `tests/golden/CHANGES.md`.
+- Benchmarks report time, CPU and correctness apart, with the machine they ran on:
+  `python tests/bench_rust_engines.py --engine-dir engine/target/release --json docs/benchmarks/latest.json --markdown docs/benchmarks/latest.md`,
+  then `--write-docs docs/benchmarks/latest.json` so the docs quote it. Never type a benchmark number by hand.
 - Tools propose; a person decides. Nothing writes to production or authorizes actions.
