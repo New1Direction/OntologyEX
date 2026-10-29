@@ -1,6 +1,6 @@
 ---
 name: ontology-extraction
-description: Onboard an unfamiliar repository or business domain for an AI agent. Turn a scoped set of code and documentation into a source-linked domain skill with concepts, rules, implementation mappings, explicit unknowns, and a reviewable handoff. Use for "onboard my repo", "understand this workflow", "build a domain skill", ontology extraction, domain modeling, mapping an API/codebase before modifying it, or showing which business actions are at risk on a local business screen.
+description: Understand a repository, product, or business for an AI agent. Give a whole-repository business overview (purpose, users, money flows, journeys, systems, risks, unknowns) as one source-linked page, or turn a scoped workflow into a source-linked domain skill with rules, implementation mappings, explicit unknowns, and a reviewable handoff. Use for "give me an overview of my business/project/repo", "explain this codebase", "onboard my repo", "understand this workflow", "build a domain skill", ontology extraction, domain modeling, mapping a codebase before modifying it, or showing which business actions are at risk on a local business screen.
 compatibility: Python 3.11+ and PyYAML 6.0.3 for local tools. The existing coding agent authors the model; scripts call no model API unless the user opts in to a decision model.
 license: MIT
 ---
@@ -13,7 +13,13 @@ record bounded attempts, and package a candidate. A successful build is not appr
 
 ## Choose the route
 
-**Repository onboarding / portable domain skill (default):** follow the complete
+**Overview of a whole repository, product, or business:** when the user wants to
+understand their project, business, or company as a whole (or gave you this kit's URL
+and asked what it can tell them), follow [business overview](references/business-overview.md):
+scan, read, fill in the blueprint, build one source-linked page, and summarize it.
+Start here unless they named a workflow to change.
+
+**Repository onboarding / portable domain skill:** to change one workflow safely, follow the complete
 [guided workflow](references/guided-onboarding.md). Resolve `SKILL_ROOT` to the
 absolute directory containing THIS SKILL.md, not the user's repository directory.
 Run the scripts below using that root so installation works from any working directory.

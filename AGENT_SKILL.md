@@ -3,6 +3,11 @@
 Read [ontology-extraction/SKILL.md](ontology-extraction/SKILL.md) and choose the route
 that matches the user's goal. Resolve all script/reference paths from that skill directory.
 
+For an **overview of a whole repository, product, or business** (what it is, who it serves,
+how money moves, the journeys, where it breaks, what is unknown), follow
+[business overview](ontology-extraction/references/business-overview.md): `overview.py scan`,
+read, fill in the blueprint, `overview.py build`, then summarize the page for the user.
+
 For **repository onboarding**, use the guided session workflow: acknowledge a narrow source
 boundary, let the existing agent author the model, copy evidence with the helper, submit within
 the fixed attempt budget, and produce a reviewable domain-skill handoff. Stop at unresolved

@@ -1,14 +1,28 @@
 # OntologyEX — Agent Ontology Kit
 
-**Turn unfamiliar software into a source-linked domain skill for your agent.**
+**Give your agent a repository; get the business behind it, linked to source.**
 
-Choose a workflow. Acknowledge the sources. Let your existing agent model the domain.
-Get a portable skill, exact evidence, explicit unknowns, and a handoff for the next task.
+What it is, who it serves, how money moves, the main journeys, where it breaks, and
+what nobody wrote down, on one page. Then a live map of the systems, and portable
+domain skills with exact evidence before your agent changes a workflow.
 
 [![Validator](https://github.com/New1Direction/OntologyEX/actions/workflows/validator.yml/badge.svg)](https://github.com/New1Direction/OntologyEX/actions/workflows/validator.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-13846f)](LICENSE)
 
 **[Guided onboarding](ontology-extraction/references/guided-onboarding.md) · [Real-source case](examples/cachetools-domain/README.md) · [Payments report](https://new1direction.github.io/OntologyEX/docs/payments-demo.html) · [Contract](ontology-extraction/references/domain-skill.md)**
+
+## Give this repository to your agent
+
+In Claude Code, Codex, Cursor, or any coding agent, open your project and say:
+
+> Use https://github.com/New1Direction/OntologyEX to give me an overview of this repository and the business behind it.
+
+Your agent clones the kit, scans your repository (reading only), reads what matters,
+and writes **one page**: what the business is, who it serves, how money moves, the
+main journeys, where it breaks, and what nobody wrote down, with every claim linked
+to the lines it rests on. Then it can show your systems live, trace the calls between
+your services, or build a domain skill before you change a workflow.
+Instructions for the agent: [AGENTS.md](AGENTS.md).
 
 ## Onboard your repository from one request
 
