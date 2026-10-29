@@ -81,7 +81,7 @@ function h(tag,attrs={},...kids){const el=document.createElement(tag);
 const WORD={CONFIRMED:"Confirmed by a person",SOURCE:"Declared in a source file",INFERRED:"Inferred, not decided",UNKNOWN:"Unknown"};
 const LAYER={business:"Business",system:"System",unknown:"Unknown"};
 let who="";try{who=localStorage.getItem("ontologyex-decider")||""}catch(_){}
-let current=null,ctx=null;
+let current=null,ctx=null,VIEWS=null;
 if(TOKEN)$("mode").textContent="READ ONLY EXCEPT DECISIONS";
 
 function chip(standing){return h("span",{class:"chip "+standing,title:WORD[standing],text:standing})}
@@ -109,7 +109,8 @@ searchBox($("q"),$("results"),r=>open(r.id,true));
 
 async function open(id,push){current=id;if(push)history.pushState({id},"",href(id));
  $("body").replaceChildren(section("Loading",null,h("p",{class:"muted",text:"Reading the sources…"})));$("side").replaceChildren();
- try{ctx=await getJSON("/api/context?id="+encodeURIComponent(id));if(current!==id)return;render()}
+ try{VIEWS=TOKEN?await getJSON("/api/views").catch(()=>null):null;  // before the context: an older fingerprint can only refuse
+  ctx=await getJSON("/api/context?id="+encodeURIComponent(id));if(current!==id)return;render()}
  catch(err){if(current!==id)return;$("body").replaceChildren(section("Not available",null,h("p",{class:"muted",text:err.message==="entity not found"?"No entity has that id. Search above.":"Could not read it: "+err.message})))}}
 window.addEventListener("popstate",e=>{const id=(e.state&&e.state.id)||new URLSearchParams(location.search).get("id");id?open(id,false):welcome()});
 
@@ -154,10 +155,16 @@ async function decide(kind,id,decision,status,btns){
  if(!who.trim()){status.textContent="Enter your name above first.";return}
  btns.forEach(b=>b.disabled=true);status.textContent=DOING[decision][0];
  try{const r=await fetch(`/api/${kind}/decision`,{method:"POST",headers:{"Content-Type":"application/json","X-OntologyEX-Token":TOKEN},
-   body:JSON.stringify({ids:[id],decision,by:who.trim().slice(0,120),note:""})});
-  const d=await r.json();if(!r.ok)throw new Error(d.status||String(r.status));
+   body:JSON.stringify({ids:[id],decision,by:who.trim().slice(0,120),note:"",...seenFor(kind,id,decision)})});
+  const d=await r.json();
+  if(r.status===409&&d.status==="STALE_VIEW"){status.textContent="It changed since you looked, so nothing was saved. Reloading: read it again, then decide.";setTimeout(()=>open(current,false),1500);return}
+  if(!r.ok)throw new Error(d.status||String(r.status));
   status.textContent=d.applied.length?DOING[decision][1]:"Already decided.";await open(current,false)}
  catch(err){status.textContent="Not saved: "+err.message;btns.forEach(b=>b.disabled=false)}}
+// The fingerprints of what this page showed, read before the page: a decision applies only to what was seen.
+function seenFor(kind,id,decision){if(decision==="undo")return {};
+ const shown=((VIEWS||{})[kind]||{})[decision==="reconfirm"?"decided":"suggestion"]||{};
+ return {seen:shown[id]?{[id]:shown[id]}:{}}}
 
 // Business rules: the skill's own, ones a person confirmed from agent proposals, and ones still proposed.
 const CITE={LINES_FOUND:"cited lines found",FILE_NOT_FOUND:"cited file not found",LINES_OUT_OF_RANGE:"cited lines are past the end of the file",WITHHELD_SECRET_FILE:"cited file withheld (secrets)"};

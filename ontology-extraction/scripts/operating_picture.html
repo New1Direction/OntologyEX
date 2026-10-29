@@ -359,13 +359,20 @@ function suggestionsFor(bindingIds){const all=(data&&data.link_suggestions)?data
 // Decisions: one card at a time, or several picked at once; the last action can be undone.
 const PICKED={links:new Set(),dependencies:new Set()},LAST={links:null,dependencies:null};
 const WORDS={confirm:["Confirming…","Confirmed"],reject:["Rejecting…","Rejected"],undo:["Undoing…","Undid"],reconfirm:["Re-confirming…","Re-confirmed"]};
+// The fingerprints of what this page showed: the decision applies only if that is still what is there.
+function seenFor(kind,ids,decision){if(decision==="undo")return {};
+ const shown=(((data&&data.views)||{})[kind]||{})[decision==="reconfirm"?"decided":"suggestion"]||{};
+ return {seen:Object.fromEntries(ids.filter(i=>shown[i]).map(i=>[i,shown[i]]))}}
 function canDecide(kind){return !!(TOKEN&&data&&data[kind==="links"?"link_decisions":"dependency_decisions"]==="ENABLED_LOCAL_TOKEN")}
 async function decide(kind,ids,decision,status,btns=[]){
  if(!who.trim()){status.textContent="Enter your name above first.";return}
  btns.forEach(b=>b.disabled=true);status.textContent=WORDS[decision][0];
  try{const r=await fetch(`/api/${kind}/decision`,{method:"POST",headers:{"Content-Type":"application/json","X-OntologyEX-Token":TOKEN},
-   body:JSON.stringify({ids,decision,by:who.trim().slice(0,120),note:""})});
-  const d=await r.json();if(!r.ok)throw new Error(d.status||String(r.status));
+   body:JSON.stringify({ids,decision,by:who.trim().slice(0,120),note:"",...seenFor(kind,ids,decision)})});
+  const d=await r.json();
+  if(r.status===409&&d.status==="STALE_VIEW"){LAST[kind]={text:"It changed since you looked, so nothing was saved. Reloaded: read it again, then decide.",ids:null};
+   status.textContent=LAST[kind].text;await load();return}
+  if(!r.ok)throw new Error(d.status||String(r.status));
   const n=d.applied.length;ids.forEach(i=>PICKED[kind].delete(i));
   LAST[kind]=n?{text:`${WORDS[decision][1]} ${n}.`,ids:decision==="undo"||decision==="reconfirm"?null:d.applied.map(a=>a.id)}:{text:"Already decided.",ids:null};
   status.textContent=LAST[kind].text;await load()}

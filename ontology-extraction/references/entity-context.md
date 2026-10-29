@@ -36,6 +36,18 @@ evidence was not recorded; re-confirming records it. A binding file that the rep
 holds in more than one place is not guessed: only the skill's compiled hash is watched
 for it.
 
+A decision applies only to what the person saw. Every page carries a fingerprint of each
+thing it lets a person decide: for a link suggestion its strength, kinds of signal and
+the evidence hashes its watermark would record; for a dependency its strength and kinds
+of signal (not the live call count); for a rule proposal the hash of the cited lines;
+for a re-confirm the evidence as it is now. The decision sends back the fingerprints it
+showed, and inside the decision lock the control room computes them again from the same
+state it records. If anything changed between looking and clicking, nothing is written:
+the answer is 409 `STALE_VIEW` naming what changed, the page reloads, and the person
+decides on what is there now. One changed item refuses the whole batch. Scripts that
+send no fingerprints decide on the current state, as before (`stale_view.py`; Lean
+`OntologyEX.Stale`).
+
 ## Suppliers
 
 `/suppliers` (and `suppliers.py --repo REPO`) lists the outside companies the business
