@@ -19,7 +19,7 @@ Every tool declares its kind, and the kind decides what it may do:
 
 - READ_ONLY tools (search, context, explain, impact, recent decisions, open
   suggestions, decisions whose evidence changed, change impact, suppliers, what needs
-  attention, the weekly digest) change nothing.
+  attention, the weekly digest, who owns what) change nothing.
 - ADDITIVE tools (propose_link, propose_dependency, propose_rule) append a proposal to
   a proposals file and nothing else. A proposal is a suggestion: it shows in the control room beside the ranked
   ones, and only a person confirms or rejects it there, through the existing decision
@@ -153,6 +153,12 @@ TOOLS = {
                        "Compares the command-center ranking now with how it stood when the window began; needs "
                        "the control room (--control-room) and its --history file.",
         "input": _schema({}, {"days": _text("days", "window in days, 1 to 90", 2)})},
+    "who_owns": {
+        "kind": READ_ONLY, "title": "Who owns it",
+        "description": "Who owns an entity (give id), or everyone and what they own (no id): the owner declared in "
+                       "CODEOWNERS with the line cited, else who changed its code most in the last year (inferred), "
+                       "plus business actions nobody owns and code only one person has changed.",
+        "input": _schema({}, {"id": _text("id", "an entity ID from search_entities", 1024)})},
     "list_stale_decisions": {
         "kind": READ_ONLY, "title": "Decisions to re-check",
         "description": "Confirmed links whose evidence (the file hashes recorded when a person confirmed them) "
@@ -497,6 +503,20 @@ class Tools:
                     answer["code"][key] = [t for t in answer["code"].get(key, []) if t.get("id") not in hidden]
             answer["headline"] = digest.headline(answer)
         return self._out(answer, hidden)
+
+    def who_owns(self, args: dict) -> dict:
+        bundle, hidden = self._model(*([args["id"]] if "id" in args else []))
+        found = dict(bundle.get("ownership") or {"status": "NOT_SCANNED", "entities": [], "people": []})
+        found["entities"] = [r for r in found.get("entities", []) if r["id"] not in hidden]
+        found["people"] = [{**p, "owns": [o for o in p["owns"] if o["id"] not in hidden]}
+                           for p in found.get("people", [])]
+        found["people"] = [p for p in found["people"] if p["owns"]]
+        if "id" in args:
+            rows = [r for r in found["entities"] if r["id"] == args["id"]]
+            if not rows and args["id"] not in entity_context.entity_ids(bundle):
+                raise ToolError("NOT_FOUND", "no entity has that ID; use search_entities")
+            found = {**found, "entities": rows, "people": []}
+        return self._out({**found, "execution_authorized": False}, hidden)
 
     def list_stale_decisions(self, args: dict) -> dict:
         bundle, hidden = self._model()

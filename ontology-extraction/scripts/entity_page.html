@@ -64,7 +64,7 @@ details>summary{cursor:pointer;color:var(--muted);font-size:12px;margin:6px 0}
 <body>
 <header>
  <div class="brand"><b>ONTOLOGYEX</b><span>Entity</span></div>
- <nav><a href="/command">Command</a><a href="/digest">Digest</a><a href="/">System map</a><a href="/business">Business</a><a href="/entity" aria-current="page">Entity</a><a href="/impact">Change impact</a><a href="/suppliers">Suppliers</a></nav>
+ <nav><a href="/command">Command</a><a href="/digest">Digest</a><a href="/owners">Owners</a><a href="/">System map</a><a href="/business">Business</a><a href="/entity" aria-current="page">Entity</a><a href="/impact">Change impact</a><a href="/suppliers">Suppliers</a></nav>
  <div class="find"><input id="q" type="search" autocomplete="off" maxlength="200" placeholder="Find a business object, action or system…" aria-label="Find an entity"/>
   <div class="results" id="results" role="listbox"></div></div>
  <span class="mode" id="mode">READ ONLY</span>
@@ -214,7 +214,7 @@ function render(){const e=ctx.entity,c=ctx.standing_counts;document.title="Ontol
  const sugg=section("Suggested changes",ctx.suggestions.length,
   ctx.suggestions.length?h("p",{class:"note",text:"Nothing below changes the model until a person confirms it. Agent proposals land here too."}):h("p",{class:"empty",text:"No open suggestions touch this entity."}),
   ctx.suggestions.length&&TOKEN?whoBox:null,...ctx.suggestions.map(relRow));
- $("body").replaceChildren(head,why,rulesSection(e),sugg,rels,explainBox());
+ $("body").replaceChildren(...[head,why,rulesSection(e),sugg,rels,explainBox()].filter(Boolean));
  const impact=section("What relies on this",ctx.relied_on_by.length,
   h("p",{class:"note",text:"Declared reachability, not a measured blast radius. A path is only as strong as its weakest hop."}),
   ...ctx.relied_on_by.map(r=>h("div",{class:"item"},h("div",{},chip(r.standing)," ",entityLink(r),h("span",{class:"faint",text:` · ${r.depth} hop${r.depth>1?"s":""}`})),
@@ -230,8 +230,23 @@ function render(){const e=ctx.entity,c=ctx.standing_counts;document.title="Ontol
  const ev=section("Source evidence",ctx.source_evidence.length,
   ...ctx.source_evidence.map(e=>h("div",{class:"item"},h("div",{class:"mono",text:e.path}),h("div",{class:"faint mono",text:`sha256 ${e.sha256} · ${words(e.source_kind)} · ${words(e.authenticity)}`}))),
   ctx.source_evidence.length?null:h("p",{class:"empty",text:"No file evidence attached."}));
- $("side").replaceChildren(impact,changes,unknown,ev,
+ const owner=section("Owner",null,h("p",{class:"muted",text:"Reading CODEOWNERS and history…"}));
+ fillOwner(owner,e.id);
+ $("side").replaceChildren(owner,impact,changes,unknown,ev,
   section("Boundaries",null,h("p",{class:"note",text:"This is a reading of local sources and recorded decisions. Status is source-reported. Nothing here runs or approves an action."})))}
+
+// Who owns it: declared in CODEOWNERS (line cited), or who changed its code most in a year.
+async function fillOwner(box,id){let rows=[];
+ try{const d=await getJSON("/api/owners?id="+encodeURIComponent(id));if(current!==id)return;
+  if(d.status!=="OK"){box.lastChild.replaceWith(h("p",{class:"empty",text:"Ownership needs a local repository."}));return}rows=d.entities}
+ catch(err){if(current===id)box.lastChild.replaceWith(h("p",{class:"empty",text:"Not available: "+err.message}));return}
+ const r=rows[0];if(!r){box.lastChild.replaceWith(h("p",{class:"empty",text:"No file of its own to read an owner from."}));return}
+ const kids=[h("div",{},chip(r.standing)," ",h("b",{text:r.owner||"Nobody"}),h("span",{class:"faint",text:r.basis==="CODEOWNERS"?" · CODEOWNERS":r.basis?" · most commits in a year":" · no CODEOWNERS rule, no change in a year"}))];
+ for(const d of r.declared.slice(0,2))kids.push(h("div",{class:"path",text:`${d.path}:${d.line} · ${d.pattern} → ${d.owners.join(" ")}`}));
+ if(r.active.length)kids.push(h("div",{class:"muted",text:"Changed by "+r.active.map(a=>`${a.name} (${a.commits})`).join(", ")}));
+ if(r.through)kids.push(h("div",{class:"faint",text:"Through the systems it runs on."}));
+ if(r.risks.includes("ONE_PERSON"))kids.push(h("div",{class:"warn",text:"Only one person changed it in the last year."}));
+ box.lastChild.replaceWith(h("div",{class:"item"},...kids),h("p",{class:"note"},h("a",{href:"/owners",text:"All owners"})))}
 
 function explainBox(){const input=h("input",{type:"search",autocomplete:"off",maxlength:"200",placeholder:"How is this connected to… (search)","aria-label":"Explain a connection"});
  const list=h("div",{class:"results"}),out=h("div",{});
