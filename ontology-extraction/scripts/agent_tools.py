@@ -19,7 +19,7 @@ Every tool declares its kind, and the kind decides what it may do:
 
 - READ_ONLY tools (search, context, explain, impact, recent decisions, open
   suggestions, decisions whose evidence changed, change impact, suppliers, what needs
-  attention) change nothing.
+  attention, the weekly digest) change nothing.
 - ADDITIVE tools (propose_link, propose_dependency, propose_rule) append a proposal to
   a proposals file and nothing else. A proposal is a suggestion: it shows in the control room beside the ranked
   ones, and only a person confirms or rejects it there, through the existing decision
@@ -54,6 +54,7 @@ import urllib.request
 
 import dependency_suggest
 import command_center
+import digest
 import entity_context
 import link_suggest
 import rule_suggest
@@ -144,6 +145,14 @@ TOOLS = {
                        "plus coverage and what a business in its field should be able to see. Scores rank "
                        "attention; they are not probabilities. Optional level: CRITICAL, HIGH, MEDIUM or LOW.",
         "input": _schema({}, {"level": _text("level", "only items at this level", 10)})},
+    "weekly_digest": {
+        "kind": READ_ONLY, "title": "Weekly digest",
+        "description": "What changed in the business over the last N days (default 7): items that are new, fixed, "
+                       "worse, better or still open (with how long), how the headline counts and coverage moved, "
+                       "the decisions people made, and the commits in the window with the business they touched. "
+                       "Compares the command-center ranking now with how it stood when the window began; needs "
+                       "the control room (--control-room) and its --history file.",
+        "input": _schema({}, {"days": _text("days", "window in days, 1 to 90", 2)})},
     "list_stale_decisions": {
         "kind": READ_ONLY, "title": "Decisions to re-check",
         "description": "Confirmed links whose evidence (the file hashes recorded when a person confirmed them) "
@@ -458,6 +467,36 @@ class Tools:
         found["total"] = len(found["items"])
         found["by_level"] = {name: sum(i["level"] == name for i in found["items"]) for name in found["by_level"]}
         return self._out(found, hidden)
+
+    def weekly_digest(self, args: dict) -> dict:
+        days = args.get("days", "7")
+        if not days.isdigit() or not 1 <= int(days) <= 90:
+            raise ToolError("INVALID_ARGUMENTS", "days is a whole number from 1 to 90")
+        if self.source.control_room is None:
+            raise ToolError("NOT_ALLOWED", "the digest needs the control room (--control-room), which keeps the "
+                                           "history; with a bundle file use what_needs_attention")
+        try:
+            with self.source.opener.open(self.source.url.replace("/api/bundle", "/api/digest")
+                                         + "?" + urlencode({"days": days}), timeout=120) as response:
+                answer = json.loads(response.read(MAX_BUNDLE))
+        except urllib.error.HTTPError as exc:
+            raise ToolError("SOURCE_UNAVAILABLE", f"the control room refused the digest ({exc.code})") from exc
+        except (OSError, ValueError) as exc:
+            raise ToolError("SOURCE_UNAVAILABLE", "could not reach the control room: " + str(exc)[:200]) from exc
+        _, hidden = self._model()
+        if hidden:  # a withheld entity's title or label names it: drop what mentions it, then recount
+            for key in ("new", "fixed", "worse", "better", "still_open", "long_open"):
+                answer[key] = [i for i in answer.get(key, []) if not hidden & {
+                    *i.get("links", []), i["subject"] if isinstance(i.get("subject"), str)
+                    else (i.get("subject") or {}).get("id")}]
+            answer["decisions"] = [d for d in answer.get("decisions", []) if not hidden & set(d.get("about", []))]
+            answer["decisions_total"] = len(answer["decisions"])
+            answer["counts"] = {k: len(answer[k]) for k in ("new", "worse", "better", "still_open", "fixed")}
+            if answer.get("code"):
+                for key in ("touched_business", "impacted_business"):
+                    answer["code"][key] = [t for t in answer["code"].get(key, []) if t.get("id") not in hidden]
+            answer["headline"] = digest.headline(answer)
+        return self._out(answer, hidden)
 
     def list_stale_decisions(self, args: dict) -> dict:
         bundle, hidden = self._model()

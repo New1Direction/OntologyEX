@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>OntologyEX / Weekly digest</title>
+<style>
+:root{color-scheme:dark;--bg:#060b12;--panel:#0b131d;--panel2:#0f1a26;--line:#1d2c3b;--line2:#2a3d50;
+--text:#dbe7f0;--muted:#7f93a6;--faint:#4d6176;--accent:#4cc3d9;--ok:#34d399;--warn:#f2c14e;--risk:#ff5d5d;--impact:#ff9a3c;
+--sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:13px/1.5 var(--sans);min-height:100vh}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+header{display:flex;align-items:center;gap:18px;padding:10px 18px;border-bottom:1px solid var(--line);background:#08101a;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15}
+.brand b{font:600 11px var(--mono);letter-spacing:.22em;color:var(--accent)}
+.brand span{font-weight:600;font-size:15px}
+nav{display:flex;flex-wrap:wrap;max-width:100%;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px}
+nav a{padding:6px 12px;border-radius:6px;color:var(--muted);font-weight:500}
+nav a[aria-current="page"]{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
+nav a:hover{text-decoration:none;color:var(--text)}
+main{max-width:1200px;margin:0 auto;padding:0 0 40px}
+.sec{padding:16px 20px;border-bottom:1px solid var(--line)}
+.sec h2{margin:0 0 10px;font:600 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.summary{font-size:18px;margin:0 0 6px;font-weight:600}.note{color:var(--muted);font-size:12px;margin:0}
+.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px}
+button{background:var(--panel);color:var(--muted);border:1px solid var(--line2);border-radius:999px;padding:3px 12px;font:500 12px var(--sans);cursor:pointer}
+button[aria-pressed="true"]{color:var(--text);background:var(--panel2);border-color:var(--accent)}
+button:hover{color:var(--text)}
+.status{color:var(--warn);font-size:12px;margin:6px 0 0}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:12px}
+.kpi{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 12px}
+.kpi b{font:600 22px var(--mono)}.kpi .label{display:block;color:var(--muted);font-size:12px}
+.delta{font:600 12px var(--mono);margin-left:6px}.good{color:var(--ok)}.bad{color:var(--risk)}.flat{color:var(--faint)}
+.counts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.count{font:600 12px var(--mono);border:1px solid var(--line2);border-radius:6px;padding:2px 8px}
+.row{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}
+.score{font:600 16px var(--mono);text-align:center}.score small{display:block;font:600 9px var(--mono);letter-spacing:.08em}
+.CRITICAL{color:var(--risk)}.HIGH{color:var(--impact)}.MEDIUM{color:var(--warn)}.LOW{color:var(--muted)}
+.title{overflow-wrap:anywhere}.meta{color:var(--faint);font:11px var(--mono)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0}
+.grid>.sec{border-right:1px solid var(--line)}
+@media (max-width:760px){.grid{grid-template-columns:1fr}.grid>.sec{border-right:0}}
+.empty{color:var(--faint);margin:0}
+.item{margin:0 0 6px;overflow-wrap:anywhere}
+code{font:11px var(--mono);color:var(--muted)}
+details summary{cursor:pointer;color:var(--muted)}
+</style></head>
+<body>
+<header>
+ <div class="brand"><b>ONTOLOGYEX</b><span>Weekly digest</span></div>
+ <nav><a href="/command">Command</a><a href="/digest" aria-current="page">Digest</a><a href="/">System map</a><a href="/business">Business</a><a href="/entity">Entity</a><a href="/impact">Change impact</a><a href="/suppliers">Suppliers</a></nav>
+</header>
+<main id="body"></main>
+<script>
+"use strict";
+// What moved since the window began: new, fixed, worse, better, still open; decisions; code shipped.
+const $=id=>document.getElementById(id);
+function h(tag,attrs={},...kids){const el=document.createElement(tag);
+ for(const [k,v] of Object.entries(attrs)){if(v==null)continue;if(k==="text")el.textContent=v;else if(k==="class")el.className=v;else el.setAttribute(k,v)}
+ for(const c of kids){if(c!=null)el.append(c)}return el}
+function link(id,label){return h("a",{href:"/entity?id="+encodeURIComponent(id),text:label||id})}
+const params=new URLSearchParams(location.search);
+let days=/^\d{1,2}$/.test(params.get("days")||"")?Number(params.get("days")):7;
+function delta(value,betterWhen,unit=""){
+ if(value==null)return h("span",{class:"delta flat",text:"new"});
+ if(!value)return h("span",{class:"delta flat",text:"±0"+unit});
+ const good=betterWhen==="up"?value>0:betterWhen==="down"?value<0:null;
+ return h("span",{class:"delta "+(good==null?"flat":good?"good":"bad"),text:(value>0?"+":"")+value+unit})}
+function row(r,extra){
+ return h("div",{class:"row"},h("div",{class:"score "+r.level},String(r.score),h("small",{text:r.level})),
+  h("div",{},h("div",{class:"title"},r.subject&&typeof r.subject==="object"?link(r.subject.id,r.title):r.title),
+   h("div",{class:"meta",text:[r.category,extra(r)].filter(Boolean).join(" · ")})))}
+function group(title,rows,extra,empty){
+ return h("div",{class:"sec"},h("h2",{},h("span",{text:title}),h("span",{text:String(rows.length)})),
+  ...(rows.length?rows.map(r=>row(r,extra)):[h("p",{class:"empty",text:empty})]))}
+const since=r=>r.open_days!=null?(r.reopened?"fixed, then back · ":"")+`open ${r.open_days} day${r.open_days===1?"":"s"}`:"";
+const was=r=>`was ${r.score_before} ${r.level_before!==r.level?r.level_before:""}`.trim()+(r.open_days!=null?" · "+since(r):"");
+async function copy(btn){
+ try{const r=await fetch(`/api/digest?days=${days}&format=markdown`,{cache:"no-store"});if(!r.ok)throw new Error(r.status);
+  const text=await r.text();await navigator.clipboard.writeText(text);btn.textContent="Copied"}
+ catch(err){btn.textContent="Copy failed: use Download"}
+ setTimeout(()=>{btn.textContent="Copy as Markdown"},2500)}
+function render(d){
+ const choose=n=>{const b=h("button",{type:"button","aria-pressed":String(days===n),text:`Last ${n} days`});
+  b.addEventListener("click",()=>{days=n;history.replaceState(null,"","/digest?days="+n);load()});return b};
+ const copyBtn=h("button",{type:"button",text:"Copy as Markdown"});copyBtn.addEventListener("click",()=>copy(copyBtn));
+ const head=h("div",{class:"sec"},
+  h("div",{class:"bar"},choose(7),choose(30),copyBtn,h("a",{href:`/api/digest?days=${days}&format=markdown`,download:`digest-${d.until.slice(0,10)}.md`,text:"Download"})),
+  h("h2",{text:`${d.since.slice(0,10)} to ${d.until.slice(0,10)}`}),
+  h("p",{class:"summary",text:d.headline}),
+  d.status==="NO_HISTORY"?h("p",{class:"status",text:"No history is recorded yet. Start the control room with --history FILE (operate.py up does this by default): it records the ranking when it changes, and this page compares against it."}):
+  d.status==="HISTORY_STARTS_IN_WINDOW"?h("p",{class:"status",text:`History starts ${d.baseline_at.slice(0,10)}, inside the window, so the comparison starts there.`}):null,
+  d.status!=="NO_HISTORY"?h("div",{class:"counts"},...[["new","New","bad"],["fixed","Fixed","good"],["worse","Worse","bad"],["better","Better","good"],["still_open","Unchanged","flat"]]
+   .map(([k,label,tone])=>h("span",{class:"count "+(d.counts[k]?tone:"flat"),text:`${label} ${d.counts[k]}`}))):null,
+  h("div",{class:"kpis"},...d.kpis.map(k=>h("div",{class:"kpi"},h("b",{text:String(k.now)}),d.status!=="NO_HISTORY"?delta(k.delta,k.better_when):null,h("span",{class:"label",text:k.label})))));
+ const blocks=[head];
+ if(d.status!=="NO_HISTORY"){
+  blocks.push(h("div",{class:"grid"},
+   group("New",d.new,since,"Nothing new."),group("Fixed",d.fixed,()=>"no longer in the ranking","Nothing fixed in this window."),
+   group("Worse",d.worse,was,"Nothing got worse."),group("Better",d.better,was,"Nothing improved without being fixed.")));
+  blocks.push(group("Open longest (critical and high)",d.long_open,since,"Nothing critical or high has been open the whole window."));
+  if(d.still_open.length)blocks.push(h("div",{class:"sec"},h("details",{},h("summary",{text:`Unchanged (${d.still_open.length})`}),...d.still_open.map(r=>row(r,since)))));
+ } else blocks.push(group("Needs attention now",d.still_open,()=>"","Nothing needs attention."));
+ const cov=d.coverage.filter(c=>c.whole);
+ blocks.push(h("div",{class:"sec"},h("h2",{text:"How much can be seen"}),
+  ...(cov.length?cov.map(c=>h("p",{class:"item"},`${c.label}: ${c.now}% (${c.part}/${c.whole})`,d.status!=="NO_HISTORY"&&c.delta!=null?delta(c.delta,"up"," pts"):null)):[h("p",{class:"empty",text:"Nothing measured yet."})])));
+ const who=Object.entries(d.decided_by).map(([p,n])=>`${p} ${n}`).join(", ");
+ blocks.push(h("div",{class:"sec"},h("h2",{},h("span",{text:"Decisions made"}),h("span",{text:String(d.decisions_total)})),
+  who?h("p",{class:"note",text:"By "+who,style:"margin-bottom:8px"}):null,
+  ...(d.decisions.length?d.decisions.slice(0,50).map(x=>h("p",{class:"item"},h("code",{text:x.at.slice(0,10)+" "}),`${x.by} ${({confirm:"confirmed",reject:"rejected",undo:"undid",reconfirm:"re-confirmed"})[x.action]||x.action} a ${x.kind}: ${x.what}`,x.note?h("span",{class:"note",text:" · "+x.note}):null)):[h("p",{class:"empty",text:"No link, dependency or rule was decided in this window."})])));
+ const c=d.code;
+ if(c){const business=c.touched_business||[];
+  blocks.push(h("div",{class:"sec"},h("h2",{},h("span",{text:"Code shipped"}),h("span",{text:String(c.commits_total||0)+" commits"})),
+   c.status==="GIT_UNAVAILABLE"?h("p",{class:"empty",text:"Git history is not available: "+c.detail}):null,
+   c.status==="HISTORY_STARTS_IN_WINDOW"?h("p",{class:"note",text:c.detail}):null,
+   business.length?h("p",{class:"item"},`Touched ${business.length} business object${business.length>1?"s":""} or action${business.length>1?"s":""}: `,...business.slice(0,12).flatMap((t,i)=>[i?", ":"",link(t.id,t.label)])):c.status==="OK"?h("p",{class:"note",text:"No business object or action was touched by the changed files."}):null,
+   (c.reconfirm_after||[]).length?h("p",{class:"status",text:`${c.reconfirm_after.length} confirmation(s) rest on files that changed: re-confirm them on the Business page.`}):null,
+   ...(c.commits||[]).slice(0,20).map(x=>h("p",{class:"item"},h("code",{text:x.commit+" "}),x.subject)),
+   !(c.commits||[]).length?h("p",{class:"empty",text:"No commits in this window."}):null))}
+ blocks.push(h("div",{class:"sec"},h("p",{class:"note",text:"Compares the command-center ranking now with how it stood when the window began. Scores rank attention; they are not outcomes. Nothing here changes anything."})));
+ $("body").replaceChildren(...blocks)}
+async function load(){
+ try{const r=await fetch(`/api/digest?days=${days}`,{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.status);render(d)}
+ catch(err){$("body").replaceChildren(h("div",{class:"sec"},h("p",{class:"empty",text:"Not available: "+err.message})))}}
+load();
+</script>
+</body></html>

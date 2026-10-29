@@ -80,6 +80,24 @@ business in that field should be able to see, each FOUND with the supplier or en
 shows it, or NOT FOUND IN SOURCES, which says the sources do not show it, not that the
 business lacks it. Agents get the same list from `what_needs_attention`.
 
+## Weekly digest
+
+`/digest` (and `digest.py show`) says what changed since the window began (7 or 30 days,
+up to 90): which items in the command center are new, fixed, worse, better, fixed and
+back again, or still open and for how long; how the headline counts and coverage moved,
+each marked good or bad; the decisions people made on links, dependencies and rules, by
+whom; and, with a local repository, the commits in the window and the business objects
+and actions they touched (git is only read). "Copy as Markdown" and the Markdown route
+(`/api/digest?days=7&format=markdown`) give the same digest for email, chat or a ticket.
+
+It compares against history: the control room started with `--history FILE` appends the
+command-center ranking to that JSON-lines file when it changes, and once a day when it
+does not (`operate.py up` records to `REPO/.ontologyex/history.jsonl` unless
+`--no-history`). For a nightly job without a running control room, `digest.py record
+--bundle BUNDLE --history FILE` does the same. Without history the digest says so and
+lists what needs attention now. It compares rankings, not outcomes. Agents get it from
+`weekly_digest`.
+
 ## Before a change merges
 
 `/impact` (and `change_impact.py` on the command line) reads a change from git and
@@ -156,6 +174,7 @@ running control room, `--bundle FILE` reads a file from
 | `list_stale_decisions` | read | confirmed links whose evidence changed since, with the changed files |
 | `list_suppliers` | read | the outside companies the business runs on, what relies on each, single suppliers |
 | `what_needs_attention` | read | everything that needs attention, ranked, with factors, next steps, coverage and field |
+| `weekly_digest` | read | what changed in the last N days: new, fixed, worse, better, decisions, code shipped |
 | `analyze_change` | read | what a change (git refs, or a list of files) touches and what relies on it |
 | `propose_link` | additive | appends a link proposal; a person decides it |
 | `propose_dependency` | additive | appends "A depends on B" with a reason; a person decides it |
