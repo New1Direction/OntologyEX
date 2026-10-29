@@ -54,7 +54,8 @@ class KindTests(unittest.TestCase):
             self.assertFalse(hints["destructiveHint"], name)
             self.assertEqual(hints["readOnlyHint"], tool["kind"] == at.READ_ONLY, name)
             self.assertFalse(tool["input"]["additionalProperties"], name)
-        self.assertEqual([n for n, t in at.TOOLS.items() if t["kind"] == at.ADDITIVE], ["propose_link", "propose_dependency"])
+        self.assertEqual({n for n, t in at.TOOLS.items() if t["kind"] == at.ADDITIVE},
+                         {"propose_link", "propose_dependency", "propose_rule"})
 
 
 class PolicyTests(Harness):

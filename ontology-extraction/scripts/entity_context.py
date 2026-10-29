@@ -108,7 +108,10 @@ def _entities(bundle: dict) -> dict[str, dict]:
                                            for r in row.get("rules", [])][:20],
                                  "open_questions": [{"type": b.get("type"), "id": b.get("id"),
                                                      "statement": b.get("statement")}
-                                                    for b in row.get("blockers", [])][:20]}
+                                                    for b in row.get("blockers", [])][:20],
+                                 # Rules a person confirmed from agent proposals, and ones still proposed.
+                                 "confirmed_rules": row.get("person_rules", [])[:20],
+                                 "proposed_rules": row.get("rule_proposals", [])[:20]}
     return found
 
 
@@ -526,6 +529,14 @@ def open_suggestions(bundle: dict, limit: int = MAX_RELATIONSHIPS) -> dict:
                      "target": _side(entities, rel["target"]), **{k: suggestion[k] for k in
                                                                     ("strength", "signals", "proposed_by")},
                      **({"via": rel["via"]} if rel.get("via") else {})})
+    for rule in (bundle.get("business") or {}).get("rule_suggestions", {}).get("suggestions", []):
+        if rule.get("target") in entities:
+            rows.append({"id": rule["id"], "kind": "rule", "source": _side(entities, rule["target"]), "relation": "HAS_RULE",
+                         "target": {"id": "", "layer": "rule", "kind": "business_rule", "label": rule["statement"]},
+                         "strength": rule.get("strength", "WEAK"),
+                         "signals": [s.get("detail") or s.get("signal") for s in rule.get("signals", [])][:6],
+                         "proposed_by": rule.get("proposed_by"), "citation": rule.get("citation"),
+                         "citation_check": (rule.get("citation_check") or {}).get("status")})
     rows.sort(key=lambda r: ({"STRONG": 0, "MODERATE": 1, "WEAK": 2}.get(r["strength"], 3), r["id"], r["source"]["id"]))
     return {"schema_version": 1, "kind": "OPEN_SUGGESTIONS", "suggestions": rows[:limit], "total": len(rows),
             "semantics": "PROPOSED_NOT_DECIDED_A_PERSON_CONFIRMS_IN_THE_CONTROL_ROOM", "execution_authorized": False}
@@ -542,6 +553,10 @@ def stale_decisions(bundle: dict) -> dict:
         if check["status"] == "CHANGED_SINCE_DECISION":
             rows.append({"decision_id": mark.get("id"), "skill": mark.get("skill"), "binding": mark.get("binding"),
                          "component": _side(entities, mark.get("component")), "changed": check["changed"]})
+    for rule in (bundle.get("business") or {}).get("rule_decided", []):
+        if rule.get("status") == "CONFIRMED_BEFORE_EVIDENCE_CHANGED":
+            rows.append({"decision_id": rule.get("id"), "skill": "rule", "binding": rule.get("statement"),
+                         "component": _side(entities, rule.get("target")), "changed": [rule["citation"]["path"]]})
     rows.sort(key=lambda r: (str(r["skill"]), str(r["binding"]), str(r["component"]["id"])))
     return {"schema_version": 1, "kind": "STALE_DECISIONS", "stale": rows[:MAX_RELATIONSHIPS], "total": len(rows),
             "semantics": "CONFIRMED_BEFORE_EVIDENCE_CHANGED_A_PERSON_RECONFIRMS_OR_UNDOES",

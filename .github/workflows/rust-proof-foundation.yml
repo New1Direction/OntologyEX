@@ -34,6 +34,8 @@ on:
       - 'ontology-extraction/scripts/change_impact.py'
       - 'tests/test_change_impact.py'
       - 'tests/test_dependency_proposals.py'
+      - 'tests/test_rule_proposals.py'
+      - 'ontology-extraction/scripts/rule_suggest.py'
       - '.github/workflows/rust-proof-foundation.yml'
   push:
     branches: [main]
@@ -86,7 +88,7 @@ jobs:
         run: python -m unittest tests.test_native_view_bridge -v
       - name: Entity routes on the Rust engine, and agent tools end to end
         run: python -m unittest tests.test_entity_context tests.test_agent_tools tests.test_watermark tests.test_change_impact
-          tests.test_dependency_proposals -v
+          tests.test_dependency_proposals tests.test_rule_proposals -v
       - name: Static graph-to-status fixture
         run: |
           cargo run --manifest-path engine/Cargo.toml --quiet --bin ontologyex-core --             engine/examples/topology.json engine/examples/observations.jsonl 2000 > /tmp/ontologyex-state.json

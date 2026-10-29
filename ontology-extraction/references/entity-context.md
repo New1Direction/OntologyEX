@@ -113,6 +113,7 @@ running control room, `--bundle FILE` reads a file from
 | `analyze_change` | read | what a change (git refs, or a list of files) touches and what relies on it |
 | `propose_link` | additive | appends a link proposal; a person decides it |
 | `propose_dependency` | additive | appends "A depends on B" with a reason; a person decides it |
+| `propose_rule` | additive | appends a business rule for an object or action, citing the lines it rests on |
 
 There are no tools that delete or change decisions, and the server refuses to
 register one.
@@ -127,7 +128,17 @@ keeps the agent's reason as its evidence (never invented trace counts) and becom
 DEPENDS_ON edge marked PROPOSED_BY_AGENT_CONFIRMED_BY_PERSON. A link or dependency a
 person rejected, one already confirmed, or a dependency the repository already
 declares is refused if proposed. After confirmation the decision records which agent
-proposed it. The same proposals file holds both kinds.
+proposed it. The same proposals file holds every kind.
+
+**Rule proposals.** `propose_rule` names a business object or action, the rule as one
+sentence, and the file and lines (at most 80) it rests on. The control room checks the
+lines exist and shows them (files that hold secrets are never quoted); whether they
+support the rule is for the person reading them. Start the control room with
+`--rules FILE` to record decisions (`rule_suggest.py` does the same from the command
+line). A confirmed rule shows on the entity page beside the skill's own rules, with who
+confirmed it and which agent proposed it, and records the hash of the cited lines:
+when they change, the rule reads as needing re-confirmation until a person
+re-confirms or undoes it. Nothing here edits a compiled skill.
 
 **Policy.** A JSON file:
 

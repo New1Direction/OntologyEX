@@ -874,4 +874,13 @@ theorem dependency_proposals_change_nothing (deps : List Dependency) (blocked : 
     applyAll deps (mergeProposals blocked suggs props) [] = deps :=
   proposals_alone_change_nothing deps blocked suggs props
 
+/-- A business rule an agent proposes is a target entity and a statement. -/
+abbrev Rule := Nat × Nat
+
+/-- An agent's rule proposals change no rule until a person confirms one (`rule_suggest.py`). -/
+theorem rule_proposals_change_nothing (rules : List Rule) (blocked : Rule → Bool)
+    (suggs props : List (Sugg Rule)) :
+    applyAll rules (mergeProposals blocked suggs props) [] = rules :=
+  proposals_alone_change_nothing rules blocked suggs props
+
 end OntologyEX.Queue

@@ -199,7 +199,10 @@ fn entities(bundle: &Value) -> BTreeMap<String, Value> {
                 "id": id, "layer": "business", "kind": kind, "label": get(row, "id"), "skill": get(row, "skill"),
                 "status": row.get("health").cloned().unwrap_or(json!("UNKNOWN")),
                 "summary": if truthy(summary) { summary.clone() } else { json!("") },
-                "quotes": quotes, "rules": rules, "open_questions": questions}));
+                "quotes": quotes, "rules": rules, "open_questions": questions,
+                // Rules a person confirmed from agent proposals, and ones still proposed.
+                "confirmed_rules": arr(row, "person_rules").iter().take(20).cloned().collect::<Vec<_>>(),
+                "proposed_rules": arr(row, "rule_proposals").iter().take(20).cloned().collect::<Vec<_>>()}));
         }
     }
     found
