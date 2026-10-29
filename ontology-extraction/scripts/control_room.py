@@ -38,6 +38,7 @@ import command_center
 import digest
 import ownership
 import compliance
+import stale_view
 import github_discovery
 import snapshot_store
 import graph_view_api
@@ -1195,7 +1196,23 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 try:
                     if route.query:
                         raise graph_view_api.ViewError("business view takes no parameters")
-                    payload, code = json.dumps(business(snapshot()), sort_keys=True).encode(), 200
+                    full = snapshot()
+                    answer = business(full)  # with the fingerprints of what it lets a person decide, from the same state
+                    answer["views"] = stale_view.views(answer, watermark.Marks(repo_files, skills, full), repo_files)
+                    payload, code = json.dumps(answer, sort_keys=True).encode(), 200
+                except graph_view_api.ViewError:
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, DomainError, discover_repo.DiscoveryError,
+                        github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
+            elif route.path == "/api/views":  # fingerprints of what a page lets a person decide; read before the page
+                mime = "application/json; charset=utf-8"
+                try:
+                    if route.query:
+                        raise graph_view_api.ViewError("views takes no parameters")
+                    full = snapshot()
+                    answer = stale_view.views(business(full), watermark.Marks(repo_files, skills, full), repo_files)
+                    payload, code = json.dumps(answer, sort_keys=True).encode(), 200
                 except graph_view_api.ViewError:
                     payload, code = b'{"status":"INVALID_QUERY"}', 400
                 except (RoomError, DomainError, discover_repo.DiscoveryError,
@@ -1500,10 +1517,14 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                         raise ValueError("invalid body length")
                     request = json.loads(self.rfile.read(length),
                                          object_pairs_hook=no_duplicates)
-                    # One suggestion ("id") or a batch ("ids"); undo takes decided IDs.
+                    # One suggestion ("id") or a batch ("ids"); undo takes decided IDs. "seen" carries the
+                    # fingerprints the page showed, so a decision applies only to what the person saw.
+                    seen = request.pop("seen", None) if type(request) is dict else None
                     if type(request) is not dict or set(request) not in (
                             {"id", "decision", "by", "note"}, {"ids", "decision", "by", "note"}):
                         raise ValueError("expected id or ids, decision, by and note")
+                    if seen is not None and not stale_view.valid_seen(seen):
+                        raise ValueError("seen maps IDs to the fingerprints the page showed")
                     ids = [request["id"]] if "id" in request else request["ids"]
                     if (type(ids) is not list or not 0 < len(ids) <= decisions.MAX_BATCH
                             or not all(type(i) is str for i in ids)
@@ -1516,7 +1537,15 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                     apply = (link_suggest.apply_decisions if links_route else
                              rule_suggest.apply_decisions if rules_route else dependency_suggest.apply_decisions)
                     target = links if links_route else rules_file if rules_route else dependencies
+                    kind = "links" if links_route else "rules" if rules_route else "dependencies"
                     with decision_lock:
+                        # One reading of the state, for the stale-view check and for what the decision records.
+                        full = snapshot()
+                        picture = business(full) if request["decision"] in ("confirm", "reject") or seen else None
+                        marks = watermark.Marks(repo_files, skills, full)
+                        if seen is not None and request["decision"] != "undo":
+                            stale_view.check(seen, ids, stale_view.views(picture, marks, repo_files)[kind][
+                                "decided" if request["decision"] == "reconfirm" else "suggestion"])
                         if request["decision"] == "undo":
                             body = apply(target, request["by"], request["note"], undo=ids)
                         elif request["decision"] == "reconfirm" and rules_route:
@@ -1526,7 +1555,6 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                                                                 reconfirm=rule_suggest.reconfirm_rows(
                                                                     confirmed_rules, ids, repo_files))
                         elif request["decision"] == "reconfirm":  # a person confirms again what changed
-                            marks = watermark.Marks(repo_files, skills, snapshot())
                             confirmed = {decisions.decision_id(*link_suggest.link_key(r)): r
                                          for r in business_view.read_link_document(links)[0]}
                             if not all(i in confirmed for i in ids):
@@ -1535,18 +1563,20 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                                 {**confirmed[i], "evidence": marks.now(*link_suggest.link_key(confirmed[i]))}
                                 for i in dict.fromkeys(ids)])
                         else:
-                            current = {x["id"]: x for x in business(snapshot())[
+                            current = {x["id"]: x for x in picture[
                                 "link_suggestions" if links_route else "rule_suggestions" if rules_route
                                 else "dependency_suggestions"]["suggestions"]}
                             if not all(i in current for i in ids):
                                 raise ValueError("no current suggestion has that ID")
                             chosen = [current[i] for i in dict.fromkeys(ids)]
                             if links_route and request["decision"] == "confirm":  # record what it rested on
-                                marks = watermark.Marks(repo_files, skills, snapshot())
                                 chosen = [{**c, "evidence": marks.now(c["skill"], c["binding"], c["component"])}
                                           for c in chosen]
                             body = apply(target, request["by"], request["note"], **{request["decision"]: chosen})
                     code = 200
+                except stale_view.StaleView as exc:  # nothing written: the person decides again on what is there now
+                    code, body = 409, {"status": "STALE_VIEW", "changed": exc.changed[:50],
+                                       "detail": "What you saw changed since the page loaded. Reload and decide again."}
                 except (ValueError, TypeError, KeyError, UnicodeError, RoomError, DomainError):
                     code, body = 400, {"status": "INVALID_DECISION"}
                 except OSError:

@@ -884,3 +884,47 @@ theorem rule_proposals_change_nothing (rules : List Rule) (blocked : Rule → Bo
   proposals_alone_change_nothing rules blocked suggs props
 
 end OntologyEX.Queue
+
+/-!
+## Stale views (`stale_view.py`)
+
+A page shows what a person may decide, with a fingerprint of each item. The decision
+carries the fingerprints it showed; the control room computes them again from the state
+it is about to record and applies the decision only when every one still matches.
+Finishing a click is not the same as being safe to apply.
+-/
+
+namespace OntologyEX.Stale
+
+/-- Apply a decision only when what the person saw is what is there now. -/
+def commit {σ : Type} (apply : σ → σ) (seen now : Nat) (s : σ) : σ :=
+  if seen = now then apply s else s
+
+/-- A batch applies only when every item's view is current. -/
+def commitAll {σ : Type} (apply : σ → σ) (views : List (Nat × Nat)) (s : σ) : σ :=
+  if views.all (fun p => p.1 == p.2) then apply s else s
+
+/-- A decision made on a stale view changes nothing. -/
+theorem stale_view_changes_nothing {σ : Type} (apply : σ → σ) (seen now : Nat) (s : σ)
+    (h : seen ≠ now) : commit apply seen now s = s := by
+  unfold commit
+  exact if_neg h
+
+/-- A decision made on the current view applies. -/
+theorem current_view_applies {σ : Type} (apply : σ → σ) (v : Nat) (s : σ) :
+    commit apply v v s = apply s := by
+  unfold commit
+  exact if_pos rfl
+
+/-- One changed item refuses the whole batch: nothing is half-applied. -/
+theorem one_stale_refuses_batch {σ : Type} (apply : σ → σ) (views : List (Nat × Nat)) (s : σ)
+    (p : Nat × Nat) (hp : p ∈ views) (h : p.1 ≠ p.2) : commitAll apply views s = s := by
+  have hn : ¬ (views.all (fun p => p.1 == p.2) = true) := by
+    intro hall
+    have hq := List.all_eq_true.mp hall p hp
+    simp only [beq_iff_eq] at hq
+    exact h hq
+  unfold commitAll
+  exact if_neg hn
+
+end OntologyEX.Stale

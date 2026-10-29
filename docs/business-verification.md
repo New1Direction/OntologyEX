@@ -80,6 +80,12 @@ as `OntologyEX.Business` covers links: a proposal adds nothing until a person co
 it, and a pair a person rejected, already confirmed, or the repository declares is
 never queued again.
 
+**Lean, stale views** (`OntologyEX.Stale`, `stale_view.py`): a decision carries the
+fingerprints of what the page showed, and the control room applies it only when every
+one still matches the state it is about to record. `stale_view_changes_nothing`,
+`current_view_applies` and `one_stale_refuses_batch`: a decision made on a view that
+changed writes nothing, and one changed item refuses the whole batch.
+
 **Bend** (`proofs/bend/business.bend`, checked by `bendlang/bend` at a pinned commit):
 `empty_is_unlinked`, `error_anywhere_is_at_risk`, `unknown_anywhere_is_not_ok`,
 `ladder_never_g4`, `rejection_is_g0`, `inferred_at_most_g1`,
