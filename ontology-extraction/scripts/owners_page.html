@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>OntologyEX / Owners</title>
+<style>
+:root{color-scheme:dark;--bg:#060b12;--panel:#0b131d;--panel2:#0f1a26;--line:#1d2c3b;--line2:#2a3d50;
+--text:#dbe7f0;--muted:#7f93a6;--faint:#4d6176;--accent:#4cc3d9;--ok:#34d399;--warn:#f2c14e;--risk:#ff5d5d;--impact:#ff9a3c;
+--sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:13px/1.5 var(--sans);min-height:100vh}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+header{display:flex;align-items:center;gap:18px;padding:10px 18px;border-bottom:1px solid var(--line);background:#08101a;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15}
+.brand b{font:600 11px var(--mono);letter-spacing:.22em;color:var(--accent)}
+.brand span{font-weight:600;font-size:15px}
+nav{display:flex;flex-wrap:wrap;max-width:100%;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px}
+nav a{padding:6px 12px;border-radius:6px;color:var(--muted);font-weight:500}
+nav a[aria-current="page"]{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
+nav a:hover{text-decoration:none;color:var(--text)}
+main{max-width:1200px;margin:0 auto;padding:0 0 40px}
+.sec{padding:16px 20px;border-bottom:1px solid var(--line)}
+.sec h2{margin:0 0 10px;font:600 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.summary{font-size:18px;margin:0 0 6px;font-weight:600}.note{color:var(--muted);font-size:12px;margin:0}
+.cov{margin:10px 0 0;max-width:560px}.cov .row{display:flex;justify-content:space-between;gap:8px}
+.bar{height:6px;border-radius:3px;background:var(--panel2);margin-top:4px;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.card{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:12px 14px;min-width:0}
+.card h3{margin:0 0 6px;font-size:15px;display:flex;justify-content:space-between;gap:8px;align-items:baseline;overflow-wrap:anywhere}
+.chip{display:inline-flex;padding:1px 7px;border-radius:999px;border:1px solid var(--line2);font:600 10px var(--mono);letter-spacing:.05em;white-space:nowrap;color:var(--muted)}
+.chip.declared{color:var(--ok);border-color:#1f4a3a}.chip.inferred{color:var(--warn);border-color:#5a4a1e}.chip.none{color:var(--risk);border-color:#5a2a2a}
+.group{margin-top:6px;font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:2px 8px;overflow-wrap:anywhere}.group b{color:var(--text);font-weight:600}
+.list p{margin:0 0 6px;overflow-wrap:anywhere}
+.filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.filters button{background:var(--panel);color:var(--muted);border:1px solid var(--line2);border-radius:999px;padding:3px 10px;font:500 12px var(--sans);cursor:pointer}
+.filters button[aria-pressed="true"]{color:var(--text);background:var(--panel2);border-color:var(--accent)}
+.ent{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.4fr);gap:10px;padding:8px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}
+@media (max-width:760px){.ent{grid-template-columns:minmax(0,1fr);gap:2px}}
+.cite{font:11px var(--mono);color:var(--faint);overflow-wrap:anywhere}
+.risk{color:var(--warn);font-size:12px}
+.empty{color:var(--faint);margin:0}
+</style></head>
+<body>
+<header>
+ <div class="brand"><b>ONTOLOGYEX</b><span>Owners</span></div>
+ <nav><a href="/command">Command</a><a href="/digest">Digest</a><a href="/owners" aria-current="page">Owners</a><a href="/">System map</a><a href="/business">Business</a><a href="/entity">Entity</a><a href="/impact">Change impact</a><a href="/suppliers">Suppliers</a></nav>
+</header>
+<main id="body"></main>
+<script>
+"use strict";
+// Who owns each part of the business: declared in CODEOWNERS, or inferred from who changes it.
+const $=id=>document.getElementById(id);
+function h(tag,attrs={},...kids){const el=document.createElement(tag);
+ for(const [k,v] of Object.entries(attrs)){if(v==null)continue;if(k==="text")el.textContent=v;else if(k==="class")el.className=v;else el.setAttribute(k,v)}
+ for(const c of kids){if(c!=null)el.append(c)}return el}
+function link(o){return h("a",{href:"/entity?id="+encodeURIComponent(o.id),text:o.label||o.id})}
+const LAYERS={business:"Business",system:"Systems",supplier:"Suppliers"};
+const layerOf=r=>r.kind==="external_supplier"?"supplier":r.layer==="business"?"business":"system";
+function chip(r){return r.status==="DECLARED"?h("span",{class:"chip declared",text:"CODEOWNERS"}):
+ r.status==="ACTIVE_ONLY"?h("span",{class:"chip inferred",text:"MOST COMMITS"}):h("span",{class:"chip none",text:"NOBODY"})}
+const RISK={ONE_PERSON:"only one person changed it in a year",UNCHANGED_FOR_A_YEAR:"nobody changed it in a year"};
+let data=null,layer="business",shown=60;
+function entityRow(r){
+ const declared=r.declared[0],active=r.active.map(a=>`${a.name} (${a.commits}, last ${a.last.slice(0,10)})`).join(", ");
+ return h("div",{class:"ent"},
+  h("div",{},link(r),h("div",{class:"cite",text:r.kind.replace(/_/g," ")})),
+  h("div",{},chip(r)," ",r.owner||"",r.through?h("div",{class:"cite",text:"through what it runs on"}):null),
+  h("div",{},declared?h("div",{class:"cite",text:`${declared.path}:${declared.line} · ${declared.pattern} → ${declared.owners.join(" ")}`}):null,
+   active?h("div",{class:"cite",text:"changed by "+active+(r.active_total>r.active.length?` and ${r.active_total-r.active.length} more`:"")}):null,
+   ...r.risks.map(k=>h("div",{class:"risk",text:RISK[k]||k}))))}
+function render(){
+ const d=data;
+ if(d.status!=="OK"){$("body").replaceChildren(h("div",{class:"sec"},h("p",{class:"empty",text:"Ownership needs a local repository (--repo)."})));return}
+ const business=d.entities.filter(r=>layerOf(r)==="business"&&r.id.includes("action"));
+ const owned=business.filter(r=>r.status!=="NO_OWNER").length;
+ const head=h("div",{class:"sec"},h("h2",{text:"Who answers for what"}),
+  h("p",{class:"summary",text:business.length?`${owned} of ${business.length} business action${business.length>1?"s":""} have an owner.`:`${d.people.length} owner${d.people.length===1?"":"s"} across ${d.entities.length} parts of the system.`}),
+  h("p",{class:"note",text:(d.codeowners?`Declared owners from ${d.codeowners}. `:"No CODEOWNERS file, so every owner here is inferred. ")+
+   (d.git==="OK"?`Inferred owners: who changed the code most in the last ${d.window_days} days (${d.contributors} people, bots left out).`:"Git history is not available, so only declared owners are shown.")}),
+  ...d.coverage.filter(c=>c.whole).map(c=>h("div",{class:"cov",title:c.detail},h("div",{class:"row"},h("span",{text:c.label}),h("span",{class:"note",text:`${c.part}/${c.whole} · ${c.percent}%`})),h("div",{class:"bar"},h("i",{style:`width:${c.percent||0}%`})))));
+ const nobody=d.entities.filter(r=>r.status==="NO_OWNER"&&layerOf(r)==="business");
+ const onePerson=d.entities.filter(r=>r.risks.includes("ONE_PERSON")&&layerOf(r)==="business");
+ const gaps=h("div",{class:"sec list"},h("h2",{text:"Gaps"}),
+  ...(nobody.length?nobody.map(r=>h("p",{},h("span",{class:"chip none",text:"NOBODY"})," ",link(r),h("span",{class:"note",text:" · no CODEOWNERS rule, and no change in a year"}))):[]),
+  ...(onePerson.length&&d.contributors>1?onePerson.map(r=>h("p",{},h("span",{class:"chip inferred",text:"ONE PERSON"})," ",link(r),h("span",{class:"note",text:` · only ${r.active[0].name} changed it`}))):[]),
+  d.contributors===1&&d.git==="OK"?h("p",{class:"risk",text:"Only one person changed this repository in the last year: what they know is written down nowhere else."}):null,
+  !business.length?h("p",{class:"empty",text:"No business actions are written down yet, so gaps cannot be judged by what the business does. Systems and suppliers are listed below."}):
+  !nobody.length&&!(onePerson.length&&d.contributors>1)&&d.contributors!==1?h("p",{class:"empty",text:"Every business action has an owner, and none depends on one person."}):null);
+ const people=h("div",{class:"sec"},h("h2",{},h("span",{text:"People and teams"}),h("span",{text:String(d.people.length)})),
+  d.people.length?h("div",{class:"grid"},...d.people.map(p=>{const by={};for(const o of p.owns){const k=layerOf(o);(by[k]=by[k]||[]).push(o)}
+   return h("div",{class:"card"},h("h3",{},h("span",{text:p.owner}),h("span",{class:"chip "+(p.basis==="CODEOWNERS"?"declared":"inferred"),text:p.basis==="CODEOWNERS"?"CODEOWNERS":"MOST COMMITS"})),
+    ...["business","system","supplier"].filter(k=>by[k]).map(k=>h("div",{class:"group"},h("b",{text:LAYERS[k]+": "}),...by[k].slice(0,12).map(link),by[k].length>12?`and ${by[k].length-12} more`:"")))})):h("p",{class:"empty",text:"No owner found."}));
+ const btn=(k,label)=>{const b=h("button",{type:"button","aria-pressed":String(layer===k),text:`${label} ${d.entities.filter(r=>layerOf(r)===k).length}`});b.addEventListener("click",()=>{layer=k;shown=60;render()});return b};
+ const rows=d.entities.filter(r=>layerOf(r)===layer);
+ const more=rows.length>shown?h("button",{type:"button",text:`Show ${Math.min(200,rows.length-shown)} more of ${rows.length-shown}`}):null;
+ if(more)more.addEventListener("click",()=>{shown+=200;render()});
+ const all=h("div",{class:"sec"},h("h2",{text:"Everything, with its owner and the evidence"}),
+  h("div",{class:"filters"},btn("business","Business"),btn("system","Systems"),btn("supplier","Suppliers")),
+  ...rows.slice(0,shown).map(entityRow),more?h("div",{class:"filters",style:"margin-top:10px"},more):null);
+ $("body").replaceChildren(head,gaps,people,all,h("div",{class:"sec"},h("p",{class:"note",text:"Declared owners come from CODEOWNERS, with the line cited. Inferred owners are who changed the code most; that is history, not accountability. Nothing here changes anything."})))}
+async function load(){
+ try{const r=await fetch("/api/owners",{cache:"no-store"});data=await r.json();if(!r.ok)throw new Error(data.status);
+  if(!data.entities.some(r=>layerOf(r)==="business"))layer="system";render()}
+ catch(err){$("body").replaceChildren(h("div",{class:"sec"},h("p",{class:"empty",text:"Not available: "+err.message})))}}
+load();
+</script>
+</body></html>

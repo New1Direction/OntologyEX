@@ -36,6 +36,7 @@ import rule_suggest
 import suppliers
 import command_center
 import digest
+import ownership
 import github_discovery
 import snapshot_store
 import graph_view_api
@@ -173,6 +174,7 @@ def read_thresholds(path: Path | None) -> dict:
 
 
 CODE_SURFACE_SECONDS = 60
+OWNERSHIP_SECONDS = 300  # git history and CODEOWNERS change slowly; a long log is not read every minute
 
 
 def with_code_surface(topology: dict, repo: Path, surface: dict | None = None) -> dict:
@@ -1082,6 +1084,13 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                         state_cache["suppliers_scanned"] = current
                     if state_cache["suppliers"] is not None:
                         topology = suppliers.with_suppliers(topology, state_cache["suppliers"], repo)
+                    scanned = state_cache.get("ownership_scanned")
+                    if scanned is None or (current - scanned).total_seconds() > OWNERSHIP_SECONDS:
+                        try:
+                            state_cache["ownership"] = ownership.scan_repo(repo, current)
+                        except (ValueError, OSError):
+                            state_cache["ownership"] = None
+                        state_cache["ownership_scanned"] = current
                     state_cache["topology"] = topology
                     state_cache["last_success"] = current
                 topology = state_cache["topology"]
@@ -1112,7 +1121,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                                                   "status": "NO_LOCAL_REPOSITORY" if remote is not None else "NOT_SCANNED",
                                                   "execution_authorized": False}
 
-    def bundle() -> dict:
+    def model() -> dict:
         """What the entity context reads: the state, the business picture, and the decision history."""
         full = snapshot()
         return {"state": full, "business": business(full) if skills or dependencies is not None else {},
@@ -1123,6 +1132,12 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 "agent_proposals": link_suggest.read_proposals(proposals),
                 "agent_dependency_proposals": dependency_suggest.read_proposals(proposals),
                 "suppliers": supplier_report()}
+
+    def bundle() -> dict:
+        """The model, with who owns each part of it."""
+        data = model()
+        data["ownership"] = ownership.report(data, state_cache.get("ownership") if remote is None else None)
+        return data
 
     if print_bundle:  # the same assembly the server answers from, for tests, parity and agents offline
         print(json.dumps(bundle(), sort_keys=True, separators=(",", ":")))
@@ -1227,6 +1242,25 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                         raise graph_view_api.ViewError("command takes no parameters")
                     payload, code = json.dumps(command_center.report(bundle()), sort_keys=True).encode(), 200
                 except (graph_view_api.ViewError, entity_context.ContextError):
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, DomainError, discover_repo.DiscoveryError,
+                        github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
+            elif route.path == "/owners" and not route.query:
+                page = (Path(__file__).resolve().parent / "owners_page.html").read_bytes()
+                payload, mime, code = page, "text/html; charset=utf-8", 200
+            elif route.path == "/api/owners":  # who owns each entity: CODEOWNERS, then git history
+                mime = "application/json; charset=utf-8"
+                try:
+                    params = parse_qs(route.query, strict_parsing=True, max_num_fields=1) if route.query else {}
+                    if not set(params) <= {"id"} or any(len(v) != 1 for v in params.values()):
+                        raise graph_view_api.ViewError("owners takes an optional id")
+                    answer = bundle()["ownership"]
+                    if "id" in params:
+                        found = [r for r in answer["entities"] if r["id"] == params["id"][0]]
+                        answer = {**answer, "entities": found, "people": []}
+                    payload, code = json.dumps(answer, sort_keys=True).encode(), 200
+                except graph_view_api.ViewError:
                     payload, code = b'{"status":"INVALID_QUERY"}', 400
                 except (RoomError, DomainError, discover_repo.DiscoveryError,
                         github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):

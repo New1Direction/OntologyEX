@@ -53,7 +53,7 @@ main{max-width:1200px;margin:0 auto;padding:0 0 40px}
 <body>
 <header>
  <div class="brand"><b>ONTOLOGYEX</b><span>Command center</span></div>
- <nav><a href="/command" aria-current="page">Command</a><a href="/digest">Digest</a><a href="/">System map</a><a href="/business">Business</a><a href="/entity">Entity</a><a href="/impact">Change impact</a><a href="/suppliers">Suppliers</a></nav>
+ <nav><a href="/command" aria-current="page">Command</a><a href="/digest">Digest</a><a href="/owners">Owners</a><a href="/">System map</a><a href="/business">Business</a><a href="/entity">Entity</a><a href="/impact">Change impact</a><a href="/suppliers">Suppliers</a></nav>
 </header>
 <main id="body"></main>
 <script>
@@ -65,12 +65,15 @@ function h(tag,attrs={},...kids){const el=document.createElement(tag);
  for(const c of kids){if(c!=null)el.append(c)}return el}
 function link(o){return h("a",{href:"/entity?id="+encodeURIComponent(o.id),text:o.label||o.id})}
 const LEVELS=["CRITICAL","HIGH","MEDIUM","LOW"];
+// The owner beside an item: declared in CODEOWNERS, or who changed its code most in a year.
+function ownerText(o){if(!o)return "";if(!o.owner)return " · owner: nobody";
+ return ` · owner: ${o.owner} (${o.basis==="CODEOWNERS"?"CODEOWNERS":"most commits"}${o.through?", via what it runs on":""})`}
 let data=null,level="ALL",category="ALL";
 function item(i){
  return h("div",{class:"item","data-level":i.level},
   h("div",{class:"score "+i.level},String(i.score),h("small",{text:i.level})),
   h("div",{},h("h3",{},i.subject?link({id:i.subject.id,label:i.title}):i.title),
-   h("div",{class:"meta",text:`${i.category} · ${i.kind.replace(/_/g," ").toLowerCase()} · ${i.standing}`}),
+   h("div",{class:"meta",text:`${i.category} · ${i.kind.replace(/_/g," ").toLowerCase()} · ${i.standing}`+ownerText(i.owner)}),
    i.why?h("p",{class:"why",text:i.why}):null,
    h("div",{class:"factors"},...i.factors.map(f=>h("span",{class:"factor",title:f.detail},h("b",{text:"+"+f.points})," "+f.factor+": "+f.detail))),
    h("div",{class:"next"},h("b",{text:"Next: "}),i.next_step),

@@ -24,6 +24,7 @@ from pathlib import Path
 import re
 
 import entity_context as ec
+import ownership
 from policy_check import canonical, digest
 
 LEVELS = ((70, "CRITICAL"), (50, "HIGH"), (30, "MEDIUM"), (0, "LOW"))
@@ -45,12 +46,17 @@ SEVERITY = {
     "DECISIONS_WAITING": (10, "proposals wait for a person"),
     "NO_BUSINESS_MODEL": (50, "the business actions are not written down, so nothing here reaches the business"),
     "UNOBSERVED_SERVICES": (12, "services report no health at all"),
+    "NO_OWNER": (20, "nobody is declared to own it, and nobody changed its code in a year"),
+    "ONE_PERSON": (15, "only one person changed its code in a year"),
+    "ONE_PERSON_REPOSITORY": (25, "only one person changed the whole repository in a year"),
+    "NO_CODEOWNERS": (12, "no CODEOWNERS file names who owns any code"),
 }
 CATEGORY = {"SYSTEM_ERROR": "Systems", "AT_RISK": "Business at risk", "POSSIBLY_IMPACTED": "Business at risk",
             "DEGRADED": "Business at risk", "STALE": "Business at risk", "STALE_CONFIRMATION": "Decisions",
             "DECISIONS_WAITING": "Decisions", "SINGLE_CRITICAL_SUPPLIER": "Suppliers", "SINGLE_HIGH_SUPPLIER": "Suppliers",
             "LINK_GAP": "Unknowns", "OPEN_QUESTION": "Unknowns", "NOT_LINKED": "Visibility", "NEVER_OBSERVED": "Visibility",
-            "NO_BUSINESS_MODEL": "Visibility", "UNOBSERVED_SERVICES": "Visibility"}
+            "NO_BUSINESS_MODEL": "Visibility", "UNOBSERVED_SERVICES": "Visibility", "NO_OWNER": "Ownership",
+            "ONE_PERSON": "Ownership", "ONE_PERSON_REPOSITORY": "Ownership", "NO_CODEOWNERS": "Ownership"}
 NEXT_STEP = {
     "SYSTEM_ERROR": "Open the system, read what it reports, and check the business actions that run on it.",
     "AT_RISK": "Open the action: see which linked system fails and what else relies on it.",
@@ -68,6 +74,10 @@ NEXT_STEP = {
     "NO_BUSINESS_MODEL": "Write a domain skill for the main workflow (guided onboarding) and start the control room "
                          "with --skill, so health, risk and change impact reach business actions.",
     "UNOBSERVED_SERVICES": "Add health checks (feed_setup.py) or traces (otel_setup.py), one command per service.",
+    "NO_OWNER": "Name an owner: a CODEOWNERS line for the code behind it, so someone answers for it.",
+    "ONE_PERSON": "Have a second person review or pair on it, so it does not depend on one person.",
+    "ONE_PERSON_REPOSITORY": "Write down how the critical parts work and who else can change them.",
+    "NO_CODEOWNERS": "Add a CODEOWNERS file: it names who reviews and answers for each part of the code.",
 }
 # What a business in each field should be able to see; each found from supplier categories or names in the model.
 FIELDS = {
@@ -248,6 +258,33 @@ def report(bundle: dict) -> dict:
                            + (", ..." if len({n["label"] for n in silent}) > 8 else "") + ".", [], standing="UNKNOWN",
                            extra=[{"factor": "volume", "points": min(10, len(silent)),
                                    "detail": f"{len(silent)} silent service(s)"}]))
+    found = bundle.get("ownership") or {}
+    owners = ownership.owners_by_id(found)
+    if found.get("status") == "OK":
+        single = found.get("git") == "OK" and found.get("contributors") == 1
+        for row in found["entities"]:
+            if row["layer"] != "business" or "action" not in row["id"]:
+                continue
+            if row["status"] == "NO_OWNER":
+                items.append(_item("NO_OWNER", side(row["id"]), f"Nobody owns {row['label']}",
+                                   "No CODEOWNERS rule covers its code, and nobody changed it in the last year.",
+                                   reach(row["id"]), standing="UNKNOWN"))
+            elif "ONE_PERSON" in row["risks"] and not single:
+                items.append(_item("ONE_PERSON", side(row["id"]), f"Only {row['active'][0]['name']} knows "
+                                   f"{row['label']}", f"Only {row['active'][0]['name']} changed its code in the "
+                                   "last year.", reach(row["id"]), standing="INFERRED"))
+        if single:
+            items.append(_item("ONE_PERSON_REPOSITORY", None, "One person changed everything this year",
+                               "Every commit in the last year came from one person, so what they know is "
+                               "written down nowhere else.", [], standing="INFERRED"))
+        if found.get("codeowners") is None and found["entities"]:
+            items.append(_item("NO_CODEOWNERS", None, "No CODEOWNERS file",
+                               "Ownership can only be inferred from who changed the code.", [], standing="UNKNOWN"))
+    for item in items:
+        if item["subject"] and item["subject"]["id"] in owners:
+            item["owner"] = owners[item["subject"]["id"]]
+        else:
+            item["owner"] = None
     unique = {}
     for item in items:  # one item per kind and subject
         unique.setdefault(item["id"], item)
@@ -297,7 +334,8 @@ def coverage(bundle: dict, entities: dict) -> dict:
               "Confirmations whose recorded evidence is unchanged."),
         ratio(summary.get("rules_reviewed_or_better", 0), summary.get("rules", 0), "Business rules reviewed",
               "Rules whose evidence a person reviewed or better."),
-    ], "suppliers": len((bundle.get("suppliers") or {}).get("suppliers", []))}
+    ] + (bundle.get("ownership") or {}).get("coverage", [])[1:],  # business actions with any owner
+        "suppliers": len((bundle.get("suppliers") or {}).get("suppliers", []))}
 
 
 def field_profile(bundle: dict, entities: dict) -> dict:

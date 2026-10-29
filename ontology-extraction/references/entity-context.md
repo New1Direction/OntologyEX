@@ -98,6 +98,26 @@ does not (`operate.py up` records to `REPO/.ontologyex/history.jsonl` unless
 lists what needs attention now. It compares rankings, not outcomes. Agents get it from
 `weekly_digest`.
 
+## Ownership
+
+`/owners` (and `ownership.py --bundle BUNDLE --repo REPO`) says who owns each business
+object and action, system and supplier, from two sources that are only read:
+
+- **Declared** (SOURCE): CODEOWNERS (`.github/`, the root, `docs/` or `.gitlab/`), with the
+  line cited; the last matching rule wins, and a rule with no owner un-owns a path, as on GitHub.
+- **Inferred** (INFERRED): who changed the files most in the last year, from git history.
+  Names only, never e-mail addresses; bots are left out. This is history, not accountability.
+
+An entity is owned through its own files: a service through the folder its compose file
+builds (or the file declaring it), a route or table through its file, a supplier through
+the manifest lines naming it, a business object or action through its binding's source
+code, else the skill files it cites, else the systems it runs on (marked "through").
+
+The command center shows the owner on every item (who to call when payments is down),
+and adds what a manager would want to know: business actions nobody owns, code only one
+person changed in a year, a repository only one person changed, and no CODEOWNERS file.
+The digest carries the owner too; every entity page shows it; agents get `who_owns`.
+
 ## Before a change merges
 
 `/impact` (and `change_impact.py` on the command line) reads a change from git and
@@ -175,6 +195,7 @@ running control room, `--bundle FILE` reads a file from
 | `list_suppliers` | read | the outside companies the business runs on, what relies on each, single suppliers |
 | `what_needs_attention` | read | everything that needs attention, ranked, with factors, next steps, coverage and field |
 | `weekly_digest` | read | what changed in the last N days: new, fixed, worse, better, decisions, code shipped |
+| `who_owns` | read | an entity's owner (CODEOWNERS line, or most commits in a year), or everyone and what they own |
 | `analyze_change` | read | what a change (git refs, or a list of files) touches and what relies on it |
 | `propose_link` | additive | appends a link proposal; a person decides it |
 | `propose_dependency` | additive | appends "A depends on B" with a reason; a person decides it |

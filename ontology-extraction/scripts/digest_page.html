@@ -47,7 +47,7 @@ details summary{cursor:pointer;color:var(--muted)}
 <body>
 <header>
  <div class="brand"><b>ONTOLOGYEX</b><span>Weekly digest</span></div>
- <nav><a href="/command">Command</a><a href="/digest" aria-current="page">Digest</a><a href="/">System map</a><a href="/business">Business</a><a href="/entity">Entity</a><a href="/impact">Change impact</a><a href="/suppliers">Suppliers</a></nav>
+ <nav><a href="/command">Command</a><a href="/digest" aria-current="page">Digest</a><a href="/owners">Owners</a><a href="/">System map</a><a href="/business">Business</a><a href="/entity">Entity</a><a href="/impact">Change impact</a><a href="/suppliers">Suppliers</a></nav>
 </header>
 <main id="body"></main>
 <script>
@@ -68,7 +68,7 @@ function delta(value,betterWhen,unit=""){
 function row(r,extra){
  return h("div",{class:"row"},h("div",{class:"score "+r.level},String(r.score),h("small",{text:r.level})),
   h("div",{},h("div",{class:"title"},r.subject&&typeof r.subject==="object"?link(r.subject.id,r.title):r.title),
-   h("div",{class:"meta",text:[r.category,extra(r)].filter(Boolean).join(" · ")})))}
+   h("div",{class:"meta",text:[r.category,extra(r),r.owner?(r.owner.owner?"owner: "+r.owner.owner:"owner: nobody"):""].filter(Boolean).join(" · ")})))}
 function group(title,rows,extra,empty){
  return h("div",{class:"sec"},h("h2",{},h("span",{text:title}),h("span",{text:String(rows.length)})),
   ...(rows.length?rows.map(r=>row(r,extra)):[h("p",{class:"empty",text:empty})]))}

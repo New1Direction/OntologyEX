@@ -263,6 +263,13 @@ def headline(d: dict) -> str:
     return text
 
 
+def _owner(row: dict) -> str:
+    owner = row.get("owner")
+    if not isinstance(owner, dict):
+        return ""
+    return f" (owner: {owner['owner']})" if owner.get("owner") else " (owner: nobody)"
+
+
 def markdown(d: dict) -> str:
     """The digest as Markdown for email, chat or a ticket."""
     out = [f"# Business digest, {d['since'][:10]} to {d['until'][:10]}", "", d["headline"], ""]
@@ -270,7 +277,7 @@ def markdown(d: dict) -> str:
     def items(title: str, rows: list[dict], show) -> None:
         if rows:
             out.extend([f"## {title}", ""])
-            out.extend(f"- **{r['level']} {r['score']}** {r['title']}{show(r)}" for r in rows[:25])
+            out.extend(f"- **{r['level']} {r['score']}** {r['title']}{show(r)}{_owner(r)}" for r in rows[:25])
             if len(rows) > 25:
                 out.append(f"- ... and {len(rows) - 25} more")
             out.append("")
