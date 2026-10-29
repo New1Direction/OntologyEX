@@ -125,6 +125,7 @@ audited. See [entity context](ontology-extraction/references/entity-context.md).
 ## ◢ How it stays honest
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"background": "#060b12", "primaryColor": "#0b1724", "primaryTextColor": "#dbe7f0", "primaryBorderColor": "#4cc3d9", "lineColor": "#4cc3d9", "clusterBkg": "#081321", "clusterBorder": "#2a6f86", "edgeLabelBackground": "#0b1724", "fontFamily": "ui-monospace, SFMono-Regular, Menlo, monospace"}}}%%
 flowchart LR
   subgraph S[Sources, read only]
     code[Code & config]
@@ -138,6 +139,10 @@ flowchart LR
   A -- propose --> Q[Decision queue]
   V -- confirm / reject --> Q
   Q -- a person decides --> M
+  classDef model fill:#140f26,stroke:#a78bfa,color:#ede9fe,stroke-width:2px
+  classDef person fill:#0b1f18,stroke:#34d399,color:#d1fae5,stroke-width:2px
+  class M model
+  class Q person
 ```
 
 - **Four standings, weakest link wins.** Everything is CONFIRMED (a person decided), SOURCE
