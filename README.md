@@ -163,7 +163,7 @@ flowchart LR
 |---|---|
 | **Golden fixtures** | 18 pinned outputs on a demo, a shop and a clinic with fixed git histories. Any change to an answer fails CI with the JSON paths that moved, and an intended change must be recorded with its reason. |
 | **Rust ≡ Python** | Differential parity on every change: 2,557 entity-context cases, 5,049 discovery cases, 2,840 live-feed cases, zero mismatches allowed. |
-| **Lean 4 + Bend** | 77 theorems over the health rollup, grade ladder, link decisions, the decision queue, change impact, watermarks and stale views. Lean prints its tables and CI compares them row by row with Python (1,111 rollup rows, 341 path rows, 6 watermark rows…). |
+| **Lean 4 + Bend** | 95 theorems over the health rollup, grade ladder, link decisions, the decision queue, change impact, impact standing, watermarks and stale views. Trusted statements live apart from the proofs and are pinned by hash. Lean prints its tables and CI compares them row by row with Python (1,111 rollup rows, 341 path rows, 300 impact graphs…). |
 | **780+ tests** | Python 3.11 and 3.13, headless-browser smoke tests, every page script parsed, the installed kit exercised from an unrelated directory. No API keys, no model calls. |
 
 Details: [business verification](docs/business-verification.md) · [golden fixture changes](tests/golden/CHANGES.md).

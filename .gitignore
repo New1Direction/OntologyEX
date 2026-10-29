@@ -28,3 +28,6 @@ engine/target/
 
 # Prebuilt engine binaries installed by fetch_engine.py
 ontology-extraction/bin/
+
+# Lean build output
+proofs/lean/.lake/

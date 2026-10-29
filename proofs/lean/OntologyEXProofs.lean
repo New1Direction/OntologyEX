@@ -1,3 +1,5 @@
+import OntologyEXProofs.Impact
+
 /-!
 # OntologyEX monitoring policy — small proof kernel
 

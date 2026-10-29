@@ -250,24 +250,42 @@ def _side(entities: dict, entity_id: str) -> dict:
 
 
 def _impact(entity_id: str, relationships: list[dict], entities: dict) -> list[dict]:
-    """What relies on this entity, transitively: the things a change to it could reach."""
+    """What relies on this entity, transitively, and how sure that is.
+
+    Something that relies on this entity through several chains of relationships stands
+    as its strongest chain of 1 to MAX_IMPACT_DEPTH hops (a chain is as strong as its
+    weakest hop, path_standing); among equally strong chains, the one with fewest hops,
+    then the first in the order below. So the standing never depends on names or on the
+    order relationships were found. `depth` is the number of hops of that chain and
+    `path` is the chain itself.
+
+    Layer k holds, for each entity, its strongest chain of exactly k hops; the answer is
+    the strongest over the layers. Lean proves that this computes the strongest chain of
+    1 to D hops (proofs/lean/OntologyEXProofs/Impact.lean against the statement in
+    OntologyEXSpec/Impact.lean), and tests/conformance.py compares the two on generated graphs.
+    """
     relying: dict[str, list[dict]] = {}
     for rel in relationships:
         if rel["relation"] in RELIES_ON and rel["standing"] != "UNKNOWN":
             relying.setdefault(rel["target"], []).append(rel)
-    found, frontier, seen = [], [(entity_id, 0, "CONFIRMED", [])], {entity_id}
-    while frontier and len(found) < MAX_IMPACT:
-        current, depth, standing, path = frontier.pop(0)
-        if depth >= MAX_IMPACT_DEPTH:
-            continue
-        for rel in sorted(relying.get(current, []), key=lambda r: (r["source"] or "", r["relation"], r["standing"])):
-            if rel["source"] in seen:
-                continue
-            seen.add(rel["source"])
-            step = path_standing([standing, rel["standing"]])
-            hop = path + [f"{rel['source']} {rel['relation']} {current}"]
-            found.append({**_side(entities, rel["source"]), "depth": depth + 1, "standing": step, "path": hop})
-            frontier.append((rel["source"], depth + 1, step, hop))
+    for rows in relying.values():
+        rows.sort(key=lambda r: (r["source"] or "", r["relation"], r["standing"]))
+    best: dict = {}  # entity -> (weakness, hops, path), in the order first reached
+    layer = {entity_id: (WEAKNESS["CONFIRMED"], [])}
+    for hops in range(1, MAX_IMPACT_DEPTH + 1):
+        reached: dict = {}
+        for current, (weakness, path) in layer.items():
+            for rel in relying.get(current, []):
+                step = max(weakness, WEAKNESS[rel["standing"]])
+                if rel["source"] not in reached or step < reached[rel["source"]][0]:
+                    reached[rel["source"]] = (step, path + [f"{rel['source']} {rel['relation']} {current}"])
+        for source, (weakness, path) in reached.items():
+            if source != entity_id and (source not in best or weakness < best[source][0]):
+                best[source] = (weakness, hops, path)
+        layer = reached
+    found = [{**_side(entities, source), "depth": hops, "standing": STANDINGS[weakness], "path": path}
+             for source, (weakness, hops, path) in best.items()]
+    found.sort(key=lambda r: r["depth"])  # stable: by hops, then the order first reached
     return found[:MAX_IMPACT]
 
 
