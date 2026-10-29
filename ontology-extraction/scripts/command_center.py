@@ -81,6 +81,10 @@ SEVERITY = {
     "RESOLUTION_SLOWER": (25, "tickets take longer to solve"),
     "LOSS_REASON_DOMINANT": (20, "one reason loses most deals"),
     "TOPIC_NOT_MODELED": (15, "customers keep raising something nothing in the model is named for"),
+    "WRITTEN_PROMISE_NOT_KEPT": (45, "the records show a written promise is not kept"),
+    "WRITTEN_RULES_CONFLICT": (40, "two documents promise different things"),
+    "WRITTEN_RULE_NOT_IN_CODE": (25, "a written rule has no matching step in the business model or code"),
+    "PROCEDURE_NOT_WRITTEN": (20, "the business does something its documents never describe"),
 }
 CATEGORY = {"SYSTEM_ERROR": "Systems", "AT_RISK": "Business at risk", "POSSIBLY_IMPACTED": "Business at risk",
             "DEGRADED": "Business at risk", "STALE": "Business at risk", "STALE_CONFIRMATION": "Decisions",
@@ -97,7 +101,9 @@ CATEGORY = {"SYSTEM_ERROR": "Systems", "AT_RISK": "Business at risk", "POSSIBLY_
                                     "CLOUD_COST_RISING", "NEW_SUPPLIER_PAID", "PAID_NOT_IN_CODE", "IN_CODE_NOT_PAID")},
             **{k: "Customers" for k in ("REFUNDS_CONFIRMED_BY_TICKETS", "SATISFACTION_DROPPING", "WIN_RATE_DOWN",
                                         "TICKETS_RISING", "TOPIC_SPIKE", "BACKLOG_GROWING", "RESOLUTION_SLOWER",
-                                        "LOSS_REASON_DOMINANT", "TOPIC_NOT_MODELED")}}
+                                        "LOSS_REASON_DOMINANT", "TOPIC_NOT_MODELED")},
+            **{k: "Written" for k in ("WRITTEN_PROMISE_NOT_KEPT", "WRITTEN_RULES_CONFLICT", "WRITTEN_RULE_NOT_IN_CODE",
+                                      "PROCEDURE_NOT_WRITTEN")}}
 NEXT_STEP = {
     "SYSTEM_ERROR": "Open the system, read what it reports, and check the business actions that run on it.",
     "AT_RISK": "Open the action: see which linked system fails and what else relies on it.",
@@ -152,6 +158,10 @@ NEXT_STEP = {
     "RESOLUTION_SLOWER": "See which topics take longest, and whether they wait on a person or another team.",
     "LOSS_REASON_DOMINANT": "Take the reason to whoever owns pricing or the product it names.",
     "TOPIC_NOT_MODELED": "Write it down: add it to a domain skill, so changes to it reach the business model.",
+    "WRITTEN_PROMISE_NOT_KEPT": "Either change how the work is done or change the promise; customers read the document.",
+    "WRITTEN_RULES_CONFLICT": "Decide which is right, fix the other document, and check which one customers see.",
+    "WRITTEN_RULE_NOT_IN_CODE": "Check whether the code enforces it; if not, it depends on people remembering.",
+    "PROCEDURE_NOT_WRITTEN": "Write down who handles it, how, and by when, before the person who knows is away.",
 }
 SIGNAL_TITLES = {"DISPUTES_OPEN": "Disputes waiting for a response", "PAYOUT_FAILED": "A payout failed",
                  "REFUND_RATE_RISING": "Refund rate rising", "REVENUE_DOWN": "Payments taken fell",
@@ -163,7 +173,10 @@ SIGNAL_TITLES = {"DISPUTES_OPEN": "Disputes waiting for a response", "PAYOUT_FAI
                  "NEW_SUPPLIER_PAID": "A new supplier was paid", "SATISFACTION_DROPPING": "Support ratings dropping",
                  "WIN_RATE_DOWN": "Win rate down", "TICKETS_RISING": "Support tickets rising",
                  "TOPIC_SPIKE": "A kind of ticket jumped", "BACKLOG_GROWING": "Support backlog growing",
-                 "RESOLUTION_SLOWER": "Tickets take longer to solve", "LOSS_REASON_DOMINANT": "Deals lost to one reason"}
+                 "RESOLUTION_SLOWER": "Tickets take longer to solve", "LOSS_REASON_DOMINANT": "Deals lost to one reason",
+                 "WRITTEN_PROMISE_NOT_KEPT": "A written promise is not kept", "WRITTEN_RULES_CONFLICT": "Documents disagree",
+                 "WRITTEN_RULE_NOT_IN_CODE": "A written rule is not in the code",
+                 "PROCEDURE_NOT_WRITTEN": "Not written down"}
 # What a business in each field should be able to see; each found from supplier categories or names in the model.
 FIELDS = {
     "e-commerce": (r"order|cart|checkout|product|sku|inventor|catalog|coupon|fulfil|shipment|storefront", (

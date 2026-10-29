@@ -6,7 +6,7 @@
   "better": 0,
   "fixed": 1,
   "new": 2,
-  "still_open": 41,
+  "still_open": 45,
   "worse": 0
  },
  "coverage": [
@@ -84,7 +84,7 @@
    "title": "worker reports an error"
   }
  ],
- "headline": "Last 7 days: 2 new (2 critical), 1 fixed, 41 unchanged. Longest open: A payout failed (USD) (critical, 9 days). 1 decision made.",
+ "headline": "Last 7 days: 2 new (2 critical), 1 fixed, 45 unchanged. Longest open: A payout failed (USD) (critical, 9 days). 1 decision made.",
  "history_snapshots": 1,
  "kind": "WEEKLY_DIGEST",
  "kpis": [
@@ -829,6 +829,31 @@
    "why": "api depends on failing payments."
   },
   {
+   "category": "Written",
+   "factors": [
+    {
+     "detail": "the records show a written promise is not kept",
+     "factor": "severity",
+     "points": 45
+    }
+   ],
+   "id": "289d72ae1bd63e7e",
+   "kind": "WRITTEN_PROMISE_NOT_KEPT",
+   "level": "MEDIUM",
+   "level_before": "MEDIUM",
+   "links": [],
+   "next_step": "Either change how the work is done or change the promise; customers read the document.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 45,
+   "score_before": 45,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "A written promise is not kept",
+   "why": "Contracts/datadog-order-form.txt:4 says \"Payment terms: Net 30.\"; 1 bill(s) are past their due date and not marked paid."
+  },
+  {
    "category": "Operations",
    "factors": [
     {
@@ -926,6 +951,31 @@
    "subject": null,
    "title": "Bills overdue (USD)",
    "why": "1 bill(s) are past their due date and not marked paid."
+  },
+  {
+   "category": "Written",
+   "factors": [
+    {
+     "detail": "two documents promise different things",
+     "factor": "severity",
+     "points": 40
+    }
+   ],
+   "id": "6a33bc964d358fd0",
+   "kind": "WRITTEN_RULES_CONFLICT",
+   "level": "MEDIUM",
+   "level_before": "MEDIUM",
+   "links": [],
+   "next_step": "Decide which is right, fix the other document, and check which one customers see.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 40,
+   "score_before": 40,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Documents disagree",
+   "why": "Refund window is written as 14 days and 30 days in different documents: docs/refund-policy.md:3; docs/terms-of-service.docx:3."
   },
   {
    "category": "Customers",
@@ -1036,6 +1086,36 @@
    "subject": null,
    "title": "Invoices written off (USD)",
    "why": "10 invoice(s) marked uncollectible."
+  },
+  {
+   "category": "Written",
+   "factors": [
+    {
+     "detail": "the business does something its documents never describe",
+     "factor": "severity",
+     "points": 20
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "a3d686bb13f28c2f",
+   "kind": "PROCEDURE_NOT_WRITTEN",
+   "level": "MEDIUM",
+   "level_before": "MEDIUM",
+   "links": [],
+   "next_step": "Write down who handles it, how, and by when, before the person who knows is away.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 35,
+   "score_before": 35,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Not written down: payouts",
+   "why": "The records show payouts happening, and no document here describes how payouts are handled."
   },
   {
    "category": "Operations",
@@ -1474,6 +1554,31 @@
    "subject": null,
    "title": "Disputes happen, and the sources do not show where",
    "why": "The records show disputes, and nothing in the business model or the code is named for them: they are handled somewhere the sources do not show (by hand, in a supplier's dashboard, or in code outside this repository)."
+  },
+  {
+   "category": "Written",
+   "factors": [
+    {
+     "detail": "the business does something its documents never describe",
+     "factor": "severity",
+     "points": 20
+    }
+   ],
+   "id": "6c984f34eeee6160",
+   "kind": "PROCEDURE_NOT_WRITTEN",
+   "level": "LOW",
+   "level_before": "LOW",
+   "links": [],
+   "next_step": "Write down who handles it, how, and by when, before the person who knows is away.",
+   "open_days": 9,
+   "open_since": "<time>",
+   "owner": null,
+   "score": 20,
+   "score_before": 20,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Not written down: disputes",
+   "why": "The records show disputes happening, and no document here describes how disputes are handled."
   },
   {
    "category": "Suppliers",

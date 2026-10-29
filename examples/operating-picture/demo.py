@@ -129,6 +129,38 @@ def write_operations(folder: Path, now: datetime) -> None:
                                    for _ in range(120)]])
     write_spend(folder, now, payouts, rng, write)
     write_customers(folder, first, now, rng, write)
+    write_written(folder)
+
+
+def write_written(folder: Path) -> None:
+    """What the shop says it does: a refund policy, terms of service (a Word file), a support page, a finance policy
+    and a supplier's order form, all fictional. The terms give a shorter refund window than the policy, the support
+    promise is not kept, a supplier bill is overdue against the finance policy, and nothing describes how disputes
+    or payouts are handled."""
+    import zipfile
+    docs = folder / "docs"
+    docs.mkdir(parents=True, exist_ok=True)
+    (docs / "refund-policy.md").write_text(
+        "# Refund policy\n\nCustomers can ask for a refund within 30 days of purchase.\n\n"
+        "Refunds over $500 need a manager's approval before they are issued.\n\n"
+        "Questions go to support@shop.example.test or +1 555 010 2233.\n", encoding="utf-8")
+    (docs / "support.md").write_text(
+        "# Support\n\nWe answer by email and chat. We resolve every support ticket within 8 hours.\n", encoding="utf-8")
+    (docs / "finance-policy.md").write_text(
+        "# Finance policy\n\nWe pay supplier invoices within 30 days of receiving them.\n", encoding="utf-8")
+    body = "".join(f"<w:p><w:r><w:t>{line}</w:t></w:r></w:p>" for line in (
+        "Terms of Service", "1. Payments are taken when you order.",
+        "2. Refunds are available within 14 days of purchase.", "3. These terms are governed by local law."))
+    with zipfile.ZipFile(docs / "terms-of-service.docx", "w") as z:  # fixed timestamps: the same bytes every build
+        z.writestr(zipfile.ZipInfo("[Content_Types].xml", (1980, 1, 1, 0, 0, 0)),
+                   '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>')
+        z.writestr(zipfile.ZipInfo("word/document.xml", (1980, 1, 1, 0, 0, 0)),
+                   '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/'
+                   f'main"><w:body>{body}</w:body></w:document>')
+    (folder / "contracts").mkdir(exist_ok=True)
+    (folder / "contracts/datadog-order-form.txt").write_text(
+        "ORDER FORM\nCustomer: Fictional Shop Ltd\nTerm: 12 months. This order renews automatically for another 12 "
+        "months unless either party gives 60 days' written notice.\nPayment terms: Net 30.\n", encoding="utf-8")
 
 
 def write_customers(folder: Path, first: datetime, now: datetime, rng, write) -> None:

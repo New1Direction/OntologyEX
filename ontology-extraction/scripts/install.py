@@ -22,6 +22,7 @@ PACKAGE = (
     "scripts/digest.py", "scripts/digest_page.html", "scripts/ownership.py", "scripts/owners_page.html",
     "scripts/compliance.py", "scripts/compliance_page.html", "scripts/stale_view.py", "scripts/background_scans.py",
     "scripts/operations.py", "scripts/operations_page.html", "scripts/spend.py", "scripts/customers.py",
+    "scripts/written.py",
     "references/entity-context.md",
     "scripts/github_discovery.py", "scripts/code_imports.py", "scripts/snapshot_store.py",
     "scripts/graph_view_api.py", "scripts/incident_view.py", "scripts/native_view_bridge.py",

@@ -53,6 +53,7 @@ import urllib.request
 
 import customers
 import spend
+import written
 
 STREAMS = ("payments", "refunds", "disputes", "payouts", "subscriptions", "invoices")
 TITLES = {"payments": "Payments", "refunds": "Refunds", "disputes": "Disputes", "payouts": "Payouts",
@@ -603,7 +604,7 @@ def files_in(folder: Path) -> list[Path]:
             path = Path(root) / name
             if name.startswith(".") or name == "operations.json" or path.is_symlink():
                 continue
-            if path.suffix.lower() in (".csv", ".tsv", ".json") and path.stat().st_size <= MAX_FILE_BYTES:
+            if path.suffix.lower() in (".csv", ".tsv", ".json") + written.SUFFIXES and path.stat().st_size <= MAX_FILE_BYTES:
                 found.append(path)
     return found[:MAX_FILES]
 
@@ -793,14 +794,19 @@ def report(folder: Path | None, entities: list[dict] | None = None, min_cell: in
     if folder is None or not folder.is_dir():
         return {**base, "status": "NO_OPERATIONS_FOLDER", "folder": str(folder) if folder else None, "sources": [],
                 "currencies": {}, "signals": [], "code_vs_operations": [], "unrecognized": []}
-    ledger, aggregates, sources = Ledger(), [], []
+    ledger, aggregates, sources, documents, commitments = Ledger(), [], [], [], []
     book = spend.Book(now or datetime.now(timezone.utc))
     desk = customers.Desk(now or datetime.now(timezone.utc), week_of, customers.vocabulary(entities or []))
     for path in files_in(folder):
         rel = path.relative_to(folder).as_posix()
         try:
-            source = (read_json(path, rel, ledger, aggregates) if path.suffix.lower() == ".json"
-                      else read_csv(path, rel, folder, ledger, book, desk))
+            if path.suffix.lower() in written.SUFFIXES:  # policies, procedures, terms, contracts
+                source, found = written.read(path, rel)
+                documents.append(source)
+                commitments += found
+            else:
+                source = (read_json(path, rel, ledger, aggregates) if path.suffix.lower() == ".json"
+                          else read_csv(path, rel, folder, ledger, book, desk))
         except (OSError, UnicodeError, csv.Error) as exc:
             source = {"file": rel, "status": "UNREADABLE", "detail": str(exc)[:200]}
         sources.append({**source, "sha256": sha256(path), "bytes": path.stat().st_size})
@@ -892,13 +898,20 @@ def report(folder: Path | None, entities: list[dict] | None = None, min_cell: in
     if customer:
         signals += customer["signals"]
     read = [s for s in sources if s["status"] == "READ"]
+    writing = None
+    if documents:
+        present = {s for cur in currencies.values() for s in cur["streams"]}
+        writing = written.check(commitments, documents, {"currencies": currencies, "spend": spending,
+                                                         "customers": customer, "streams_present": sorted(present)},
+                                entities or [])
+        signals += writing["signals"]
     present = {s for cur in currencies.values() for s in cur["streams"]} | (
         {"subscriptions"} if any(c["subscriptions_now"] for c in currencies.values()) else set())
     return {**base, "status": "OK" if read else "NO_RECORDS_READ", "folder": str(folder), "week_in_progress": current,
             "month_in_progress": spend.month_of(now or datetime.now(timezone.utc)),
             "sources": sources, "unrecognized": [s for s in sources if s["status"] == "UNRECOGNIZED"],
             "overlaps": overlaps, "streams_present": sorted(present), "currencies": currencies, "spend": spending,
-            "customers": customer,
+            "customers": customer, "written": writing,
             "signals": sorted(signals, key=lambda s: ({"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2}[s["level"]], s["signal"])),
             "code_vs_operations": compare(present, entities or [], currencies)}
 

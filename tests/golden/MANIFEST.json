@@ -41,8 +41,8 @@
    "updated": "2026-10-29"
   },
   "demo/command_center.json": {
-   "reason": "Customers: the demo's helpdesk and CRM exports, read as weekly aggregates, add rising tickets, a growing backlog, slower solving, worse ratings, a CSV-export spike nothing in the model names, a falling win rate lost mostly to price, and refunds confirmed by refund tickets; the operations ledger gains a customers section.",
-   "sha256": "054f2d79fa4ca840e51783da10050eccd261dc527396037d0c75aeb597dae069",
+   "reason": "Written operations: the demo's refund policy, terms of service (Word), support page, finance policy and a supplier order form, read for their commitments and held to the records: an unkept support promise, overdue bills against the payment terms, a refund window written as 14 days in the terms and 30 in the policy, and no written procedure for disputes or payouts.",
+   "sha256": "ae362565460f6d7bdaf5c2d40a7c71de118cbf2183b0c96aaac0762adb1e9ec9",
    "updated": "2026-10-29"
   },
   "demo/context.json": {
@@ -51,13 +51,13 @@
    "updated": "2026-10-29"
   },
   "demo/digest.json": {
-   "reason": "Customers: the demo's helpdesk and CRM exports, read as weekly aggregates, add rising tickets, a growing backlog, slower solving, worse ratings, a CSV-export spike nothing in the model names, a falling win rate lost mostly to price, and refunds confirmed by refund tickets; the operations ledger gains a customers section.",
-   "sha256": "eeecb4f4d666dafbd83adff96a035f09025931de10c507d85735fe79c45debbe",
+   "reason": "Written operations: the demo's refund policy, terms of service (Word), support page, finance policy and a supplier order form, read for their commitments and held to the records: an unkept support promise, overdue bills against the payment terms, a refund window written as 14 days in the terms and 30 in the policy, and no written procedure for disputes or payouts.",
+   "sha256": "ded99962d937484ece47b65542840f9125bb5a5f7f365f188b0c8f4ed436bab4",
    "updated": "2026-10-29"
   },
   "demo/operations.json": {
-   "reason": "Customers: the demo's helpdesk and CRM exports, read as weekly aggregates, add rising tickets, a growing backlog, slower solving, worse ratings, a CSV-export spike nothing in the model names, a falling win rate lost mostly to price, and refunds confirmed by refund tickets; the operations ledger gains a customers section.",
-   "sha256": "eb4432065c34389484eaadbe3ac8127e05ebb0c4d4eb31f182cd47fd1af71cfa",
+   "reason": "Written operations: the demo's refund policy, terms of service (Word), support page, finance policy and a supplier order form, read for their commitments and held to the records: an unkept support promise, overdue bills against the payment terms, a refund window written as 14 days in the terms and 30 in the policy, and no written procedure for disputes or payouts.",
+   "sha256": "abcc835d516b494793a6fa657830e611e06b628c80820ac98a363598600af023",
    "updated": "2026-10-29"
   },
   "shop/change_impact.json": {

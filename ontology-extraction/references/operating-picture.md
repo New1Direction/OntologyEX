@@ -172,8 +172,8 @@ not approvals: every result keeps `execution_authorized: false`. Do not report
 What the business actually does comes from its records, not its code. Ask the user for
 exports from their payment processor (payments, refunds, disputes, payouts, subscriptions,
 invoices), their business bank or card statements, vendor bills, cloud cost exports, and their
-helpdesk tickets and CRM deals exports, and have them put the files in
-`REPO/.ontologyex/operations/`; `/operations` and
+helpdesk tickets and CRM deals exports, and the policies, terms and contracts that say how the
+business works, and have them put the files in `REPO/.ontologyex/operations/`; `/operations` and
 `operations_status` read them as weekly aggregates per currency. Never copy a record, a
 customer, or an identifier into anything you write: report the aggregates and signals.
 A pull (`operations.py pull stripe|aws|zendesk|hubspot`; `aws` runs their `aws` command line)

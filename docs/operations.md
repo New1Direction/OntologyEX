@@ -148,6 +148,35 @@ Helpdesk and CRM exports in the same folder, kept as **weekly** aggregates:
 - **Not in the model** names a topic customers keep raising (10 or more tickets in four weeks) that
   nothing in the business model is named for.
 
+### Written down: what the documents promise
+
+Put policies, procedures, terms and contracts in the same folder: Markdown, text, HTML, Word (`.docx`) or
+simple PDF files. Scanned or unusually encoded PDFs give no text; save them as text instead.
+
+![Written down: what the documents promise, each held to the records](media/control-room-written.png)
+
+They are read for commitments a business can keep or break, each cited to its file and line:
+
+| Commitment | Written like | Held to |
+|---|---|---|
+| `REFUND_WINDOW` | "a refund within 30 days", "30-day money-back guarantee" | needs a person: the records hold refunds by week, not each one's age |
+| `REFUND_APPROVAL` | "refunds over $500 need a manager's approval" | the business model: is there an approval step or a rule with that amount |
+| `RESOLUTION_TIME` | "we resolve every ticket within 8 hours" | the share of tickets solved within that time in the last four weeks (kept at 90% or more) |
+| `DISPUTE_RESPONSE` | "we respond to chargebacks within 7 days" | the disputes open when exported (a person checks their deadlines) |
+| `PAYMENT_TERMS` | "net 30", "we pay supplier invoices within 30 days" | bills past their due date |
+| `RENEWAL_NOTICE` | "renews automatically unless 60 days' written notice" | needs a person: put the notice date in a calendar |
+| `UPTIME` | "99.9% uptime" | needs a person: health feeds report status, not measured availability |
+
+- **Documents disagree** when two documents state different values for the same commitment (say,
+  a refund window of 14 days in the terms and 30 in the refund policy).
+- **Not written down** when the records show refunds, disputes, payouts or support happening and
+  no document describes how they are handled.
+- **Signals:** `WRITTEN_PROMISE_NOT_KEPT`, `WRITTEN_RULES_CONFLICT`, `WRITTEN_RULE_NOT_IN_CODE`,
+  `PROCEDURE_NOT_WRITTEN`, in the command center's Written category.
+- **Quotes are masked:** emails, phone numbers and long numbers are hidden.
+- **Matching is by sentence patterns**, so a promise worded differently is missed. Nothing is read
+  from a document beyond its commitments and whether it describes each procedure.
+
 ## What is read, and what is not
 
 - From each file only the columns a stream needs: amounts, dates, statuses, reasons, plans and
