@@ -123,6 +123,7 @@ DRIVERS = {
     "redis": ("redis", "ioredis", "@upstash/redis", "github.com/redis/go-redis*", "github.com/go-redis/redis*",
               "django-redis", "bullmq", "bull", "rq", "predis/predis"),
     "sqlite": ("better-sqlite3", "sqlite3"),
+    "h2 (embedded)": ("com.h2database:h2",),
 }
 # Words that show a file is about what the business itself charges for (in a finance app, "money"
 # is also the product's own domain; these come first).
@@ -162,6 +163,7 @@ READ_FIRST = [
                                    r"(^|/)urls\.py$|\.controller\.ts$|(^|/)pages/api/|(^|/)app/api/.*route\.(ts|js)$|"
                                    r"(^|/)(openapi|swagger)[^/]*\.(ya?ml|json)$|\.proto$|\.graphql$")),
     ("data model", re.compile(r"(^|/)schema\.prisma$|(^|/)[Mm]odels?(/|\.py$|\.ts$|\.rb$|\.go$)|(^|/)[Ee]ntities/|"
+                              r"\w+Repository\.(java|kt)$|"
                               r"(^|/)schema\.(rb|sql|ts)$|(^|/)migrations?/[^/]+$|\.sql$")),
     ("money", re.compile(r"(^|[/_.-])(billing|payments?|pricing|prices|checkout|subscriptions?|invoices?|stripe|"
                          r"refunds?|orders?|cart|wallets?|payouts?|plans|giftcards?|gift_cards?|discounts?|vouchers?|"
@@ -174,7 +176,8 @@ READ_FIRST = [
 CONFIG = re.compile(r"(^|/)\.env\.(example|sample|template|dist)$|(^|/)settings(/[^/]+)?\.py$|(^|/)(core/)?config\.py$|(^|/)(docker-)?compose(\.[\w-]+)*\.ya?ml$|(^|/)supabase/config\.toml$|"
                     r"(^|/)(vercel|netlify|render|fly|app|railway|now)\.(json|toml|ya?ml)$|(^|/)Procfile$|"
                     r"(^|/)(Dockerfile|Containerfile)$|(^|/)config/[^/]+\.(ya?ml|toml|json|ts|js|php|rb)$|"
-                    r"(^|/)config\.(toml|ya?ml)(\.sample|\.example)?$|(^|/)application(-[\w-]+)?\.(properties|ya?ml)$|(^|/)(next|nuxt|vite|remix)\.config\.(js|mjs|ts)$")
+                    r"(^|/)config\.(toml|ya?ml)(\.sample|\.example)?$|(^|/)application(-[\w-]+)?\.(properties|ya?ml)$|"
+                    r"(^|/)(pom\.xml|build\.gradle(\.kts)?)$|(^|/)(k8s|kubernetes|kube|manifests)/[^/]+\.ya?ml$|(^|/)(next|nuxt|vite|remix)\.config\.(js|mjs|ts)$")
 CODE = re.compile(r"\.(py|js|jsx|ts|tsx|mjs|cjs|go|rb|java|kt|cs|php|rs|sql|prisma|proto|graphql|ya?ml|json)$")
 PROSE = re.compile(r"\.(md|mdx|rst|txt)$", re.I)
 TEMPLATES = re.compile(r"\.(erb|haml|slim|vue|svelte|astro|hbs|jinja2?|j2|twig|blade\.php|heex|eex)$")
@@ -182,7 +185,8 @@ NOT_SOURCE = re.compile(r"(^|/)(tests?|__tests__|spec|e2e|cypress|playwright|fix
                         r"storybook|i18n|locales?|lang|translations|generated|__generated__|development|seeds?)(/|$)|\.(test|spec|stories|d|gen)\."
                         r"[jt]sx?$|_pb2\.py$|\.pb\.go$|(^|/)test_[^/]+\.py$|_test\.go$|(^|/)(package-lock|yarn\.lock|pnpm-lock)|"
                         r"\.lock$|(^|/)(package|composer)\.json$|(^|/)tsconfig[^/]*\.json$|"
-                        r"(^|/)(LICEN[CS]E|COPYING|NOTICE|CODE_OF_CONDUCT|CONTRIBUTORS|AUTHORS)[^/]*$", re.I)
+                        r"(^|/)(LICEN[CS]E|COPYING|NOTICE|CODE_OF_CONDUCT|CONTRIBUTORS|AUTHORS)[^/]*$|"
+                        r"(^|/)package-info\.java$|(^|/)(data|seeds?|import|user)\.sql$", re.I)
 # Words that, several at once, show a file is about money or about access.
 TOPIC_WORDS = {
     "money": re.compile(r"\b(price|pricing|amount|currency|invoice|billing|payment|payout|refund|charge|checkout|"
@@ -194,6 +198,17 @@ TOPIC_WORDS = {
                                    r"api_?key|invite|member)s?\b", re.I),
 }
 TOPIC_AREA = {"money": "payments", "users and access": "auth"}
+
+
+KUBE = re.compile(r"(^|/)(k8s|kubernetes|kube|manifests|deploy)/([^/]+/)*[^/]+\.ya?ml$")
+
+
+def _kube_documents(data: bytes) -> list:
+    """The documents of a multi-document Kubernetes YAML file, bounded like compose files."""
+    if len(data) > 1024 * 1024:
+        raise ValueError("manifest too large")
+    return [otel_setup.load_compose(part.encode()) for part in re.split(r"(?m)^---\s*$", data.decode("utf-8", "replace"))
+            if part.strip()]
 
 
 def _matches(entry: str, name: str) -> bool:
@@ -449,6 +464,26 @@ def scan(repo: Path) -> dict:
                    "evidence": _evidence(repo, rel, f"{name}:")}
             (datastores if type(image) is str and DATASTORES.search(image.lower()) else services).append(row)
 
+    for rel in paths:
+        if not KUBE.search(rel) or NOT_SOURCE.search(rel):
+            continue
+        try:
+            documents = _kube_documents((repo / rel).read_bytes())
+        except (ValueError, OSError, otel_setup.yaml.YAMLError):
+            continue  # a Helm template or another file that is not plain YAML
+        for doc in documents:
+            if not isinstance(doc, dict) or doc.get("kind") not in ("Deployment", "StatefulSet", "DaemonSet", "CronJob"):
+                continue
+            name = (doc.get("metadata") or {}).get("name") if isinstance(doc.get("metadata"), dict) else None
+            spec = doc.get("spec") or {}
+            pod = ((spec.get("jobTemplate") or {}).get("spec") or spec) if isinstance(spec, dict) else {}
+            containers = ((((pod.get("template") or {}).get("spec") or {}).get("containers")) or []) if isinstance(pod, dict) else []
+            image = next((c.get("image") for c in containers if isinstance(c, dict) and type(c.get("image")) is str), None)
+            if type(name) is not str or any(r["name"] == name for r in services + datastores):
+                continue
+            row = {"name": name, "image": image, "compose": rel, "evidence": _evidence(repo, rel, f"name: {name}")}
+            (datastores if image and DATASTORES.search(image.lower()) else services).append(row)
+
     manifests = [p for p in paths if Path(p).name in ("package.json", "pyproject.toml", "requirements.txt", "go.mod",
                                                          "Cargo.toml", "Gemfile", "composer.json", "pom.xml",
                                                          "build.gradle", "build.gradle.kts")]
@@ -627,7 +662,7 @@ def scan(repo: Path) -> dict:
                      "tables": [f"{t['name']}  ({t['file']}:{t['line']}{', ' + t['note'] if t.get('note') else ''})"
                                 for t in code["tables"][:80]],
                      "jobs": [f"{j['kind']} {j['name']}  ({j['file']}:{j['line']})" for j in code["jobs"][:30]],
-                     "full_list": f"python {Path(code_surface.__file__).resolve()} --repo {repo}",
+                     "full_list": f"{sys.executable} {Path(code_surface.__file__).resolve()} --repo {repo}",
                      "semantics": code["semantics"]}, "docs": docs, "read_first": read_first,
             "not_assessed": ["what the code does at runtime", "production data, money, and users",
                              "anything outside this repository"],
@@ -750,7 +785,8 @@ def summary(result: dict) -> dict:
             "integrations": {area: [h["library"] for h in hits] for area, hits in result["integrations"].items()},
             "code_found": result["code"]["found"],
             "docs": result["docs"][:8] + ([f"... {len(result['docs']) - 8} more in scan.json"] if len(result["docs"]) > 8 else []),
-            "read_first": {label: paths[:5] for label, paths in result["read_first"].items()}}
+            "read_first": {label: paths[:5] + ([f"... {len(paths) - 5} more in scan.json"] if len(paths) > 5 else [])
+                           for label, paths in result["read_first"].items()}}
 
 
 def build(repo: Path, blueprint: Path, out: Path, json_out: Path | None = None, github: str | None = None) -> dict:

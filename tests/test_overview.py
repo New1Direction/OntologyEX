@@ -183,9 +183,19 @@ class Scan(unittest.TestCase):
                                    "</dependency>\n</dependencies></project>\n")
             write(repo, "src/main/java/clinic/ClinicApplication.java", "@SpringBootApplication\npublic class ClinicApplication {}\n")
             write(repo, "src/main/resources/application.properties", "spring.datasource.url=jdbc:postgresql://db/clinic\n")
+            write(repo, "k8s/app.yml", "apiVersion: v1\nkind: Service\nmetadata:\n  name: clinic\n---\n"
+                                       "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: clinic\nspec:\n"
+                                       "  template:\n    spec:\n      containers:\n      - name: app\n"
+                                       "        image: example/clinic\n---\napiVersion: apps/v1\nkind: StatefulSet\n"
+                                       "metadata:\n  name: clinic-db\nspec:\n  template:\n    spec:\n      containers:\n"
+                                       "      - image: postgres:18\n")
+            write(repo, "src/main/java/clinic/OwnerRepository.java", "interface OwnerRepository extends JpaRepository {}\n")
             result = overview.scan(repo)
             self.assertEqual([f["name"] for f in result["apps"][0]["frameworks"]], ["spring-boot-starter-webmvc"])
-            self.assertEqual([(d["name"], d["evidence"]["line"]) for d in result["datastores"]], [("postgres", 8)])  # the artifactId line
+            self.assertEqual([(s["name"], s["evidence"]["line"]) for s in result["services"]], [("clinic", 4)])
+            self.assertEqual([d["name"] for d in result["datastores"]], ["clinic-db"])  # k8s runs postgres; nothing inferred
+            self.assertIn("src/main/java/clinic/OwnerRepository.java", result["read_first"]["data model"])
+            self.assertIn("k8s/app.yml", result["read_first"]["configuration"])
             self.assertEqual(result["read_first"]["entry points"], ["src/main/java/clinic/ClinicApplication.java"])
             self.assertIn("src/main/resources/application.properties", result["read_first"]["configuration"])
 
