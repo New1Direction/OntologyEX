@@ -35,8 +35,10 @@ on:
       - 'tests/test_change_impact.py'
       - 'tests/test_dependency_proposals.py'
       - 'tests/test_rule_proposals.py'
+      - 'tests/test_command_center.py'
       - 'ontology-extraction/scripts/rule_suggest.py'
       - 'ontology-extraction/scripts/suppliers.py'
+      - 'ontology-extraction/scripts/command_center.py'
       - '.github/workflows/rust-proof-foundation.yml'
   push:
     branches: [main]

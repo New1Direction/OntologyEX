@@ -18,7 +18,8 @@ the same code behind the entity page; the Rust engine gives the same answers.
 Every tool declares its kind, and the kind decides what it may do:
 
 - READ_ONLY tools (search, context, explain, impact, recent decisions, open
-  suggestions, decisions whose evidence changed, change impact, suppliers) change nothing.
+  suggestions, decisions whose evidence changed, change impact, suppliers, what needs
+  attention) change nothing.
 - ADDITIVE tools (propose_link, propose_dependency, propose_rule) append a proposal to
   a proposals file and nothing else. A proposal is a suggestion: it shows in the control room beside the ranked
   ones, and only a person confirms or rejects it there, through the existing decision
@@ -52,6 +53,7 @@ from urllib.parse import urlencode, urlsplit
 import urllib.request
 
 import dependency_suggest
+import command_center
 import entity_context
 import link_suggest
 import rule_suggest
@@ -133,6 +135,15 @@ TOOLS = {
                        "how much the business leans on each kind, where only one supplier is declared, the lines "
                        "that show each, and what relies on each. From manifests and setting names, not contracts.",
         "input": _schema({})},
+    "what_needs_attention": {
+        "kind": READ_ONLY, "title": "What needs attention",
+        "description": "Everything in the business that needs attention, ranked by importance from 0 to 100: "
+                       "actions at risk, systems in error that the business relies on, confirmations whose "
+                       "evidence changed, single critical suppliers, open questions, waiting decisions, parts "
+                       "nobody can see. Each item has the factors its score is made of, why, and a next step; "
+                       "plus coverage and what a business in its field should be able to see. Scores rank "
+                       "attention; they are not probabilities. Optional level: CRITICAL, HIGH, MEDIUM or LOW.",
+        "input": _schema({}, {"level": _text("level", "only items at this level", 10)})},
     "list_stale_decisions": {
         "kind": READ_ONLY, "title": "Decisions to re-check",
         "description": "Confirmed links whose evidence (the file hashes recorded when a person confirmed them) "
@@ -435,6 +446,18 @@ class Tools:
         report["suppliers"] = [{**row, "relied_on_by": entity_context.context(bundle, row["id"])["relied_on_by"]}
                                if row["id"] in known else row for row in report.get("suppliers", [])]
         return self._out({**report, "execution_authorized": False}, hidden)
+
+    def what_needs_attention(self, args: dict) -> dict:
+        level = args.get("level")
+        if level is not None and level not in ("CRITICAL", "HIGH", "MEDIUM", "LOW"):
+            raise ToolError("INVALID_ARGUMENTS", "level is CRITICAL, HIGH, MEDIUM or LOW")
+        bundle, hidden = self._model()
+        found = command_center.report(bundle)
+        found["items"] = [i for i in found["items"] if not hidden & {*i["links"], (i["subject"] or {}).get("id")}
+                          and (level is None or i["level"] == level)]  # a withheld entity's title names it
+        found["total"] = len(found["items"])
+        found["by_level"] = {name: sum(i["level"] == name for i in found["items"]) for name in found["by_level"]}
+        return self._out(found, hidden)
 
     def list_stale_decisions(self, args: dict) -> dict:
         bundle, hidden = self._model()

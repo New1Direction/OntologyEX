@@ -34,6 +34,7 @@ import watermark
 import link_suggest
 import rule_suggest
 import suppliers
+import command_center
 import github_discovery
 import snapshot_store
 import graph_view_api
@@ -1207,6 +1208,20 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                         {**row, "relied_on_by": entity_context.context(data, row["id"])["relied_on_by"]}
                         if row["id"] in known else row for row in report["suppliers"]]
                     payload, code = json.dumps(report, sort_keys=True).encode(), 200
+                except (graph_view_api.ViewError, entity_context.ContextError):
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, DomainError, discover_repo.DiscoveryError,
+                        github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
+            elif route.path == "/command" and not route.query:
+                page = (Path(__file__).resolve().parent / "command_page.html").read_bytes()
+                payload, mime, code = page, "text/html; charset=utf-8", 200
+            elif route.path == "/api/command":  # everything that needs attention, ranked, with why
+                mime = "application/json; charset=utf-8"
+                try:
+                    if route.query:
+                        raise graph_view_api.ViewError("command takes no parameters")
+                    payload, code = json.dumps(command_center.report(bundle()), sort_keys=True).encode(), 200
                 except (graph_view_api.ViewError, entity_context.ContextError):
                     payload, code = b'{"status":"INVALID_QUERY"}', 400
                 except (RoomError, DomainError, discover_repo.DiscoveryError,

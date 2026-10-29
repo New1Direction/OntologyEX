@@ -49,7 +49,8 @@ tools only read their repository; they run and change nothing in it.
 Then offer what fits:
 
 - **Their systems, live:** `KIT/.venv/bin/python KIT/ontology-extraction/scripts/operate.py up --repo REPO`
-  opens a local map; `feed_setup.py` adds health checks and `otel_setup.py` adds
+  opens a local map, and its `/command` page ranks everything that needs attention with why;
+  `feed_setup.py` adds health checks and `otel_setup.py` adds
   traces between services, one command per service with no code change (see
   [operating picture](ontology-extraction/references/operating-picture.md)).
 - **Ask about it as an agent, safely:** `KIT/.venv/bin/python KIT/ontology-extraction/scripts/agent_tools.py serve`

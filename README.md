@@ -193,7 +193,11 @@ For the wider business story (users, journeys, money flows, and where they can b
 the **Business X-Ray** preview compiles authored, source-linked blueprints into one offline
 page. See [Business X-Ray](business/README.md).
 
-Every business object, action and system also has an **entity page** (`/entity`): why
+The **command center** (`/command`) is where to start: everything that needs attention,
+big or small, ranked by importance with the factors behind each score (how bad, how much
+of the business reaches it, whether money moves through it), the next step for each, how
+much of the business can be seen at all, and what a business in its field should be able
+to see. Every business object, action and system also has an **entity page** (`/entity`): why
 it exists, what a person confirmed and what is only inferred, what relies on it, and
 the files behind each relationship. A confirmation records the hashes of the files it
 rested on; when one changes, the link waits for a person to re-confirm it. Before a change
