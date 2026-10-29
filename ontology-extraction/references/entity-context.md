@@ -11,9 +11,9 @@ is known. The entity page and the agent tools read the same answer.
 
 | Standing | Meaning | Comes from |
 | --- | --- | --- |
-| CONFIRMED | a person decided it | a confirm decision (who, when, note; and which agent proposed it, if one did) |
+| CONFIRMED | a person decided it, and the files it rested on are unchanged | a confirm decision (who, when, note; and which agent proposed it, if one did) |
 | SOURCE | a file states it | compose dependencies, discovered declarations, domain-skill relations |
-| INFERRED | proposed, not decided | ranked link suggestions, calls seen in traces, agent proposals, reachability |
+| INFERRED | proposed, not decided, or decided on evidence that has since changed | ranked link suggestions, calls seen in traces, agent proposals, reachability, stale confirmations |
 | UNKNOWN | a gap | a link whose component is gone, an action with no confirmed system, an open question |
 
 A chain of relationships (an explanation path, or the route by which a change could
@@ -21,6 +21,20 @@ reach something) is only as strong as its weakest hop. "What relies on this" is
 declared reachability, not a measured blast radius. Lean proves these rules
 (`OntologyEX.Context` in `proofs/lean`), and Python, Rust and Lean must print the
 same table for them (`tests/conformance.py`).
+
+## When the evidence changes
+
+A confirmation records what it rested on: the SHA-256 of the file that declares the
+component, of the binding's source file in the repository, and of the file the domain
+skill was compiled from. Every answer recomputes them. If one changed, appeared or
+disappeared, the link reads as INFERRED, "confirmed before the evidence changed", with
+the changed files named, until a person re-confirms it (recording the evidence as it is
+now) or undoes it. The entity page and the Business page show these with Re-confirm
+and Undo; `link_suggest.py reconfirm --id DECIDED_ID --by NAME` does the same from the
+command line. Links decided before watermarks existed stay CONFIRMED and say the
+evidence was not recorded; re-confirming records it. A binding file that the repository
+holds in more than one place is not guessed: only the skill's compiled hash is watched
+for it.
 
 ## The page
 
@@ -61,6 +75,7 @@ running control room, `--bundle FILE` reads a file from
 | `analyze_impact` | read | what relies on an entity, with path and standing |
 | `recent_changes` | read | the newest recorded decisions, for one entity or all |
 | `list_suggestions` | read | proposals nobody has decided, with strength, signals and proposer |
+| `list_stale_decisions` | read | confirmed links whose evidence changed since, with the changed files |
 | `propose_link` | additive | appends a link proposal; a person decides it |
 
 There are no tools that delete or change decisions, and the server refuses to

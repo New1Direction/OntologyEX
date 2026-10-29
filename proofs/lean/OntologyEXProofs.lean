@@ -440,6 +440,39 @@ theorem path_is_a_hop : ∀ hs : List Standing, hs ≠ [] → pathStanding hs �
     · rw [h]; exact List.mem_cons_self ..
     · rw [h]; exact List.mem_cons_of_mem _ ih
 
+/-! ## Decision watermarks (`watermark.py`, `entity_context.evidence_check`)
+
+A confirmation records the evidence it rested on. It reads as CONFIRMED only while that
+evidence is unchanged; links decided before watermarks (`none`) keep CONFIRMED. -/
+
+def linkStanding {W : Type} [DecidableEq W] (recorded : Option W) (now : W) : Standing :=
+  match recorded with
+  | none => .confirmed
+  | some r => if r = now then .confirmed else .inferred
+
+/-- A confirmation whose evidence changed never reads as CONFIRMED. -/
+theorem changed_evidence_never_confirmed {W : Type} [DecidableEq W] (r now : W) (h : r ≠ now) :
+    linkStanding (some r) now ≠ .confirmed := by
+  simp [linkStanding, h]
+
+/-- Re-confirming records the evidence as it is now, which reads as CONFIRMED. -/
+theorem reconfirm_is_current {W : Type} [DecidableEq W] (now : W) :
+    linkStanding (some now) now = .confirmed := by
+  simp [linkStanding]
+
+/-- A watermarked link that reads as CONFIRMED rests on exactly the evidence it recorded. -/
+theorem confirmed_link_matches_its_evidence {W : Type} [DecidableEq W] (r now : W)
+    (h : linkStanding (some r) now = .confirmed) : r = now := by
+  by_cases hr : r = now
+  · exact hr
+  · exact absurd h (changed_evidence_never_confirmed r now hr)
+
+/-- A path through a link whose evidence changed is never CONFIRMED. -/
+theorem stale_link_taints_path {W : Type} [DecidableEq W] (hs : List Standing) (r now : W)
+    (h : r ≠ now) (hm : linkStanding (some r) now ∈ hs) : pathStanding hs ≠ .confirmed := by
+  intro hc
+  exact changed_evidence_never_confirmed r now h ((path_confirmed_iff hs).mp hc _ hm)
+
 end OntologyEX.Context
 
 /-!

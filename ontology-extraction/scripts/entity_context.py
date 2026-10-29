@@ -59,6 +59,25 @@ def path_standing(standings) -> str:
     return result
 
 
+def evidence_check(recorded, now) -> dict:
+    """Compare the evidence a decision recorded with the evidence now (watermark.py).
+
+    CURRENT: every recorded hash is unchanged and nothing was added. CHANGED_SINCE_DECISION:
+    some file changed, appeared or disappeared (`changed` names them). NOT_RECORDED: the
+    decision predates watermarks.
+    """
+    if not isinstance(recorded, dict):
+        return {"status": "NOT_RECORDED", "changed": []}
+    now = now if isinstance(now, dict) else {}
+    changed = sorted(p for p in set(recorded) | set(now) if recorded.get(p) != now.get(p))
+    return {"status": "CHANGED_SINCE_DECISION" if changed else "CURRENT", "changed": changed[:16]}
+
+
+def watermark_standing(recorded, now) -> str:
+    """A confirmation reads as CONFIRMED only while its evidence is unchanged (Lean: linkStanding)."""
+    return "INFERRED" if evidence_check(recorded, now)["status"] == "CHANGED_SINCE_DECISION" else "CONFIRMED"
+
+
 class ContextError(ValueError):
     pass
 
@@ -117,9 +136,9 @@ def _history(bundle: dict) -> list[dict]:
 
 
 def _decision_for(history: list[dict], file: str, match: dict) -> dict | None:
-    """The newest confirm event for a decided row: who confirmed it, when, and why."""
+    """The newest confirm (or re-confirm) event for a decided row: who confirmed it, when, and why."""
     for event in reversed(history):
-        if event["file"] == file and event["action"] == "confirm" and all(
+        if event["file"] == file and event["action"] in ("confirm", "reconfirm") and all(
                 event["row"].get(k) == v for k, v in match.items()):
             return {"by": event["by"], "at": event["at"], "note": event["note"]}
     return None
@@ -145,6 +164,9 @@ def _relationships(bundle: dict, entities: dict, history: list[dict]) -> list[di
     for proposal in bundle.get("agent_proposals", []):
         proposers.setdefault((proposal.get("skill"), proposal.get("binding"), proposal.get("component")),
                              proposal.get("proposed_by"))
+    marks = {}  # the evidence each confirmed link rested on, and the same evidence now
+    for mark in picture.get("link_watermarks", []):
+        marks.setdefault((mark.get("skill"), mark.get("binding"), mark.get("component")), mark)
     for kind, rows in (("action", picture.get("actions", [])), ("object", picture.get("objects", []))):
         for row in rows:
             for binding in row.get("bindings", []):
@@ -158,11 +180,16 @@ def _relationships(bundle: dict, entities: dict, history: list[dict]) -> list[di
                                     if link else None))
                     if decision and (row["skill"], binding_id, component) in proposers:
                         decision = {**decision, "proposed_by": proposers[(row["skill"], binding_id, component)]}
+                    mark = marks.get((row["skill"], binding_id, component))
+                    check = ({**evidence_check(mark.get("recorded"), mark.get("now")), "decision_id": mark.get("id")}
+                             if mark else None)
+                    stale = check is not None and check["status"] == "CHANGED_SINCE_DECISION"
                     out.append({"source": row["key"], "target": component,
                                 "relation": "RUNS_ON" if kind == "action" else "IMPLEMENTED_BY",
-                                "standing": "CONFIRMED", "basis": "PERSON_CONFIRMED_LINK",
+                                "standing": "INFERRED" if stale else "CONFIRMED",
+                                "basis": "CONFIRMED_BEFORE_EVIDENCE_CHANGED" if stale else "PERSON_CONFIRMED_LINK",
                                 "via": f"{row['skill']}:binding:{binding_id}", "evidence_ids": [],
-                                "decision": decision})
+                                "decision": decision, "evidence_check": check})
     for edge in (picture.get("graph") or {}).get("edges", []):
         if edge["relation"] in ("RUNS_ON", "IMPLEMENTED_BY"):
             continue  # already above, with their decisions
@@ -252,7 +279,8 @@ def context(bundle: dict, entity_id: str) -> dict:
         rows.append({"direction": "out" if outgoing else "in", "relation": rel["relation"],
                      "other": _side(entities, rel["target"] if outgoing else rel["source"]),
                      **{k: rel[k] for k in ("standing", "basis", "evidence_ids", "decision")},
-                     **{k: rel[k] for k in ("via", "label", "suggestion") if rel.get(k) is not None}})
+                     **{k: rel[k] for k in ("via", "label", "suggestion", "evidence_check")
+                        if rel.get(k) is not None}})
     vias = {r.get("via") for r in mine if r.get("via")} | {entity_id}
     changes = [{k: e[k] for k in ("at", "by", "action", "note", "file", "summary")}
                for e in reversed(history) if vias & set(e["touches"])][:MAX_CHANGES]
@@ -308,7 +336,7 @@ def explain(bundle: dict, source: str, target: str) -> dict:
                 hop = {"from": _side(entities, node), "to": _side(entities, other), "relation": rel["relation"],
                        "direction": "out" if rel["source"] == node else "in",
                        **{k: rel[k] for k in ("standing", "basis", "evidence_ids", "decision")},
-                       **{k: rel[k] for k in ("via", "suggestion") if rel.get(k) is not None}}
+                       **{k: rel[k] for k in ("via", "suggestion", "evidence_check") if rel.get(k) is not None}}
                 if other == target:
                     paths.append(hops + [hop])
                 else:
@@ -360,6 +388,23 @@ def open_suggestions(bundle: dict, limit: int = MAX_RELATIONSHIPS) -> dict:
     rows.sort(key=lambda r: ({"STRONG": 0, "MODERATE": 1, "WEAK": 2}.get(r["strength"], 3), r["id"], r["source"]["id"]))
     return {"schema_version": 1, "kind": "OPEN_SUGGESTIONS", "suggestions": rows[:limit], "total": len(rows),
             "semantics": "PROPOSED_NOT_DECIDED_A_PERSON_CONFIRMS_IN_THE_CONTROL_ROOM", "execution_authorized": False}
+
+
+def stale_decisions(bundle: dict) -> dict:
+    """Confirmed links whose evidence changed since the decision: they wait for a person again."""
+    _check(isinstance(bundle, dict) and isinstance(bundle.get("state"), dict), "expected a context bundle")
+    _check(bundle["state"].get("execution_authorized") is False, "context never reads an authorizing state")
+    entities = _entities(bundle)
+    rows = []
+    for mark in (bundle.get("business") or {}).get("link_watermarks", []):
+        check = evidence_check(mark.get("recorded"), mark.get("now"))
+        if check["status"] == "CHANGED_SINCE_DECISION":
+            rows.append({"decision_id": mark.get("id"), "skill": mark.get("skill"), "binding": mark.get("binding"),
+                         "component": _side(entities, mark.get("component")), "changed": check["changed"]})
+    rows.sort(key=lambda r: (str(r["skill"]), str(r["binding"]), str(r["component"]["id"])))
+    return {"schema_version": 1, "kind": "STALE_DECISIONS", "stale": rows[:MAX_RELATIONSHIPS], "total": len(rows),
+            "semantics": "CONFIRMED_BEFORE_EVIDENCE_CHANGED_A_PERSON_RECONFIRMS_OR_UNDOES",
+            "execution_authorized": False}
 
 
 def recent(bundle: dict, limit: int = MAX_CHANGES) -> dict:

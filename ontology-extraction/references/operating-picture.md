@@ -40,6 +40,11 @@ IDs). To let the user click Confirm/Reject (one at a time or selected together, 
 Undo) in the page instead, add `--links links.json --allow-link-decisions` to
 `control_room.py`.
 
+Each confirmation records the hashes of the files it rested on. When one changes, the
+link is shown as needing re-confirmation (Business page, Decided list; or
+`link_suggest.py reconfirm`), and it no longer counts as confirmed until a person
+re-confirms or undoes it.
+
 To see one entity across both layers (why it exists, what relies on it, every
 relationship with how it is known, and the files behind it), open `/entity`; to give
 agents the same model through permission-aware tools that can only propose, see

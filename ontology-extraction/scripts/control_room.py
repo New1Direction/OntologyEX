@@ -29,6 +29,7 @@ import evidence_grade
 import decisions
 import dependency_suggest
 import entity_context
+import watermark
 import link_suggest
 import github_discovery
 import snapshot_store
@@ -898,6 +899,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
     # Opt-in decision model (Jev or Clef): proposals and routing only, never decisions.
     decider = decide.DecisionClient() if decision_model else None
     decision_lock = Lock()
+    repo_files = watermark.RepoFiles(repo)  # where skills' cited files live, for evidence watermarks
     if repo is not None:
         base_command = ["python", "ontology-extraction/scripts/link_suggest.py", "{decision}",
                         "--repo", str(repo), *[x for path in skills for x in ("--skill", str(path))],
@@ -956,8 +958,19 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         result["link_decisions"] = ("ENABLED_LOCAL_TOKEN" if write_token and links is not None and skills else
                                     "READ_ONLY_USE_CLI")
         labels = {n["id"]: n["label"] for n in full["nodes"]}
+        # What each confirmed link rested on when it was decided, and the same evidence now.
+        marks = watermark.Marks(repo_files, skills, full) if link_rows else None
+        result["link_watermarks"] = [
+            {"id": decisions.decision_id(*link_suggest.link_key(row)), "skill": row["skill"],
+             "binding": row["binding"], "component": row["component"], "recorded": row.get("evidence"),
+             "now": marks.now(*link_suggest.link_key(row))} for row in link_rows]
+        checks = {(m["skill"], m["binding"], m["component"]): entity_context.evidence_check(m["recorded"], m["now"])
+                  for m in result["link_watermarks"]}
         result["link_decided"] = [
-            {**row, "component_label": labels.get(row["component"], row["component"])}
+            {**row, "component_label": labels.get(row["component"], row["component"]),
+             **({"evidence_check": checks[link_suggest.link_key(row)]["status"],
+                 "evidence_changed": checks[link_suggest.link_key(row)]["changed"]}
+                if row["decision"] == "confirm" else {})}
             for row in decisions.decided(link_rows, rejected, link_suggest.link_key)]
         dep_confirmed, dep_rejected = dependency_documents()
         result["dependency_decided"] = [
@@ -1286,20 +1299,35 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                     ids = [request["id"]] if "id" in request else request["ids"]
                     if (type(ids) is not list or not 0 < len(ids) <= decisions.MAX_BATCH
                             or not all(type(i) is str for i in ids)
-                            or request["decision"] not in ("confirm", "reject", "undo")):
+                            or request["decision"] not in ("confirm", "reject", "undo", "reconfirm")):
                         raise ValueError("invalid IDs or decision")
                     links_route = route.path == "/api/links/decision"
+                    if request["decision"] == "reconfirm" and not links_route:
+                        raise ValueError("only links carry evidence watermarks")
                     apply = link_suggest.apply_decisions if links_route else dependency_suggest.apply_decisions
                     target = links if links_route else dependencies
                     with decision_lock:
                         if request["decision"] == "undo":
                             body = apply(target, request["by"], request["note"], undo=ids)
+                        elif request["decision"] == "reconfirm":  # a person confirms again what changed
+                            marks = watermark.Marks(repo_files, skills, snapshot())
+                            confirmed = {decisions.decision_id(*link_suggest.link_key(r)): r
+                                         for r in business_view.read_link_document(links)[0]}
+                            if not all(i in confirmed for i in ids):
+                                raise ValueError("no confirmed link has that ID")
+                            body = link_suggest.reconfirm(target, request["by"], request["note"], [
+                                {**confirmed[i], "evidence": marks.now(*link_suggest.link_key(confirmed[i]))}
+                                for i in dict.fromkeys(ids)])
                         else:
                             current = {x["id"]: x for x in business(snapshot())[
                                 "link_suggestions" if links_route else "dependency_suggestions"]["suggestions"]}
                             if not all(i in current for i in ids):
                                 raise ValueError("no current suggestion has that ID")
                             chosen = [current[i] for i in dict.fromkeys(ids)]
+                            if links_route and request["decision"] == "confirm":  # record what it rested on
+                                marks = watermark.Marks(repo_files, skills, snapshot())
+                                chosen = [{**c, "evidence": marks.now(c["skill"], c["binding"], c["component"])}
+                                          for c in chosen]
                             body = apply(target, request["by"], request["note"], **{request["decision"]: chosen})
                     code = 200
                 except (ValueError, TypeError, KeyError, UnicodeError, RoomError, DomainError):

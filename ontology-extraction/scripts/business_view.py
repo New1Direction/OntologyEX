@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 import evidence_grade
@@ -19,6 +20,7 @@ MAX_SKILLS = 16
 MAX_LINKS = 512
 MAX_QUOTE = 600
 LINK_KIND = "ONTOLOGYEX_SYSTEM_LINKS"
+SHA256 = re.compile(r"[0-9a-f]{64}")
 # Most urgent first. REPORTED_OK is a source report, not verified health.
 HEALTH = ("AT_RISK", "POSSIBLY_IMPACTED", "DEGRADED", "STALE", "UNKNOWN", "UNLINKED", "REPORTED_OK")
 ATTENTION_ORDER = ("AT_RISK", "POSSIBLY_IMPACTED", "DEGRADED", "STALE", "REVIEW_BLOCKED",
@@ -46,7 +48,13 @@ SEVERITIES = {
 def _link_rows(rows: object, seen: set) -> list[dict]:
     require(type(rows) is list and len(rows) <= MAX_LINKS, "invalid links list")
     for link in rows:
-        keys(link, {"skill", "binding", "component", "declared_by", "note"}, "link")
+        require(type(link) is dict, "link: expected object")
+        # "evidence" (optional): the file hashes the decision rested on (see watermark.py).
+        keys(link, {"skill", "binding", "component", "declared_by", "note"} | ({"evidence"} & set(link)), "link")
+        evidence = link.get("evidence", {})
+        require(type(evidence) is dict and len(evidence) <= 16
+                and all(type(k) is str and 0 < len(k) <= 1100 and type(v) is str and SHA256.fullmatch(v)
+                        for k, v in evidence.items()), "invalid link evidence")
         require(type(link["skill"]) is str and 0 < len(link["skill"]) <= 64, "invalid link skill")
         require(type(link["binding"]) is str and ID.fullmatch(link["binding"]) is not None,
                 "invalid link binding")
