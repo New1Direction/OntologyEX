@@ -38,7 +38,10 @@ when they asked for every STRONG suggestion. If they change their mind, `undo --
 DECIDED_ID --by NAME` removes a decision (`suggest` lists decided rows with their
 IDs). To let the user click Confirm/Reject (one at a time or selected together, with
 Undo) in the page instead, add `--links links.json --allow-link-decisions` to
-`control_room.py`.
+`control_room.py`. In the page a batch is previewed before it applies and applies only
+if nothing it touches changed since; each recorded batch can be undone as a whole
+(Recent batches), which puts back only that batch's items and is refused if someone
+changed one of them since. Never apply or undo a batch the user did not approve.
 
 Each confirmation records the hashes of the files it rested on. When one changes, the
 link is shown as needing re-confirmation (Business page, Decided list; or

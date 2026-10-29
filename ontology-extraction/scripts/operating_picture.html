@@ -63,6 +63,8 @@ aside{border-right:1px solid var(--line)}#inspector{border-left:1px solid var(--
 .btn:disabled{opacity:.5;cursor:default}
 .bulk{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 6px}.bulk:empty{display:none}
 .pick{margin:0 7px 0 0;vertical-align:-2px;accent-color:#7ff0b4}
+.preview{border:1px solid var(--line2);border-radius:8px;padding:8px 10px;margin:2px 0 8px;background:var(--panel2);font-size:12px}
+.preview .conf{color:var(--warn)}.batch{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:3px 0}
 .decided{margin-top:8px;font-size:12px}.decided summary{cursor:pointer;color:var(--muted)}
 .drow{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
 .drow>span:first-child{flex:1;min-width:0}.drow .btn{flex:none;white-space:nowrap;overflow-wrap:normal}
@@ -356,12 +358,14 @@ let who="";try{who=localStorage.getItem("ontologyex-decider")||""}catch(_){}
 const STRENGTH_HEX={STRONG:"#7ff0b4",MODERATE:"#8cd0ff",WEAK:"#8fa3b6"};
 function suggestionsFor(bindingIds){const all=(data&&data.link_suggestions)?data.link_suggestions.suggestions:[];
  return bindingIds?all.filter(x=>bindingIds.includes(x.skill+"\u0000"+x.binding)):all}
-// Decisions: one card at a time, or several picked at once; the last action can be undone.
+// Decisions: one card at a time, or several picked at once and previewed first; any batch can be undone.
 const PICKED={links:new Set(),dependencies:new Set()},LAST={links:null,dependencies:null};
+const PREVIEW={links:null,dependencies:null},BATCHES={links:[],dependencies:[]};
 const WORDS={confirm:["Confirming…","Confirmed"],reject:["Rejecting…","Rejected"],undo:["Undoing…","Undid"],reconfirm:["Re-confirming…","Re-confirmed"]};
 // The fingerprints of what this page showed: the decision applies only if that is still what is there.
-function seenFor(kind,ids,decision){if(decision==="undo")return {};
- const shown=(((data&&data.views)||{})[kind]||{})[decision==="reconfirm"?"decided":"suggestion"]||{};
+// For an undo, the version of each decided row the page showed: it undoes that row or nothing.
+function seenFor(kind,ids,decision){
+ const shown=(((data&&data.views)||{})[kind]||{})[decision==="undo"?"entry":decision==="reconfirm"?"decided":"suggestion"]||{};
  return {seen:Object.fromEntries(ids.filter(i=>shown[i]).map(i=>[i,shown[i]]))}}
 function canDecide(kind){return !!(TOKEN&&data&&data[kind==="links"?"link_decisions":"dependency_decisions"]==="ENABLED_LOCAL_TOKEN")}
 async function decide(kind,ids,decision,status,btns=[]){
@@ -370,11 +374,11 @@ async function decide(kind,ids,decision,status,btns=[]){
  try{const r=await fetch(`/api/${kind}/decision`,{method:"POST",headers:{"Content-Type":"application/json","X-OntologyEX-Token":TOKEN},
    body:JSON.stringify({ids,decision,by:who.trim().slice(0,120),note:"",...seenFor(kind,ids,decision)})});
   const d=await r.json();
-  if(r.status===409&&d.status==="STALE_VIEW"){LAST[kind]={text:"It changed since you looked, so nothing was saved. Reloaded: read it again, then decide.",ids:null};
+  if(r.status===409&&d.status==="STALE_VIEW"){LAST[kind]={text:"It changed since you looked, so nothing was saved. Reloaded: read it again, then decide.",batch:null};
    status.textContent=LAST[kind].text;await load();return}
   if(!r.ok)throw new Error(d.status||String(r.status));
   const n=d.applied.length;ids.forEach(i=>PICKED[kind].delete(i));
-  LAST[kind]=n?{text:`${WORDS[decision][1]} ${n}.`,ids:decision==="undo"||decision==="reconfirm"?null:d.applied.map(a=>a.id)}:{text:"Already decided.",ids:null};
+  LAST[kind]=n?{text:`${WORDS[decision][1]} ${n}.`,batch:d.batch}:{text:"Already decided.",batch:null};
   status.textContent=LAST[kind].text;await load()}
  catch(err){status.textContent="Not saved: "+err.message;btns.forEach(b=>b.disabled=false)}}
 function pickBox(kind,s){const box=h("input",{type:"checkbox",class:"pick","aria-label":"Select this suggestion"});box.checked=PICKED[kind].has(s.id);
@@ -410,11 +414,56 @@ function bulkBar(kind,items){const picked=PICKED[kind],status=h("div",{class:"si
   if(strong.length&&strong.length<items.length){const b=h("button",{class:"btn",type:"button",text:`Select STRONG (${strong.length})`});
    b.addEventListener("click",()=>{picked.clear();strong.forEach(s=>picked.add(s.id));panels()});bar.append(b)}}
  if(picked.size){const yes=h("button",{class:"btn yes",type:"button",text:`Confirm ${picked.size} selected`}),no=h("button",{class:"btn no",type:"button",text:`Reject ${picked.size} selected`});
-  yes.addEventListener("click",()=>decide(kind,[...picked],"confirm",status,[yes,no]));no.addEventListener("click",()=>decide(kind,[...picked],"reject",status,[yes,no]));bar.append(yes,no)}
+  yes.addEventListener("click",()=>previewBatch(kind,{ids:[...picked],decision:"confirm"},status,[yes,no]));
+  no.addEventListener("click",()=>previewBatch(kind,{ids:[...picked],decision:"reject"},status,[yes,no]));bar.append(yes,no)}
  const last=LAST[kind];
- if(last){status.textContent=last.text+" ";if(last.ids){const undo=h("button",{class:"btn",type:"button",text:"Undo"});
-  undo.addEventListener("click",()=>decide(kind,last.ids,"undo",status,[undo]));status.append(undo)}}
- return [bar,status]}
+ if(last){status.textContent=last.text+" ";if(last.batch){const undo=h("button",{class:"btn",type:"button",text:"Undo"});
+  undo.addEventListener("click",()=>previewBatch(kind,{batch:last.batch,decision:"undo_batch"},status,[undo]));status.append(undo)}}
+ return [bar,status,previewBox(kind)].filter(Boolean)}
+// A batch is previewed before it applies: what it writes, item by item. Apply sends the preview's
+// digests back, so exactly what was shown applies, or nothing does (a decision made in between on
+// the same items makes it stale; one on other items does not).
+const ACT={confirm:"confirm",reject:"reject",undo:"take back",restore:"put back",reconfirm:"re-confirm"};
+const short=x=>String(x||"").split(":").pop();
+function rowLabel(kind,row){return kind==="links"?`${row.binding} → ${short(row.component)}`:`${short(row.source)} → ${short(row.target)}`}
+async function post(kind,body){const r=await fetch(`/api/${kind}/decision`,{method:"POST",
+  headers:{"Content-Type":"application/json","X-OntologyEX-Token":TOKEN},body:JSON.stringify(body)});return [r,await r.json()]}
+async function previewBatch(kind,ask,status,btns=[]){
+ if(!who.trim()){status.textContent="Enter your name above first.";return}
+ btns.forEach(b=>b.disabled=true);status.textContent="Checking what this would change…";
+ try{const body={...ask,by:who.trim().slice(0,120),note:""},[r,d]=await post(kind,{...body,preview:true});
+  if(!r.ok)throw new Error(d.status||String(r.status));
+  PREVIEW[kind]={body,result:d};panels()}
+ catch(err){status.textContent="Not checked: "+err.message;btns.forEach(b=>b.disabled=false)}}
+async function applyPreview(kind,status,btns){const p=PREVIEW[kind];if(!p)return;
+ btns.forEach(b=>b.disabled=true);status.textContent="Applying…";
+ try{const [r,d]=await post(kind,{...p.body,plan:p.result.plan});PREVIEW[kind]=null;
+  if(r.status===409&&d.status==="STALE_VIEW"){LAST[kind]={text:"Something in this batch changed since the preview, so nothing was saved. Reloaded: look again, then decide.",batch:null};await load();return}
+  if(!r.ok)throw new Error(d.status||String(r.status));
+  (p.body.ids||[]).forEach(i=>PICKED[kind].delete(i));const n=d.applied.length;
+  LAST[kind]=d.status==="UNDONE_BATCH"?{text:`Undid the batch: ${n} change${n===1?"":"s"}.`,batch:d.batch}:
+   n?{text:`${WORDS[p.body.decision][1]} ${n}.`,batch:d.batch}:{text:"Already decided.",batch:null};await load()}
+ catch(err){status.textContent="Not saved: "+err.message;btns.forEach(b=>b.disabled=false)}}
+function previewBox(kind){const p=PREVIEW[kind];if(!p)return null;const d=p.result,status=h("div",{class:"sig"});
+ const conflicts=d.conflicts||[],n=d.changes.length;
+ const box=h("div",{class:"preview"},h("div",{class:"t",text:(d.undoes?"Undo batch: ":"This batch: ")+(n?`${n} change${n===1?"":"s"}`:"nothing to change")}),
+  ...d.changes.map(c=>h("div",{class:"sig",text:`${ACT[c.action]||c.action}: ${rowLabel(kind,(c.after||c.before).row)}`})),
+  d.unchanged.length?h("div",{class:"sig",text:`${d.unchanged.length} already decided, left as they are.`}):null,
+  ...conflicts.map(c=>h("div",{class:"sig conf",text:`Changed since by ${c.by||"someone"} (${c.action}): undoing would overwrite that, so this batch cannot be undone whole. Undo items one by one instead.`})));
+ const cancel=h("button",{class:"btn",type:"button",text:"Cancel"});cancel.addEventListener("click",()=>{PREVIEW[kind]=null;panels()});
+ const act=h("div",{class:"act"});
+ if(n&&!conflicts.length){const go=h("button",{class:"btn yes",type:"button",text:"Apply"});
+  go.addEventListener("click",()=>applyPreview(kind,status,[go,cancel]));act.append(go)}
+ act.append(cancel);box.append(act,status);return box}
+// Recent batches, newest first: who decided what, and each can be undone as a whole.
+function batchesList(kind){const rows=BATCHES[kind]||[];if(!canDecide(kind)||!rows.length)return null;
+ const list=h("details",{class:"decided"},h("summary",{text:`Recent batches (${rows.length})`}));
+ for(const b of rows.slice(0,15)){const status=h("span",{class:"sig"}),what=Object.entries(b.actions).map(([a,k])=>`${k} ${ACT[a]||a}`).join(", ");
+  const line=h("div",{class:"batch"},h("span",{text:`${ago(b.at)} · ${b.by} · ${what}${b.undoes?" (an undo)":""}${b.undone_by?" · undone":""}`}),status);
+  if(!b.undone_by){const undo=h("button",{class:"btn",type:"button",text:"Undo batch"});
+   undo.addEventListener("click",()=>previewBatch(kind,{batch:b.batch,decision:"undo_batch"},status,[undo]));line.append(undo)}
+  list.append(line)}
+ return list}
 // A confirmed link whose evidence (file hashes recorded at decision time) changed waits for a person again.
 function decidedList(kind,rows,label){if(!rows||!rows.length)return null;
  const stale=rows.filter(r=>r.evidence_check==="CHANGED_SINCE_DECISION").length;
@@ -440,7 +489,8 @@ function suggestionsPanel(){const box=$("suggestions");box.replaceChildren();con
  if(!all.length)box.append(h("p",{class:"muted",text:"No suggestions. Every binding is linked, rejected, or has no matching name or path."}));
  for(const s of all.slice(0,30))box.append(suggestionCard(s,true));
  const hidden=data.link_suggestions.rejected_not_shown;if(hidden)box.append(h("p",{class:"muted",style:"font-size:11px",text:`${hidden} rejected suggestion(s) hidden.`}));
- const done=decidedList("links",data.link_decided,r=>`${r.binding} → ${r.component_label}`);if(done)box.append(done)}
+ const done=decidedList("links",data.link_decided,r=>`${r.binding} → ${r.component_label}`);if(done)box.append(done);
+ const recent=batchesList("links");if(recent)box.append(recent)}
 function dependenciesPanel(){const box=$("dependencies"),d=data&&data.dependency_suggestions;box.replaceChildren();
  const show=d&&(d.status!=="NO_OBSERVED_CALLS"||d.suggestions.length||(data.dependency_decided||[]).length);$("dep-sec").style.display=show?"block":"none";if(!show)return;
  $("dep-count").textContent=String(d.suggestions.length);
@@ -454,7 +504,8 @@ function dependenciesPanel(){const box=$("dependencies"),d=data&&data.dependency
   if(d.rejected_not_shown)notes.push(`${d.rejected_not_shown} rejected hidden.`);
   if(d.gaps.length)notes.push(`${d.gaps.length} call pair(s) not shown: `+d.gaps.slice(0,5).map(g=>`${g.source} (${g.reason.replace(/_/g," ").toLowerCase()})`).join("; ")+(d.gaps.length>5?"; …":""));
   if(notes.length)box.append(h("p",{class:"muted",style:"font-size:11px",text:notes.join(" ")}))}
- const done=decidedList("dependencies",data.dependency_decided,r=>`${r.source_label} → ${r.target_label}`);if(done)box.append(done)}
+ const done=decidedList("dependencies",data.dependency_decided,r=>`${r.source_label} → ${r.target_label}`);if(done)box.append(done);
+ const recent=batchesList("dependencies");if(recent)box.append(recent)}
 function feedsChip(){const el=$("feeds"),f=data&&data.feeds;if(!f){el.textContent="";return}
  if(f.status==="LIVE_FEEDS"){const bad=f.failing.length;el.className="feeds "+(bad?"failing":"live");
   el.textContent=bad?`${bad} of ${f.feeds} feeds failing`:`${f.feeds} live feeds`+(f.generated_at?" · "+ago(f.generated_at):"");
@@ -477,7 +528,10 @@ $("filter").addEventListener("click",()=>setFilter(null));
 function render(){modelChip();feedsChip();if(data)$("mode").textContent=data.link_decisions==="ENABLED_LOCAL_TOKEN"||data.dependency_decisions==="ENABLED_LOCAL_TOKEN"?"READ ONLY EXCEPT DECISIONS":"READ ONLY";IDX=index();if(selected&&!IDX.has(selected))selected=null;kpis();lists();panels();graph();inspector()}
 async function load(){const mine=++epoch;
  try{const r=await fetch("/api/business",{cache:"no-store"});if(!r.ok)throw new Error(String(r.status));const d=await r.json();
-  if(mine!==epoch)return;data=d;$("pulse").className="pulse";$("asof").textContent="As of "+new Date(d.generated_at).toLocaleTimeString()+" · refresh 5s";render()}
+  if(mine!==epoch)return;data=d;
+  for(const kind of ["links","dependencies"])if(canDecide(kind)){try{const b=await fetch(`/api/${kind}/batches`,{cache:"no-store"});
+   if(b.ok)BATCHES[kind]=(await b.json()).batches||[]}catch(_){}}
+  if(mine!==epoch)return;$("pulse").className="pulse";$("asof").textContent="As of "+new Date(d.generated_at).toLocaleTimeString()+" · refresh 5s";render()}
  catch(err){if(mine!==epoch)return;$("pulse").className="pulse off";$("asof").textContent="Source unavailable · last data kept";if(!data)render()}}
 $("search").addEventListener("input",e=>{query=e.target.value.slice(0,90);render()});
 $("refresh").addEventListener("click",load);

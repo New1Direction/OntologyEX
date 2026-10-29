@@ -186,8 +186,9 @@ def confirmed_view(confirmed: list[dict], files: watermark.RepoFiles) -> list[di
 
 
 def apply_decisions(path: Path, by: str, note: str = "", confirm: list[dict] = (), reject: list[dict] = (),
-                    undo: list[str] = (), reconfirm: list[dict] = ()) -> dict:
-    """Confirm or reject proposed rules, undo or re-confirm decided ones, in one atomic write."""
+                    undo: list[str] = (), reconfirm: list[dict] = (), **options) -> dict:
+    """Confirm or reject proposed rules, undo or re-confirm decided ones, in one atomic write.
+    `options` go to decisions.apply: preview, plan_digests, expect, undo_batch, engine."""
     for suggestion in (*confirm, *reject):
         require(suggestion.get("status") == "PROPOSED", "only a proposed rule can be decided")
 
@@ -198,7 +199,7 @@ def apply_decisions(path: Path, by: str, note: str = "", confirm: list[dict] = (
     return decisions.apply(path, read=read_rule_document, kind=RULE_KIND, confirmed_field="confirmed",
                            key=rule_key, name="rules", max_rows=MAX_RULES, by=by, note=note,
                            confirm=[row(s, True) for s in confirm], reject=[row(s, False) for s in reject],
-                           undo=list(undo), reconfirm=list(reconfirm))
+                           undo=list(undo), reconfirm=list(reconfirm), **options)
 
 
 def reconfirm_rows(confirmed: list[dict], ids: list[str], files: watermark.RepoFiles) -> list[dict]:

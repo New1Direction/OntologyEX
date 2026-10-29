@@ -1,7 +1,7 @@
 //! Offline Rust read-only graph view protocol, bounded JSON on stdin.
 //! No listener, connector, file access, execution, credentials or tenant auth.
 //! The Python control room is unchanged until parity and performance review.
-use ontologyex_core::{business, context, incident, view};
+use ontologyex_core::{business, context, decide, incident, view};
 use serde_json::Value;
 use std::env;
 use std::io::{self, Read};
@@ -46,6 +46,8 @@ fn run() -> Result<(), String> {
         "explain" if args.len() == 4 => context::explain(&full, &args[2], &args[3])?,
         "search" if args.len() == 3 => context::search(&full, &args[2])?,
         "change-impact" if args.len() == 2 => context::change_impact(&full)?,
+        // One batch of decisions, compare-and-set, all or nothing (decisions.commit in Python).
+        "decide" if args.len() == 2 => decide::run(&full)?,
         _ => return Err("unsupported view command or argument count".into()),
     };
     println!("{}",serde_json::to_string(&output)

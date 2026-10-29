@@ -161,9 +161,10 @@ async function decide(kind,id,decision,status,btns){
   if(!r.ok)throw new Error(d.status||String(r.status));
   status.textContent=d.applied.length?DOING[decision][1]:"Already decided.";await open(current,false)}
  catch(err){status.textContent="Not saved: "+err.message;btns.forEach(b=>b.disabled=false)}}
-// The fingerprints of what this page showed, read before the page: a decision applies only to what was seen.
-function seenFor(kind,id,decision){if(decision==="undo")return {};
- const shown=((VIEWS||{})[kind]||{})[decision==="reconfirm"?"decided":"suggestion"]||{};
+// The fingerprints of what this page showed, read before the page: a decision applies only to what was seen
+// (for an undo, the version of the decided row).
+function seenFor(kind,id,decision){
+ const shown=((VIEWS||{})[kind]||{})[decision==="undo"?"entry":decision==="reconfirm"?"decided":"suggestion"]||{};
  return {seen:shown[id]?{[id]:shown[id]}:{}}}
 
 // Business rules: the skill's own, ones a person confirmed from agent proposals, and ones still proposed.

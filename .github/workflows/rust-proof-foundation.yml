@@ -57,6 +57,8 @@ on:
       - 'tests/test_bench.py'
       - 'tests/lean_statements.py'
       - 'tests/test_lean_statements.py'
+      - 'tests/rust_decide_parity.py'
+      - 'tests/test_decision_batches.py'
       - 'docs/benchmarks/**'
       - '.github/workflows/rust-proof-foundation.yml'
   push:
@@ -106,6 +108,8 @@ jobs:
           python tests/feeds_conformance.py check "$RUNNER_TEMP/feeds-table.json"
       - name: Verify Rust entity context, explanations and search against Python (demo + 120 seeded bundles)
         run: python tests/rust_context_parity.py
+      - name: Verify the Rust decision kernel against Python (seeded batches, stale, duplicate, malformed)
+        run: python tests/rust_decide_parity.py engine/target/debug/ontologyex-view --seeds 3000
       - name: Golden fixtures, Python and Rust against the same expected answers (demo, shop, clinic)
         run: python tests/golden.py check --engine-dir engine/target/debug --require-rust
       - name: Benchmark smoke, a correctness gate (debug builds, quick runs; the times are not quoted anywhere)
@@ -113,7 +117,7 @@ jobs:
       - name: Verify the control room reads native discovery like Python discovery
         run: python -m unittest tests.test_native_view_bridge -v
       - name: Entity routes on the Rust engine, and agent tools end to end
-        run: python -m unittest tests.test_entity_context tests.test_agent_tools tests.test_watermark tests.test_change_impact
+        run: python -m unittest tests.test_entity_context tests.test_agent_tools tests.test_watermark tests.test_change_impact tests.test_decision_batches
           tests.test_dependency_proposals tests.test_rule_proposals -v
       - name: Static graph-to-status fixture
         run: |
@@ -131,7 +135,7 @@ jobs:
           lake-package-directory: proofs/lean
           build: true
           leanchecker: true
-          leanchecker-args: OntologyEXProofs OntologyEXModel.Impact OntologyEXSpec.Impact OntologyEXProofs.Impact
+          leanchecker-args: OntologyEXProofs OntologyEXModel.Impact OntologyEXSpec.Impact OntologyEXProofs.Impact OntologyEXModel.Decisions OntologyEXSpec.Decisions OntologyEXProofs.Decisions
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.11'

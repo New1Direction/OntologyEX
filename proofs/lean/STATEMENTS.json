@@ -6,9 +6,19 @@
     "propext"
   ],
   "files": {
+    "OntologyEXModel/Decisions.lean": {
+      "sha256": "35cbf4849ef38feb944f779e177fbfbe58f923d47605a28e9b4bc8adbeefa80d",
+      "reason": "Decisions: a batch of compare-and-set operations applies whole, only to items exactly as seen; changes nothing else; undoing it restores exactly its items and keeps later decisions on other items, and is refused when a later decision changed one of them; batches on different items commute and never make each other stale.",
+      "pinned": "2026-10-29"
+    },
     "OntologyEXModel/Impact.lean": {
       "sha256": "17025b9bcd26142e902e543076f63ffea9697b0d0a6245914ec6f9860fa44eee",
       "reason": "Impact standing: the strongest chain of 1 to D hops, nothing without a chain, independent of relationship order and of entity names.",
+      "pinned": "2026-10-29"
+    },
+    "OntologyEXSpec/Decisions.lean": {
+      "sha256": "f2f1685c7086be0d445b4f3bda0ee44f52415cec8172fe329a72406bacaa75d6",
+      "reason": "Decisions: a batch of compare-and-set operations applies whole, only to items exactly as seen; changes nothing else; undoing it restores exactly its items and keeps later decisions on other items, and is refused when a later decision changed one of them; batches on different items commute and never make each other stale.",
       "pinned": "2026-10-29"
     },
     "OntologyEXSpec/Impact.lean": {
@@ -21,6 +31,16 @@
     "OntologyEX.Spec.Impact.StrongestChain": "OntologyEX.Proofs.Impact.strongest_correct",
     "OntologyEX.Spec.Impact.NothingWithoutAChain": "OntologyEX.Proofs.Impact.nothing_without_a_chain",
     "OntologyEX.Spec.Impact.OrderFree": "OntologyEX.Proofs.Impact.order_free",
-    "OntologyEX.Spec.Impact.NameFree": "OntologyEX.Proofs.Impact.name_free"
+    "OntologyEX.Spec.Impact.NameFree": "OntologyEX.Proofs.Impact.name_free",
+    "OntologyEX.Spec.Decisions.StaleRefused": "OntologyEX.Proofs.Decisions.stale_refused",
+    "OntologyEX.Spec.Decisions.TwiceRefused": "OntologyEX.Proofs.Decisions.twice_refused",
+    "OntologyEX.Spec.Decisions.CurrentApplies": "OntologyEX.Proofs.Decisions.current_applies",
+    "OntologyEX.Spec.Decisions.WholeBatch": "OntologyEX.Proofs.Decisions.whole_batch",
+    "OntologyEX.Spec.Decisions.NothingElse": "OntologyEX.Proofs.Decisions.nothing_else",
+    "OntologyEX.Spec.Decisions.UndoRestores": "OntologyEX.Proofs.Decisions.undo_restores",
+    "OntologyEX.Spec.Decisions.UndoKeepsLaterDecisions": "OntologyEX.Proofs.Decisions.undo_keeps_later_decisions",
+    "OntologyEX.Spec.Decisions.UndoRefusedAfterChange": "OntologyEX.Proofs.Decisions.undo_refused_after_change",
+    "OntologyEX.Spec.Decisions.IndependentCommute": "OntologyEX.Proofs.Decisions.independent_commute",
+    "OntologyEX.Spec.Decisions.OthersNeverStale": "OntologyEX.Proofs.Decisions.others_never_stale"
   }
 }

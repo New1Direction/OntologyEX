@@ -15,7 +15,7 @@ Python code is the reference that the control room runs.
 |---|---|---|---|
 | Python | Reference implementation and unit tests | `ontology-extraction/scripts/` | Validator |
 | Rust | Same link matcher, rollup, and ladder; optional engine for suggestions (`--view-engine rust`) | `engine/src/business.rs` | rust-core |
-| Lean 4 | Proofs about the rollup, ladder, link decisions and impact standing; prints a conformance table; trusted statements pinned apart from proofs | `proofs/lean/` | lean-policy |
+| Lean 4 | Proofs about the rollup, ladder, link decisions, impact standing and decision batches; prints a conformance table; trusted statements pinned apart from proofs | `proofs/lean/` | lean-policy |
 | Bend | The same safety rules as laws, proven by Bend's checker | `proofs/bend/business.bend` | bend-laws |
 
 ## What is proven
@@ -99,6 +99,40 @@ The conformance table's `impact` section (300 generated graphs) is printed by Le
 `Model.Impact.strongest` and compared with Python; Rust matches Python
 (`tests/rust_context_parity.py`). The code this replaced answered by whichever chain it
 reached first in name order: it differs from the proven model on 12 of those 300 graphs.
+
+<a id="lean-decisions"></a>**Lean, decisions** (statement `OntologyEXSpec/Decisions.lean`, proofs
+`OntologyEXProofs/Decisions.lean`, model `OntologyEXModel/Decisions.lean`; code
+`decisions.commit` and `decide.rs::commit`). The model is the kernel: a state gives each
+item its decided entry or none, and a batch is a list of compare-and-set operations,
+applied whole or not at all. Proved for any kind of item and entry:
+- `StaleRefused`: if any item is no longer what the person saw, nothing applies;
+- `TwiceRefused`: a batch naming an item twice is refused;
+- `CurrentApplies`: a batch of distinct items, all as seen, is not refused;
+- `WholeBatch`: what applies is every operation, on items that were exactly as seen;
+- `NothingElse`: a batch changes nothing but its own items;
+- `UndoRestores`: undoing a batch right after it gives back the state before;
+- `UndoKeepsLaterDecisions`: after any number of later batches on other items, undoing
+  puts back exactly the batch's items and keeps every later decision;
+- `UndoRefusedAfterChange`: an undo is refused when a later decision changed one of the
+  batch's items, so it never overwrites a newer decision;
+- `IndependentCommute`: batches on different items give the same result in either order
+  (Commute's lesson: operations whose footprints are disjoint commute);
+- `OthersNeverStale`: a decision on other items never makes an approval stale, nor a
+  stale one current.
+
+How this relates to the shipped code:
+- The conformance table's `decisions` section (300 generated batches) is printed by Lean
+  from `Model.Decisions.commit` and compared with Python's `decisions.commit`.
+- `tests/rust_decide_parity.py` compares Rust's `commit` with Python's on 3,000 seeded
+  batches in CI (stale, duplicate, moved, unchanged and malformed). `engine/tests/decide.rs`
+  checks the same laws on the Rust code and the shipped binary.
+- Not modelled: the code compares versions (96-bit sha256 prefixes of canonical JSON)
+  where the model compares entries, so the model assumes no two different entries share
+  a version. The model also leaves out the order of rows in the file, the history file,
+  and the preview digests; those are tested (`tests/test_decision_batches.py`).
+- The undo the code applies is built from the before and after it recorded; the model's
+  `inverse` swaps each operation's expectation and write, which is the same thing
+  because an applied operation's before is exactly what it expected.
 
 **Bend** (`proofs/bend/business.bend`, checked by `bendlang/bend` at a pinned commit):
 `empty_is_unlinked`, `error_anywhere_is_at_risk`, `unknown_anywhere_is_not_ok`,

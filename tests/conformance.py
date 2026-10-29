@@ -70,6 +70,39 @@ def impact_rows() -> list:
     return rows
 
 
+def decision_rows() -> list:
+    """decisions.commit on 300 generated batches: the generator of proofs/lean/Conformance.lean.
+    Entry n stands for a decided row {"v": n} (confirmed when even, rejected when odd)."""
+    import decisions
+
+    def entry(v):
+        return None if v is None else {"list": decisions.LISTS[v % 2], "row": {"v": v}}
+
+    rows = []
+    for i in range(300):
+        state = [i + 1]
+
+        def draw(m: int) -> int:
+            state[0] = (state[0] * 1103515245 + 12345) % 2147483648
+            return state[0] // 65536 % m
+
+        st = [None if r == 4 else r for r in (draw(5) for _ in range(5))]
+        ops = []
+        for _ in range(1 + draw(4)):
+            k, e, w = draw(5), draw(20), draw(5)
+            ops.append([k, st[k] if e >= 5 else None if e == 4 else e, None if w == 4 else w])
+        entries = [{"id": f"k{k}", **entry(v)} for k, v in enumerate(st) if v is not None]
+        try:
+            after = decisions.commit(entries, [{"id": f"k{k}", "expect": decisions.version(entry(e)), "set": entry(w)}
+                                               for k, e, w in ops])
+            now = {e["id"]: e["row"]["v"] for e in after["entries"]}
+            result = [now.get(f"k{k}") for k in range(5)]
+        except decisions.Refused:
+            result = "refused"
+        rows.append([st, ops, result])
+    return rows
+
+
 def expected() -> dict:
     rollups = []
     for length in range(4):
@@ -91,7 +124,7 @@ def expected() -> dict:
     marks = [[[r, n], entity_context.watermark_standing(None if r == 0 else {"f": str(r - 1)}, {"f": str(n)})]
              for r in range(3) for n in range(2)]
     return {"kind": "BUSINESS_CONFORMANCE_TABLE", "rollup": rollups, "grade": grades,
-            "fusion": fusion, "path_standing": path, "watermark": marks, "impact": impact_rows(),
+            "fusion": fusion, "path_standing": path, "watermark": marks, "impact": impact_rows(), "decisions": decision_rows(),
             "execution_authorized": False}
 
 
@@ -100,7 +133,7 @@ def check(path: Path) -> int:
     reference = expected()
     failures = 0
     # rollup and grade are required; fusion, path_standing and watermark are compared when present.
-    for section in ("rollup", "grade", *[s for s in ("fusion", "path_standing", "watermark", "impact") if s in actual]):
+    for section in ("rollup", "grade", *[s for s in ("fusion", "path_standing", "watermark", "impact", "decisions") if s in actual]):
         want, got = reference[section], actual.get(section)
         if type(got) is not list or len(got) != len(want):
             print(f"{section}: expected {len(want)} rows, got {len(got) if type(got) is list else got!r}")
@@ -118,6 +151,7 @@ def check(path: Path) -> int:
     path = f", {len(reference['path_standing'])} path rows" if "path_standing" in actual else ""
     path += f", {len(reference['watermark'])} watermark rows" if "watermark" in actual else ""
     path += f", {len(reference['impact'])} impact graphs" if "impact" in actual else ""
+    path += f", {len(reference['decisions'])} decision batches" if "decisions" in actual else ""
     print(f"conformance: {len(reference['rollup'])} rollup rows, {len(reference['grade'])} grade rows"
           f"{fusion}{path}, {failures} mismatch(es)")
     return 1 if failures else 0

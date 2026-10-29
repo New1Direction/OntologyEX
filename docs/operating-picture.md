@@ -90,23 +90,58 @@ unknown ID, or a file someone else changed meanwhile, refuses the whole batch).
 Deciding an already decided pair changes nothing. `undo` removes a decided row, so
 its suggestion comes back; `suggest` lists the decided rows with the ID that undoes
 each (the same ID the suggestion had). Every change is also appended to
-`links.history.jsonl` beside the links file: what, who, and when. `--by` is
-recorded, not verified. `dependency_suggest.py` takes the same `confirm`, `reject`,
-`undo`, `--all-strong`, and repeated `--id`.
+`links.history.jsonl` beside the links file: what, who, when, the batch it was part
+of, and the row before and after. `--by` is recorded, not verified.
+`dependency_suggest.py` takes the same `confirm`, `reject`, `undo`, `--all-strong`, and
+repeated `--id`.
+
+### Batches: previewed, applied whole, undone whole
+
+Every decision is a compare-and-set on one item (`decisions.py`): it names the item,
+the **version** of the decided row the person saw (the first 24 hex digits of the
+sha256 of the row and its list; none when undecided), and what to write. A batch
+applies only if every item is still at the version seen; otherwise nothing is written
+and the answer is `409 STALE_VIEW` naming the items that changed.
+- **Preview.** `"preview": true` returns the batch item by item (`confirm`, `reject`,
+  `take back`, `put back`, `re-confirm`), with one digest per item. Applying with
+  `"plan": {id: digest}` writes only if the batch computed now is the same: the same
+  items, versions and rows. A decision made in between on one of those items makes the
+  approval stale; one on other items does not, because a batch only reads and writes its
+  own items.
+- **Undo a batch.** `{"batch": ID, "decision": "undo_batch"}` (preview it first the same
+  way) puts back what that batch changed, item by item, from the before and after it
+  recorded. Every later decision on other items stays. If a later decision changed one of
+  the batch's own items, the undo is refused (the preview lists who changed what) and
+  nothing is overwritten. An undo is itself a batch, so it can be undone; a batch is
+  undone at most once. Undoing a re-confirm puts back the row as it was before.
+- **Undo one row.** The page sends the version of the row it showed, so an undo never
+  removes a row someone re-decided after the page loaded.
+- **Batches list.** `GET /api/links/batches` (and `/api/dependencies/batches`,
+  `/api/rules/batches`) lists the recorded batches, newest first: who, when, what, which
+  batch undid it.
+- **Rust.** With `--view-engine rust`, `ontologyex-view decide` computes each batch (the
+  same function, checked against Python by `tests/rust_decide_parity.py`); the control
+  room still reads and writes the files. An `ontologyex-view` from before the kernel is
+  detected at start and decisions stay on Python; it says which at start.
+
+What is proved about this, and how it relates to the code: see
+[business verification](business-verification.md#lean-decisions).
 
 In the page, **Suggested links** lists each suggestion with its signals. By default
 the server stays read-only and each card has a **Copy confirm command** button.
 Start the control room with `--allow-link-decisions` (and `--links`) to get
 **Confirm link** and **Reject** buttons, checkboxes with **Select all** and **Select
-STRONG**, **Confirm/Reject N selected**, an **Undo** for the last action, and a
-**Decided** list with an Undo per row. That enables the write route
+STRONG**, **Confirm/Reject N selected** (previewed first: what each item becomes,
+then **Apply**), an **Undo** for the last action (previewed the same way), a
+**Decided** list with an Undo per row, and **Recent batches**, each with **Undo batch**. That enables the write route
 `POST /api/links/decision` (and `POST /api/dependencies/decision` with
 `--dependencies`), which requires:
 
 - a same-origin loopback `Origin` header (requests without one are refused),
 - the per-process token that is embedded only in the `/business` page,
 - a JSON body of exactly `ids` (1 to 100; or one `id`), `decision` (`confirm`,
-  `reject`, or `undo`), `by`, and `note`, at most 8 KB,
+  `reject`, `undo`, or `reconfirm`), `by`, and `note`, or `batch`, `decision`
+  (`undo_batch`), `by`, and `note`; optionally `seen`, `preview`, or `plan`; at most 8 KB,
 - for confirm and reject, IDs that all match suggestions in the current state; for
   undo, IDs that all match decided rows.
 
