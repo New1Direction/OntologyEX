@@ -17,7 +17,7 @@ file and line of each:
   @Entity/@Table;
 - jobs: Celery tasks and beat schedules, Rails ActiveJob and Sidekiq jobs, Laravel
   queued jobs and schedules, Spring @Scheduled, sidekiq-cron style schedule.yml
-  entries, BullMQ queues, node-cron, Inngest functions.
+  entries, Vercel crons, BullMQ queues, node-cron, Inngest and trigger.dev tasks.
 
 Each finding is a candidate from syntax, not a verified endpoint or table: a route
 may be disabled, a table dropped by a later migration, and code built at runtime is
@@ -39,7 +39,7 @@ SKIP_DIRS = {".git", ".hg", "node_modules", ".venv", "venv", "env", "__pycache__
              "coverage", "__snapshots__", "testdata", "fixtures", ".turbo", ".svelte-kit", "out"}
 CODE = {".py", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".go", ".java", ".kt", ".rb", ".php",
         ".prisma", ".sql", ".graphql", ".gql"}
-SCHEDULE_FILE = re.compile(r"^(?:schedule|sidekiq_cron|sidekiq-cron|cron|crontab)\.ya?ml$")  # sidekiq-cron and friends
+SCHEDULE_FILE = re.compile(r"^(?:schedule|sidekiq_cron|sidekiq-cron|cron|crontab)\.ya?ml$|^vercel\.json$")
 MAX_FILES = 50_000
 MAX_FILE = 1024 * 1024
 MAX_SCHEMA_FILE = 4 * 1024 * 1024        # .graphql, .prisma and .sql schemas can be large
@@ -90,6 +90,7 @@ RUBY_JOB = re.compile(r"^[ \t]*class\s+([\w:]+)\s*<\s*(?:ApplicationJob|ActiveJo
 YAML_CRON = re.compile(r"^([\w.-]+):[ \t]*(?:#[^\n]*)?\n((?:[ \t]+[^\n]*\n?|[ \t]*\n)+)", re.M)
 CELERY_BEAT = re.compile(r"['\"]([\w.:-]+)['\"]\s*:\s*\{\s*['\"]task['\"]\s*:\s*['\"]([\w.]+)['\"]")
 NODE_CRON = re.compile(r"\bcron\.schedule\s*\(\s*['\"]([^'\"]+)['\"]")
+TRIGGER_DEV = re.compile(r"\b(?:schedules\.)?task\s*\(\s*\{\s*id\s*:\s*['\"]([\w:.-]+)['\"]")
 INNGEST = re.compile(r"\.createFunction\s*\(\s*\{\s*id\s*:\s*['\"]([\w:.-]+)['\"]")
 REMIX_LOADER = re.compile(r"^export\s+(?:async\s+)?(?:function|const)\s+loader\b", re.M)
 REMIX_ACTION = re.compile(r"^export\s+(?:async\s+)?(?:function|const)\s+action\b", re.M)
@@ -284,6 +285,8 @@ def scan_file(rel: str, text: str) -> dict[str, list[dict]]:
         for match in JS_ROUTE.finditer(text):
             route(match.group(1), match.group(3), match.start(), "node")
         for match in TRPC.finditer(text):
+            if (match.group(1) or match.group(2)).lower().endswith("procedure"):
+                continue  # a procedure builder (authedProcedure = t.procedure.use(...)), not an operation
             found["operations"].append({"kind": "rpc", "name": match.group(1) or match.group(2), "file": rel,
                                         "line": _line(text, match.start())})
         for pattern, source in ((DRIZZLE, "drizzle"), (MONGOOSE, "mongoose"), (SEQUELIZE, "sequelize")):
@@ -291,7 +294,8 @@ def scan_file(rel: str, text: str) -> dict[str, list[dict]]:
                 table(match.group(1), match.start(), source)
         for match in TYPEORM.finditer(text):
             table(match.group(1) or match.group(2), match.start(), "typeorm")
-        for pattern, kind in ((BULLMQ, "bullmq queue"), (NODE_CRON, "cron schedule"), (INNGEST, "inngest function")):
+        for pattern, kind in ((BULLMQ, "bullmq queue"), (NODE_CRON, "cron schedule"), (INNGEST, "inngest function"),
+                              (TRIGGER_DEV, "trigger.dev task")):
             for match in pattern.finditer(text):
                 found["jobs"].append({"name": match.group(1), "file": rel, "line": _line(text, match.start()),
                                       "kind": kind})
@@ -385,6 +389,10 @@ def scan_file(rel: str, text: str) -> dict[str, list[dict]]:
     elif suffix == ".sql":
         for match in SQL_TABLE.finditer(text):
             table(match.group(1), match.start(), "sql")
+    elif name == "vercel.json":
+        for match in re.finditer(r"\{\s*\"path\"\s*:\s*\"([^\"]+)\"\s*,\s*\"schedule\"\s*:\s*\"([^\"]+)\"", text):
+            found["jobs"].append({"name": f"{match.group(1)} ({match.group(2)})", "file": rel,
+                                  "line": _line(text, match.start()), "kind": "vercel cron"})
     elif SCHEDULE_FILE.match(name):
         for match in YAML_CRON.finditer(text):
             block = match.group(2)

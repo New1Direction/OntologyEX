@@ -38,6 +38,10 @@ that shows it:
   configuration. Money and access files are ranked by what they import and say,
   not only by their names.
 
+A large monorepo is scanned whole: when it is past the live map's discovery budget the
+scan says so (`discovery_limited`) and reads compose files and workflows directly, and
+dozens of sibling packages (an app store, plugins) count as one entry.
+
 `blueprint.json` is a draft with the systems already filled in and cited. Tell the
 user the folder exists; they can delete it or add it to `.gitignore`.
 

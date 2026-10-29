@@ -70,7 +70,10 @@ FILES = {
     "php/routes/console.php": "<?php\nSchedule::command('model:prune', 'daily');\nSchedule::job(UpdateAddressBooks::class, 'hourly');\n",
     "gql/schema.graphql": "type Query {\n  order(id: ID!): Order\n  orders(\n    first: Int\n  ): [Order]\n}\n"
                           "type Mutation {\n  checkoutComplete(id: ID!): Order\n}\n",
-    "trpc/router.ts": "export const appRouter = router({\n  getPlan: publicProcedure.query(() => 1),\n});\n",
+    "trpc/router.ts": "export const authedProcedure = t.procedure.use(auth);\n"
+                      "export const appRouter = router({\n  getPlan: publicProcedure.query(() => 1),\n});\n",
+    "web/vercel.json": "{\n  \"crons\": [\n    { \"path\": \"/api/cron/reminders\", \"schedule\": \"*/15 * * * *\" }\n  ]\n}\n",
+    "jobs/trigger.ts": "export const sendDigest = schedules.task({ id: \"send-digest\", run: async () => {} });\n",
     "db/schema.prisma": "model Customer {\n  id Int @id\n}\n",
     "db/migrations/001_init.sql": "CREATE TABLE IF NOT EXISTS \"customer\" (id int);\nCREATE TABLE legacy_audit (id int);\n",
     "db/drizzle.ts": "export const plans = pgTable('plans', {});\n",
@@ -157,7 +160,8 @@ class Scan(unittest.TestCase):
                                 ("cron schedule", "0 * * * *"), ("cron schedule", "clean_syncs -> SyncCleanerJob"),
                                 ("laravel job", "PushVCard"), ("laravel schedule", "UpdateAddressBooks"),
                                 ("laravel schedule", "model:prune"), ("rails job", "HardWorker"), ("rails job", "SyncJob"),
-                                ("spring scheduled", "evictCaches")])
+                                ("spring scheduled", "evictCaches"), ("trigger.dev task", "send-digest"),
+                                ("vercel cron", "/api/cron/reminders (*/15 * * * *)")])
 
     def test_skips_dependencies_and_bounds_output(self):
         self.assertFalse(any("node_modules" in r["file"] for r in self.result["routes"]))
