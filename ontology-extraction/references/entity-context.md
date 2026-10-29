@@ -59,6 +59,27 @@ the business actions through the links a person confirmed, and change impact and
 (`list_suppliers`) see suppliers like any other part of the system. It is what the
 repository declares, not contracts, spend or usage.
 
+## Command center
+
+`/command` (and `command_center.py --bundle BUNDLE`) is one list of everything that needs
+attention, ranked by importance from 0 to 100: systems in error that the business relies
+on, actions and objects at risk, confirmations whose evidence changed, critical suppliers
+with no second one declared, open questions, links to components that are gone, decisions
+waiting for a person, and what nobody can see (actions not written down, services that
+report no health). Each score is the sum of named factors shown beside it: how bad the
+kind of problem is, how many business objects and actions reach it, and whether money
+moves through it. The ranking can be read and argued with; it is not a probability, a
+forecast or an approval, and the same model always gives the same ranking.
+
+Above the list: headline counts (actions reported OK, at risk, health unknown, services in
+error, suppliers, decisions waiting); how much can be seen (actions linked to a system,
+services reporting health, confirmations still current, rules reviewed; "none yet" rather
+than a made-up percentage); and the field the names in the model point to (e-commerce,
+subscription software, marketplace, financial services, healthcare, logistics) with what a
+business in that field should be able to see, each FOUND with the supplier or entity that
+shows it, or NOT FOUND IN SOURCES, which says the sources do not show it, not that the
+business lacks it. Agents get the same list from `what_needs_attention`.
+
 ## Before a change merges
 
 `/impact` (and `change_impact.py` on the command line) reads a change from git and
@@ -134,6 +155,7 @@ running control room, `--bundle FILE` reads a file from
 | `list_suggestions` | read | proposals nobody has decided, with strength, signals and proposer |
 | `list_stale_decisions` | read | confirmed links whose evidence changed since, with the changed files |
 | `list_suppliers` | read | the outside companies the business runs on, what relies on each, single suppliers |
+| `what_needs_attention` | read | everything that needs attention, ranked, with factors, next steps, coverage and field |
 | `analyze_change` | read | what a change (git refs, or a list of files) touches and what relies on it |
 | `propose_link` | additive | appends a link proposal; a person decides it |
 | `propose_dependency` | additive | appends "A depends on B" with a reason; a person decides it |
