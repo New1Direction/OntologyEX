@@ -30,10 +30,25 @@ FILES = {
     "py/app.py": "@app.route('/items', methods=['GET', 'POST'])\ndef items():\n    pass\n\n@router.delete(\"/items/{id}\")\n"
                  "async def remove(id):\n    pass\n",
     "dj/shop/urls.py": "urlpatterns = [\n    path('checkout/', views.checkout),\n    re_path(r'^api/', include(api)),\n]\n",
-    "dj/shop/models.py": "class Order(models.Model):\n    class Meta:\n        pass\n\nclass Helper:\n    pass\n",
+    "dj/shop/models.py": "from django.db import models\n\nclass Order(models.Model):\n    class Meta:\n        pass\n\n"
+                         "class Helper:\n    pass\n",
+    # SQLModel: only table=True classes are tables; pydantic schemas in a models.py are not.
+    "fa/app/models.py": "from sqlmodel import SQLModel\n\nclass UserBase(SQLModel):\n    email: str\n\n"
+                        "class User(UserBase, table=True):\n    id: int\n\nclass Token(BaseModel):\n    value: str\n",
+    # A router prefix applies to the file's routes; the line is the decorator's, not the blank line above it.
+    "fa/app/routes/items.py": "router = APIRouter(prefix=\"/items\", tags=[\"items\"])\n\n\n"
+                              "@router.get(\"/{id}\")\ndef read(id):\n    pass\n",
     "go/main.go": "r.Get(\"/users\", list)\nmux.HandleFunc(\"POST /users/{id}\", update)\ne.DELETE(\"/users/:id\", del)\n",
     "java/OrderController.java": "@GetMapping(\"/orders\")\npublic List<Order> all() {}\n@Table(name = \"orders\")\n",
-    "rb/config/routes.rb": "Rails.application.routes.draw do\n  resources :invoices\n  post '/pay', to: 'pay#create'\nend\n",
+    "rb/config/routes.rb": "Rails.application.routes.draw do\n  resources :invoices\n  post '/pay', to: 'pay#create'\n"
+                           "  namespace :api do\n    namespace :v1 do\n      resources :categories do\n"
+                           "        resources :deletions, only: :create\n        post :bootstrap, on: :collection\n"
+                           "        member do\n          get :export\n        end\n      end\n    end\n  end\n"
+                           "  mount Sidekiq::Web => \"/sidekiq\"\nend\n",
+    "rb/app/jobs/sync_job.rb": "class ApplicationJob < ActiveJob::Base\nend\nclass SyncJob < ApplicationJob\nend\n",
+    "rb/app/workers/hard_worker.rb": "class HardWorker\n  include Sidekiq::Job\nend\n",
+    "rb/config/schedule.yml": "clean_syncs:\n  cron: \"0 * * * *\" # hourly\n  class: \"SyncCleanerJob\"\n\n"
+                              "not_a_job:\n  queue: default\n",
     "rb/db/schema.rb": "ActiveRecord::Schema.define do\n  create_table \"invoices\" do |t|\n  end\nend\n",
     "php/routes/web.php": "<?php\nRoute::get('/plans', [PlanController::class, 'index']);\n",
     "gql/schema.graphql": "type Query {\n  order(id: ID!): Order\n  orders(\n    first: Int\n  ): [Order]\n}\n"
@@ -82,11 +97,17 @@ class Scan(unittest.TestCase):
         self.assertEqual(self.routes("remix"), [("GET", "/signin/:id"), ("POST", "/api/stripe/webhook")])
         self.assertEqual(self.routes("node"), [("GET", "/also-read"), ("GET", "/health"),
                                                ("POST", "/orders/:id/refund")])
-        self.assertEqual(self.routes("python"), [("DELETE", "/items/{id}"), ("GET", "/items"), ("POST", "/items")])
+        self.assertEqual(self.routes("python"), [("DELETE", "/items/{id}"), ("GET", "/items"), ("GET", "/items/{id}"),
+                                                 ("POST", "/items")])
+        prefixed = next(r for r in self.result["routes"] if r["file"] == "fa/app/routes/items.py")
+        self.assertEqual((prefixed["path"], prefixed["line"]), ("/items/{id}", 4))
         self.assertEqual(self.routes("django"), [("ANY", "/api/"), ("ANY", "/checkout/")])
         self.assertEqual(self.routes("go"), [("DELETE", "/users/:id"), ("GET", "/users"), ("POST", "/users/{id}")])
         self.assertEqual(self.routes("spring"), [("GET", "/orders")])
-        self.assertEqual(self.routes("rails"), [("ANY", "/invoices"), ("POST", "/pay")])
+        self.assertEqual(self.routes("rails"), [
+            ("ANY", "/api/v1/categories"), ("ANY", "/api/v1/categories/:category_id/deletions"), ("ANY", "/invoices"),
+            ("ANY", "/sidekiq"), ("GET", "/api/v1/categories/:id/export"), ("POST", "/api/v1/categories/bootstrap"),
+            ("POST", "/pay")])
         self.assertEqual(self.routes("laravel"), [("GET", "/plans")])
         refund = next(r for r in self.result["routes"] if r["path"] == "/orders/:id/refund")
         self.assertEqual((refund["file"], refund["line"]), ("api/server.js", 3))
@@ -101,6 +122,8 @@ class Scan(unittest.TestCase):
         self.assertEqual(tables["Customer"], ("prisma", None))
         self.assertNotIn("customer", tables)  # the migration repeats the Prisma model
         self.assertEqual(tables["legacy_audit"], ("sql", "only in migrations"))
+        self.assertEqual(tables["User"], ("sqlmodel", None))
+        self.assertFalse({"UserBase", "Token"} & set(tables))
         for name, source in (("plans", "drizzle"), ("subscriptions", "typeorm"), ("Coupon", "mongoose"),
                              ("payouts", "sequelize"), ("refunds", "sqlalchemy"), ("Order", "django"),
                              ("invoices", "rails"), ("orders", "jpa")):
@@ -112,7 +135,8 @@ class Scan(unittest.TestCase):
         jobs = sorted((j["kind"], j["name"]) for j in self.result["jobs"])
         self.assertEqual(jobs, [("bullmq queue", "emails"), ("celery beat schedule", "expire-carts -> shop.tasks.expire"),
                                 ("celery task", "retry_charge"), ("celery task", "send_receipt"),
-                                ("cron schedule", "0 * * * *")])
+                                ("cron schedule", "0 * * * *"), ("cron schedule", "clean_syncs -> SyncCleanerJob"),
+                                ("rails job", "HardWorker"), ("rails job", "SyncJob")])
 
     def test_skips_dependencies_and_bounds_output(self):
         self.assertFalse(any("node_modules" in r["file"] for r in self.result["routes"]))
@@ -159,7 +183,7 @@ class Attach(unittest.TestCase):
                                  capture_output=True, text=True, check=True)
             kinds = [n["kind"] for n in json.loads(run.stdout)["nodes"]]
             self.assertGreater(kinds.count("api_route"), 20)
-            self.assertEqual(kinds.count("declared_db_table"), 10)
+            self.assertEqual(kinds.count("declared_db_table"), 11)
 
 
 if __name__ == "__main__":

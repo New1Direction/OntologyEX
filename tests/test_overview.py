@@ -94,7 +94,7 @@ class Scan(unittest.TestCase):
         self.assertEqual(read["entry points"][:2], ["services/api/api/asgi.py", "services/api/Dockerfile"])
         self.assertIn("apps/web/app/layout.tsx", read["entry points"])
         self.assertNotIn("apps/web/src/components/ui/Card/index.ts", read["entry points"])
-        self.assertEqual(read["configuration"], [".env.example", "services/api/Dockerfile"])
+        self.assertEqual(read["configuration"], [".env.example", "compose.yml", "services/api/Dockerfile"])
         self.assertFalse(any("tests/" in p for paths in read.values() for p in paths))
         self.assertEqual(self.result["docs"], ["README.md", "AGENTS.md", "docs/adr/0001-preorders-are-paid-upfront.md"])
 
@@ -124,6 +124,44 @@ class Scan(unittest.TestCase):
                              [("db", "docker-compose.yml"), ("db", "dev/docker-compose.yml")])
             names = [s["name"] for s in overview.draft(result)["systems"]]
             self.assertEqual(names, ["db", "db (dev/docker-compose.yml)"])
+
+    def test_round_two_shapes_workspaces_overrides_and_dev_tools(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            # A uv workspace root holds only dev groups; the app is in backend/, built from the root context.
+            write(repo, "pyproject.toml", '[dependency-groups]\ndev = ["ruff"]\n[tool.uv.workspace]\nmembers = ["backend"]\n')
+            write(repo, "backend/pyproject.toml", '[project]\nname = "app"\ndependencies = ["fastapi", "emails", "pwdlib"]\n')
+            write(repo, "backend/app/main.py", "from fastapi import FastAPI\n\napp = FastAPI(title='x')\n")
+            write(repo, "compose.yml", "services:\n  backend:\n    build:\n      context: .\n"
+                                       "      dockerfile: backend/Dockerfile\n  db:\n    image: postgres:18\n")
+            write(repo, "compose.override.yml", "services:\n  backend:\n    ports: ['8000:8000']\n"
+                                                "  mailpit:\n    image: axllent/mailpit\n")
+            write(repo, "frontend/package.json", json.dumps({"name": "frontend", "dependencies": {"react": "19"},
+                                                             "devDependencies": {"@react-email/components": "1"}}))
+            write(repo, ".cursor/rules/architecture.mdc", "# How the pieces fit\n")
+            result = overview.scan(repo)
+            apps = {a["folder"]: (a["service"], a.get("role", "")[:7]) for a in result["apps"]}
+            self.assertEqual(apps["."], ("app (tooling)", "tooling"))
+            self.assertEqual(apps["backend"], ("backend", ""))  # the compose service builds backend/
+            self.assertEqual([s["name"] for s in result["services"]], ["backend", "mailpit"])  # one backend, not its override
+            self.assertEqual([f["name"] for f in result["apps"][1]["frameworks"]], ["fastapi"])
+            libraries = {h["library"] for hits in result["integrations"].values() for h in hits}
+            self.assertEqual(libraries & {"emails", "pwdlib", "@react-email/components"}, {"emails", "pwdlib"})
+            self.assertEqual(result["read_first"]["entry points"][0], "backend/app/main.py")
+            self.assertEqual(result["docs"][0], ".cursor/rules/architecture.mdc")
+            self.assertIn("compose.override.yml", result["read_first"]["configuration"])
+
+    def test_cli_scan_prints_a_summary_not_the_whole_scan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = make_shop(Path(tmp))
+            out = Path(tmp) / "ov"
+            run = subprocess.run([sys.executable, str(SCRIPTS / "overview.py"), "scan", "--repo", str(repo), "--out",
+                                  str(out)], capture_output=True, text=True, check=True)
+            printed = json.loads(run.stdout)
+            self.assertEqual(sorted(printed), ["found", "kept", "next", "status", "written"])
+            self.assertIn("web (node in apps/web: next)", printed["found"]["apps"])
+            self.assertIn(".gitignore", printed["next"])
+            self.assertIn("read_first", json.loads((out / "scan.json").read_text()))
 
     def test_an_alias_bomb_in_compose_is_refused_not_expanded(self):
         bomb = "a: &a [x, x, x, x, x, x, x, x, x, x]\n" + "".join(
@@ -227,7 +265,8 @@ class Build(unittest.TestCase):
         self.assertEqual((project["money_flows"][0]["state"], project["improvements"][0]["priority"],
                           project["improvements"][0]["addresses"]), ("described", "P2", []))
         self.assertTrue(result["open"].startswith("file://"))
-        self.assertIn("checkout apps/web/pages/api/checkout.ts:2  // Pro plan, $29/month.", result["check_citations"])
+        self.assertIn("checkout apps/web/pages/api/checkout.ts:2-3  // Pro plan, $29/month.  ...  "
+                      "export default async function handler(req, res) {}", result["check_citations"])
         page = (self.root / "x.html").read_text()
         self.assertIn("renderSystems", page)
 

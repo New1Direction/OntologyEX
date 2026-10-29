@@ -218,6 +218,12 @@ def _compose_builds(repo: Path, discovery: dict) -> dict[str, tuple[str, str]]:
             if type(context) is not str or "://" in context:
                 continue
             folder = os.path.normpath((Path(rel).parent / context).as_posix())
+            dockerfile = build.get("dockerfile") if isinstance(build, dict) else None
+            if type(dockerfile) is str and "/" in dockerfile.strip("/"):
+                # context: . with dockerfile: backend/Dockerfile builds the app in backend/
+                inner = os.path.normpath((Path(folder) / dockerfile).parent.as_posix())
+                if not inner.startswith("..") and (repo / inner).is_dir():
+                    folder = inner
             builds.setdefault(Path(folder).as_posix(), (str(name), discover_repo.canonical_id("service", rel, str(name))))
     return builds
 
@@ -241,11 +247,11 @@ def _start_command(language: str, folder: Path, scripts: dict) -> str | None:
     return None
 
 
-def find_apps(repo: Path) -> list[dict]:
+def find_apps(repo: Path, discovery: dict | None = None) -> list[dict]:
     """Every app in the repository, with the evidence for it and how to trace it."""
     repo = repo.resolve()
     check(repo.is_dir(), f"{repo} is not a directory")
-    discovery = discover_repo.discover(repo)
+    discovery = discovery if discovery is not None else discover_repo.discover(repo)
     known = {n["id"] for n in discovery["nodes"]}
     builds = _compose_builds(repo, discovery)
     by_folder: dict[str, dict] = {}
