@@ -85,4 +85,7 @@ when the sources do not say, write it down as unknown instead of guessing.
 - Benchmarks report time, CPU and correctness apart, with the machine they ran on:
   `python tests/bench_rust_engines.py --engine-dir engine/target/release --json docs/benchmarks/latest.json --markdown docs/benchmarks/latest.md`,
   then `--write-docs docs/benchmarks/latest.json` so the docs quote it. Never type a benchmark number by hand.
+- Lean: statements in `proofs/lean/OntologyEXSpec/` are trusted and pinned; proofs go in
+  `proofs/lean/OntologyEXProofs/`. `python tests/lean_statements.py check --lean` (lake on PATH)
+  holds each proof to its statement; a changed statement needs `update --reason "why"`.
 - Tools propose; a person decides. Nothing writes to production or authorizes actions.

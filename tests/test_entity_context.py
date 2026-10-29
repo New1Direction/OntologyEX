@@ -102,12 +102,45 @@ class ImpactAndExplainTests(unittest.TestCase):
     def test_what_relies_on_db_reaches_the_business(self):
         found = ec.context(bundle(), DB)
         rows = {r["id"]: (r["depth"], r["standing"]) for r in found["relied_on_by"]}
-        # api depends on db (SOURCE); web reaches db through api. Pay reaches db first through
-        # the open suggestion that it runs on db, so that row is only INFERRED, and says so.
+        # api depends on db (SOURCE); web reaches db through api. Pay reaches db in one hop
+        # through the open suggestion that it runs on db (INFERRED) and in two through its
+        # confirmed link to api (SOURCE): the stronger chain decides, and its hops are the depth.
         self.assertEqual(rows[API], (1, "SOURCE"))
         self.assertEqual(rows[WEB], (2, "SOURCE"))
-        self.assertEqual(rows[PAY], (1, "INFERRED"))
+        self.assertEqual(rows[PAY], (2, "SOURCE"))
         self.assertEqual(found["impact_semantics"], "DECLARED_REACHABILITY_NOT_MEASURED_BLAST_RADIUS")
+
+    def test_the_standing_does_not_depend_on_names(self):
+        # Two chains from X to T: through "a" (an inferred first hop) and through "b" (all
+        # confirmed). Swapping the names of the middle entities must not change X's standing.
+        entities = {k: {"id": k, "layer": "system", "kind": "service", "label": k} for k in ("T", "a", "b", "X")}
+
+        def standing_of_x(weak, strong):
+            rels = [{"source": weak, "target": "T", "relation": "DEPENDS_ON", "standing": "INFERRED"},
+                    {"source": strong, "target": "T", "relation": "DEPENDS_ON", "standing": "CONFIRMED"},
+                    {"source": "X", "target": weak, "relation": "DEPENDS_ON", "standing": "CONFIRMED"},
+                    {"source": "X", "target": strong, "relation": "DEPENDS_ON", "standing": "CONFIRMED"}]
+            row = next(r for r in ec._impact("T", rels, entities) if r["id"] == "X")
+            return row["standing"], row["depth"], row["path"]
+
+        self.assertEqual(standing_of_x("a", "b"), ("CONFIRMED", 2, ["b DEPENDS_ON T", "X DEPENDS_ON b"]))
+        self.assertEqual(standing_of_x("b", "a"), ("CONFIRMED", 2, ["a DEPENDS_ON T", "X DEPENDS_ON a"]))
+
+    def test_a_longer_stronger_chain_beyond_the_depth_limit_does_not_count(self):
+        entities = {}
+        chain = [{"source": f"n{i + 1}", "target": f"n{i}", "relation": "DEPENDS_ON", "standing": "CONFIRMED"}
+                 for i in range(ec.MAX_IMPACT_DEPTH)]
+        rels = chain + [{"source": f"n{ec.MAX_IMPACT_DEPTH}", "target": "n0", "relation": "DEPENDS_ON",
+                         "standing": "INFERRED"}]
+        rows = {r["id"]: (r["depth"], r["standing"]) for r in ec._impact("n0", rels, entities)}
+        self.assertEqual(rows[f"n{ec.MAX_IMPACT_DEPTH}"], (ec.MAX_IMPACT_DEPTH, "CONFIRMED"))
+        rels = [dict(r, source=f"m{r['source']}", target=f"m{r['target']}") for r in chain]
+        rels.append({"source": f"mn{ec.MAX_IMPACT_DEPTH}", "target": "n0", "relation": "DEPENDS_ON",
+                     "standing": "INFERRED"})
+        rels.append({"source": "mn0", "target": "n0", "relation": "DEPENDS_ON", "standing": "CONFIRMED"})
+        rows = {r["id"]: (r["depth"], r["standing"]) for r in ec._impact("n0", rels, entities)}
+        # the confirmed chain would need MAX_IMPACT_DEPTH + 1 hops: only the inferred one counts
+        self.assertEqual(rows[f"mn{ec.MAX_IMPACT_DEPTH}"], (1, "INFERRED"))
 
     def test_without_the_suggestion_pay_relies_on_db_through_its_confirmed_link(self):
         quiet = bundle()

@@ -383,6 +383,10 @@ fn evidence(bundle: &Value, ids: &BTreeSet<String>) -> Vec<Value> {
         "source_kind": get(r, "source_kind"), "authenticity": get(r, "authenticity")}))).collect()
 }
 
+/// What relies on this entity, transitively: each through its strongest chain of 1 to
+/// MAX_IMPACT_DEPTH hops (weakest hop decides), the fewest hops among equals, then the first
+/// found. Same as `entity_context._impact`; Lean proves the layered computation against the
+/// strongest-chain statement (proofs/lean/OntologyEXSpec/Impact.lean).
 fn impact(entity_id: &str, rels: &[Rel], entities: &BTreeMap<String, Value>) -> Vec<Value> {
     let mut relying: HashMap<&str, Vec<&Rel>> = HashMap::new();
     for rel in rels {
@@ -390,32 +394,50 @@ fn impact(entity_id: &str, rels: &[Rel], entities: &BTreeMap<String, Value>) -> 
             relying.entry(rel.tgt()).or_default().push(rel);
         }
     }
-    let mut found: Vec<Value> = Vec::new();
-    let mut frontier: std::collections::VecDeque<(String, usize, &str, Vec<String>)> =
-        std::collections::VecDeque::from([(entity_id.to_owned(), 0, "CONFIRMED", vec![])]);
-    let mut seen: HashSet<String> = HashSet::from([entity_id.to_owned()]);
-    while found.len() < MAX_IMPACT {
-        let Some((current, depth, standing, path)) = frontier.pop_front() else { break };
-        if depth >= MAX_IMPACT_DEPTH { continue; }
-        let mut next: Vec<&Rel> = relying.get(current.as_str()).cloned().unwrap_or_default();
-        next.sort_by(|a, b| (a.src(), &a.relation, a.standing).cmp(&(b.src(), &b.relation, b.standing)));
-        for rel in next {
-            let source = pystr(&rel.source);
-            if seen.contains(&source) { continue; }
-            seen.insert(source.clone());
-            let step = path_standing([standing, rel.standing]);
-            let mut hop = path.clone();
-            hop.push(format!("{} {} {}", source, rel.relation, current));
-            let mut row = side(entities, &rel.source).as_object().cloned().unwrap_or_default();
-            row.insert("depth".into(), json!(depth + 1));
-            row.insert("standing".into(), json!(step));
-            row.insert("path".into(), json!(hop));
-            found.push(Value::Object(row));
-            frontier.push_back((source, depth + 1, step, hop));
-        }
+    for rows in relying.values_mut() {
+        rows.sort_by(|a, b| (a.src(), &a.relation, a.standing).cmp(&(b.src(), &b.relation, b.standing)));
     }
-    found.truncate(MAX_IMPACT);
-    found
+    // (entity, weakness, hops, path), in the order first reached; `index` finds an entity's row.
+    let mut best: Vec<(String, usize, usize, Vec<String>)> = Vec::new();
+    let mut index: HashMap<String, usize> = HashMap::new();
+    let mut values: HashMap<String, &Value> = HashMap::new();  // the entity ID as the relationship gives it
+    let mut layer: Vec<(String, usize, Vec<String>)> = vec![(entity_id.to_owned(), weakest("CONFIRMED"), vec![])];
+    for hops in 1..=MAX_IMPACT_DEPTH {
+        let mut reached: Vec<(String, usize, Vec<String>)> = Vec::new();
+        let mut at: HashMap<String, usize> = HashMap::new();
+        for (current, weakness, path) in &layer {
+            for rel in relying.get(current.as_str()).map(Vec::as_slice).unwrap_or_default() {
+                let source = pystr(&rel.source);
+                values.entry(source.clone()).or_insert(&rel.source);
+                let step = (*weakness).max(weakest(rel.standing));
+                let stronger = match at.get(&source) { Some(&i) => step < reached[i].1, None => true };
+                if stronger {
+                    let mut hop = path.clone();
+                    hop.push(format!("{} {} {}", source, rel.relation, current));
+                    match at.get(&source) {
+                        Some(&i) => reached[i] = (source, step, hop),
+                        None => { at.insert(source.clone(), reached.len()); reached.push((source, step, hop)); }
+                    }
+                }
+            }
+        }
+        for (source, weakness, path) in &reached {
+            if source == entity_id { continue; }
+            match index.get(source) {
+                Some(&i) => if *weakness < best[i].1 { best[i] = (source.clone(), *weakness, hops, path.clone()); },
+                None => { index.insert(source.clone(), best.len()); best.push((source.clone(), *weakness, hops, path.clone())); }
+            }
+        }
+        layer = reached;
+    }
+    best.sort_by_key(|row| row.2);  // stable: by hops, then the order first reached
+    best.into_iter().take(MAX_IMPACT).map(|(source, weakness, hops, path)| {
+        let mut row = side(entities, values[&source]).as_object().cloned().unwrap_or_default();
+        row.insert("depth".into(), json!(hops));
+        row.insert("standing".into(), json!(STANDINGS[weakness]));
+        row.insert("path".into(), json!(path));
+        Value::Object(row)
+    }).collect()
 }
 
 const MAX_CHANGED_FILES: usize = 2000;
@@ -861,10 +883,14 @@ mod tests {
     fn impact_reaches_the_action_through_a_declared_dependency() {
         let c = context(&bundle(), "svc:db").unwrap();
         let labels: Vec<&str> = c["relied_on_by"].as_array().unwrap().iter().map(|r| r["label"].as_str().unwrap()).collect();
-        // Pay relies on db directly through the undecided suggestion (inferred), and api through a declared dependency.
-        assert_eq!(labels, ["Pay", "api"]);
-        assert_eq!(c["relied_on_by"][0]["standing"], "INFERRED");
+        // api relies on db through a declared dependency. Pay relies on db directly through the
+        // undecided suggestion (inferred) and through its confirmed link to api (source): the
+        // stronger chain decides, though it is longer.
+        assert_eq!(labels, ["api", "Pay"]);
+        assert_eq!(c["relied_on_by"][0]["standing"], "SOURCE");
         assert_eq!(c["relied_on_by"][1]["standing"], "SOURCE");
+        assert_eq!(c["relied_on_by"][1]["depth"], 2);
+        assert_eq!(c["relied_on_by"][1]["path"].as_array().unwrap().len(), 2);
     }
 
     #[test]

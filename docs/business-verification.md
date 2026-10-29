@@ -15,7 +15,7 @@ Python code is the reference that the control room runs.
 |---|---|---|---|
 | Python | Reference implementation and unit tests | `ontology-extraction/scripts/` | Validator |
 | Rust | Same link matcher, rollup, and ladder; optional engine for suggestions (`--view-engine rust`) | `engine/src/business.rs` | rust-core |
-| Lean 4 | Proofs about the rollup, ladder, and link decisions; prints a conformance table | `proofs/lean/` | lean-policy |
+| Lean 4 | Proofs about the rollup, ladder, link decisions and impact standing; prints a conformance table; trusted statements pinned apart from proofs | `proofs/lean/` | lean-policy |
 | Bend | The same safety rules as laws, proven by Bend's checker | `proofs/bend/business.bend` | bend-laws |
 
 ## What is proven
@@ -86,10 +86,50 @@ one still matches the state it is about to record. `stale_view_changes_nothing`,
 `current_view_applies` and `one_stale_refuses_batch`: a decision made on a view that
 changed writes nothing, and one changed item refuses the whole batch.
 
+**Lean, impact standing** (statement `OntologyEXSpec/Impact.lean`, proofs
+`OntologyEXProofs/Impact.lean`, model `OntologyEXModel/Impact.lean`; code
+`entity_context._impact` and `context.rs::impact`). What relies on an entity stands as its
+strongest chain of 1 to 4 hops, the weakest hop deciding each chain:
+- `StrongestChain`: the answer `(weakness, hops)` is the weakness of a real chain of that
+  many hops, no chain within the limit is stronger, and every shorter chain is weaker;
+- `NothingWithoutAChain`: nothing is answered exactly when no chain exists;
+- `OrderFree` and `NameFree`: the order relationships come in, and the names entities
+  have, never change the answer.
+The conformance table's `impact` section (300 generated graphs) is printed by Lean from
+`Model.Impact.strongest` and compared with Python; Rust matches Python
+(`tests/rust_context_parity.py`). The code this replaced answered by whichever chain it
+reached first in name order: it differs from the proven model on 12 of those 300 graphs.
+
 **Bend** (`proofs/bend/business.bend`, checked by `bendlang/bend` at a pinned commit):
 `empty_is_unlinked`, `error_anywhere_is_at_risk`, `unknown_anywhere_is_not_ok`,
 `ladder_never_g4`, `rejection_is_g0`, `inferred_at_most_g1`,
 `suggestions_alone_change_nothing`, `reject_is_inert`, `reject_adds_nothing`.
+
+## Trusted statements, apart from the proofs
+
+New proofs follow the split of
+[anthropics/formal-math](https://github.com/anthropics/formal-math), where a frozen
+challenge states the theorem and a comparator checks that a solution proves exactly it:
+
+| Folder | Holds | Trusted? |
+|---|---|---|
+| `proofs/lean/OntologyEXModel/` | the code being reasoned about, written in Lean | read it to see it mirrors the code; the conformance tables test that it does |
+| `proofs/lean/OntologyEXSpec/` | the statements, each a `def Name : Prop` | **yes: this is what is claimed** |
+| `proofs/lean/OntologyEXProofs/` | the proofs | no: Lean checks them |
+
+`tests/lean_statements.py` keeps the split honest:
+- `STATEMENTS.json` pins the sha256 of every Model and Spec file. A changed statement
+  fails CI until it is recorded with a reason (`update --reason`, kept in `STATEMENTS.md`).
+- Model and Spec files may not contain `theorem`, `axiom`, `instance` or `sorry`. Proof files
+  may not contain `sorry`, `axiom`, `native_decide`, `implemented_by`, `extern` or `unsafe`.
+- `check --lean` (CI, lean-policy) builds a file with `example : Spec.S := Proofs.t` for each
+  statement, so each theorem must prove the pinned proposition exactly. It then reads
+  `#print axioms` for each theorem; anything beyond `propext`, `Quot.sound` and
+  `Classical.choice` fails. `leanchecker` replays the modules in Lean's kernel.
+
+Because the proofs import the statements, Lean's type check plays the comparator's part.
+The pin keeps the statements themselves from drifting. The older proofs in
+`OntologyEXProofs.lean` still keep definitions, statements and proofs together.
 
 ## How the languages are tied together
 
@@ -120,6 +160,7 @@ cargo test --manifest-path engine/Cargo.toml --all-targets
 cargo build --manifest-path engine/Cargo.toml --bin ontologyex-view
 python tests/rust_business_parity.py
 (cd proofs/lean && lake build && lake build conformance && .lake/build/bin/conformance > /tmp/lean.json)
+python tests/lean_statements.py check --lean   # with lake on PATH
 python tests/conformance.py check /tmp/lean.json
 bun /path/to/bendlang/bend/bend2/main.ts proofs/bend/business.bend   # ALL PROOFS CHECK
 ```

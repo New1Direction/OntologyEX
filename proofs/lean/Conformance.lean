@@ -1,6 +1,6 @@
 import OntologyEXProofs
 
-/-! Prints the rollup, ladder, fusion, path-standing and feeds tables from the proven definitions, in
+/-! Prints the rollup, ladder, fusion, path-standing, impact and feeds tables from the proven definitions, in
 the formats of tests/conformance.py and tests/feeds_conformance.py, so CI can compare
 them with Python and Rust. -/
 
@@ -83,16 +83,46 @@ def watermarkRow (c : Nat × Nat) : String :=
   let recorded : Option Nat := if c.1 = 0 then none else some (c.1 - 1)
   "[" ++ natList [c.1, c.2] ++ ", \"" ++ standingName (OntologyEX.Context.linkStanding recorded c.2) ++ "\"]"
 
+/-! Impact: 300 generated graphs (the same generator as tests/conformance.py), and for each
+entity but the origin the `(weakness, hops)` that `Model.Impact.strongest` answers within 4 hops. -/
+
+def draw (m : Nat) : StateM Nat Nat := do
+  let s := ((← get) * 1103515245 + 12345) % 2147483648
+  set s
+  pure (s / 65536 % m)
+
+def graph : StateM Nat (Nat × List OntologyEX.Model.Impact.Rel) := do
+  let n := 2 + (← draw 5)
+  let e ← draw 9
+  let mut rs : List OntologyEX.Model.Impact.Rel := []
+  for _ in [0:e] do
+    let s ← draw n
+    let d ← draw n
+    let w ← draw 3
+    rs := rs ++ [⟨s, d, w⟩]
+  pure (n, rs)
+
+def impactRow (i : Nat) : String :=
+  let (n, rs) := (graph.run (i + 1)).1
+  let edges := rs.map fun r => natList [r.src, r.dst, r.weak]
+  let found := (List.range n).tail.map fun v =>
+    match OntologyEX.Model.Impact.strongest rs 0 4 v with
+    | some (w, k) => natList [v, w, k]
+    | none => natList [v]
+  "[[" ++ ", ".intercalate edges ++ "], [" ++ ", ".intercalate found ++ "]]"
+
 def main : IO Unit := do
   let rows := (seqs 10 0 ++ seqs 10 1 ++ seqs 10 2 ++ seqs 10 3).map rollupRow
   let grades := (List.range 64).map gradeRow
   let fusion := (seqs 6 0 ++ seqs 6 1 ++ seqs 6 2 ++ seqs 6 3).map fusionRow
   let paths := (seqs 4 0 ++ seqs 4 1 ++ seqs 4 2 ++ seqs 4 3 ++ seqs 4 4).map pathRow
   let marks := [(0, 0), (0, 1), (1, 0), (1, 1), (2, 0), (2, 1)].map watermarkRow
+  let impact := (List.range 300).map impactRow
   IO.println ("{\"kind\": \"BUSINESS_CONFORMANCE_TABLE\", \"execution_authorized\": false, " ++
     "\"rollup\": [" ++ ", ".intercalate rows ++ "], \"grade\": [" ++
     ", ".intercalate grades ++ "], \"fusion\": [" ++ ", ".intercalate fusion ++ "], " ++
     "\"path_standing\": [" ++ ", ".intercalate paths ++ "], " ++
     "\"watermark\": [" ++ ", ".intercalate marks ++ "], " ++
+    "\"impact\": [" ++ ", ".intercalate impact ++ "], " ++
     "\"classify\": [" ++ ", ".intercalate classifyRows ++ "], \"retain\": [" ++
     ", ".intercalate retainRows ++ "], \"p95\": [" ++ ", ".intercalate p95Rows ++ "]}")

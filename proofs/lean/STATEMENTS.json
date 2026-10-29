@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "permitted_axioms": [
+    "Classical.choice",
+    "Quot.sound",
+    "propext"
+  ],
+  "files": {
+    "OntologyEXModel/Impact.lean": {
+      "sha256": "17025b9bcd26142e902e543076f63ffea9697b0d0a6245914ec6f9860fa44eee",
+      "reason": "Impact standing: the strongest chain of 1 to D hops, nothing without a chain, independent of relationship order and of entity names.",
+      "pinned": "2026-10-29"
+    },
+    "OntologyEXSpec/Impact.lean": {
+      "sha256": "18ebfdfb1d13de6a4144210044bd4fc889df851529e3280e637ecd9314fa7887",
+      "reason": "Impact standing: the strongest chain of 1 to D hops, nothing without a chain, independent of relationship order and of entity names.",
+      "pinned": "2026-10-29"
+    }
+  },
+  "statements": {
+    "OntologyEX.Spec.Impact.StrongestChain": "OntologyEX.Proofs.Impact.strongest_correct",
+    "OntologyEX.Spec.Impact.NothingWithoutAChain": "OntologyEX.Proofs.Impact.nothing_without_a_chain",
+    "OntologyEX.Spec.Impact.OrderFree": "OntologyEX.Proofs.Impact.order_free",
+    "OntologyEX.Spec.Impact.NameFree": "OntologyEX.Proofs.Impact.name_free"
+  }
+}

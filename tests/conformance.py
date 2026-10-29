@@ -46,6 +46,30 @@ def fused(seq) -> str:
     return control_room.build_state(topology, rows, {}, NOW)["nodes"][0]["status"]
 
 
+def impact_rows() -> list:
+    """Impact standing (entity_context._impact) on 300 generated graphs: the generator of
+    proofs/lean/Conformance.lean, so the rows line up with what Lean's proven model answers."""
+    rows = []
+    for i in range(300):
+        state = [i + 1]
+
+        def draw(m: int) -> int:
+            state[0] = (state[0] * 1103515245 + 12345) % 2147483648
+            return state[0] // 65536 % m
+
+        n = 2 + draw(5)
+        edges = []
+        for _ in range(draw(9)):
+            s, d, w = draw(n), draw(n), draw(3)
+            edges.append([s, d, w])
+        rels = [{"source": f"n{s}", "target": f"n{d}", "relation": "DEPENDS_ON",
+                 "standing": entity_context.STANDINGS[w]} for s, d, w in edges]
+        found = {r["id"]: r for r in entity_context._impact("n0", rels, {})}
+        rows.append([edges, [[v, entity_context.WEAKNESS[found[f"n{v}"]["standing"]], found[f"n{v}"]["depth"]]
+                             if f"n{v}" in found else [v] for v in range(1, n)]])
+    return rows
+
+
 def expected() -> dict:
     rollups = []
     for length in range(4):
@@ -67,7 +91,8 @@ def expected() -> dict:
     marks = [[[r, n], entity_context.watermark_standing(None if r == 0 else {"f": str(r - 1)}, {"f": str(n)})]
              for r in range(3) for n in range(2)]
     return {"kind": "BUSINESS_CONFORMANCE_TABLE", "rollup": rollups, "grade": grades,
-            "fusion": fusion, "path_standing": path, "watermark": marks, "execution_authorized": False}
+            "fusion": fusion, "path_standing": path, "watermark": marks, "impact": impact_rows(),
+            "execution_authorized": False}
 
 
 def check(path: Path) -> int:
@@ -75,7 +100,7 @@ def check(path: Path) -> int:
     reference = expected()
     failures = 0
     # rollup and grade are required; fusion, path_standing and watermark are compared when present.
-    for section in ("rollup", "grade", *[s for s in ("fusion", "path_standing", "watermark") if s in actual]):
+    for section in ("rollup", "grade", *[s for s in ("fusion", "path_standing", "watermark", "impact") if s in actual]):
         want, got = reference[section], actual.get(section)
         if type(got) is not list or len(got) != len(want):
             print(f"{section}: expected {len(want)} rows, got {len(got) if type(got) is list else got!r}")
@@ -92,6 +117,7 @@ def check(path: Path) -> int:
     fusion = f", {len(reference['fusion'])} fusion rows" if "fusion" in actual else ""
     path = f", {len(reference['path_standing'])} path rows" if "path_standing" in actual else ""
     path += f", {len(reference['watermark'])} watermark rows" if "watermark" in actual else ""
+    path += f", {len(reference['impact'])} impact graphs" if "impact" in actual else ""
     print(f"conformance: {len(reference['rollup'])} rollup rows, {len(reference['grade'])} grade rows"
           f"{fusion}{path}, {failures} mismatch(es)")
     return 1 if failures else 0
