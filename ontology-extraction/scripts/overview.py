@@ -151,13 +151,13 @@ def _matches(entry: str, name: str) -> bool:
 
 
 def _walk(repo: Path) -> list[str]:
-    paths = []
+    paths, base = [], len(str(repo).rstrip(os.sep)) + 1
     for root, dirs, files in os.walk(repo):
-        rel_root = Path(root).relative_to(repo).as_posix()
+        prefix = root[base:].replace(os.sep, "/")
         dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and not d.startswith(".")
-                         and f"{rel_root}/{d}".lstrip("./") not in SKIP_DIRS)
+                         and (f"{prefix}/{d}" if prefix else d) not in SKIP_DIRS)
         for name in sorted(files):
-            paths.append(Path(root, name).relative_to(repo).as_posix())
+            paths.append(f"{prefix}/{name}" if prefix else name)
             otel_setup.check(len(paths) <= MAX_FILES, f"more than {MAX_FILES} files; point --repo at a smaller folder")
     return paths
 
@@ -363,7 +363,7 @@ def scan(repo: Path) -> dict:
                     for area, hits in integrations.items() if hits}
 
     apps = []
-    for app in otel_setup.find_apps(repo):
+    for app in otel_setup.find_apps(repo, discovery):
         folder_manifests = [rel for rel in manifests if Path(rel).parent.as_posix() == app["folder"]]
         deps = set().union(*(dependencies[rel] for rel in folder_manifests)) if folder_manifests else set()
         frameworks = []

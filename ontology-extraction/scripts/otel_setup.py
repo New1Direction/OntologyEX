@@ -241,11 +241,11 @@ def _start_command(language: str, folder: Path, scripts: dict) -> str | None:
     return None
 
 
-def find_apps(repo: Path) -> list[dict]:
+def find_apps(repo: Path, discovery: dict | None = None) -> list[dict]:
     """Every app in the repository, with the evidence for it and how to trace it."""
     repo = repo.resolve()
     check(repo.is_dir(), f"{repo} is not a directory")
-    discovery = discover_repo.discover(repo)
+    discovery = discovery if discovery is not None else discover_repo.discover(repo)
     known = {n["id"] for n in discovery["nodes"]}
     builds = _compose_builds(repo, discovery)
     by_folder: dict[str, dict] = {}

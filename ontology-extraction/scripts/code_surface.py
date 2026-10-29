@@ -81,12 +81,13 @@ def _line(text: str, offset: int) -> int:
 
 
 def walk(repo: Path) -> list[str]:
-    paths = []
+    paths, base = [], len(str(repo).rstrip(os.sep)) + 1
     for root, dirs, files in os.walk(repo):
         dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and not d.startswith("."))
+        prefix = root[base:].replace(os.sep, "/")
         for name in sorted(files):
-            if Path(name).suffix.lower() in CODE:
-                paths.append(Path(root, name).relative_to(repo).as_posix())
+            if os.path.splitext(name)[1].lower() in CODE:
+                paths.append(f"{prefix}/{name}" if prefix else name)
                 if len(paths) > MAX_FILES:
                     raise ValueError(f"more than {MAX_FILES} source files; point --repo at a smaller folder")
     return paths
