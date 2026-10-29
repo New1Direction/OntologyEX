@@ -33,6 +33,7 @@ import entity_context
 import watermark
 import link_suggest
 import rule_suggest
+import suppliers
 import github_discovery
 import snapshot_store
 import graph_view_api
@@ -1066,6 +1067,16 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                         state_cache["code_scanned"] = current
                     topology = (with_code_surface(topology, repo, state_cache["code"])
                                 if state_cache["code"] is not None else with_code_surface(topology, repo))
+                    # The outside companies the repository declares, as entities its services depend on.
+                    scanned = state_cache.get("suppliers_scanned")
+                    if scanned is None or (current - scanned).total_seconds() > CODE_SURFACE_SECONDS:
+                        try:
+                            state_cache["suppliers"] = suppliers.scan(repo, topology["nodes"])
+                        except (ValueError, OSError):
+                            state_cache["suppliers"] = None
+                        state_cache["suppliers_scanned"] = current
+                    if state_cache["suppliers"] is not None:
+                        topology = suppliers.with_suppliers(topology, state_cache["suppliers"], repo)
                     state_cache["topology"] = topology
                     state_cache["last_success"] = current
                 topology = state_cache["topology"]
@@ -1088,6 +1099,14 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             result["gaps"].append({"source": "github", "reason": "GITHUB_REFRESH_UNAVAILABLE"})
         return result
 
+    def supplier_report() -> dict:
+        """The supplier map with what relies on each supplier, from the same model as every page."""
+        report = state_cache.get("suppliers") if remote is None else None
+        return report if report is not None else {"schema_version": 1, "kind": "SUPPLIER_MAP", "suppliers": [],
+                                                  "categories": [], "own_supplier_records": [],
+                                                  "status": "NO_LOCAL_REPOSITORY" if remote is not None else "NOT_SCANNED",
+                                                  "execution_authorized": False}
+
     def bundle() -> dict:
         """What the entity context reads: the state, the business picture, and the decision history."""
         full = snapshot()
@@ -1097,7 +1116,8 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 "dependency_history": entity_context.read_history(
                     decisions.history_path(dependencies) if dependencies is not None else None),
                 "agent_proposals": link_suggest.read_proposals(proposals),
-                "agent_dependency_proposals": dependency_suggest.read_proposals(proposals)}
+                "agent_dependency_proposals": dependency_suggest.read_proposals(proposals),
+                "suppliers": supplier_report()}
 
     if print_bundle:  # the same assembly the server answers from, for tests, parity and agents offline
         print(json.dumps(bundle(), sort_keys=True, separators=(",", ":")))
@@ -1168,6 +1188,26 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                         raise graph_view_api.ViewError("bundle takes no parameters")
                     payload, code = json.dumps(bundle(), sort_keys=True).encode(), 200
                 except graph_view_api.ViewError:
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, DomainError, discover_repo.DiscoveryError,
+                        github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
+            elif route.path == "/suppliers" and not route.query:
+                page = (Path(__file__).resolve().parent / "suppliers_page.html").read_bytes()
+                payload, mime, code = page, "text/html; charset=utf-8", 200
+            elif route.path == "/api/suppliers":  # each supplier with what relies on it
+                mime = "application/json; charset=utf-8"
+                try:
+                    if route.query:
+                        raise graph_view_api.ViewError("suppliers takes no parameters")
+                    data = bundle()
+                    report = dict(data["suppliers"])
+                    known = entity_context.entity_ids(data)
+                    report["suppliers"] = [
+                        {**row, "relied_on_by": entity_context.context(data, row["id"])["relied_on_by"]}
+                        if row["id"] in known else row for row in report["suppliers"]]
+                    payload, code = json.dumps(report, sort_keys=True).encode(), 200
+                except (graph_view_api.ViewError, entity_context.ContextError):
                     payload, code = b'{"status":"INVALID_QUERY"}', 400
                 except (RoomError, DomainError, discover_repo.DiscoveryError,
                         github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):

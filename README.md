@@ -198,7 +198,9 @@ it exists, what a person confirmed and what is only inferred, what relies on it,
 the files behind each relationship. A confirmation records the hashes of the files it
 rested on; when one changes, the link waits for a person to re-confirm it. Before a change
 merges, `/impact` (or `change_impact.py --markdown`) shows what it touches in the
-business and what relies on it. Agents get the same model through an MCP server
+business and what relies on it. `/suppliers` maps the outside companies it runs on
+(payments, sign-in, email, cloud, AI, shipping, tax, ...), what relies on each, and the
+critical ones where only one is declared. Agents get the same model through an MCP server
 (`agent_tools.py`) whose tools read, or propose a link, a dependency or a business rule for a person to decide, under a
 per-agent policy with every call audited. See [entity context](ontology-extraction/references/entity-context.md)
 and [what OntologyEX took from Macro](docs/macro-comparison.md).

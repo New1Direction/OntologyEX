@@ -18,7 +18,7 @@ the same code behind the entity page; the Rust engine gives the same answers.
 Every tool declares its kind, and the kind decides what it may do:
 
 - READ_ONLY tools (search, context, explain, impact, recent decisions, open
-  suggestions, decisions whose evidence changed, change impact) change nothing.
+  suggestions, decisions whose evidence changed, change impact, suppliers) change nothing.
 - ADDITIVE tools (propose_link, propose_dependency, propose_rule) append a proposal to
   a proposals file and nothing else. A proposal is a suggestion: it shows in the control room beside the ranked
   ones, and only a person confirms or rejects it there, through the existing decision
@@ -127,6 +127,12 @@ TOOLS = {
         "input": _schema({}, {"base": _text("base", "git ref to compare with", 200),
                               "head": _text("head", "git ref whose changes to analyze (needs base)", 200),
                               "files": _text("files", "changed file paths, one per line", 100_000)})},
+    "list_suppliers": {
+        "kind": READ_ONLY, "title": "Suppliers",
+        "description": "The outside companies the business runs on (payments, sign-in, email, cloud, AI, ...), "
+                       "how much the business leans on each kind, where only one supplier is declared, the lines "
+                       "that show each, and what relies on each. From manifests and setting names, not contracts.",
+        "input": _schema({})},
     "list_stale_decisions": {
         "kind": READ_ONLY, "title": "Decisions to re-check",
         "description": "Confirmed links whose evidence (the file hashes recorded when a person confirmed them) "
@@ -421,6 +427,14 @@ class Tools:
             raise ToolError("SOURCE_UNAVAILABLE", "could not reach the control room: " + str(exc)[:200]) from exc
         _, hidden = self._model()
         return self._out(answer, hidden)
+
+    def list_suppliers(self, args: dict) -> dict:
+        bundle, hidden = self._model()
+        report = dict(bundle.get("suppliers") or {"suppliers": [], "categories": [], "own_supplier_records": []})
+        known = entity_context.entity_ids(bundle)
+        report["suppliers"] = [{**row, "relied_on_by": entity_context.context(bundle, row["id"])["relied_on_by"]}
+                               if row["id"] in known else row for row in report.get("suppliers", [])]
+        return self._out({**report, "execution_authorized": False}, hidden)
 
     def list_stale_decisions(self, args: dict) -> dict:
         bundle, hidden = self._model()
