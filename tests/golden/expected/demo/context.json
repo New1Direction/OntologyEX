@@ -1,0 +1,944 @@
+{
+ "payments-domain:action:ApproveException": {
+  "entity": {
+   "confirmed_rules": [],
+   "id": "payments-domain:action:ApproveException",
+   "kind": "business_action",
+   "label": "ApproveException",
+   "layer": "business",
+   "open_questions": [
+    {
+     "id": "exception-authority",
+     "statement": "The supplied requirements do not specify who can approve an exception.",
+     "type": "unknown"
+    }
+   ],
+   "proposed_rules": [],
+   "quotes": [
+    {
+     "end": 21,
+     "path": "requirements.md",
+     "quote": "Who may approve an exception to these rules is unspecified. Stop for review; do not infer an exception policy.",
+     "start": 21
+    }
+   ],
+   "rules": [],
+   "skill": "payments-domain",
+   "status": "POSSIBLY_IMPACTED",
+   "summary": "review an exception request"
+  },
+  "execution_authorized": false,
+  "impact_semantics": "DECLARED_REACHABILITY_NOT_MEASURED_BLAST_RADIUS",
+  "kind": "ENTITY_CONTEXT",
+  "recent_changes": [],
+  "relationships": [
+   {
+    "basis": "PERSON_CONFIRMED_LINK",
+    "decision": {
+     "at": null,
+     "by": "demo (synthetic)",
+     "note": "The public API returns Payment records."
+    },
+    "direction": "out",
+    "evidence_check": {
+     "changed": [],
+     "decision_id": "df147e6b9aff2578f56faaa7",
+     "status": "NOT_RECORDED"
+    },
+    "evidence_ids": [],
+    "other": {
+     "id": "discovery:service:compose.yml:api",
+     "kind": "declared_service",
+     "label": "api",
+     "layer": "system"
+    },
+    "relation": "RUNS_ON",
+    "standing": "CONFIRMED",
+    "via": "payments-domain:binding:payments.Payment"
+   },
+   {
+    "basis": "PERSON_CONFIRMED_LINK",
+    "decision": {
+     "at": null,
+     "by": "demo (synthetic)",
+     "note": "Payment records are stored by the ledger service."
+    },
+    "direction": "out",
+    "evidence_check": {
+     "changed": [],
+     "decision_id": "a33a012d6c02c067e100b2b5",
+     "status": "NOT_RECORDED"
+    },
+    "evidence_ids": [],
+    "other": {
+     "id": "discovery:service:compose.yml:ledger",
+     "kind": "declared_service",
+     "label": "ledger",
+     "layer": "system"
+    },
+    "relation": "RUNS_ON",
+    "standing": "CONFIRMED",
+    "via": "payments-domain:binding:payments.Payment"
+   },
+   {
+    "basis": "DECLARED_IN_DOMAIN_SKILL",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [],
+    "other": {
+     "id": "payments-domain:object:SupportAgent",
+     "kind": "business_object",
+     "label": "SupportAgent",
+     "layer": "business"
+    },
+    "relation": "ACTOR",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "DECLARED_IN_DOMAIN_SKILL",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [],
+    "other": {
+     "id": "payments-domain:object:Payment",
+     "kind": "business_object",
+     "label": "Payment",
+     "layer": "business"
+    },
+    "relation": "CONSUMES",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "LINK_SUGGESTION",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [],
+    "other": {
+     "id": "discovery:service:compose.yml:payments",
+     "kind": "declared_service",
+     "label": "payments",
+     "layer": "system"
+    },
+    "relation": "RUNS_ON",
+    "standing": "INFERRED",
+    "suggestion": {
+     "id": "f40932ac0f289a4fab35e040",
+     "proposed_by": "ranked suggestion",
+     "signals": [
+      "payments.py has a part named payments",
+      "system fictional-payments names payments",
+      "shared words: payments"
+     ],
+     "strength": "MODERATE"
+    },
+    "via": "payments-domain:binding:payments.Payment"
+   }
+  ],
+  "relationships_omitted": 0,
+  "relationships_total": 5,
+  "relied_on_by": [],
+  "schema_version": 1,
+  "source_evidence": [],
+  "standing_counts": {
+   "CONFIRMED": 2,
+   "INFERRED": 1,
+   "SOURCE": 2,
+   "UNKNOWN": 0
+  },
+  "standing_semantics": "CONFIRMED_BY_PERSON|SOURCE_DECLARED|INFERRED_NOT_DECIDED|UNKNOWN_GAP",
+  "suggestions": [
+   {
+    "basis": "LINK_SUGGESTION",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [],
+    "other": {
+     "id": "discovery:service:compose.yml:payments",
+     "kind": "declared_service",
+     "label": "payments",
+     "layer": "system"
+    },
+    "relation": "RUNS_ON",
+    "standing": "INFERRED",
+    "suggestion": {
+     "id": "f40932ac0f289a4fab35e040",
+     "proposed_by": "ranked suggestion",
+     "signals": [
+      "payments.py has a part named payments",
+      "system fictional-payments names payments",
+      "shared words: payments"
+     ],
+     "strength": "MODERATE"
+    },
+    "via": "payments-domain:binding:payments.Payment"
+   }
+  ],
+  "unknowns": [
+   {
+    "basis": "SKILL_UNKNOWN",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [],
+    "other": {
+     "id": "exception-authority",
+     "kind": "unknown",
+     "label": "The supplied requirements do not specify who can approve an exception.",
+     "layer": "business"
+    },
+    "relation": "OPEN_QUESTION",
+    "standing": "UNKNOWN"
+   }
+  ],
+  "why": [
+   "ApproveException: review an exception request (declared in the payments-domain skill)"
+  ]
+ },
+ "payments-domain:action:IssueRefund": {
+  "entity": {
+   "confirmed_rules": [],
+   "id": "payments-domain:action:IssueRefund",
+   "kind": "business_action",
+   "label": "IssueRefund",
+   "layer": "business",
+   "open_questions": [],
+   "proposed_rules": [],
+   "quotes": [
+    {
+     "end": 18,
+     "path": "requirements.md",
+     "quote": "On success, add the requested amount to refunded_minor. On rejection or unresolved policy, leave the ledger unchanged.",
+     "start": 18
+    }
+   ],
+   "rules": [
+    {
+     "grade": "G1",
+     "grade_label": "Reviewed",
+     "id": "positive-amount",
+     "statement": "The requested amount must be a strictly positive integer in minor currency units.",
+     "status": "observed"
+    },
+    {
+     "grade": "G0",
+     "grade_label": "Cited",
+     "id": "captured-nonnegative",
+     "statement": "The captured amount must be nonnegative.",
+     "status": "observed"
+    },
+    {
+     "grade": "G0",
+     "grade_label": "Cited",
+     "id": "refunded-nonnegative",
+     "statement": "The already-refunded total must be nonnegative.",
+     "status": "observed"
+    },
+    {
+     "grade": "G0",
+     "grade_label": "Cited",
+     "id": "ledger-consistent",
+     "statement": "The already-refunded total must not exceed the captured amount.",
+     "status": "observed"
+    },
+    {
+     "grade": "G0",
+     "grade_label": "Cited",
+     "id": "captured-only",
+     "statement": "Only a Payment with status captured can be refunded.",
+     "status": "observed"
+    },
+    {
+     "grade": "G0",
+     "grade_label": "Cited",
+     "id": "authorization-required",
+     "statement": "The requester_authorized flag must be true; the fixture does not verify identity or permission itself.",
+     "status": "observed"
+    },
+    {
+     "grade": "G3",
+     "grade_label": "Exercised",
+     "id": "remaining-balance",
+     "statement": "The requested amount must not exceed captured_minor minus refunded_minor.",
+     "status": "observed"
+    }
+   ],
+   "skill": "payments-domain",
+   "status": "AT_RISK",
+   "summary": "issue a partial refund"
+  },
+  "execution_authorized": false,
+  "impact_semantics": "DECLARED_REACHABILITY_NOT_MEASURED_BLAST_RADIUS",
+  "kind": "ENTITY_CONTEXT",
+  "recent_changes": [],
+  "relationships": [
+   {
+    "basis": "PERSON_CONFIRMED_LINK",
+    "decision": {
+     "at": null,
+     "by": "demo (synthetic)",
+     "note": "The public API returns Payment records."
+    },
+    "direction": "out",
+    "evidence_check": {
+     "changed": [],
+     "decision_id": "df147e6b9aff2578f56faaa7",
+     "status": "NOT_RECORDED"
+    },
+    "evidence_ids": [],
+    "other": {
+     "id": "discovery:service:compose.yml:api",
+     "kind": "declared_service",
+     "label": "api",
+     "layer": "system"
+    },
+    "relation": "RUNS_ON",
+    "standing": "CONFIRMED",
+    "via": "payments-domain:binding:payments.Payment"
+   },
+   {
+    "basis": "PERSON_CONFIRMED_LINK",
+    "decision": {
+     "at": null,
+     "by": "demo (synthetic)",
+     "note": "Payment records are stored by the ledger service."
+    },
+    "direction": "out",
+    "evidence_check": {
+     "changed": [],
+     "decision_id": "a33a012d6c02c067e100b2b5",
+     "status": "NOT_RECORDED"
+    },
+    "evidence_ids": [],
+    "other": {
+     "id": "discovery:service:compose.yml:ledger",
+     "kind": "declared_service",
+     "label": "ledger",
+     "layer": "system"
+    },
+    "relation": "RUNS_ON",
+    "standing": "CONFIRMED",
+    "via": "payments-domain:binding:payments.Payment"
+   },
+   {
+    "basis": "PERSON_CONFIRMED_LINK",
+    "decision": {
+     "at": null,
+     "by": "demo (synthetic)",
+     "note": "Refund code is deployed in the payments service."
+    },
+    "direction": "out",
+    "evidence_check": {
+     "changed": [],
+     "decision_id": "9d50adc8c2521f74b6262681",
+     "status": "NOT_RECORDED"
+    },
+    "evidence_ids": [],
+    "other": {
+     "id": "discovery:service:compose.yml:payments",
+     "kind": "declared_service",
+     "label": "payments",
+     "layer": "system"
+    },
+    "relation": "RUNS_ON",
+    "standing": "CONFIRMED",
+    "via": "payments-domain:binding:payments.apply_refund"
+   },
+   {
+    "basis": "DECLARED_IN_DOMAIN_SKILL",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [],
+    "other": {
+     "id": "payments-domain:object:SupportAgent",
+     "kind": "business_object",
+     "label": "SupportAgent",
+     "layer": "business"
+    },
+    "relation": "ACTOR",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "DECLARED_IN_DOMAIN_SKILL",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [],
+    "other": {
+     "id": "payments-domain:object:MonetaryAmount",
+     "kind": "business_object",
+     "label": "MonetaryAmount",
+     "layer": "business"
+    },
+    "relation": "CONSUMES",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "DECLARED_IN_DOMAIN_SKILL",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [],
+    "other": {
+     "id": "payments-domain:object:Payment",
+     "kind": "business_object",
+     "label": "Payment",
+     "layer": "business"
+    },
+    "relation": "CONSUMES",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "DECLARED_IN_DOMAIN_SKILL",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [],
+    "other": {
+     "id": "payments-domain:object:Refund",
+     "kind": "business_object",
+     "label": "Refund",
+     "layer": "business"
+    },
+    "relation": "PRODUCES",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "LINK_SUGGESTION",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [],
+    "other": {
+     "id": "discovery:service:compose.yml:payments",
+     "kind": "declared_service",
+     "label": "payments",
+     "layer": "system"
+    },
+    "relation": "RUNS_ON",
+    "standing": "INFERRED",
+    "suggestion": {
+     "id": "f40932ac0f289a4fab35e040",
+     "proposed_by": "ranked suggestion",
+     "signals": [
+      "payments.py has a part named payments",
+      "system fictional-payments names payments",
+      "shared words: payments"
+     ],
+     "strength": "MODERATE"
+    },
+    "via": "payments-domain:binding:payments.Payment"
+   }
+  ],
+  "relationships_omitted": 0,
+  "relationships_total": 8,
+  "relied_on_by": [],
+  "schema_version": 1,
+  "source_evidence": [],
+  "standing_counts": {
+   "CONFIRMED": 3,
+   "INFERRED": 1,
+   "SOURCE": 4,
+   "UNKNOWN": 0
+  },
+  "standing_semantics": "CONFIRMED_BY_PERSON|SOURCE_DECLARED|INFERRED_NOT_DECIDED|UNKNOWN_GAP",
+  "suggestions": [
+   {
+    "basis": "LINK_SUGGESTION",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [],
+    "other": {
+     "id": "discovery:service:compose.yml:payments",
+     "kind": "declared_service",
+     "label": "payments",
+     "layer": "system"
+    },
+    "relation": "RUNS_ON",
+    "standing": "INFERRED",
+    "suggestion": {
+     "id": "f40932ac0f289a4fab35e040",
+     "proposed_by": "ranked suggestion",
+     "signals": [
+      "payments.py has a part named payments",
+      "system fictional-payments names payments",
+      "shared words: payments"
+     ],
+     "strength": "MODERATE"
+    },
+    "via": "payments-domain:binding:payments.Payment"
+   }
+  ],
+  "unknowns": [],
+  "why": [
+   "IssueRefund: issue a partial refund (declared in the payments-domain skill)"
+  ]
+ },
+ "payments-domain:object:MonetaryAmount": {
+  "entity": {
+   "confirmed_rules": [],
+   "id": "payments-domain:object:MonetaryAmount",
+   "kind": "business_object",
+   "label": "MonetaryAmount",
+   "layer": "business",
+   "open_questions": [],
+   "proposed_rules": [],
+   "quotes": [
+    {
+     "end": 6,
+     "path": "requirements.md",
+     "quote": "MonetaryAmount is an integer number of minor currency units in this single-currency fixture.",
+     "start": 6
+    }
+   ],
+   "rules": [],
+   "skill": "payments-domain",
+   "status": "UNLINKED",
+   "summary": "MonetaryAmount is an integer number of minor currency units in this single-currency fixture."
+  },
+  "execution_authorized": false,
+  "impact_semantics": "DECLARED_REACHABILITY_NOT_MEASURED_BLAST_RADIUS",
+  "kind": "ENTITY_CONTEXT",
+  "recent_changes": [],
+  "relationships": [
+   {
+    "basis": "DECLARED_IN_DOMAIN_SKILL",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [],
+    "other": {
+     "id": "payments-domain:action:IssueRefund",
+     "kind": "business_action",
+     "label": "IssueRefund",
+     "layer": "business"
+    },
+    "relation": "CONSUMES",
+    "standing": "SOURCE"
+   }
+  ],
+  "relationships_omitted": 0,
+  "relationships_total": 1,
+  "relied_on_by": [
+   {
+    "depth": 1,
+    "id": "payments-domain:action:IssueRefund",
+    "kind": "business_action",
+    "label": "IssueRefund",
+    "layer": "business",
+    "path": [
+     "payments-domain:action:IssueRefund CONSUMES payments-domain:object:MonetaryAmount"
+    ],
+    "standing": "SOURCE"
+   }
+  ],
+  "schema_version": 1,
+  "source_evidence": [],
+  "standing_counts": {
+   "CONFIRMED": 0,
+   "INFERRED": 0,
+   "SOURCE": 1,
+   "UNKNOWN": 0
+  },
+  "standing_semantics": "CONFIRMED_BY_PERSON|SOURCE_DECLARED|INFERRED_NOT_DECIDED|UNKNOWN_GAP",
+  "suggestions": [],
+  "unknowns": [
+   {
+    "basis": "NO_CONFIRMED_LINK",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [],
+    "other": {
+     "id": "",
+     "kind": "unknown",
+     "label": "no confirmed system",
+     "layer": "unknown"
+    },
+    "relation": "RUNS_ON",
+    "standing": "UNKNOWN"
+   }
+  ],
+  "why": [
+   "MonetaryAmount: MonetaryAmount is an integer number of minor currency units in this single-currency fixture. (declared in the payments-domain skill)",
+   "IssueRefund consumes this (source)"
+  ]
+ },
+ "payments-domain:object:Payment": {
+  "entity": {
+   "confirmed_rules": [],
+   "id": "payments-domain:object:Payment",
+   "kind": "business_object",
+   "label": "Payment",
+   "layer": "business",
+   "open_questions": [],
+   "proposed_rules": [],
+   "quotes": [
+    {
+     "end": 4,
+     "path": "requirements.md",
+     "quote": "Payment is a money ledger record with captured_minor, refunded_minor, and a payment_status.",
+     "start": 4
+    }
+   ],
+   "rules": [],
+   "skill": "payments-domain",
+   "status": "POSSIBLY_IMPACTED",
+   "summary": "Payment is a money ledger record with captured_minor, refunded_minor, and a payment_status."
+  },
+  "execution_authorized": false,
+  "impact_semantics": "DECLARED_REACHABILITY_NOT_MEASURED_BLAST_RADIUS",
+  "kind": "ENTITY_CONTEXT",
+  "recent_changes": [],
+  "relationships": [
+   {
+    "basis": "PERSON_CONFIRMED_LINK",
+    "decision": {
+     "at": null,
+     "by": "demo (synthetic)",
+     "note": "The public API returns Payment records."
+    },
+    "direction": "out",
+    "evidence_check": {
+     "changed": [],
+     "decision_id": "df147e6b9aff2578f56faaa7",
+     "status": "NOT_RECORDED"
+    },
+    "evidence_ids": [],
+    "other": {
+     "id": "discovery:service:compose.yml:api",
+     "kind": "declared_service",
+     "label": "api",
+     "layer": "system"
+    },
+    "relation": "IMPLEMENTED_BY",
+    "standing": "CONFIRMED",
+    "via": "payments-domain:binding:payments.Payment"
+   },
+   {
+    "basis": "PERSON_CONFIRMED_LINK",
+    "decision": {
+     "at": null,
+     "by": "demo (synthetic)",
+     "note": "Payment records are stored by the ledger service."
+    },
+    "direction": "out",
+    "evidence_check": {
+     "changed": [],
+     "decision_id": "a33a012d6c02c067e100b2b5",
+     "status": "NOT_RECORDED"
+    },
+    "evidence_ids": [],
+    "other": {
+     "id": "discovery:service:compose.yml:ledger",
+     "kind": "declared_service",
+     "label": "ledger",
+     "layer": "system"
+    },
+    "relation": "IMPLEMENTED_BY",
+    "standing": "CONFIRMED",
+    "via": "payments-domain:binding:payments.Payment"
+   },
+   {
+    "basis": "DECLARED_IN_DOMAIN_SKILL",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [],
+    "other": {
+     "id": "payments-domain:action:ApproveException",
+     "kind": "business_action",
+     "label": "ApproveException",
+     "layer": "business"
+    },
+    "relation": "CONSUMES",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "DECLARED_IN_DOMAIN_SKILL",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [],
+    "other": {
+     "id": "payments-domain:action:IssueRefund",
+     "kind": "business_action",
+     "label": "IssueRefund",
+     "layer": "business"
+    },
+    "relation": "CONSUMES",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "DECLARED_IN_DOMAIN_SKILL",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [],
+    "label": "refunds_payment",
+    "other": {
+     "id": "payments-domain:object:Refund",
+     "kind": "business_object",
+     "label": "Refund",
+     "layer": "business"
+    },
+    "relation": "RELATION",
+    "standing": "SOURCE"
+   }
+  ],
+  "relationships_omitted": 0,
+  "relationships_total": 5,
+  "relied_on_by": [
+   {
+    "depth": 1,
+    "id": "payments-domain:action:ApproveException",
+    "kind": "business_action",
+    "label": "ApproveException",
+    "layer": "business",
+    "path": [
+     "payments-domain:action:ApproveException CONSUMES payments-domain:object:Payment"
+    ],
+    "standing": "SOURCE"
+   },
+   {
+    "depth": 1,
+    "id": "payments-domain:action:IssueRefund",
+    "kind": "business_action",
+    "label": "IssueRefund",
+    "layer": "business",
+    "path": [
+     "payments-domain:action:IssueRefund CONSUMES payments-domain:object:Payment"
+    ],
+    "standing": "SOURCE"
+   }
+  ],
+  "schema_version": 1,
+  "source_evidence": [],
+  "standing_counts": {
+   "CONFIRMED": 2,
+   "INFERRED": 0,
+   "SOURCE": 3,
+   "UNKNOWN": 0
+  },
+  "standing_semantics": "CONFIRMED_BY_PERSON|SOURCE_DECLARED|INFERRED_NOT_DECIDED|UNKNOWN_GAP",
+  "suggestions": [],
+  "unknowns": [],
+  "why": [
+   "Payment: Payment is a money ledger record with captured_minor, refunded_minor, and a payment_status. (declared in the payments-domain skill)",
+   "ApproveException consumes this (source)",
+   "IssueRefund consumes this (source)",
+   "Refund relation this (source)"
+  ]
+ },
+ "payments-domain:object:Refund": {
+  "entity": {
+   "confirmed_rules": [],
+   "id": "payments-domain:object:Refund",
+   "kind": "business_object",
+   "label": "Refund",
+   "layer": "business",
+   "open_questions": [],
+   "proposed_rules": [],
+   "quotes": [
+    {
+     "end": 5,
+     "path": "requirements.md",
+     "quote": "Refund is a return of some captured money against one Payment.",
+     "start": 5
+    }
+   ],
+   "rules": [],
+   "skill": "payments-domain",
+   "status": "AT_RISK",
+   "summary": "Refund is a return of some captured money against one Payment."
+  },
+  "execution_authorized": false,
+  "impact_semantics": "DECLARED_REACHABILITY_NOT_MEASURED_BLAST_RADIUS",
+  "kind": "ENTITY_CONTEXT",
+  "recent_changes": [],
+  "relationships": [
+   {
+    "basis": "PERSON_CONFIRMED_LINK",
+    "decision": {
+     "at": null,
+     "by": "demo (synthetic)",
+     "note": "Refund code is deployed in the payments service."
+    },
+    "direction": "out",
+    "evidence_check": {
+     "changed": [],
+     "decision_id": "9d50adc8c2521f74b6262681",
+     "status": "NOT_RECORDED"
+    },
+    "evidence_ids": [],
+    "other": {
+     "id": "discovery:service:compose.yml:payments",
+     "kind": "declared_service",
+     "label": "payments",
+     "layer": "system"
+    },
+    "relation": "IMPLEMENTED_BY",
+    "standing": "CONFIRMED",
+    "via": "payments-domain:binding:payments.apply_refund"
+   },
+   {
+    "basis": "DECLARED_IN_DOMAIN_SKILL",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [],
+    "other": {
+     "id": "payments-domain:action:IssueRefund",
+     "kind": "business_action",
+     "label": "IssueRefund",
+     "layer": "business"
+    },
+    "relation": "PRODUCES",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "DECLARED_IN_DOMAIN_SKILL",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [],
+    "label": "refunds_payment",
+    "other": {
+     "id": "payments-domain:object:Payment",
+     "kind": "business_object",
+     "label": "Payment",
+     "layer": "business"
+    },
+    "relation": "RELATION",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "DECLARED_IN_DOMAIN_SKILL",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [],
+    "label": "requests_refund",
+    "other": {
+     "id": "payments-domain:object:SupportAgent",
+     "kind": "business_object",
+     "label": "SupportAgent",
+     "layer": "business"
+    },
+    "relation": "RELATION",
+    "standing": "SOURCE"
+   }
+  ],
+  "relationships_omitted": 0,
+  "relationships_total": 4,
+  "relied_on_by": [],
+  "schema_version": 1,
+  "source_evidence": [],
+  "standing_counts": {
+   "CONFIRMED": 1,
+   "INFERRED": 0,
+   "SOURCE": 3,
+   "UNKNOWN": 0
+  },
+  "standing_semantics": "CONFIRMED_BY_PERSON|SOURCE_DECLARED|INFERRED_NOT_DECIDED|UNKNOWN_GAP",
+  "suggestions": [],
+  "unknowns": [],
+  "why": [
+   "Refund: Refund is a return of some captured money against one Payment. (declared in the payments-domain skill)",
+   "IssueRefund produces this (source)",
+   "SupportAgent relation this (source)"
+  ]
+ },
+ "payments-domain:object:SupportAgent": {
+  "entity": {
+   "confirmed_rules": [],
+   "id": "payments-domain:object:SupportAgent",
+   "kind": "business_object",
+   "label": "SupportAgent",
+   "layer": "business",
+   "open_questions": [],
+   "proposed_rules": [],
+   "quotes": [
+    {
+     "end": 7,
+     "path": "requirements.md",
+     "quote": "SupportAgent is the person requesting a refund; a supplied authorization flag represents a separately verified permission.",
+     "start": 7
+    }
+   ],
+   "rules": [],
+   "skill": "payments-domain",
+   "status": "UNLINKED",
+   "summary": "SupportAgent is the person requesting a refund; a supplied authorization flag represents a separately verified permission."
+  },
+  "execution_authorized": false,
+  "impact_semantics": "DECLARED_REACHABILITY_NOT_MEASURED_BLAST_RADIUS",
+  "kind": "ENTITY_CONTEXT",
+  "recent_changes": [],
+  "relationships": [
+   {
+    "basis": "DECLARED_IN_DOMAIN_SKILL",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [],
+    "other": {
+     "id": "payments-domain:action:ApproveException",
+     "kind": "business_action",
+     "label": "ApproveException",
+     "layer": "business"
+    },
+    "relation": "ACTOR",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "DECLARED_IN_DOMAIN_SKILL",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [],
+    "other": {
+     "id": "payments-domain:action:IssueRefund",
+     "kind": "business_action",
+     "label": "IssueRefund",
+     "layer": "business"
+    },
+    "relation": "ACTOR",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "DECLARED_IN_DOMAIN_SKILL",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [],
+    "label": "requests_refund",
+    "other": {
+     "id": "payments-domain:object:Refund",
+     "kind": "business_object",
+     "label": "Refund",
+     "layer": "business"
+    },
+    "relation": "RELATION",
+    "standing": "SOURCE"
+   }
+  ],
+  "relationships_omitted": 0,
+  "relationships_total": 3,
+  "relied_on_by": [],
+  "schema_version": 1,
+  "source_evidence": [],
+  "standing_counts": {
+   "CONFIRMED": 0,
+   "INFERRED": 0,
+   "SOURCE": 3,
+   "UNKNOWN": 0
+  },
+  "standing_semantics": "CONFIRMED_BY_PERSON|SOURCE_DECLARED|INFERRED_NOT_DECIDED|UNKNOWN_GAP",
+  "suggestions": [],
+  "unknowns": [
+   {
+    "basis": "NO_CONFIRMED_LINK",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [],
+    "other": {
+     "id": "",
+     "kind": "unknown",
+     "label": "no confirmed system",
+     "layer": "unknown"
+    },
+    "relation": "RUNS_ON",
+    "standing": "UNKNOWN"
+   }
+  ],
+  "why": [
+   "SupportAgent: SupportAgent is the person requesting a refund; a supplied authorization flag represents a separately verified permission. (declared in the payments-domain skill)",
+   "ApproveException actor this (source)",
+   "IssueRefund actor this (source)"
+  ]
+ }
+}

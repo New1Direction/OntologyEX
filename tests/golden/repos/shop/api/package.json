@@ -1,0 +1,11 @@
+{
+  "name": "shop-api",
+  "dependencies": {
+    "express": "^4.19.0",
+    "stripe": "^14.0.0",
+    "@sendgrid/mail": "^8.0.0",
+    "bcrypt": "^5.1.0",
+    "helmet": "^7.0.0",
+    "shippo": "^2.0.0"
+  }
+}

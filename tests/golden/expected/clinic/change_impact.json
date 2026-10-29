@@ -1,0 +1,66 @@
+{
+ "changed_files": 1,
+ "execution_authorized": false,
+ "impacted": [],
+ "impacted_total": 0,
+ "kind": "CHANGE_IMPACT",
+ "reconfirm_after_merge": [],
+ "schema_version": 1,
+ "semantics": "DECLARED_REACHABILITY_FROM_CHANGED_FILES_NOT_RUNTIME_IMPACT",
+ "touched": [
+  {
+   "id": "discovery:declared_db_table:app/models.py:appointments",
+   "kind": "declared_db_table",
+   "label": "appointments",
+   "layer": "system",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "app/models.py",
+     "reason": "DECLARED_IN_CHANGED_FILE"
+    }
+   ]
+  },
+  {
+   "id": "discovery:declared_db_table:app/models.py:audit_log",
+   "kind": "declared_db_table",
+   "label": "audit_log",
+   "layer": "system",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "app/models.py",
+     "reason": "DECLARED_IN_CHANGED_FILE"
+    }
+   ]
+  },
+  {
+   "id": "discovery:declared_db_table:app/models.py:patients",
+   "kind": "declared_db_table",
+   "label": "patients",
+   "layer": "system",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "app/models.py",
+     "reason": "DECLARED_IN_CHANGED_FILE"
+    }
+   ]
+  },
+  {
+   "id": "discovery:declared_db_table:app/models.py:prescriptions",
+   "kind": "declared_db_table",
+   "label": "prescriptions",
+   "layer": "system",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "app/models.py",
+     "reason": "DECLARED_IN_CHANGED_FILE"
+    }
+   ]
+  }
+ ],
+ "touched_total": 4,
+ "unmapped_files": []
+}

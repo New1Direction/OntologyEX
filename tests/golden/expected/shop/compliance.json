@@ -1,0 +1,1223 @@
+{
+ "execution_authorized": false,
+ "files_read": 10,
+ "files_scanned": 12,
+ "kind": "COMPLIANCE",
+ "packs": [
+  {
+   "applies": "ASKED_BY_CUSTOMERS",
+   "controls": [
+    {
+     "checks": [],
+     "id": "CC1",
+     "person": "Board oversight, hiring checks, a code of conduct, security training.",
+     "status": "NEEDS_A_PERSON",
+     "title": "Governance, people and ethics"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "security_policy",
+         "evidence": [
+          {
+           "line": 1,
+           "path": "SECURITY.md",
+           "text": null
+          }
+         ],
+         "found": true,
+         "shows": "a security policy or how to report vulnerabilities"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "CC2.2",
+     "person": "The policies themselves, acknowledged by staff.",
+     "status": "SHOWN",
+     "title": "Security responsibilities are communicated"
+    },
+    {
+     "checks": [],
+     "id": "CC3",
+     "person": "A yearly risk assessment. The command center ranks risks the code shows; the assessment is a person's.",
+     "status": "NEEDS_A_PERSON",
+     "title": "Risks are assessed"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "password_hashing",
+         "evidence": [
+          {
+           "line": 7,
+           "path": "api/package.json",
+           "text": "\"bcrypt\": \"^5.1.0\","
+          },
+          {
+           "line": 4,
+           "path": "api/src/server.ts",
+           "text": "import bcrypt from \"bcrypt\";"
+          }
+         ],
+         "found": true,
+         "shows": "passwords hashed with a slow hash"
+        },
+        {
+         "detector": "sign_in_supplier",
+         "evidence": [],
+         "found": false,
+         "shows": "sign-in handled by an identity provider"
+        }
+       ],
+       "found": true
+      },
+      {
+       "any_of": [
+        {
+         "detector": "access_roles",
+         "evidence": [
+          {
+           "line": 5,
+           "path": "prisma/schema.prisma",
+           "text": "role      String   @default(\"customer\")"
+          }
+         ],
+         "found": true,
+         "shows": "roles or permissions"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "CC6.1",
+     "person": "Access reviews: who has access, checked each quarter.",
+     "status": "SHOWN",
+     "title": "Sign-in and access are controlled"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "mfa",
+         "evidence": [],
+         "found": false,
+         "shows": "multi-factor sign-in"
+        }
+       ],
+       "found": false
+      }
+     ],
+     "id": "CC6.1-MFA",
+     "person": "MFA on admin and cloud accounts (outside the code).",
+     "status": "NOT_SHOWN_IN_SOURCES",
+     "title": "Multi-factor sign-in"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "transport_security",
+         "evidence": [
+          {
+           "line": 2,
+           "path": "api/src/server.ts",
+           "text": "import helmet from \"helmet\";"
+          }
+         ],
+         "found": true,
+         "shows": "encryption in transit (HTTPS, HSTS, TLS to the database)"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "CC6.7",
+     "person": "TLS settings at the load balancer or host.",
+     "status": "SHOWN",
+     "title": "Data is encrypted in transit"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "dependency_updates",
+         "evidence": [
+          {
+           "line": 1,
+           "path": ".github/dependabot.yml",
+           "text": null
+          }
+         ],
+         "found": true,
+         "shows": "automated dependency updates"
+        }
+       ],
+       "found": true
+      },
+      {
+       "any_of": [
+        {
+         "detector": "lockfile",
+         "evidence": [
+          {
+           "line": 1,
+           "path": "package-lock.json",
+           "text": null
+          }
+         ],
+         "found": true,
+         "shows": "pinned dependency versions (lockfile)"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "CC6.8",
+     "person": null,
+     "status": "SHOWN",
+     "title": "Unauthorized or vulnerable software is prevented"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "sast",
+         "evidence": [
+          {
+           "line": 10,
+           "path": ".github/workflows/ci.yml",
+           "text": "codeql:"
+          }
+         ],
+         "found": true,
+         "shows": "static analysis or vulnerability scanning in CI"
+        }
+       ],
+       "found": true
+      },
+      {
+       "any_of": [
+        {
+         "detector": "secret_scanning",
+         "evidence": [],
+         "found": false,
+         "shows": "secret scanning"
+        }
+       ],
+       "found": false
+      }
+     ],
+     "id": "CC7.1",
+     "person": "Penetration test reports.",
+     "status": "PARTLY_SHOWN",
+     "title": "Vulnerabilities are found"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "monitoring",
+         "evidence": [
+          {
+           "line": 6,
+           "path": "package.json",
+           "text": "\"@sentry/node\": \"^8.0.0\""
+          }
+         ],
+         "found": true,
+         "shows": "error monitoring, metrics or tracing"
+        },
+        {
+         "detector": "health_observed",
+         "evidence": [],
+         "found": false,
+         "shows": "services report their health to the control room"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "CC7.2",
+     "person": "Who is alerted, and how fast they respond.",
+     "status": "SHOWN",
+     "title": "Systems are monitored"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "incident_response",
+         "evidence": [],
+         "found": false,
+         "shows": "an incident response plan or runbook"
+        }
+       ],
+       "found": false
+      }
+     ],
+     "id": "CC7.3",
+     "person": "Records of past incidents and how they were handled.",
+     "status": "NOT_SHOWN_IN_SOURCES",
+     "title": "Incidents are responded to"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "ci_tests",
+         "evidence": [
+          {
+           "line": 9,
+           "path": ".github/workflows/ci.yml",
+           "text": "- run: npm test"
+          }
+         ],
+         "found": true,
+         "shows": "tests run in CI"
+        }
+       ],
+       "found": true
+      },
+      {
+       "any_of": [
+        {
+         "detector": "codeowners",
+         "evidence": [
+          {
+           "line": 1,
+           "path": ".github/CODEOWNERS",
+           "text": null
+          }
+         ],
+         "found": true,
+         "shows": "CODEOWNERS: named reviewers for each part"
+        }
+       ],
+       "found": true
+      },
+      {
+       "any_of": [
+        {
+         "detector": "pr_template",
+         "evidence": [],
+         "found": false,
+         "shows": "a pull request template"
+        }
+       ],
+       "found": false
+      }
+     ],
+     "id": "CC8.1",
+     "person": "Branch protection requiring review (set in GitHub, not the code).",
+     "status": "PARTLY_SHOWN",
+     "title": "Changes are reviewed and tested"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "suppliers_listed",
+         "evidence": [
+          {
+           "line": null,
+           "page": "/suppliers",
+           "path": null,
+           "text": "5 suppliers mapped: Stripe, SendGrid, Shippo, PostHog, Sentry"
+          }
+         ],
+         "found": true,
+         "shows": "the outside suppliers that receive data"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "CC9.2",
+     "person": "Vendor security reviews and contracts.",
+     "status": "SHOWN",
+     "title": "Vendors are managed"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "backups",
+         "evidence": [],
+         "found": false,
+         "shows": "backups"
+        }
+       ],
+       "found": false
+      }
+     ],
+     "id": "A1.2",
+     "person": "A tested restore.",
+     "status": "NOT_SHOWN_IN_SOURCES",
+     "title": "Backups and recovery"
+    }
+   ],
+   "counts": {
+    "NEEDS_A_PERSON": 2,
+    "NOT_SHOWN_IN_SOURCES": 3,
+    "PARTLY_SHOWN": 2,
+    "SHOWN": 6
+   },
+   "id": "soc2",
+   "name": "SOC 2",
+   "reference": "AICPA Trust Services Criteria (2017, revised points of focus 2022)",
+   "risks": [],
+   "why": "Business customers usually ask for a SOC 2 report before buying."
+  },
+  {
+   "applies": "APPLIES",
+   "controls": [
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "payments_supplier",
+         "evidence": [
+          {
+           "entity": "discovery:supplier:stripe",
+           "line": 1,
+           "path": ".env.example",
+           "text": "Stripe (payments)"
+          }
+         ],
+         "found": true,
+         "shows": "payments handled by a payments supplier"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "3.2",
+     "person": "The supplier's PCI attestation (AOC) and your SAQ.",
+     "status": "SHOWN",
+     "title": "Card numbers are not stored (or are protected)"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "transport_security",
+         "evidence": [
+          {
+           "line": 2,
+           "path": "api/src/server.ts",
+           "text": "import helmet from \"helmet\";"
+          }
+         ],
+         "found": true,
+         "shows": "encryption in transit (HTTPS, HSTS, TLS to the database)"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "4.2",
+     "person": "TLS settings at the edge.",
+     "status": "SHOWN",
+     "title": "Card data is encrypted in transit"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "sast",
+         "evidence": [
+          {
+           "line": 10,
+           "path": ".github/workflows/ci.yml",
+           "text": "codeql:"
+          }
+         ],
+         "found": true,
+         "shows": "static analysis or vulnerability scanning in CI"
+        }
+       ],
+       "found": true
+      },
+      {
+       "any_of": [
+        {
+         "detector": "codeowners",
+         "evidence": [
+          {
+           "line": 1,
+           "path": ".github/CODEOWNERS",
+           "text": null
+          }
+         ],
+         "found": true,
+         "shows": "CODEOWNERS: named reviewers for each part"
+        }
+       ],
+       "found": true
+      },
+      {
+       "any_of": [
+        {
+         "detector": "ci_tests",
+         "evidence": [
+          {
+           "line": 9,
+           "path": ".github/workflows/ci.yml",
+           "text": "- run: npm test"
+          }
+         ],
+         "found": true,
+         "shows": "tests run in CI"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "6.2",
+     "person": "Secure coding training for developers.",
+     "status": "SHOWN",
+     "title": "Software is developed securely"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "dependency_updates",
+         "evidence": [
+          {
+           "line": 1,
+           "path": ".github/dependabot.yml",
+           "text": null
+          }
+         ],
+         "found": true,
+         "shows": "automated dependency updates"
+        }
+       ],
+       "found": true
+      },
+      {
+       "any_of": [
+        {
+         "detector": "lockfile",
+         "evidence": [
+          {
+           "line": 1,
+           "path": "package-lock.json",
+           "text": null
+          }
+         ],
+         "found": true,
+         "shows": "pinned dependency versions (lockfile)"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "6.3.3",
+     "person": null,
+     "status": "SHOWN",
+     "title": "Known vulnerabilities are patched"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "rate_limiting",
+         "evidence": [],
+         "found": false,
+         "shows": "rate limiting"
+        }
+       ],
+       "found": false
+      },
+      {
+       "any_of": [
+        {
+         "detector": "transport_security",
+         "evidence": [
+          {
+           "line": 2,
+           "path": "api/src/server.ts",
+           "text": "import helmet from \"helmet\";"
+          }
+         ],
+         "found": true,
+         "shows": "encryption in transit (HTTPS, HSTS, TLS to the database)"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "6.4",
+     "person": "A web application firewall, if used.",
+     "status": "PARTLY_SHOWN",
+     "title": "Public web apps are protected"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "access_roles",
+         "evidence": [
+          {
+           "line": 5,
+           "path": "prisma/schema.prisma",
+           "text": "role      String   @default(\"customer\")"
+          }
+         ],
+         "found": true,
+         "shows": "roles or permissions"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "7.2",
+     "person": "Access reviews.",
+     "status": "SHOWN",
+     "title": "Access is limited by role"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "password_hashing",
+         "evidence": [
+          {
+           "line": 7,
+           "path": "api/package.json",
+           "text": "\"bcrypt\": \"^5.1.0\","
+          },
+          {
+           "line": 4,
+           "path": "api/src/server.ts",
+           "text": "import bcrypt from \"bcrypt\";"
+          }
+         ],
+         "found": true,
+         "shows": "passwords hashed with a slow hash"
+        },
+        {
+         "detector": "sign_in_supplier",
+         "evidence": [],
+         "found": false,
+         "shows": "sign-in handled by an identity provider"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "8.3",
+     "person": null,
+     "status": "SHOWN",
+     "title": "Strong authentication"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "mfa",
+         "evidence": [],
+         "found": false,
+         "shows": "multi-factor sign-in"
+        }
+       ],
+       "found": false
+      }
+     ],
+     "id": "8.4",
+     "person": "MFA for all access to the cardholder data environment.",
+     "status": "NOT_SHOWN_IN_SOURCES",
+     "title": "Multi-factor authentication"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "audit_log",
+         "evidence": [],
+         "found": false,
+         "shows": "an audit trail of who did what"
+        }
+       ],
+       "found": false
+      }
+     ],
+     "id": "10.2",
+     "person": "Log retention of at least a year, reviewed daily.",
+     "status": "NOT_SHOWN_IN_SOURCES",
+     "title": "Audit logs record who did what"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "sast",
+         "evidence": [
+          {
+           "line": 10,
+           "path": ".github/workflows/ci.yml",
+           "text": "codeql:"
+          }
+         ],
+         "found": true,
+         "shows": "static analysis or vulnerability scanning in CI"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "11.3",
+     "person": "Quarterly external scans by an approved vendor (ASV).",
+     "status": "SHOWN",
+     "title": "Vulnerability scans"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "suppliers_listed",
+         "evidence": [
+          {
+           "line": null,
+           "page": "/suppliers",
+           "path": null,
+           "text": "5 suppliers mapped: Stripe, SendGrid, Shippo, PostHog, Sentry"
+          }
+         ],
+         "found": true,
+         "shows": "the outside suppliers that receive data"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "12.8",
+     "person": "A list of providers with their PCI responsibilities.",
+     "status": "SHOWN",
+     "title": "Service providers are managed"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "incident_response",
+         "evidence": [],
+         "found": false,
+         "shows": "an incident response plan or runbook"
+        }
+       ],
+       "found": false
+      }
+     ],
+     "id": "12.10",
+     "person": "A tested plan.",
+     "status": "NOT_SHOWN_IN_SOURCES",
+     "title": "Incident response plan"
+    }
+   ],
+   "counts": {
+    "NEEDS_A_PERSON": 0,
+    "NOT_SHOWN_IN_SOURCES": 3,
+    "PARTLY_SHOWN": 1,
+    "SHOWN": 8
+   },
+   "id": "pci",
+   "name": "PCI DSS",
+   "reference": "PCI DSS v4.0",
+   "risks": [
+    {
+     "detail": "Fields named like card numbers or security codes appear in the data model; storing them brings the whole system into PCI scope, and a security code may never be stored.",
+     "evidence": [
+      {
+       "line": 31,
+       "path": "prisma/schema.prisma",
+       "text": "card_number String"
+      }
+     ],
+     "risk": "CARD_FIELDS_IN_SCHEMA"
+    }
+   ],
+   "why": "Payments are taken (Stripe)."
+  },
+  {
+   "applies": "NOT_INDICATED",
+   "controls": [
+    {
+     "checks": [],
+     "id": "164.308(a)(1)",
+     "person": "A documented risk analysis of where health data lives.",
+     "status": "NEEDS_A_PERSON",
+     "title": "Risk analysis"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "incident_response",
+         "evidence": [],
+         "found": false,
+         "shows": "an incident response plan or runbook"
+        }
+       ],
+       "found": false
+      }
+     ],
+     "id": "164.308(a)(6)",
+     "person": null,
+     "status": "NOT_SHOWN_IN_SOURCES",
+     "title": "Security incident procedures"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "backups",
+         "evidence": [],
+         "found": false,
+         "shows": "backups"
+        }
+       ],
+       "found": false
+      }
+     ],
+     "id": "164.308(a)(7)",
+     "person": "A tested restore and a disaster recovery plan.",
+     "status": "NOT_SHOWN_IN_SOURCES",
+     "title": "Contingency plan and backups"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "suppliers_listed",
+         "evidence": [
+          {
+           "line": null,
+           "page": "/suppliers",
+           "path": null,
+           "text": "5 suppliers mapped: Stripe, SendGrid, Shippo, PostHog, Sentry"
+          }
+         ],
+         "found": true,
+         "shows": "the outside suppliers that receive data"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "164.308(b)(1)",
+     "person": "A signed BAA with every supplier that receives health data.",
+     "status": "SHOWN",
+     "title": "Business associates"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "access_roles",
+         "evidence": [
+          {
+           "line": 5,
+           "path": "prisma/schema.prisma",
+           "text": "role      String   @default(\"customer\")"
+          }
+         ],
+         "found": true,
+         "shows": "roles or permissions"
+        }
+       ],
+       "found": true
+      },
+      {
+       "any_of": [
+        {
+         "detector": "sign_in_supplier",
+         "evidence": [],
+         "found": false,
+         "shows": "sign-in handled by an identity provider"
+        },
+        {
+         "detector": "password_hashing",
+         "evidence": [
+          {
+           "line": 7,
+           "path": "api/package.json",
+           "text": "\"bcrypt\": \"^5.1.0\","
+          },
+          {
+           "line": 4,
+           "path": "api/src/server.ts",
+           "text": "import bcrypt from \"bcrypt\";"
+          }
+         ],
+         "found": true,
+         "shows": "passwords hashed with a slow hash"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "164.312(a)(1)",
+     "person": null,
+     "status": "SHOWN",
+     "title": "Access control"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "encryption_at_rest",
+         "evidence": [],
+         "found": false,
+         "shows": "encryption at rest or field encryption"
+        }
+       ],
+       "found": false
+      }
+     ],
+     "id": "164.312(a)(2)(iv)",
+     "person": "Disk and database encryption settings in the cloud account.",
+     "status": "NOT_SHOWN_IN_SOURCES",
+     "title": "Encryption at rest"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "audit_log",
+         "evidence": [],
+         "found": false,
+         "shows": "an audit trail of who did what"
+        }
+       ],
+       "found": false
+      }
+     ],
+     "id": "164.312(b)",
+     "person": null,
+     "status": "NOT_SHOWN_IN_SOURCES",
+     "title": "Audit controls"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "mfa",
+         "evidence": [],
+         "found": false,
+         "shows": "multi-factor sign-in"
+        }
+       ],
+       "found": false
+      }
+     ],
+     "id": "164.312(d)",
+     "person": null,
+     "status": "NOT_SHOWN_IN_SOURCES",
+     "title": "Person authentication"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "transport_security",
+         "evidence": [
+          {
+           "line": 2,
+           "path": "api/src/server.ts",
+           "text": "import helmet from \"helmet\";"
+          }
+         ],
+         "found": true,
+         "shows": "encryption in transit (HTTPS, HSTS, TLS to the database)"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "164.312(e)(1)",
+     "person": null,
+     "status": "SHOWN",
+     "title": "Transmission security"
+    }
+   ],
+   "counts": {
+    "NEEDS_A_PERSON": 1,
+    "NOT_SHOWN_IN_SOURCES": 5,
+    "PARTLY_SHOWN": 0,
+    "SHOWN": 3
+   },
+   "id": "hipaa",
+   "name": "HIPAA",
+   "reference": "HIPAA Security Rule, 45 CFR 164.308 and 164.312",
+   "risks": [],
+   "why": "No health-record fields in the sources."
+  },
+  {
+   "applies": "APPLIES",
+   "controls": [
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "personal_data",
+         "evidence": [
+          {
+           "line": 3,
+           "path": "prisma/schema.prisma",
+           "text": "email     String   @unique"
+          }
+         ],
+         "found": true,
+         "shows": "personal data fields (what to protect)"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "Art. 30",
+     "person": "The written record of processing activities.",
+     "status": "SHOWN",
+     "title": "Records of processing: what personal data is kept"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "consent",
+         "evidence": [],
+         "found": false,
+         "shows": "consent is recorded"
+        }
+       ],
+       "found": false
+      }
+     ],
+     "id": "Art. 7",
+     "person": null,
+     "status": "NOT_SHOWN_IN_SOURCES",
+     "title": "Consent is recorded"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "data_export",
+         "evidence": [],
+         "found": false,
+         "shows": "people can export their data"
+        }
+       ],
+       "found": false
+      }
+     ],
+     "id": "Art. 15/20",
+     "person": null,
+     "status": "NOT_SHOWN_IN_SOURCES",
+     "title": "People can get a copy of their data"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "data_deletion",
+         "evidence": [
+          {
+           "line": 26,
+           "path": "api/src/server.ts",
+           "text": "res.json({ deleted: true }); // deleteAccount: removes the user and their orders"
+          }
+         ],
+         "found": true,
+         "shows": "people can delete their account or data"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "Art. 17",
+     "person": null,
+     "status": "SHOWN",
+     "title": "People can have their data erased"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "retention",
+         "evidence": [],
+         "found": false,
+         "shows": "data is kept only as long as needed"
+        }
+       ],
+       "found": false
+      }
+     ],
+     "id": "Art. 5(1)(e)",
+     "person": "The retention schedule.",
+     "status": "NOT_SHOWN_IN_SOURCES",
+     "title": "Data is kept no longer than needed"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "suppliers_listed",
+         "evidence": [
+          {
+           "line": null,
+           "page": "/suppliers",
+           "path": null,
+           "text": "5 suppliers mapped: Stripe, SendGrid, Shippo, PostHog, Sentry"
+          }
+         ],
+         "found": true,
+         "shows": "the outside suppliers that receive data"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "Art. 28",
+     "person": "A data processing agreement with each supplier.",
+     "status": "SHOWN",
+     "title": "Processors are under contract"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "encryption_at_rest",
+         "evidence": [],
+         "found": false,
+         "shows": "encryption at rest or field encryption"
+        }
+       ],
+       "found": false
+      },
+      {
+       "any_of": [
+        {
+         "detector": "transport_security",
+         "evidence": [
+          {
+           "line": 2,
+           "path": "api/src/server.ts",
+           "text": "import helmet from \"helmet\";"
+          }
+         ],
+         "found": true,
+         "shows": "encryption in transit (HTTPS, HSTS, TLS to the database)"
+        }
+       ],
+       "found": true
+      },
+      {
+       "any_of": [
+        {
+         "detector": "password_hashing",
+         "evidence": [
+          {
+           "line": 7,
+           "path": "api/package.json",
+           "text": "\"bcrypt\": \"^5.1.0\","
+          },
+          {
+           "line": 4,
+           "path": "api/src/server.ts",
+           "text": "import bcrypt from \"bcrypt\";"
+          }
+         ],
+         "found": true,
+         "shows": "passwords hashed with a slow hash"
+        }
+       ],
+       "found": true
+      }
+     ],
+     "id": "Art. 32",
+     "person": null,
+     "status": "PARTLY_SHOWN",
+     "title": "Security of processing"
+    },
+    {
+     "checks": [
+      {
+       "any_of": [
+        {
+         "detector": "incident_response",
+         "evidence": [],
+         "found": false,
+         "shows": "an incident response plan or runbook"
+        }
+       ],
+       "found": false
+      }
+     ],
+     "id": "Art. 33",
+     "person": "Who decides, and how the authority is told.",
+     "status": "NOT_SHOWN_IN_SOURCES",
+     "title": "Breaches are reported within 72 hours"
+    }
+   ],
+   "counts": {
+    "NEEDS_A_PERSON": 0,
+    "NOT_SHOWN_IN_SOURCES": 4,
+    "PARTLY_SHOWN": 1,
+    "SHOWN": 3
+   },
+   "id": "gdpr",
+   "name": "GDPR",
+   "reference": "Regulation (EU) 2016/679",
+   "risks": [],
+   "why": "Personal data is kept (for people in the EU or UK)."
+  }
+ ],
+ "schema_version": 1,
+ "semantics": "EVIDENCE_MAP_NOT_AUDIT_OR_CERTIFICATION",
+ "status": "OK",
+ "truncated": false
+}

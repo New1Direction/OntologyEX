@@ -1,0 +1,462 @@
+{
+ "by_level": {
+  "CRITICAL": 0,
+  "HIGH": 1,
+  "LOW": 6,
+  "MEDIUM": 2
+ },
+ "coverage": {
+  "rows": [
+   {
+    "detail": "An action with no confirmed system cannot show its health.",
+    "label": "Business actions linked to a system",
+    "part": 0,
+    "percent": null,
+    "whole": 0
+   },
+   {
+    "detail": "Services with a live observation (health checks, traces, metrics).",
+    "label": "Services reporting health",
+    "part": 0,
+    "percent": 0,
+    "whole": 3
+   },
+   {
+    "detail": "Confirmations whose recorded evidence is unchanged.",
+    "label": "Confirmations still current",
+    "part": 0,
+    "percent": null,
+    "whole": 0
+   },
+   {
+    "detail": "Rules whose evidence a person reviewed or better.",
+    "label": "Business rules reviewed",
+    "part": 0,
+    "percent": null,
+    "whole": 0
+   },
+   {
+    "detail": "Declared, or someone changed its code in the last year.",
+    "label": "Business actions with any owner",
+    "part": 0,
+    "percent": null,
+    "whole": 0
+   }
+  ],
+  "suppliers": 5
+ },
+ "execution_authorized": false,
+ "field": {
+  "checklist": [
+   {
+    "entities": [],
+    "item": "Payments provider",
+    "status": "FOUND",
+    "suppliers": [
+     "Stripe"
+    ]
+   },
+   {
+    "entities": [
+     {
+      "id": "discovery:api_route:api/src/server.ts:POST%20/api/orders/:id/refund",
+      "kind": "api_route",
+      "label": "POST /api/orders/:id/refund",
+      "layer": "system"
+     },
+     {
+      "id": "discovery:declared_db_table:prisma/schema.prisma:Order",
+      "kind": "declared_db_table",
+      "label": "Order",
+      "layer": "system"
+     }
+    ],
+    "item": "Orders",
+    "status": "FOUND",
+    "suppliers": []
+   },
+   {
+    "entities": [],
+    "item": "Inventory or stock",
+    "status": "NOT_FOUND_IN_SOURCES",
+    "suppliers": []
+   },
+   {
+    "entities": [
+     {
+      "id": "discovery:api_route:api/src/server.ts:POST%20/api/orders/:id/refund",
+      "kind": "api_route",
+      "label": "POST /api/orders/:id/refund",
+      "layer": "system"
+     },
+     {
+      "id": "discovery:declared_db_table:prisma/schema.prisma:Refund",
+      "kind": "declared_db_table",
+      "label": "Refund",
+      "layer": "system"
+     }
+    ],
+    "item": "Refunds and returns",
+    "status": "FOUND",
+    "suppliers": []
+   },
+   {
+    "entities": [],
+    "item": "Tax calculation",
+    "status": "NOT_FOUND_IN_SOURCES",
+    "suppliers": []
+   },
+   {
+    "entities": [],
+    "item": "Shipping carriers",
+    "status": "FOUND",
+    "suppliers": [
+     "Shippo"
+    ]
+   },
+   {
+    "entities": [],
+    "item": "Fraud or identity checks",
+    "status": "NOT_FOUND_IN_SOURCES",
+    "suppliers": []
+   },
+   {
+    "entities": [],
+    "item": "Customer email",
+    "status": "FOUND",
+    "suppliers": [
+     "SendGrid"
+    ]
+   }
+  ],
+  "detail": "4 names in the model point to e-commerce. 'Not found' means the sources do not show it, not that the business lacks it.",
+  "field": "e-commerce",
+  "signals": [
+   {
+    "id": "discovery:api_route:api/src/server.ts:POST%20/api/checkout",
+    "kind": "api_route",
+    "label": "POST /api/checkout",
+    "layer": "system"
+   },
+   {
+    "id": "discovery:api_route:api/src/server.ts:POST%20/api/orders/:id/refund",
+    "kind": "api_route",
+    "label": "POST /api/orders/:id/refund",
+    "layer": "system"
+   },
+   {
+    "id": "discovery:declared_db_table:prisma/schema.prisma:Order",
+    "kind": "declared_db_table",
+    "label": "Order",
+    "layer": "system"
+   },
+   {
+    "id": "discovery:declared_db_table:prisma/schema.prisma:Product",
+    "kind": "declared_db_table",
+    "label": "Product",
+    "layer": "system"
+   }
+  ]
+ },
+ "items": [
+  {
+   "category": "Visibility",
+   "factors": [
+    {
+     "detail": "the business actions are not written down, so nothing here reaches the business",
+     "factor": "severity",
+     "points": 50
+    }
+   ],
+   "id": "43715688c80560a8",
+   "kind": "NO_BUSINESS_MODEL",
+   "level": "HIGH",
+   "links": [],
+   "next_step": "Write a domain skill for the main workflow (guided onboarding) and start the control room with --skill, so health, risk and change impact reach business actions.",
+   "owner": null,
+   "score": 50,
+   "standing": "UNKNOWN",
+   "subject": null,
+   "title": "The business actions are not written down",
+   "why": "Without them, systems, suppliers and changes cannot be traced to what the business does or what it earns from."
+  },
+  {
+   "category": "Compliance",
+   "factors": [
+    {
+     "detail": "fields named like card numbers or security codes are in the data model",
+     "factor": "severity",
+     "points": 45
+    }
+   ],
+   "id": "4bdd14cec40c05bf",
+   "kind": "CARD_FIELDS",
+   "level": "MEDIUM",
+   "links": [],
+   "next_step": "Confirm no card number or security code is stored; if one is, move it to the payments supplier.",
+   "owner": null,
+   "score": 45,
+   "standing": "SOURCE",
+   "subject": null,
+   "title": "Card number fields in the data model",
+   "why": "Fields named like card numbers or security codes appear in the data model; storing them brings the whole system into PCI scope, and a security code may never be stored. prisma/schema.prisma:31"
+  },
+  {
+   "category": "Suppliers",
+   "factors": [
+    {
+     "detail": "the only supplier of a critical kind",
+     "factor": "severity",
+     "points": 30
+    },
+    {
+     "detail": "money moves through it",
+     "factor": "money",
+     "points": 15
+    }
+   ],
+   "id": "1907e954aeb02d7b",
+   "kind": "SINGLE_CRITICAL_SUPPLIER",
+   "level": "MEDIUM",
+   "links": [
+    "discovery:supplier:stripe"
+   ],
+   "next_step": "Decide whether a second provider or a written fallback is needed.",
+   "owner": {
+    "basis": "CODEOWNERS",
+    "owner": "@shop/platform",
+    "risks": [
+     "ONE_PERSON"
+    ],
+    "standing": "SOURCE",
+    "status": "DECLARED",
+    "through": null
+   },
+   "score": 45,
+   "standing": "SOURCE",
+   "subject": {
+    "id": "discovery:supplier:stripe",
+    "kind": "external_supplier",
+    "label": "Stripe",
+    "layer": "system"
+   },
+   "title": "Stripe is the only payments supplier",
+   "why": "No second payments supplier is declared in the sources."
+  },
+  {
+   "category": "Compliance",
+   "factors": [
+    {
+     "detail": "a standard that applies asks for controls the sources do not show",
+     "factor": "severity",
+     "points": 18
+    },
+    {
+     "detail": "5 control(s)",
+     "factor": "volume",
+     "points": 10
+    }
+   ],
+   "id": "cb3aa69cb4186e27",
+   "kind": "COMPLIANCE_GAPS",
+   "level": "LOW",
+   "links": [],
+   "next_step": "Open Compliance: each gap says what evidence would show it and what a person must provide.",
+   "owner": null,
+   "score": 28,
+   "standing": "UNKNOWN",
+   "subject": null,
+   "title": "GDPR: 5 of 8 controls not fully shown in the sources",
+   "why": "Personal data is kept (for people in the EU or UK). Not fully shown: Art. 7 consent is recorded, Art. 15/20 people can get a copy of their data, Art. 5(1)(e) data is kept no longer than needed, Art. 32 security of processing, Art. 33 breaches are reported within 72 hours."
+  },
+  {
+   "category": "Compliance",
+   "factors": [
+    {
+     "detail": "a standard that applies asks for controls the sources do not show",
+     "factor": "severity",
+     "points": 18
+    },
+    {
+     "detail": "4 control(s)",
+     "factor": "volume",
+     "points": 8
+    }
+   ],
+   "id": "5d486eccb8477485",
+   "kind": "COMPLIANCE_GAPS",
+   "level": "LOW",
+   "links": [],
+   "next_step": "Open Compliance: each gap says what evidence would show it and what a person must provide.",
+   "owner": null,
+   "score": 26,
+   "standing": "UNKNOWN",
+   "subject": null,
+   "title": "PCI DSS: 4 of 12 controls not fully shown in the sources",
+   "why": "Payments are taken (Stripe). Not fully shown: 6.4 public web apps are protected, 8.4 multi-factor authentication, 10.2 audit logs record who did what, 12.10 incident response plan."
+  },
+  {
+   "category": "Compliance",
+   "factors": [
+    {
+     "detail": "customers usually ask for this standard, and the sources do not show all of it",
+     "factor": "severity",
+     "points": 10
+    },
+    {
+     "detail": "5 control(s)",
+     "factor": "volume",
+     "points": 10
+    }
+   ],
+   "id": "58a8d1b115cd69d5",
+   "kind": "COMPLIANCE_ASKED",
+   "level": "LOW",
+   "links": [],
+   "next_step": "Open Compliance before a customer's security review asks for it.",
+   "owner": null,
+   "score": 20,
+   "standing": "UNKNOWN",
+   "subject": null,
+   "title": "SOC 2: 5 of 13 controls not fully shown in the sources",
+   "why": "Business customers usually ask for a SOC 2 report before buying. Not fully shown: CC6.1-MFA multi-factor sign-in, CC7.1 vulnerabilities are found, CC7.3 incidents are responded to, CC8.1 changes are reviewed and tested, A1.2 backups and recovery."
+  },
+  {
+   "category": "Suppliers",
+   "factors": [
+    {
+     "detail": "the only supplier of an important kind",
+     "factor": "severity",
+     "points": 18
+    }
+   ],
+   "id": "dad71936ad240528",
+   "kind": "SINGLE_HIGH_SUPPLIER",
+   "level": "LOW",
+   "links": [
+    "discovery:supplier:sendgrid"
+   ],
+   "next_step": "Note who owns this supplier and what happens if it is down.",
+   "owner": {
+    "basis": "CODEOWNERS",
+    "owner": "@shop/platform",
+    "risks": [],
+    "standing": "SOURCE",
+    "status": "DECLARED",
+    "through": null
+   },
+   "score": 18,
+   "standing": "SOURCE",
+   "subject": {
+    "id": "discovery:supplier:sendgrid",
+    "kind": "external_supplier",
+    "label": "SendGrid",
+    "layer": "system"
+   },
+   "title": "SendGrid is the only email and messaging supplier",
+   "why": "No second email and messaging supplier is declared in the sources."
+  },
+  {
+   "category": "Suppliers",
+   "factors": [
+    {
+     "detail": "the only supplier of an important kind",
+     "factor": "severity",
+     "points": 18
+    }
+   ],
+   "id": "a1d41d881ece12c8",
+   "kind": "SINGLE_HIGH_SUPPLIER",
+   "level": "LOW",
+   "links": [
+    "discovery:supplier:shippo"
+   ],
+   "next_step": "Note who owns this supplier and what happens if it is down.",
+   "owner": {
+    "basis": "CODEOWNERS",
+    "owner": "@shop/platform",
+    "risks": [],
+    "standing": "SOURCE",
+    "status": "DECLARED",
+    "through": null
+   },
+   "score": 18,
+   "standing": "SOURCE",
+   "subject": {
+    "id": "discovery:supplier:shippo",
+    "kind": "external_supplier",
+    "label": "Shippo",
+    "layer": "system"
+   },
+   "title": "Shippo is the only shipping and logistics supplier",
+   "why": "No second shipping and logistics supplier is declared in the sources."
+  },
+  {
+   "category": "Visibility",
+   "factors": [
+    {
+     "detail": "services report no health at all",
+     "factor": "severity",
+     "points": 12
+    },
+    {
+     "detail": "3 silent service(s)",
+     "factor": "volume",
+     "points": 3
+    }
+   ],
+   "id": "3e8e183036eed532",
+   "kind": "UNOBSERVED_SERVICES",
+   "level": "LOW",
+   "links": [],
+   "next_step": "Add health checks (feed_setup.py) or traces (otel_setup.py), one command per service.",
+   "owner": null,
+   "score": 15,
+   "standing": "UNKNOWN",
+   "subject": null,
+   "title": "3 of 3 services report no health",
+   "why": "Nothing reports on api, db, web."
+  }
+ ],
+ "kind": "COMMAND_CENTER",
+ "kpis": [
+  {
+   "label": "Business actions",
+   "tone": "neutral",
+   "value": 0
+  },
+  {
+   "label": "Reported OK",
+   "tone": "ok",
+   "value": 0
+  },
+  {
+   "label": "At risk or impacted",
+   "tone": "risk",
+   "value": 0
+  },
+  {
+   "label": "Health unknown",
+   "tone": "unknown",
+   "value": 0
+  },
+  {
+   "label": "Services in error",
+   "tone": "risk",
+   "value": 0
+  },
+  {
+   "label": "Suppliers",
+   "tone": "neutral",
+   "value": 5
+  },
+  {
+   "label": "Decisions waiting",
+   "tone": "unknown",
+   "value": 0
+  }
+ ],
+ "schema_version": 1,
+ "semantics": "IMPORTANCE_RANKS_ATTENTION_NOT_PROBABILITY_OR_APPROVAL",
+ "total": 9
+}

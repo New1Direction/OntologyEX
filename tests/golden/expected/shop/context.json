@@ -1,0 +1,735 @@
+{
+ "discovery:service:compose.yml:api": {
+  "entity": {
+   "id": "discovery:service:compose.yml:api",
+   "kind": "declared_service",
+   "label": "api",
+   "layer": "system",
+   "observed_at": null,
+   "status": "unknown"
+  },
+  "execution_authorized": false,
+  "impact_semantics": "DECLARED_REACHABILITY_NOT_MEASURED_BLAST_RADIUS",
+  "kind": "ENTITY_CONTEXT",
+  "recent_changes": [],
+  "relationships": [
+   {
+    "basis": "MANIFEST_DECLARATION",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [
+     "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4"
+    ],
+    "other": {
+     "id": "discovery:project:shop:",
+     "kind": "project",
+     "label": "shop",
+     "layer": "system"
+    },
+    "relation": "DECLARES",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "SOURCE_SYNTAX_CANDIDATE",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [
+     "c7d310b82cf6b5878d7958e3525ed893b7ca4c3831bc1b4ddd7ca467495bfbb5"
+    ],
+    "other": {
+     "id": "discovery:api_route:api/src/server.ts:DELETE%20/api/account",
+     "kind": "api_route",
+     "label": "DELETE /api/account",
+     "layer": "system"
+    },
+    "relation": "DECLARES",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "SOURCE_SYNTAX_CANDIDATE",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [
+     "b1740ad157b4860de9d0ad21fae3b5d3bacdeeff45af2c0839b994ea30bcb45b"
+    ],
+    "other": {
+     "id": "discovery:api_route:api/src/server.ts:POST%20/api/checkout",
+     "kind": "api_route",
+     "label": "POST /api/checkout",
+     "layer": "system"
+    },
+    "relation": "DECLARES",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "SOURCE_SYNTAX_CANDIDATE",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [
+     "91408f4cc2625fd6a6bed74e36414710fe1b9de202ffc3157d7059f4e9c66c7c"
+    ],
+    "other": {
+     "id": "discovery:api_route:api/src/server.ts:POST%20/api/login",
+     "kind": "api_route",
+     "label": "POST /api/login",
+     "layer": "system"
+    },
+    "relation": "DECLARES",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "SOURCE_SYNTAX_CANDIDATE",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [
+     "42cc393de265dc871e748704688f2494a1484642c4016020ff56cd562cfb071c"
+    ],
+    "other": {
+     "id": "discovery:api_route:api/src/server.ts:POST%20/api/orders/:id/refund",
+     "kind": "api_route",
+     "label": "POST /api/orders/:id/refund",
+     "layer": "system"
+    },
+    "relation": "DECLARES",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "MANIFEST_DECLARATION",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [
+     "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4"
+    ],
+    "other": {
+     "id": "discovery:service:compose.yml:db",
+     "kind": "declared_service",
+     "label": "db",
+     "layer": "system"
+    },
+    "relation": "DEPENDS_ON",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "MANIFEST_DECLARATION",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [
+     "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4"
+    ],
+    "other": {
+     "id": "discovery:service:compose.yml:web",
+     "kind": "declared_service",
+     "label": "web",
+     "layer": "system"
+    },
+    "relation": "DEPENDS_ON",
+    "standing": "SOURCE"
+   }
+  ],
+  "relationships_omitted": 0,
+  "relationships_total": 7,
+  "relied_on_by": [
+   {
+    "depth": 1,
+    "id": "discovery:service:compose.yml:web",
+    "kind": "declared_service",
+    "label": "web",
+    "layer": "system",
+    "path": [
+     "discovery:service:compose.yml:web DEPENDS_ON discovery:service:compose.yml:api"
+    ],
+    "standing": "SOURCE"
+   }
+  ],
+  "schema_version": 1,
+  "source_evidence": [
+   {
+    "authenticity": "UNVERIFIED",
+    "id": "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4",
+    "path": "compose.yml",
+    "sha256": "99f01a5baf705e9feff2ac2541eeff64d43f7cb17d98c5f2afe4ce8d221a009f",
+    "source_kind": "LOCAL_MANIFEST_BYTES"
+   },
+   {
+    "authenticity": "UNVERIFIED",
+    "id": "42cc393de265dc871e748704688f2494a1484642c4016020ff56cd562cfb071c",
+    "path": "api/src/server.ts",
+    "sha256": "8d669ac09c39b7e801652765e659dc512cd9bccaa6b9f4fe626843331bd84350",
+    "source_kind": "CODE_SYNTAX_EXTRACTED"
+   },
+   {
+    "authenticity": "UNVERIFIED",
+    "id": "91408f4cc2625fd6a6bed74e36414710fe1b9de202ffc3157d7059f4e9c66c7c",
+    "path": "api/src/server.ts",
+    "sha256": "8d669ac09c39b7e801652765e659dc512cd9bccaa6b9f4fe626843331bd84350",
+    "source_kind": "CODE_SYNTAX_EXTRACTED"
+   },
+   {
+    "authenticity": "UNVERIFIED",
+    "id": "b1740ad157b4860de9d0ad21fae3b5d3bacdeeff45af2c0839b994ea30bcb45b",
+    "path": "api/src/server.ts",
+    "sha256": "8d669ac09c39b7e801652765e659dc512cd9bccaa6b9f4fe626843331bd84350",
+    "source_kind": "CODE_SYNTAX_EXTRACTED"
+   },
+   {
+    "authenticity": "UNVERIFIED",
+    "id": "c7d310b82cf6b5878d7958e3525ed893b7ca4c3831bc1b4ddd7ca467495bfbb5",
+    "path": "api/src/server.ts",
+    "sha256": "8d669ac09c39b7e801652765e659dc512cd9bccaa6b9f4fe626843331bd84350",
+    "source_kind": "CODE_SYNTAX_EXTRACTED"
+   }
+  ],
+  "standing_counts": {
+   "CONFIRMED": 0,
+   "INFERRED": 0,
+   "SOURCE": 7,
+   "UNKNOWN": 0
+  },
+  "standing_semantics": "CONFIRMED_BY_PERSON|SOURCE_DECLARED|INFERRED_NOT_DECIDED|UNKNOWN_GAP",
+  "suggestions": [],
+  "unknowns": [],
+  "why": [
+   "shop declares this (source)",
+   "web depends on this (source)"
+  ]
+ },
+ "discovery:service:compose.yml:db": {
+  "entity": {
+   "id": "discovery:service:compose.yml:db",
+   "kind": "declared_service",
+   "label": "db",
+   "layer": "system",
+   "observed_at": null,
+   "status": "unknown"
+  },
+  "execution_authorized": false,
+  "impact_semantics": "DECLARED_REACHABILITY_NOT_MEASURED_BLAST_RADIUS",
+  "kind": "ENTITY_CONTEXT",
+  "recent_changes": [],
+  "relationships": [
+   {
+    "basis": "MANIFEST_DECLARATION",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [
+     "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4"
+    ],
+    "other": {
+     "id": "discovery:project:shop:",
+     "kind": "project",
+     "label": "shop",
+     "layer": "system"
+    },
+    "relation": "DECLARES",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "MANIFEST_DECLARATION",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [
+     "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4"
+    ],
+    "other": {
+     "id": "discovery:service:compose.yml:api",
+     "kind": "declared_service",
+     "label": "api",
+     "layer": "system"
+    },
+    "relation": "DEPENDS_ON",
+    "standing": "SOURCE"
+   }
+  ],
+  "relationships_omitted": 0,
+  "relationships_total": 2,
+  "relied_on_by": [
+   {
+    "depth": 1,
+    "id": "discovery:service:compose.yml:api",
+    "kind": "declared_service",
+    "label": "api",
+    "layer": "system",
+    "path": [
+     "discovery:service:compose.yml:api DEPENDS_ON discovery:service:compose.yml:db"
+    ],
+    "standing": "SOURCE"
+   },
+   {
+    "depth": 2,
+    "id": "discovery:service:compose.yml:web",
+    "kind": "declared_service",
+    "label": "web",
+    "layer": "system",
+    "path": [
+     "discovery:service:compose.yml:api DEPENDS_ON discovery:service:compose.yml:db",
+     "discovery:service:compose.yml:web DEPENDS_ON discovery:service:compose.yml:api"
+    ],
+    "standing": "SOURCE"
+   }
+  ],
+  "schema_version": 1,
+  "source_evidence": [
+   {
+    "authenticity": "UNVERIFIED",
+    "id": "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4",
+    "path": "compose.yml",
+    "sha256": "99f01a5baf705e9feff2ac2541eeff64d43f7cb17d98c5f2afe4ce8d221a009f",
+    "source_kind": "LOCAL_MANIFEST_BYTES"
+   }
+  ],
+  "standing_counts": {
+   "CONFIRMED": 0,
+   "INFERRED": 0,
+   "SOURCE": 2,
+   "UNKNOWN": 0
+  },
+  "standing_semantics": "CONFIRMED_BY_PERSON|SOURCE_DECLARED|INFERRED_NOT_DECIDED|UNKNOWN_GAP",
+  "suggestions": [],
+  "unknowns": [],
+  "why": [
+   "shop declares this (source)",
+   "api depends on this (source)"
+  ]
+ },
+ "discovery:service:compose.yml:web": {
+  "entity": {
+   "id": "discovery:service:compose.yml:web",
+   "kind": "declared_service",
+   "label": "web",
+   "layer": "system",
+   "observed_at": null,
+   "status": "unknown"
+  },
+  "execution_authorized": false,
+  "impact_semantics": "DECLARED_REACHABILITY_NOT_MEASURED_BLAST_RADIUS",
+  "kind": "ENTITY_CONTEXT",
+  "recent_changes": [],
+  "relationships": [
+   {
+    "basis": "MANIFEST_DECLARATION",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [
+     "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4"
+    ],
+    "other": {
+     "id": "discovery:project:shop:",
+     "kind": "project",
+     "label": "shop",
+     "layer": "system"
+    },
+    "relation": "DECLARES",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "MANIFEST_DECLARATION",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [
+     "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4"
+    ],
+    "other": {
+     "id": "discovery:service:compose.yml:api",
+     "kind": "declared_service",
+     "label": "api",
+     "layer": "system"
+    },
+    "relation": "DEPENDS_ON",
+    "standing": "SOURCE"
+   },
+   {
+    "basis": "DECLARED_IN_SOURCE",
+    "decision": null,
+    "direction": "out",
+    "evidence_ids": [
+     "e57a7be1463b331f52e0eadefacd93aefb6cd281f9f789ff2059f24ffc5f52ae"
+    ],
+    "other": {
+     "id": "discovery:supplier:posthog",
+     "kind": "external_supplier",
+     "label": "PostHog",
+     "layer": "system"
+    },
+    "relation": "DEPENDS_ON",
+    "standing": "SOURCE"
+   }
+  ],
+  "relationships_omitted": 0,
+  "relationships_total": 3,
+  "relied_on_by": [],
+  "schema_version": 1,
+  "source_evidence": [
+   {
+    "authenticity": "UNVERIFIED",
+    "id": "17eed9dd3e52274174e02824d4e7b50d47251a4a6d04fcbc3689d239330c57d4",
+    "path": "compose.yml",
+    "sha256": "99f01a5baf705e9feff2ac2541eeff64d43f7cb17d98c5f2afe4ce8d221a009f",
+    "source_kind": "LOCAL_MANIFEST_BYTES"
+   },
+   {
+    "authenticity": "UNVERIFIED",
+    "id": "e57a7be1463b331f52e0eadefacd93aefb6cd281f9f789ff2059f24ffc5f52ae",
+    "path": "web/package.json",
+    "sha256": "d7b61e5c54eb93215caef67163741e79e6d767c767afcd9525f621cb52081f64",
+    "source_kind": "LOCAL_MANIFEST_BYTES"
+   }
+  ],
+  "standing_counts": {
+   "CONFIRMED": 0,
+   "INFERRED": 0,
+   "SOURCE": 3,
+   "UNKNOWN": 0
+  },
+  "standing_semantics": "CONFIRMED_BY_PERSON|SOURCE_DECLARED|INFERRED_NOT_DECIDED|UNKNOWN_GAP",
+  "suggestions": [],
+  "unknowns": [],
+  "why": [
+   "shop declares this (source)"
+  ]
+ },
+ "discovery:supplier:posthog": {
+  "entity": {
+   "id": "discovery:supplier:posthog",
+   "kind": "external_supplier",
+   "label": "PostHog",
+   "layer": "system",
+   "observed_at": null,
+   "status": "unknown"
+  },
+  "execution_authorized": false,
+  "impact_semantics": "DECLARED_REACHABILITY_NOT_MEASURED_BLAST_RADIUS",
+  "kind": "ENTITY_CONTEXT",
+  "recent_changes": [],
+  "relationships": [
+   {
+    "basis": "DECLARED_IN_SOURCE",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [
+     "e57a7be1463b331f52e0eadefacd93aefb6cd281f9f789ff2059f24ffc5f52ae"
+    ],
+    "other": {
+     "id": "discovery:service:compose.yml:web",
+     "kind": "declared_service",
+     "label": "web",
+     "layer": "system"
+    },
+    "relation": "DEPENDS_ON",
+    "standing": "SOURCE"
+   }
+  ],
+  "relationships_omitted": 0,
+  "relationships_total": 1,
+  "relied_on_by": [
+   {
+    "depth": 1,
+    "id": "discovery:service:compose.yml:web",
+    "kind": "declared_service",
+    "label": "web",
+    "layer": "system",
+    "path": [
+     "discovery:service:compose.yml:web DEPENDS_ON discovery:supplier:posthog"
+    ],
+    "standing": "SOURCE"
+   }
+  ],
+  "schema_version": 1,
+  "source_evidence": [
+   {
+    "authenticity": "UNVERIFIED",
+    "id": "e57a7be1463b331f52e0eadefacd93aefb6cd281f9f789ff2059f24ffc5f52ae",
+    "path": "web/package.json",
+    "sha256": "d7b61e5c54eb93215caef67163741e79e6d767c767afcd9525f621cb52081f64",
+    "source_kind": "LOCAL_MANIFEST_BYTES"
+   }
+  ],
+  "standing_counts": {
+   "CONFIRMED": 0,
+   "INFERRED": 0,
+   "SOURCE": 1,
+   "UNKNOWN": 0
+  },
+  "standing_semantics": "CONFIRMED_BY_PERSON|SOURCE_DECLARED|INFERRED_NOT_DECIDED|UNKNOWN_GAP",
+  "suggestions": [],
+  "unknowns": [],
+  "why": [
+   "web depends on this (source)"
+  ]
+ },
+ "discovery:supplier:sendgrid": {
+  "entity": {
+   "id": "discovery:supplier:sendgrid",
+   "kind": "external_supplier",
+   "label": "SendGrid",
+   "layer": "system",
+   "observed_at": null,
+   "status": "unknown"
+  },
+  "execution_authorized": false,
+  "impact_semantics": "DECLARED_REACHABILITY_NOT_MEASURED_BLAST_RADIUS",
+  "kind": "ENTITY_CONTEXT",
+  "recent_changes": [],
+  "relationships": [
+   {
+    "basis": "DECLARED_IN_SOURCE",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [
+     "62bcadd79ce3ccd436f3ac3ad449b52fe9df38d09510a3056fbc2ad69d655d95"
+    ],
+    "other": {
+     "id": "discovery:project:shop:",
+     "kind": "project",
+     "label": "shop",
+     "layer": "system"
+    },
+    "relation": "DEPENDS_ON",
+    "standing": "SOURCE"
+   }
+  ],
+  "relationships_omitted": 0,
+  "relationships_total": 1,
+  "relied_on_by": [
+   {
+    "depth": 1,
+    "id": "discovery:project:shop:",
+    "kind": "project",
+    "label": "shop",
+    "layer": "system",
+    "path": [
+     "discovery:project:shop: DEPENDS_ON discovery:supplier:sendgrid"
+    ],
+    "standing": "SOURCE"
+   }
+  ],
+  "schema_version": 1,
+  "source_evidence": [
+   {
+    "authenticity": "UNVERIFIED",
+    "id": "62bcadd79ce3ccd436f3ac3ad449b52fe9df38d09510a3056fbc2ad69d655d95",
+    "path": ".env.example",
+    "sha256": "5be90c3729475b10d63a03bb1821f289f86bedb4c2e747e34d13038430a50b97",
+    "source_kind": "LOCAL_MANIFEST_BYTES"
+   }
+  ],
+  "standing_counts": {
+   "CONFIRMED": 0,
+   "INFERRED": 0,
+   "SOURCE": 1,
+   "UNKNOWN": 0
+  },
+  "standing_semantics": "CONFIRMED_BY_PERSON|SOURCE_DECLARED|INFERRED_NOT_DECIDED|UNKNOWN_GAP",
+  "suggestions": [],
+  "unknowns": [],
+  "why": [
+   "shop depends on this (source)"
+  ]
+ },
+ "discovery:supplier:sentry": {
+  "entity": {
+   "id": "discovery:supplier:sentry",
+   "kind": "external_supplier",
+   "label": "Sentry",
+   "layer": "system",
+   "observed_at": null,
+   "status": "unknown"
+  },
+  "execution_authorized": false,
+  "impact_semantics": "DECLARED_REACHABILITY_NOT_MEASURED_BLAST_RADIUS",
+  "kind": "ENTITY_CONTEXT",
+  "recent_changes": [],
+  "relationships": [
+   {
+    "basis": "DECLARED_IN_SOURCE",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [
+     "381213780fc0bf4e6bdf2cbb07c038781c8707e3a5501c9b3ad908d2d6dcb804"
+    ],
+    "other": {
+     "id": "discovery:project:shop:",
+     "kind": "project",
+     "label": "shop",
+     "layer": "system"
+    },
+    "relation": "DEPENDS_ON",
+    "standing": "SOURCE"
+   }
+  ],
+  "relationships_omitted": 0,
+  "relationships_total": 1,
+  "relied_on_by": [
+   {
+    "depth": 1,
+    "id": "discovery:project:shop:",
+    "kind": "project",
+    "label": "shop",
+    "layer": "system",
+    "path": [
+     "discovery:project:shop: DEPENDS_ON discovery:supplier:sentry"
+    ],
+    "standing": "SOURCE"
+   }
+  ],
+  "schema_version": 1,
+  "source_evidence": [
+   {
+    "authenticity": "UNVERIFIED",
+    "id": "381213780fc0bf4e6bdf2cbb07c038781c8707e3a5501c9b3ad908d2d6dcb804",
+    "path": "package.json",
+    "sha256": "3ee23f046cc01182d447b1807f4c65b188feae85de22176e9c550c18cfd89d02",
+    "source_kind": "LOCAL_MANIFEST_BYTES"
+   }
+  ],
+  "standing_counts": {
+   "CONFIRMED": 0,
+   "INFERRED": 0,
+   "SOURCE": 1,
+   "UNKNOWN": 0
+  },
+  "standing_semantics": "CONFIRMED_BY_PERSON|SOURCE_DECLARED|INFERRED_NOT_DECIDED|UNKNOWN_GAP",
+  "suggestions": [],
+  "unknowns": [],
+  "why": [
+   "shop depends on this (source)"
+  ]
+ },
+ "discovery:supplier:shippo": {
+  "entity": {
+   "id": "discovery:supplier:shippo",
+   "kind": "external_supplier",
+   "label": "Shippo",
+   "layer": "system",
+   "observed_at": null,
+   "status": "unknown"
+  },
+  "execution_authorized": false,
+  "impact_semantics": "DECLARED_REACHABILITY_NOT_MEASURED_BLAST_RADIUS",
+  "kind": "ENTITY_CONTEXT",
+  "recent_changes": [],
+  "relationships": [
+   {
+    "basis": "DECLARED_IN_SOURCE",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [
+     "62bcadd79ce3ccd436f3ac3ad449b52fe9df38d09510a3056fbc2ad69d655d95"
+    ],
+    "other": {
+     "id": "discovery:project:shop:",
+     "kind": "project",
+     "label": "shop",
+     "layer": "system"
+    },
+    "relation": "DEPENDS_ON",
+    "standing": "SOURCE"
+   }
+  ],
+  "relationships_omitted": 0,
+  "relationships_total": 1,
+  "relied_on_by": [
+   {
+    "depth": 1,
+    "id": "discovery:project:shop:",
+    "kind": "project",
+    "label": "shop",
+    "layer": "system",
+    "path": [
+     "discovery:project:shop: DEPENDS_ON discovery:supplier:shippo"
+    ],
+    "standing": "SOURCE"
+   }
+  ],
+  "schema_version": 1,
+  "source_evidence": [
+   {
+    "authenticity": "UNVERIFIED",
+    "id": "62bcadd79ce3ccd436f3ac3ad449b52fe9df38d09510a3056fbc2ad69d655d95",
+    "path": ".env.example",
+    "sha256": "5be90c3729475b10d63a03bb1821f289f86bedb4c2e747e34d13038430a50b97",
+    "source_kind": "LOCAL_MANIFEST_BYTES"
+   }
+  ],
+  "standing_counts": {
+   "CONFIRMED": 0,
+   "INFERRED": 0,
+   "SOURCE": 1,
+   "UNKNOWN": 0
+  },
+  "standing_semantics": "CONFIRMED_BY_PERSON|SOURCE_DECLARED|INFERRED_NOT_DECIDED|UNKNOWN_GAP",
+  "suggestions": [],
+  "unknowns": [],
+  "why": [
+   "shop depends on this (source)"
+  ]
+ },
+ "discovery:supplier:stripe": {
+  "entity": {
+   "id": "discovery:supplier:stripe",
+   "kind": "external_supplier",
+   "label": "Stripe",
+   "layer": "system",
+   "observed_at": null,
+   "status": "unknown"
+  },
+  "execution_authorized": false,
+  "impact_semantics": "DECLARED_REACHABILITY_NOT_MEASURED_BLAST_RADIUS",
+  "kind": "ENTITY_CONTEXT",
+  "recent_changes": [],
+  "relationships": [
+   {
+    "basis": "DECLARED_IN_SOURCE",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [
+     "62bcadd79ce3ccd436f3ac3ad449b52fe9df38d09510a3056fbc2ad69d655d95"
+    ],
+    "other": {
+     "id": "discovery:project:shop:",
+     "kind": "project",
+     "label": "shop",
+     "layer": "system"
+    },
+    "relation": "DEPENDS_ON",
+    "standing": "SOURCE"
+   }
+  ],
+  "relationships_omitted": 0,
+  "relationships_total": 1,
+  "relied_on_by": [
+   {
+    "depth": 1,
+    "id": "discovery:project:shop:",
+    "kind": "project",
+    "label": "shop",
+    "layer": "system",
+    "path": [
+     "discovery:project:shop: DEPENDS_ON discovery:supplier:stripe"
+    ],
+    "standing": "SOURCE"
+   }
+  ],
+  "schema_version": 1,
+  "source_evidence": [
+   {
+    "authenticity": "UNVERIFIED",
+    "id": "62bcadd79ce3ccd436f3ac3ad449b52fe9df38d09510a3056fbc2ad69d655d95",
+    "path": ".env.example",
+    "sha256": "5be90c3729475b10d63a03bb1821f289f86bedb4c2e747e34d13038430a50b97",
+    "source_kind": "LOCAL_MANIFEST_BYTES"
+   }
+  ],
+  "standing_counts": {
+   "CONFIRMED": 0,
+   "INFERRED": 0,
+   "SOURCE": 1,
+   "UNKNOWN": 0
+  },
+  "standing_semantics": "CONFIRMED_BY_PERSON|SOURCE_DECLARED|INFERRED_NOT_DECIDED|UNKNOWN_GAP",
+  "suggestions": [],
+  "unknowns": [],
+  "why": [
+   "shop depends on this (source)"
+  ]
+ }
+}

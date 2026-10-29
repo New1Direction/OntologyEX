@@ -1,0 +1,140 @@
+{
+ "discovery:supplier:amazon-web-services": {
+  "entity": {
+   "id": "discovery:supplier:amazon-web-services",
+   "kind": "external_supplier",
+   "label": "Amazon Web Services",
+   "layer": "system",
+   "observed_at": null,
+   "status": "unknown"
+  },
+  "execution_authorized": false,
+  "impact_semantics": "DECLARED_REACHABILITY_NOT_MEASURED_BLAST_RADIUS",
+  "kind": "ENTITY_CONTEXT",
+  "recent_changes": [],
+  "relationships": [
+   {
+    "basis": "DECLARED_IN_SOURCE",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [
+     "d8fc14c12b032338ca2061a53fd3df1f378c9c6e2445ddb0b0ebda45d8274690"
+    ],
+    "other": {
+     "id": "discovery:project:clinic:",
+     "kind": "project",
+     "label": "clinic",
+     "layer": "system"
+    },
+    "relation": "DEPENDS_ON",
+    "standing": "SOURCE"
+   }
+  ],
+  "relationships_omitted": 0,
+  "relationships_total": 1,
+  "relied_on_by": [
+   {
+    "depth": 1,
+    "id": "discovery:project:clinic:",
+    "kind": "project",
+    "label": "clinic",
+    "layer": "system",
+    "path": [
+     "discovery:project:clinic: DEPENDS_ON discovery:supplier:amazon-web-services"
+    ],
+    "standing": "SOURCE"
+   }
+  ],
+  "schema_version": 1,
+  "source_evidence": [
+   {
+    "authenticity": "UNVERIFIED",
+    "id": "d8fc14c12b032338ca2061a53fd3df1f378c9c6e2445ddb0b0ebda45d8274690",
+    "path": "requirements.txt",
+    "sha256": "87d9be55a42fb23ad7d24bc68b53e3c98aea6c1ed32daa8572d245e7aa3162b6",
+    "source_kind": "LOCAL_MANIFEST_BYTES"
+   }
+  ],
+  "standing_counts": {
+   "CONFIRMED": 0,
+   "INFERRED": 0,
+   "SOURCE": 1,
+   "UNKNOWN": 0
+  },
+  "standing_semantics": "CONFIRMED_BY_PERSON|SOURCE_DECLARED|INFERRED_NOT_DECIDED|UNKNOWN_GAP",
+  "suggestions": [],
+  "unknowns": [],
+  "why": [
+   "clinic depends on this (source)"
+  ]
+ },
+ "discovery:supplier:twilio": {
+  "entity": {
+   "id": "discovery:supplier:twilio",
+   "kind": "external_supplier",
+   "label": "Twilio",
+   "layer": "system",
+   "observed_at": null,
+   "status": "unknown"
+  },
+  "execution_authorized": false,
+  "impact_semantics": "DECLARED_REACHABILITY_NOT_MEASURED_BLAST_RADIUS",
+  "kind": "ENTITY_CONTEXT",
+  "recent_changes": [],
+  "relationships": [
+   {
+    "basis": "DECLARED_IN_SOURCE",
+    "decision": null,
+    "direction": "in",
+    "evidence_ids": [
+     "d8fc14c12b032338ca2061a53fd3df1f378c9c6e2445ddb0b0ebda45d8274690"
+    ],
+    "other": {
+     "id": "discovery:project:clinic:",
+     "kind": "project",
+     "label": "clinic",
+     "layer": "system"
+    },
+    "relation": "DEPENDS_ON",
+    "standing": "SOURCE"
+   }
+  ],
+  "relationships_omitted": 0,
+  "relationships_total": 1,
+  "relied_on_by": [
+   {
+    "depth": 1,
+    "id": "discovery:project:clinic:",
+    "kind": "project",
+    "label": "clinic",
+    "layer": "system",
+    "path": [
+     "discovery:project:clinic: DEPENDS_ON discovery:supplier:twilio"
+    ],
+    "standing": "SOURCE"
+   }
+  ],
+  "schema_version": 1,
+  "source_evidence": [
+   {
+    "authenticity": "UNVERIFIED",
+    "id": "d8fc14c12b032338ca2061a53fd3df1f378c9c6e2445ddb0b0ebda45d8274690",
+    "path": "requirements.txt",
+    "sha256": "87d9be55a42fb23ad7d24bc68b53e3c98aea6c1ed32daa8572d245e7aa3162b6",
+    "source_kind": "LOCAL_MANIFEST_BYTES"
+   }
+  ],
+  "standing_counts": {
+   "CONFIRMED": 0,
+   "INFERRED": 0,
+   "SOURCE": 1,
+   "UNKNOWN": 0
+  },
+  "standing_semantics": "CONFIRMED_BY_PERSON|SOURCE_DECLARED|INFERRED_NOT_DECIDED|UNKNOWN_GAP",
+  "suggestions": [],
+  "unknowns": [],
+  "why": [
+   "clinic depends on this (source)"
+  ]
+ }
+}

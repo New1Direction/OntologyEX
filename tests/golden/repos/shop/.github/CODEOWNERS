@@ -1,0 +1,4 @@
+# Who answers for what
+*            @shop/platform
+/api/        @shop/payments
+/web/        @shop/storefront

@@ -1,0 +1,138 @@
+{
+ "changed_files": 1,
+ "execution_authorized": false,
+ "impacted": [
+  {
+   "depth": 1,
+   "id": "discovery:service:compose.yml:web",
+   "kind": "declared_service",
+   "label": "web",
+   "layer": "system",
+   "path": [
+    "discovery:service:compose.yml:web DEPENDS_ON discovery:service:compose.yml:api"
+   ],
+   "standing": "SOURCE",
+   "via": "discovery:service:compose.yml:api"
+  }
+ ],
+ "impacted_total": 1,
+ "kind": "CHANGE_IMPACT",
+ "reconfirm_after_merge": [],
+ "schema_version": 1,
+ "semantics": "DECLARED_REACHABILITY_FROM_CHANGED_FILES_NOT_RUNTIME_IMPACT",
+ "touched": [
+  {
+   "id": "payments-domain:action:ApproveException",
+   "kind": "business_action",
+   "label": "ApproveException",
+   "layer": "business",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "domain/payments.py",
+     "reason": "BINDING_SOURCE_CHANGED"
+    },
+    {
+     "line_hit": null,
+     "path": "domain/payments.py",
+     "reason": "CONFIRMED_LINK_EVIDENCE_CHANGES"
+    }
+   ]
+  },
+  {
+   "id": "payments-domain:action:IssueRefund",
+   "kind": "business_action",
+   "label": "IssueRefund",
+   "layer": "business",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "domain/payments.py",
+     "reason": "BINDING_SOURCE_CHANGED"
+    },
+    {
+     "line_hit": null,
+     "path": "domain/payments.py",
+     "reason": "CONFIRMED_LINK_EVIDENCE_CHANGES"
+    }
+   ]
+  },
+  {
+   "id": "payments-domain:object:Payment",
+   "kind": "business_object",
+   "label": "Payment",
+   "layer": "business",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "domain/payments.py",
+     "reason": "BINDING_SOURCE_CHANGED"
+    },
+    {
+     "line_hit": null,
+     "path": "domain/payments.py",
+     "reason": "CONFIRMED_LINK_EVIDENCE_CHANGES"
+    }
+   ]
+  },
+  {
+   "id": "payments-domain:object:Refund",
+   "kind": "business_object",
+   "label": "Refund",
+   "layer": "business",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "domain/payments.py",
+     "reason": "BINDING_SOURCE_CHANGED"
+    },
+    {
+     "line_hit": null,
+     "path": "domain/payments.py",
+     "reason": "CONFIRMED_LINK_EVIDENCE_CHANGES"
+    }
+   ]
+  },
+  {
+   "id": "discovery:service:compose.yml:api",
+   "kind": "declared_service",
+   "label": "api",
+   "layer": "system",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "domain/payments.py",
+     "reason": "CONFIRMED_LINK_EVIDENCE_CHANGES"
+    }
+   ]
+  },
+  {
+   "id": "discovery:service:compose.yml:ledger",
+   "kind": "declared_service",
+   "label": "ledger",
+   "layer": "system",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "domain/payments.py",
+     "reason": "CONFIRMED_LINK_EVIDENCE_CHANGES"
+    }
+   ]
+  },
+  {
+   "id": "discovery:service:compose.yml:payments",
+   "kind": "declared_service",
+   "label": "payments",
+   "layer": "system",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "domain/payments.py",
+     "reason": "CONFIRMED_LINK_EVIDENCE_CHANGES"
+    }
+   ]
+  }
+ ],
+ "touched_total": 7,
+ "unmapped_files": []
+}

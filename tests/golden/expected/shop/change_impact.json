@@ -1,0 +1,131 @@
+{
+ "changed_files": 2,
+ "execution_authorized": false,
+ "impacted": [],
+ "impacted_total": 0,
+ "kind": "CHANGE_IMPACT",
+ "reconfirm_after_merge": [],
+ "schema_version": 1,
+ "semantics": "DECLARED_REACHABILITY_FROM_CHANGED_FILES_NOT_RUNTIME_IMPACT",
+ "touched": [
+  {
+   "id": "discovery:api_route:api/src/server.ts:DELETE%20/api/account",
+   "kind": "api_route",
+   "label": "DELETE /api/account",
+   "layer": "system",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "api/src/server.ts",
+     "reason": "DECLARED_IN_CHANGED_FILE"
+    }
+   ]
+  },
+  {
+   "id": "discovery:declared_db_table:prisma/schema.prisma:Order",
+   "kind": "declared_db_table",
+   "label": "Order",
+   "layer": "system",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "prisma/schema.prisma",
+     "reason": "DECLARED_IN_CHANGED_FILE"
+    }
+   ]
+  },
+  {
+   "id": "discovery:api_route:api/src/server.ts:POST%20/api/checkout",
+   "kind": "api_route",
+   "label": "POST /api/checkout",
+   "layer": "system",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "api/src/server.ts",
+     "reason": "DECLARED_IN_CHANGED_FILE"
+    }
+   ]
+  },
+  {
+   "id": "discovery:api_route:api/src/server.ts:POST%20/api/login",
+   "kind": "api_route",
+   "label": "POST /api/login",
+   "layer": "system",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "api/src/server.ts",
+     "reason": "DECLARED_IN_CHANGED_FILE"
+    }
+   ]
+  },
+  {
+   "id": "discovery:api_route:api/src/server.ts:POST%20/api/orders/:id/refund",
+   "kind": "api_route",
+   "label": "POST /api/orders/:id/refund",
+   "layer": "system",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "api/src/server.ts",
+     "reason": "DECLARED_IN_CHANGED_FILE"
+    }
+   ]
+  },
+  {
+   "id": "discovery:declared_db_table:prisma/schema.prisma:Product",
+   "kind": "declared_db_table",
+   "label": "Product",
+   "layer": "system",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "prisma/schema.prisma",
+     "reason": "DECLARED_IN_CHANGED_FILE"
+    }
+   ]
+  },
+  {
+   "id": "discovery:declared_db_table:prisma/schema.prisma:Refund",
+   "kind": "declared_db_table",
+   "label": "Refund",
+   "layer": "system",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "prisma/schema.prisma",
+     "reason": "DECLARED_IN_CHANGED_FILE"
+    }
+   ]
+  },
+  {
+   "id": "discovery:declared_db_table:prisma/schema.prisma:SavedCard",
+   "kind": "declared_db_table",
+   "label": "SavedCard",
+   "layer": "system",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "prisma/schema.prisma",
+     "reason": "DECLARED_IN_CHANGED_FILE"
+    }
+   ]
+  },
+  {
+   "id": "discovery:declared_db_table:prisma/schema.prisma:User",
+   "kind": "declared_db_table",
+   "label": "User",
+   "layer": "system",
+   "reasons": [
+    {
+     "line_hit": null,
+     "path": "prisma/schema.prisma",
+     "reason": "DECLARED_IN_CHANGED_FILE"
+    }
+   ]
+  }
+ ],
+ "touched_total": 9,
+ "unmapped_files": []
+}

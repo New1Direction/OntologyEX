@@ -1,0 +1,157 @@
+{
+ "categories": [
+  {
+   "category": "payments",
+   "criticality": "CRITICAL",
+   "single_supplier": true,
+   "suppliers": [
+    "Stripe"
+   ]
+  },
+  {
+   "category": "email and messaging",
+   "criticality": "HIGH",
+   "single_supplier": true,
+   "suppliers": [
+    "SendGrid"
+   ]
+  },
+  {
+   "category": "shipping and logistics",
+   "criticality": "HIGH",
+   "single_supplier": true,
+   "suppliers": [
+    "Shippo"
+   ]
+  },
+  {
+   "category": "analytics and monitoring",
+   "criticality": "LOW",
+   "single_supplier": false,
+   "suppliers": [
+    "PostHog",
+    "Sentry"
+   ]
+  }
+ ],
+ "execution_authorized": false,
+ "kind": "SUPPLIER_MAP",
+ "own_supplier_records": [],
+ "schema_version": 1,
+ "semantics": "DECLARED_IN_MANIFESTS_AND_SETTING_NAMES_NOT_CONTRACTS_OR_SPEND",
+ "suppliers": [
+  {
+   "apps": [],
+   "category": "payments",
+   "criticality": "CRITICAL",
+   "evidence": [
+    {
+     "kind": "setting name",
+     "line": 1,
+     "path": ".env.example",
+     "text": "STRIPE_SECRET_KEY"
+    },
+    {
+     "kind": "setting name",
+     "line": 8,
+     "path": "compose.yml",
+     "text": "STRIPE_SECRET_KEY"
+    }
+   ],
+   "id": "discovery:supplier:stripe",
+   "libraries": [],
+   "name": "Stripe",
+   "settings": [
+    "STRIPE_SECRET_KEY"
+   ]
+  },
+  {
+   "apps": [],
+   "category": "email and messaging",
+   "criticality": "HIGH",
+   "evidence": [
+    {
+     "kind": "setting name",
+     "line": 2,
+     "path": ".env.example",
+     "text": "SENDGRID_API_KEY"
+    }
+   ],
+   "id": "discovery:supplier:sendgrid",
+   "libraries": [],
+   "name": "SendGrid",
+   "settings": [
+    "SENDGRID_API_KEY"
+   ]
+  },
+  {
+   "apps": [],
+   "category": "shipping and logistics",
+   "criticality": "HIGH",
+   "evidence": [
+    {
+     "kind": "setting name",
+     "line": 3,
+     "path": ".env.example",
+     "text": "SHIPPO_API_TOKEN"
+    }
+   ],
+   "id": "discovery:supplier:shippo",
+   "libraries": [],
+   "name": "Shippo",
+   "settings": [
+    "SHIPPO_API_TOKEN"
+   ]
+  },
+  {
+   "apps": [
+    "web"
+   ],
+   "category": "analytics and monitoring",
+   "criticality": "LOW",
+   "evidence": [
+    {
+     "kind": "dependency",
+     "line": 5,
+     "path": "web/package.json",
+     "text": "\"posthog-js\": \"^1.100.0\""
+    },
+    {
+     "kind": "setting name",
+     "line": 4,
+     "path": ".env.example",
+     "text": "NEXT_PUBLIC_POSTHOG_KEY"
+    }
+   ],
+   "id": "discovery:supplier:posthog",
+   "libraries": [
+    "posthog-js"
+   ],
+   "name": "PostHog",
+   "settings": [
+    "NEXT_PUBLIC_POSTHOG_KEY"
+   ]
+  },
+  {
+   "apps": [
+    "shop"
+   ],
+   "category": "analytics and monitoring",
+   "criticality": "LOW",
+   "evidence": [
+    {
+     "kind": "dependency",
+     "line": 6,
+     "path": "package.json",
+     "text": "\"@sentry/node\": \"^8.0.0\""
+    }
+   ],
+   "id": "discovery:supplier:sentry",
+   "libraries": [
+    "@sentry/node"
+   ],
+   "name": "Sentry",
+   "settings": []
+  }
+ ]
+}

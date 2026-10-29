@@ -1,0 +1,32 @@
+model User {
+  id        String   @id
+  email     String   @unique
+  phone     String?
+  role      String   @default("customer")
+  password  String
+}
+
+model Order {
+  id         String @id
+  userId     String
+  totalCents Int
+  status     String
+}
+
+model Product {
+  id        String @id
+  sku       String @unique
+  inventory Int
+}
+
+model Refund {
+  id      String @id
+  orderId String
+  reason  String
+}
+
+model SavedCard {
+  id          String @id
+  userId      String
+  card_number String
+}

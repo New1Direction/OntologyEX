@@ -1,0 +1,7 @@
+{
+  "name": "shop-web",
+  "dependencies": {
+    "next": "^14.0.0",
+    "posthog-js": "^1.100.0"
+  }
+}

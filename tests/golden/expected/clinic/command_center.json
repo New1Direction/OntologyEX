@@ -1,0 +1,431 @@
+{
+ "by_level": {
+  "CRITICAL": 0,
+  "HIGH": 1,
+  "LOW": 7,
+  "MEDIUM": 0
+ },
+ "coverage": {
+  "rows": [
+   {
+    "detail": "An action with no confirmed system cannot show its health.",
+    "label": "Business actions linked to a system",
+    "part": 0,
+    "percent": null,
+    "whole": 0
+   },
+   {
+    "detail": "Services with a live observation (health checks, traces, metrics).",
+    "label": "Services reporting health",
+    "part": 0,
+    "percent": null,
+    "whole": 0
+   },
+   {
+    "detail": "Confirmations whose recorded evidence is unchanged.",
+    "label": "Confirmations still current",
+    "part": 0,
+    "percent": null,
+    "whole": 0
+   },
+   {
+    "detail": "Rules whose evidence a person reviewed or better.",
+    "label": "Business rules reviewed",
+    "part": 0,
+    "percent": null,
+    "whole": 0
+   },
+   {
+    "detail": "Declared, or someone changed its code in the last year.",
+    "label": "Business actions with any owner",
+    "part": 0,
+    "percent": null,
+    "whole": 0
+   }
+  ],
+  "suppliers": 2
+ },
+ "execution_authorized": false,
+ "field": {
+  "checklist": [
+   {
+    "entities": [
+     {
+      "id": "discovery:api_route:app/main.py:GET%20/patients/%7Bpatient_id%7D",
+      "kind": "api_route",
+      "label": "GET /patients/{patient_id}",
+      "layer": "system"
+     },
+     {
+      "id": "discovery:declared_db_table:app/models.py:patients",
+      "kind": "declared_db_table",
+      "label": "patients",
+      "layer": "system"
+     }
+    ],
+    "item": "Patient records",
+    "status": "FOUND",
+    "suppliers": []
+   },
+   {
+    "entities": [
+     {
+      "id": "discovery:api_route:app/main.py:POST%20/appointments",
+      "kind": "api_route",
+      "label": "POST /appointments",
+      "layer": "system"
+     },
+     {
+      "id": "discovery:api_route:app/main.py:POST%20/appointments/%7Bappointment_id%7D/reminder",
+      "kind": "api_route",
+      "label": "POST /appointments/{appointment_id}/reminder",
+      "layer": "system"
+     },
+     {
+      "id": "discovery:declared_db_table:app/models.py:appointments",
+      "kind": "declared_db_table",
+      "label": "appointments",
+      "layer": "system"
+     }
+    ],
+    "item": "Appointments",
+    "status": "FOUND",
+    "suppliers": []
+   },
+   {
+    "entities": [],
+    "item": "Access control",
+    "status": "NOT_FOUND_IN_SOURCES",
+    "suppliers": []
+   },
+   {
+    "entities": [
+     {
+      "id": "discovery:declared_db_table:app/models.py:audit_log",
+      "kind": "declared_db_table",
+      "label": "audit_log",
+      "layer": "system"
+     }
+    ],
+    "item": "Audit trail",
+    "status": "FOUND",
+    "suppliers": []
+   },
+   {
+    "entities": [],
+    "item": "Consent",
+    "status": "NOT_FOUND_IN_SOURCES",
+    "suppliers": []
+   },
+   {
+    "entities": [
+     {
+      "id": "discovery:api_route:app/main.py:POST%20/appointments/%7Bappointment_id%7D/reminder",
+      "kind": "api_route",
+      "label": "POST /appointments/{appointment_id}/reminder",
+      "layer": "system"
+     }
+    ],
+    "item": "Patient messaging",
+    "status": "FOUND",
+    "suppliers": [
+     "Twilio"
+    ]
+   }
+  ],
+  "detail": "6 names in the model point to healthcare. 'Not found' means the sources do not show it, not that the business lacks it.",
+  "field": "healthcare",
+  "signals": [
+   {
+    "id": "discovery:api_route:app/main.py:GET%20/patients/%7Bpatient_id%7D",
+    "kind": "api_route",
+    "label": "GET /patients/{patient_id}",
+    "layer": "system"
+   },
+   {
+    "id": "discovery:api_route:app/main.py:POST%20/appointments",
+    "kind": "api_route",
+    "label": "POST /appointments",
+    "layer": "system"
+   },
+   {
+    "id": "discovery:api_route:app/main.py:POST%20/appointments/%7Bappointment_id%7D/reminder",
+    "kind": "api_route",
+    "label": "POST /appointments/{appointment_id}/reminder",
+    "layer": "system"
+   },
+   {
+    "id": "discovery:declared_db_table:app/models.py:appointments",
+    "kind": "declared_db_table",
+    "label": "appointments",
+    "layer": "system"
+   },
+   {
+    "id": "discovery:declared_db_table:app/models.py:patients",
+    "kind": "declared_db_table",
+    "label": "patients",
+    "layer": "system"
+   },
+   {
+    "id": "discovery:declared_db_table:app/models.py:prescriptions",
+    "kind": "declared_db_table",
+    "label": "prescriptions",
+    "layer": "system"
+   }
+  ]
+ },
+ "items": [
+  {
+   "category": "Visibility",
+   "factors": [
+    {
+     "detail": "the business actions are not written down, so nothing here reaches the business",
+     "factor": "severity",
+     "points": 50
+    }
+   ],
+   "id": "43715688c80560a8",
+   "kind": "NO_BUSINESS_MODEL",
+   "level": "HIGH",
+   "links": [],
+   "next_step": "Write a domain skill for the main workflow (guided onboarding) and start the control room with --skill, so health, risk and change impact reach business actions.",
+   "owner": null,
+   "score": 50,
+   "standing": "UNKNOWN",
+   "subject": null,
+   "title": "The business actions are not written down",
+   "why": "Without them, systems, suppliers and changes cannot be traced to what the business does or what it earns from."
+  },
+  {
+   "category": "Compliance",
+   "factors": [
+    {
+     "detail": "a standard that applies asks for controls the sources do not show",
+     "factor": "severity",
+     "points": 18
+    },
+    {
+     "detail": "5 control(s)",
+     "factor": "volume",
+     "points": 10
+    }
+   ],
+   "id": "cb3aa69cb4186e27",
+   "kind": "COMPLIANCE_GAPS",
+   "level": "LOW",
+   "links": [],
+   "next_step": "Open Compliance: each gap says what evidence would show it and what a person must provide.",
+   "owner": null,
+   "score": 28,
+   "standing": "UNKNOWN",
+   "subject": null,
+   "title": "GDPR: 5 of 8 controls not fully shown in the sources",
+   "why": "Personal data is kept (for people in the EU or UK). Not fully shown: Art. 7 consent is recorded, Art. 15/20 people can get a copy of their data, Art. 17 people can have their data erased, Art. 5(1)(e) data is kept no longer than needed, Art. 32 security of processing."
+  },
+  {
+   "category": "Compliance",
+   "factors": [
+    {
+     "detail": "a standard that applies asks for controls the sources do not show",
+     "factor": "severity",
+     "points": 18
+    },
+    {
+     "detail": "5 control(s)",
+     "factor": "volume",
+     "points": 10
+    }
+   ],
+   "id": "314ff85d764e6a1b",
+   "kind": "COMPLIANCE_GAPS",
+   "level": "LOW",
+   "links": [],
+   "next_step": "Open Compliance: each gap says what evidence would show it and what a person must provide.",
+   "owner": null,
+   "score": 28,
+   "standing": "UNKNOWN",
+   "subject": null,
+   "title": "HIPAA: 5 of 9 controls not fully shown in the sources",
+   "why": "Health-record fields appear in the data model: diagnos, medication, patient, prescription. Not fully shown: 164.308(a)(7) contingency plan and backups, 164.312(a)(1) access control, 164.312(a)(2)(iv) encryption at rest, 164.312(d) person authentication, 164.312(e)(1) transmission security."
+  },
+  {
+   "category": "Ownership",
+   "factors": [
+    {
+     "detail": "only one person changed the whole repository in a year",
+     "factor": "severity",
+     "points": 25
+    }
+   ],
+   "id": "96e20ecd42800cbc",
+   "kind": "ONE_PERSON_REPOSITORY",
+   "level": "LOW",
+   "links": [],
+   "next_step": "Write down how the critical parts work and who else can change them.",
+   "owner": null,
+   "score": 25,
+   "standing": "INFERRED",
+   "subject": null,
+   "title": "One person changed everything this year",
+   "why": "Every commit in the last year came from one person, so what they know is written down nowhere else."
+  },
+  {
+   "category": "Compliance",
+   "factors": [
+    {
+     "detail": "customers usually ask for this standard, and the sources do not show all of it",
+     "factor": "severity",
+     "points": 10
+    },
+    {
+     "detail": "9 control(s)",
+     "factor": "volume",
+     "points": 12
+    }
+   ],
+   "id": "7dd7f1770255cf63",
+   "kind": "COMPLIANCE_ASKED",
+   "level": "LOW",
+   "links": [],
+   "next_step": "Open Compliance before a customer's security review asks for it.",
+   "owner": null,
+   "score": 22,
+   "standing": "UNKNOWN",
+   "subject": null,
+   "title": "SOC 2: 9 of 13 controls not fully shown in the sources",
+   "why": "Business customers usually ask for a SOC 2 report before buying. Not fully shown: CC2.2 security responsibilities are communicated, CC6.1 sign-in and access are controlled, CC6.1-MFA multi-factor sign-in, CC6.7 data is encrypted in transit, CC6.8 unauthorized or vulnerable software is prevented, CC7.1 vulnerabilities are found...."
+  },
+  {
+   "category": "Suppliers",
+   "factors": [
+    {
+     "detail": "the only supplier of an important kind",
+     "factor": "severity",
+     "points": 18
+    }
+   ],
+   "id": "b52968b4d799dbea",
+   "kind": "SINGLE_HIGH_SUPPLIER",
+   "level": "LOW",
+   "links": [
+    "discovery:supplier:amazon-web-services"
+   ],
+   "next_step": "Note who owns this supplier and what happens if it is down.",
+   "owner": {
+    "basis": "MOST_COMMITS",
+    "owner": "Dee Park",
+    "risks": [],
+    "standing": "INFERRED",
+    "status": "ACTIVE_ONLY",
+    "through": null
+   },
+   "score": 18,
+   "standing": "SOURCE",
+   "subject": {
+    "id": "discovery:supplier:amazon-web-services",
+    "kind": "external_supplier",
+    "label": "Amazon Web Services",
+    "layer": "system"
+   },
+   "title": "Amazon Web Services is the only cloud and hosting supplier",
+   "why": "No second cloud and hosting supplier is declared in the sources."
+  },
+  {
+   "category": "Suppliers",
+   "factors": [
+    {
+     "detail": "the only supplier of an important kind",
+     "factor": "severity",
+     "points": 18
+    }
+   ],
+   "id": "b703fc7ac0b66d47",
+   "kind": "SINGLE_HIGH_SUPPLIER",
+   "level": "LOW",
+   "links": [
+    "discovery:supplier:twilio"
+   ],
+   "next_step": "Note who owns this supplier and what happens if it is down.",
+   "owner": {
+    "basis": "MOST_COMMITS",
+    "owner": "Dee Park",
+    "risks": [],
+    "standing": "INFERRED",
+    "status": "ACTIVE_ONLY",
+    "through": null
+   },
+   "score": 18,
+   "standing": "SOURCE",
+   "subject": {
+    "id": "discovery:supplier:twilio",
+    "kind": "external_supplier",
+    "label": "Twilio",
+    "layer": "system"
+   },
+   "title": "Twilio is the only email and messaging supplier",
+   "why": "No second email and messaging supplier is declared in the sources."
+  },
+  {
+   "category": "Ownership",
+   "factors": [
+    {
+     "detail": "no CODEOWNERS file names who owns any code",
+     "factor": "severity",
+     "points": 12
+    }
+   ],
+   "id": "313aea14942c79cc",
+   "kind": "NO_CODEOWNERS",
+   "level": "LOW",
+   "links": [],
+   "next_step": "Add a CODEOWNERS file: it names who reviews and answers for each part of the code.",
+   "owner": null,
+   "score": 12,
+   "standing": "UNKNOWN",
+   "subject": null,
+   "title": "No CODEOWNERS file",
+   "why": "Ownership can only be inferred from who changed the code."
+  }
+ ],
+ "kind": "COMMAND_CENTER",
+ "kpis": [
+  {
+   "label": "Business actions",
+   "tone": "neutral",
+   "value": 0
+  },
+  {
+   "label": "Reported OK",
+   "tone": "ok",
+   "value": 0
+  },
+  {
+   "label": "At risk or impacted",
+   "tone": "risk",
+   "value": 0
+  },
+  {
+   "label": "Health unknown",
+   "tone": "unknown",
+   "value": 0
+  },
+  {
+   "label": "Services in error",
+   "tone": "risk",
+   "value": 0
+  },
+  {
+   "label": "Suppliers",
+   "tone": "neutral",
+   "value": 2
+  },
+  {
+   "label": "Decisions waiting",
+   "tone": "unknown",
+   "value": 0
+  }
+ ],
+ "schema_version": 1,
+ "semantics": "IMPORTANCE_RANKS_ATTENTION_NOT_PROBABILITY_OR_APPROVAL",
+ "total": 8
+}

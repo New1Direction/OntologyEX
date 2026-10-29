@@ -123,3 +123,21 @@ python tests/rust_business_parity.py
 python tests/conformance.py check /tmp/lean.json
 bun /path/to/bendlang/bend/bend2/main.ts proofs/bend/business.bend   # ALL PROOFS CHECK
 ```
+
+## Golden fixtures
+
+Parity tests prove Python and Rust agree with each other; they cannot catch both changing
+the same wrong way. `tests/golden.py` pins the answers. Three inputs: the operating-picture
+demo, and two small repositories under `tests/golden/repos` (a shop that takes payments
+and keeps card fields, a clinic that keeps patient records), each given a fixed git
+history with fixed authors and dates and read against a fixed clock. Their outputs
+(discovery, suppliers, owners, compliance, the command center, entity context, change
+impact and the weekly digest) are stored under `tests/golden/expected`, after
+normalizing only what is not behaviour: wall-clock times and the temporary directory.
+
+`check` regenerates them and prints the JSON paths that differ; CI runs it in the Python
+suite and, with the Rust engine built, checks Rust's discovery, context and change impact
+against the same files. A change meant to alter an answer is made with
+`update --reason "why"`, which records the reason per file in `MANIFEST.json` and in
+`CHANGES.md`; an expected file edited by hand no longer matches its manifest hash and fails.
+

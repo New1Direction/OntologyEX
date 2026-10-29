@@ -1,0 +1,95 @@
+{
+ "outputs": {
+  "clinic/change_impact.json": {
+   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
+   "sha256": "d88a3c2b9a49138a96a30ec02bc9174bd12e67d8e74f4377dd78da743f017d57",
+   "updated": "2026-10-29"
+  },
+  "clinic/command_center.json": {
+   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
+   "sha256": "d9aeba2931945108c808d37805795d485928a73a7eac832d4c482d1f15786e56",
+   "updated": "2026-10-29"
+  },
+  "clinic/compliance.json": {
+   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
+   "sha256": "99ff14ae2e80b46f661bdb2785cee75830fea666078b8174fab7e9f2b1fc04c8",
+   "updated": "2026-10-29"
+  },
+  "clinic/context.json": {
+   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
+   "sha256": "6a91d1b80e0892b3749a45260a569980b719d6d00257f0a83932c31d412820f4",
+   "updated": "2026-10-29"
+  },
+  "clinic/discovery.json": {
+   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
+   "sha256": "3cf5e096e6193c9efc2dd556cfa54df0b35889e9b1c1665fa478f197562d8224",
+   "updated": "2026-10-29"
+  },
+  "clinic/ownership.json": {
+   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
+   "sha256": "795832463a7c39ad8c98a1346651457428896fd0539d99573e97faf4231c180b",
+   "updated": "2026-10-29"
+  },
+  "clinic/suppliers.json": {
+   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
+   "sha256": "377f3b536cb4cb426ceeb2df742e946694174aeeb5333dea476d86e85cdfdc11",
+   "updated": "2026-10-29"
+  },
+  "demo/change_impact.json": {
+   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
+   "sha256": "649dbdcfc794b3b1a7b7d3e09b29ba5c3ff7f1d3456876501f63d37f58ce20da",
+   "updated": "2026-10-29"
+  },
+  "demo/command_center.json": {
+   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
+   "sha256": "23efc9e15b7869ee7fe74e3ae13ecce9cc77d3edfa0b89500d620c6580326460",
+   "updated": "2026-10-29"
+  },
+  "demo/context.json": {
+   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
+   "sha256": "388458e39759dc2b9ac0c62b2113acf27023f12e822334d508da5e0801356ebe",
+   "updated": "2026-10-29"
+  },
+  "demo/digest.json": {
+   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
+   "sha256": "e5a434f44aadc68b3ca0e3d25236abd07fb88836e8840d436c012749d10394cf",
+   "updated": "2026-10-29"
+  },
+  "shop/change_impact.json": {
+   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
+   "sha256": "5df0f5c033ca0526b38b83e5d919d09ba8b26450514c3c9f95cf53812d53346e",
+   "updated": "2026-10-29"
+  },
+  "shop/command_center.json": {
+   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
+   "sha256": "335f671ba5c7f64413f23733141dff11efdae8b872698e0199369d7f4ae86f6a",
+   "updated": "2026-10-29"
+  },
+  "shop/compliance.json": {
+   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
+   "sha256": "2533175cd0254a421f454a5ac08ba7318fe552fa7239476ed9520c4432233bb9",
+   "updated": "2026-10-29"
+  },
+  "shop/context.json": {
+   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
+   "sha256": "2200fcbc887001c6d97040db0b78faccad2b738d3d5aff02c0b73032c1444df8",
+   "updated": "2026-10-29"
+  },
+  "shop/discovery.json": {
+   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
+   "sha256": "a145bee84184df0073713c3eeb2eeeca80c6fc5d98d8057d045aee7db81992b2",
+   "updated": "2026-10-29"
+  },
+  "shop/ownership.json": {
+   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
+   "sha256": "a5bd5c1fcec085f30593a8c3f35743850eba25c0ef06daed089bc6a53707b6ba",
+   "updated": "2026-10-29"
+  },
+  "shop/suppliers.json": {
+   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
+   "sha256": "c7efbe3f41608405cb40d828ecd1e1d0b2fffab84a84d3bbb4e5e1ff120563a6",
+   "updated": "2026-10-29"
+  }
+ },
+ "schema_version": 1
+}

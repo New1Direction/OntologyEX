@@ -1,0 +1,12 @@
+services:
+  web:
+    build: ./web
+    depends_on: [api]
+  api:
+    build: ./api
+    environment:
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      DATABASE_URL: postgres://shop@db/shop
+    depends_on: [db]
+  db:
+    image: postgres:16

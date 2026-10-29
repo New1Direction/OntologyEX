@@ -1,0 +1,13 @@
+name: ci
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm test
+  codeql:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: github/codeql-action/analyze@v3

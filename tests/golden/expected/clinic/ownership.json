@@ -1,0 +1,381 @@
+{
+ "codeowners": null,
+ "contributors": 1,
+ "coverage": [
+  {
+   "detail": "CODEOWNERS names someone for the code behind it.",
+   "label": "Business actions with a declared owner",
+   "part": 0,
+   "percent": null,
+   "whole": 0
+  },
+  {
+   "detail": "Declared, or someone changed its code in the last year.",
+   "label": "Business actions with any owner",
+   "part": 0,
+   "percent": null,
+   "whole": 0
+  }
+ ],
+ "entities": [
+  {
+   "active": [
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Dee Park"
+    }
+   ],
+   "active_total": 1,
+   "basis": "MOST_COMMITS",
+   "declared": [],
+   "files": [
+    {
+     "basis": "NAMED_IN_MANIFEST",
+     "path": "requirements.txt"
+    }
+   ],
+   "id": "discovery:supplier:amazon-web-services",
+   "kind": "external_supplier",
+   "label": "Amazon Web Services",
+   "layer": "system",
+   "owner": "Dee Park",
+   "risks": [],
+   "standing": "INFERRED",
+   "status": "ACTIVE_ONLY",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Dee Park"
+    }
+   ],
+   "active_total": 1,
+   "basis": "MOST_COMMITS",
+   "declared": [],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "Dockerfile"
+    }
+   ],
+   "id": "discovery:manifest:Dockerfile:",
+   "kind": "source_manifest",
+   "label": "Dockerfile",
+   "layer": "system",
+   "owner": "Dee Park",
+   "risks": [],
+   "standing": "INFERRED",
+   "status": "ACTIVE_ONLY",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Dee Park"
+    }
+   ],
+   "active_total": 1,
+   "basis": "MOST_COMMITS",
+   "declared": [],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "app/main.py"
+    }
+   ],
+   "id": "discovery:api_route:app/main.py:GET%20/patients/%7Bpatient_id%7D",
+   "kind": "api_route",
+   "label": "GET /patients/{patient_id}",
+   "layer": "system",
+   "owner": "Dee Park",
+   "risks": [
+    "ONE_PERSON"
+   ],
+   "standing": "INFERRED",
+   "status": "ACTIVE_ONLY",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Dee Park"
+    }
+   ],
+   "active_total": 1,
+   "basis": "MOST_COMMITS",
+   "declared": [],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "app/main.py"
+    }
+   ],
+   "id": "discovery:api_route:app/main.py:POST%20/appointments",
+   "kind": "api_route",
+   "label": "POST /appointments",
+   "layer": "system",
+   "owner": "Dee Park",
+   "risks": [
+    "ONE_PERSON"
+   ],
+   "standing": "INFERRED",
+   "status": "ACTIVE_ONLY",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Dee Park"
+    }
+   ],
+   "active_total": 1,
+   "basis": "MOST_COMMITS",
+   "declared": [],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "app/main.py"
+    }
+   ],
+   "id": "discovery:api_route:app/main.py:POST%20/appointments/%7Bappointment_id%7D/reminder",
+   "kind": "api_route",
+   "label": "POST /appointments/{appointment_id}/reminder",
+   "layer": "system",
+   "owner": "Dee Park",
+   "risks": [
+    "ONE_PERSON"
+   ],
+   "standing": "INFERRED",
+   "status": "ACTIVE_ONLY",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 1,
+     "last": "<time>",
+     "name": "Dee Park"
+    }
+   ],
+   "active_total": 1,
+   "basis": "MOST_COMMITS",
+   "declared": [],
+   "files": [
+    {
+     "basis": "NAMED_IN_MANIFEST",
+     "path": "requirements.txt"
+    }
+   ],
+   "id": "discovery:supplier:twilio",
+   "kind": "external_supplier",
+   "label": "Twilio",
+   "layer": "system",
+   "owner": "Dee Park",
+   "risks": [],
+   "standing": "INFERRED",
+   "status": "ACTIVE_ONLY",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Dee Park"
+    }
+   ],
+   "active_total": 1,
+   "basis": "MOST_COMMITS",
+   "declared": [],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "app/models.py"
+    }
+   ],
+   "id": "discovery:declared_db_table:app/models.py:appointments",
+   "kind": "declared_db_table",
+   "label": "appointments",
+   "layer": "system",
+   "owner": "Dee Park",
+   "risks": [
+    "ONE_PERSON"
+   ],
+   "standing": "INFERRED",
+   "status": "ACTIVE_ONLY",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Dee Park"
+    }
+   ],
+   "active_total": 1,
+   "basis": "MOST_COMMITS",
+   "declared": [],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "app/models.py"
+    }
+   ],
+   "id": "discovery:declared_db_table:app/models.py:audit_log",
+   "kind": "declared_db_table",
+   "label": "audit_log",
+   "layer": "system",
+   "owner": "Dee Park",
+   "risks": [
+    "ONE_PERSON"
+   ],
+   "standing": "INFERRED",
+   "status": "ACTIVE_ONLY",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Dee Park"
+    }
+   ],
+   "active_total": 1,
+   "basis": "MOST_COMMITS",
+   "declared": [],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "app/models.py"
+    }
+   ],
+   "id": "discovery:declared_db_table:app/models.py:patients",
+   "kind": "declared_db_table",
+   "label": "patients",
+   "layer": "system",
+   "owner": "Dee Park",
+   "risks": [
+    "ONE_PERSON"
+   ],
+   "standing": "INFERRED",
+   "status": "ACTIVE_ONLY",
+   "through": null
+  },
+  {
+   "active": [
+    {
+     "commits": 2,
+     "last": "<time>",
+     "name": "Dee Park"
+    }
+   ],
+   "active_total": 1,
+   "basis": "MOST_COMMITS",
+   "declared": [],
+   "files": [
+    {
+     "basis": "DECLARING_FILE",
+     "path": "app/models.py"
+    }
+   ],
+   "id": "discovery:declared_db_table:app/models.py:prescriptions",
+   "kind": "declared_db_table",
+   "label": "prescriptions",
+   "layer": "system",
+   "owner": "Dee Park",
+   "risks": [
+    "ONE_PERSON"
+   ],
+   "standing": "INFERRED",
+   "status": "ACTIVE_ONLY",
+   "through": null
+  }
+ ],
+ "execution_authorized": false,
+ "git": "OK",
+ "kind": "OWNERSHIP",
+ "people": [
+  {
+   "basis": "MOST_COMMITS",
+   "owner": "Dee Park",
+   "owns": [
+    {
+     "id": "discovery:supplier:amazon-web-services",
+     "kind": "external_supplier",
+     "label": "Amazon Web Services",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:manifest:Dockerfile:",
+     "kind": "source_manifest",
+     "label": "Dockerfile",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:api_route:app/main.py:GET%20/patients/%7Bpatient_id%7D",
+     "kind": "api_route",
+     "label": "GET /patients/{patient_id}",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:api_route:app/main.py:POST%20/appointments",
+     "kind": "api_route",
+     "label": "POST /appointments",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:api_route:app/main.py:POST%20/appointments/%7Bappointment_id%7D/reminder",
+     "kind": "api_route",
+     "label": "POST /appointments/{appointment_id}/reminder",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:supplier:twilio",
+     "kind": "external_supplier",
+     "label": "Twilio",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:declared_db_table:app/models.py:appointments",
+     "kind": "declared_db_table",
+     "label": "appointments",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:declared_db_table:app/models.py:audit_log",
+     "kind": "declared_db_table",
+     "label": "audit_log",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:declared_db_table:app/models.py:patients",
+     "kind": "declared_db_table",
+     "label": "patients",
+     "layer": "system"
+    },
+    {
+     "id": "discovery:declared_db_table:app/models.py:prescriptions",
+     "kind": "declared_db_table",
+     "label": "prescriptions",
+     "layer": "system"
+    }
+   ]
+  }
+ ],
+ "schema_version": 1,
+ "semantics": "DECLARED_OR_INFERRED_FROM_HISTORY_NOT_ACCOUNTABILITY",
+ "status": "OK",
+ "window_days": 365
+}
