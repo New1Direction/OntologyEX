@@ -37,6 +37,7 @@ SEVERITY = {
     "DEGRADED": (35, "a linked system reports a warning"),
     "STALE_CONFIRMATION": (30, "a person confirmed it, then the evidence changed"),
     "STALE_REPAIR": (25, "the code it was modeled from changed: the model may describe code that is gone"),
+    "AGENT_BLOCKED": (30, "an agent tried something a business rule forbids"),
     "SINGLE_CRITICAL_SUPPLIER": (30, "the only supplier of a critical kind"),
     "LINK_GAP": (25, "a confirmed link points at a component that is gone"),
     "OPEN_QUESTION": (25, "the sources leave a question open"),
@@ -91,7 +92,7 @@ SEVERITY = {
     "PULL_STALE": (20, "a live pull has not succeeded for two of its intervals"),
 }
 CATEGORY = {"SYSTEM_ERROR": "Systems", "AT_RISK": "Business at risk", "POSSIBLY_IMPACTED": "Business at risk",
-            "DEGRADED": "Business at risk", "STALE": "Business at risk", "STALE_CONFIRMATION": "Decisions", "STALE_REPAIR": "Decisions",
+            "DEGRADED": "Business at risk", "STALE": "Business at risk", "STALE_CONFIRMATION": "Decisions", "STALE_REPAIR": "Decisions", "AGENT_BLOCKED": "Decisions",
             "DECISIONS_WAITING": "Decisions", "SINGLE_CRITICAL_SUPPLIER": "Suppliers", "SINGLE_HIGH_SUPPLIER": "Suppliers",
             "LINK_GAP": "Unknowns", "OPEN_QUESTION": "Unknowns", "NOT_LINKED": "Visibility", "NEVER_OBSERVED": "Visibility",
             "NO_BUSINESS_MODEL": "Visibility", "UNOBSERVED_SERVICES": "Visibility", "NO_OWNER": "Ownership",
@@ -114,6 +115,8 @@ NEXT_STEP = {
     "POSSIBLY_IMPACTED": "Follow the dependency to the failing system; the impact is possible, not confirmed.",
     "DEGRADED": "Check the warning on the linked system before it becomes an error.",
     "STALE_CONFIRMATION": "Re-read the changed lines, then re-confirm or undo the decision.",
+    "AGENT_BLOCKED": "Find out why the agent tried it: a prompt or a task that asks for it, or a rule that is wrong. "
+                     "Fix the one that is wrong (the audit is .ontologyex/guardrail-audit.jsonl).",
     "STALE_REPAIR": "Read the changed lines (the drift report names where they are now), then rebuild the skill from "
                     "the current code or re-cite the evidence.",
     "SINGLE_CRITICAL_SUPPLIER": "Decide whether a second provider or a written fallback is needed.",
@@ -340,6 +343,11 @@ def report(bundle: dict) -> dict:
                                "Its cited lines are " + "; ".join(
                                    f"{x['status'].lower().replace('_', ' ')} at {x['path']}:{x['start_line']}-{x['end_line']}"
                                    for x in where[:3]) + ".", reach(item["id"]), standing="INFERRED"))
+    for hit in (bundle.get("guardrails") or {}).get("denied_by_rule", []):  # guardrail.py, the last 7 days
+        subject = side(f"{hit['skill']}:action:{hit['task']}")
+        items.append(_item("AGENT_BLOCKED", subject, f"An agent was stopped {hit['denied']} time(s) by {hit['task']}'s "
+                           f"rule {hit['rule']}", f"The guard denied {', '.join(hit['tools'])} because the call broke "
+                           f"the rule {hit['rule']}.", reach(subject["id"]) if subject else []))
     for gap in picture.get("link_gaps", []):
         link = gap.get("link") or {}
         items.append(_item("LINK_GAP", None, f"{link.get('binding')} is linked to a component that is gone",

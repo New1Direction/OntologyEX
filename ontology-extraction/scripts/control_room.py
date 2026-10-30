@@ -37,6 +37,7 @@ import suppliers
 import command_center
 import digest
 import drift
+import guardrail
 import ownership
 import compliance
 import operations
@@ -1193,6 +1194,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         data["ownership"] = ownership.report(data, scanner.result("ownership")[0] if scanner is not None else None)
         data["compliance"] = compliance.report(data, scanner.result("compliance")[0] if scanner is not None else None)
         data["operations"] = operations_report(data)
+        data["guardrails"] = guardrail.summary(repo, datetime.now(timezone.utc))  # agent calls the rules stopped
         data["drift"] = drift.assemble(scanner.result("drift")[0] if scanner is not None else None,
                                        drift.rules_drift(rules_file, repo_files))
         return data

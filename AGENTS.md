@@ -67,6 +67,10 @@ Then offer what fits:
   says what it touches in their business and what relies on it (git is only read); `drift.py check`
   says which cited lines moved or changed under the model, and `drift.py hook install` prints it after
   each commit (it writes a git hook: ask first; see [source drift](docs/drift.md)).
+- **Hold an agent's tools to the rules:** `guardrail.py init` proposes `.ontologyex/guardrails.json`
+  (which tool performs which task, where each input is in its arguments) and `guardrail.py install`
+  adds a Claude Code PreToolUse hook: a broken rule is denied, an open question asks a person, a pass
+  decides nothing (it writes `.claude/settings.json`: ask first; see [guardrails](docs/guardrails.md)).
 - **Change one workflow safely:** build a domain skill for it
   ([guided onboarding](ontology-extraction/references/guided-onboarding.md)).
 - **Keep the kit in their project:** `KIT/.venv/bin/python KIT/ontology-extraction/scripts/install.py --project REPO`
