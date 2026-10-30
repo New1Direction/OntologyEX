@@ -52,3 +52,10 @@ here with its reason, or CI fails.
 ## 2026-10-30: operations ledger says the state of the live pulls (live: null when no pulls.json is declared)
 
 - `demo/operations.json`
+
+## 2026-10-30: every finding carries its evidence (what it rests on, where from, when, whether current) and what would contradict it; the command center states a systems verdict (missing evidence is never healthy)
+
+- `clinic/command_center.json`
+- `demo/command_center.json`
+- `demo/digest.json`
+- `shop/command_center.json`

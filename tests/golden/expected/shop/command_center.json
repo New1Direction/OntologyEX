@@ -161,6 +161,21 @@
  "items": [
   {
    "category": "Visibility",
+   "contradicted_by": "a domain skill for the main workflow",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "no domain skill is loaded",
+     "environment": null,
+     "kind": "absence",
+     "ref": "domain skills",
+     "role": "basis",
+     "source": "control room",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "the business actions are not written down, so nothing here reaches the business",
@@ -182,6 +197,21 @@
   },
   {
    "category": "Compliance",
+   "contradicted_by": "the fields shown to hold no card data",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "a field named like card data",
+     "environment": null,
+     "kind": "file",
+     "ref": "prisma/schema.prisma:31",
+     "role": "basis",
+     "source": "repository",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "fields named like card numbers or security codes are in the data model",
@@ -203,6 +233,45 @@
   },
   {
    "category": "Suppliers",
+   "contradicted_by": "a second supplier of the kind declared in the sources",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": "discovery:supplier:stripe",
+     "detail": "Stripe: setting name STRIPE_SECRET_KEY",
+     "environment": null,
+     "kind": "file",
+     "ref": ".env.example:1",
+     "role": "basis",
+     "source": "repository",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": "discovery:supplier:stripe",
+     "detail": "Stripe: setting name STRIPE_SECRET_KEY",
+     "environment": null,
+     "kind": "file",
+     "ref": "compose.yml:8",
+     "role": "basis",
+     "source": "repository",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "no second payments supplier in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "payments",
+     "role": "basis",
+     "source": "repository",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "the only supplier of a critical kind",
@@ -245,6 +314,69 @@
   },
   {
    "category": "Compliance",
+   "contradicted_by": "evidence for the controls in the sources, or a person providing it",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Consent is recorded: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "Art. 7",
+     "role": "basis",
+     "source": "GDPR",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "People can get a copy of their data: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "Art. 15/20",
+     "role": "basis",
+     "source": "GDPR",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Data is kept no longer than needed: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "Art. 5(1)(e)",
+     "role": "basis",
+     "source": "GDPR",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Security of processing: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "Art. 32",
+     "role": "basis",
+     "source": "GDPR",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Breaches are reported within 72 hours: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "Art. 33",
+     "role": "basis",
+     "source": "GDPR",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "a standard that applies asks for controls the sources do not show",
@@ -271,6 +403,57 @@
   },
   {
    "category": "Compliance",
+   "contradicted_by": "evidence for the controls in the sources, or a person providing it",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Public web apps are protected: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "6.4",
+     "role": "basis",
+     "source": "PCI DSS",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Multi-factor authentication: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "8.4",
+     "role": "basis",
+     "source": "PCI DSS",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Audit logs record who did what: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "10.2",
+     "role": "basis",
+     "source": "PCI DSS",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Incident response plan: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "12.10",
+     "role": "basis",
+     "source": "PCI DSS",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "a standard that applies asks for controls the sources do not show",
@@ -297,6 +480,69 @@
   },
   {
    "category": "Compliance",
+   "contradicted_by": "evidence for the controls in the sources, or a person providing it",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Multi-factor sign-in: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "CC6.1-MFA",
+     "role": "basis",
+     "source": "SOC 2",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Vulnerabilities are found: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "CC7.1",
+     "role": "basis",
+     "source": "SOC 2",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Incidents are responded to: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "CC7.3",
+     "role": "basis",
+     "source": "SOC 2",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Changes are reviewed and tested: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "CC8.1",
+     "role": "basis",
+     "source": "SOC 2",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Backups and recovery: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "A1.2",
+     "role": "basis",
+     "source": "SOC 2",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "customers usually ask for this standard, and the sources do not show all of it",
@@ -323,6 +569,33 @@
   },
   {
    "category": "Suppliers",
+   "contradicted_by": "a second supplier of the kind declared in the sources",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": "discovery:supplier:sendgrid",
+     "detail": "SendGrid: setting name SENDGRID_API_KEY",
+     "environment": null,
+     "kind": "file",
+     "ref": ".env.example:2",
+     "role": "basis",
+     "source": "repository",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "no second email and messaging supplier in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "email and messaging",
+     "role": "basis",
+     "source": "repository",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "the only supplier of an important kind",
@@ -358,6 +631,33 @@
   },
   {
    "category": "Suppliers",
+   "contradicted_by": "a second supplier of the kind declared in the sources",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": "discovery:supplier:shippo",
+     "detail": "Shippo: setting name SHIPPO_API_TOKEN",
+     "environment": null,
+     "kind": "file",
+     "ref": ".env.example:3",
+     "role": "basis",
+     "source": "repository",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "no second shipping and logistics supplier in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "shipping and logistics",
+     "role": "basis",
+     "source": "repository",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "the only supplier of an important kind",
@@ -393,6 +693,45 @@
   },
   {
    "category": "Visibility",
+   "contradicted_by": "a health sample from each silent service",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": "discovery:service:compose.yml:api",
+     "detail": "nothing reports the health of api",
+     "environment": null,
+     "kind": "absence",
+     "ref": "discovery:service:compose.yml:api",
+     "role": "basis",
+     "source": null,
+     "state": "MISSING"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": "discovery:service:compose.yml:db",
+     "detail": "nothing reports the health of db",
+     "environment": null,
+     "kind": "absence",
+     "ref": "discovery:service:compose.yml:db",
+     "role": "basis",
+     "source": null,
+     "state": "MISSING"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": "discovery:service:compose.yml:web",
+     "detail": "nothing reports the health of web",
+     "environment": null,
+     "kind": "absence",
+     "ref": "discovery:service:compose.yml:web",
+     "role": "basis",
+     "source": null,
+     "state": "MISSING"
+    }
+   ],
    "factors": [
     {
      "detail": "services report no health at all",
@@ -458,5 +797,22 @@
  ],
  "schema_version": 1,
  "semantics": "IMPORTANCE_RANKS_ATTENTION_NOT_PROBABILITY_OR_APPROVAL",
- "total": 9
+ "total": 9,
+ "verdict": {
+  "basis": "0 of 3 watched system(s) have fresh evidence; silent or expired: api, db, web",
+  "causes": [],
+  "confidence": "NONE",
+  "evidence": {
+   "fresh": 0,
+   "missing": [
+    "discovery:service:compose.yml:api",
+    "discovery:service:compose.yml:db",
+    "discovery:service:compose.yml:web"
+   ],
+   "share": 0.0,
+   "watched": 3
+  },
+  "semantics": "SOURCE_REPORTED_HEALTH_MISSING_EVIDENCE_IS_NEVER_HEALTHY",
+  "status": "INCONCLUSIVE"
+ }
 }

@@ -53,6 +53,7 @@ from policy_check import DomainError
 from urllib.parse import parse_qs, urlsplit
 
 MAX_OBSERVATION_BYTES = 1024 * 1024
+MAX_TOPOLOGY_BYTES = 16 * 1024 * 1024  # a saved topology or operations ledger (replays)
 MAX_OBSERVATIONS = 4096
 MAX_THRESHOLDS_BYTES = 16384
 METRICS = frozenset({"queue_lag_seconds", "db_pool_utilization_pct",
@@ -895,8 +896,22 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
           discovery_engine: str = "python", dependencies: Path | None = None,
           print_bundle: bool = False, proposals: Path | None = None, rules_file: Path | None = None,
           history: Path | None = None, history_seconds: int = 300,
-          operations_dir: Path | None = None, live_pulls: bool = False) -> None:
+          operations_dir: Path | None = None, live_pulls: bool = False, topology_file: Path | None = None,
+          frozen_now: datetime | None = None, operations_report_file: Path | None = None,
+          environment: str | None = None) -> None:
+    """The control room. A replay (replay.py) passes topology_file, frozen_now and operations_report_file with
+    print_bundle: the same assembly, from what was saved at that moment instead of the repository now."""
     check(0 <= port <= 65535, "invalid port")
+    check(environment is None or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,39}", environment) is not None,
+          "--environment is a short name (production, staging, eu-west...)")
+    check((topology_file is None and frozen_now is None and operations_report_file is None) or print_bundle,
+          "--topology, --now and --operations-report are for --bundle-only (replays)")
+
+    def clock() -> datetime:
+        return frozen_now if frozen_now is not None else datetime.now(timezone.utc)
+    frozen_topology = json.loads(safe_read(topology_file, MAX_TOPOLOGY_BYTES)) if topology_file is not None else None
+    frozen_operations = (json.loads(safe_read(operations_report_file, MAX_TOPOLOGY_BYTES))
+                         if operations_report_file is not None else None)
     # The business's own records (exports, pulled aggregates), read as weekly aggregates only.
     if operations_dir is None and repo is not None:
         operations_dir = repo / ".ontologyex" / "operations"
@@ -1019,7 +1034,9 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         result["link_watermarks"] = [
             {"id": decisions.decision_id(*link_suggest.link_key(row)), "skill": row["skill"],
              "binding": row["binding"], "component": row["component"], "recorded": row.get("evidence"),
-             "now": marks.now(*link_suggest.link_key(row), recorded=row.get("evidence"))} for row in link_rows]
+             # A replay has no repository to hash: the evidence is shown as recorded, not re-checked.
+             "now": (row.get("evidence") if frozen_topology is not None else
+                     marks.now(*link_suggest.link_key(row), recorded=row.get("evidence")))} for row in link_rows]
         checks = {(m["skill"], m["binding"], m["component"]): entity_context.evidence_check(m["recorded"], m["now"])
                   for m in result["link_watermarks"]}
         result["link_decided"] = [
@@ -1055,7 +1072,9 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         keys = {row["key"] for row in [*result.get("actions", []), *result.get("objects", [])]}
         result["rule_suggestions"] = rule_suggest.suggest(rule_suggest.read_proposals(proposals), rule_rows,
                                                           rule_rejected, keys, repo_files)
-        person_rules = rule_suggest.confirmed_view(rule_rows, repo_files)
+        person_rules = [{**r, "status": "CONFIRMED_BY_PERSON", "evidence_check": "NOT_RECHECKED_IN_REPLAY"}
+                        for r in rule_suggest.confirmed_view(rule_rows, repo_files)] if frozen_topology is not None \
+            else rule_suggest.confirmed_view(rule_rows, repo_files)
         result["rule_decided"] = person_rules + [
             {"id": decisions.decision_id(*rule_suggest.rule_key(r)), "target": r["target"], "statement": r["statement"],
              "decision": "reject", "declared_by": r["declared_by"], "note": r["note"]} for r in rule_rejected]
@@ -1072,7 +1091,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         result["discovery_scanned_at"] = full["discovery_scanned_at"]
         return result
     check(60 <= github_refresh_seconds <= 3600, "invalid GitHub refresh interval")
-    check((repo is None) != (github is None), "configure exactly one source")
+    check(sum(x is not None for x in (repo, github, frozen_topology)) == 1, "configure exactly one source")
     if github:
         github_discovery.parse_repository(github)
         client = github_client or github_discovery.GitHubClient(
@@ -1099,7 +1118,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         worker.start()
 
     scanner = None
-    if remote is None:  # the slow reads of the repository run in the background (background_scans.py)
+    if remote is None and repo is not None:  # the slow reads of the repository run in the background (background_scans.py)
         def scan_nodes() -> list[dict]:
             discovered = (native_view_bridge.native_discover(repo) if native_discovery else discover_repo.discover(repo))
             return with_code_surface(discovered, repo, scanner.result("code", wait=False)[0])["nodes"]
@@ -1116,8 +1135,10 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         ])
 
     def snapshot(observation_rows: list[dict] | None = None) -> dict:
-        current = datetime.now(timezone.utc)
-        if remote is not None:
+        current = clock()
+        if frozen_topology is not None:  # a replay: the topology as it was saved
+            topology, last_success, refresh_error = frozen_topology, current, False
+        elif remote is not None:
             topology, last_success, refresh_error = remote.snapshot()
         else:
             with cache_lock:
@@ -1145,6 +1166,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         result = build_state(topology, (observation_rows if observation_rows is not None
                                         else read_observations(observations)), rules, current)
         result["discovery_source"] = topology.get("source", {"provider": "local"})
+        result["environment"] = environment  # one control room watches one environment; evidence carries its name
         result["discovery_freshness"] = (
             "STALE_LAST_KNOWN" if refresh_error else "AS_OF_LATEST_SUCCESSFUL_SCAN")
         result["discovery_scanned_at"] = (
@@ -1180,11 +1202,13 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
     def operations_report(data: dict) -> dict:
         """The operations ledger, read again only when a file in the folder or the week changed;
         compared each time with the model and code as they are now."""
-        now = datetime.now(timezone.utc)
+        now = clock()
         entities = list(entity_context._entities(data).values())
         names = tuple(sorted(e.get("label") or "" for e in entities if e.get("layer") == "business"))
         key = (operations.week_of(now), operations.folder_revision(operations_dir), names)
-        if operations_cache.get("key") != key:  # ticket subjects are matched against the business items' names
+        if frozen_operations is not None:  # a replay: the ledger as it was saved (aggregates only)
+            operations_cache["key"], operations_cache["report"] = key, frozen_operations
+        elif operations_cache.get("key") != key:  # ticket subjects are matched against the business items' names
             operations_cache["key"], operations_cache["report"] = key, operations.report(operations_dir, entities,
                                                                                          now=now)
         found = operations.with_live(operations_cache["report"], operations_dir, now)
@@ -1196,9 +1220,9 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         data["ownership"] = ownership.report(data, scanner.result("ownership")[0] if scanner is not None else None)
         data["compliance"] = compliance.report(data, scanner.result("compliance")[0] if scanner is not None else None)
         data["operations"] = operations_report(data)
-        data["guardrails"] = guardrail.summary(repo, datetime.now(timezone.utc))  # agent calls the rules stopped
+        data["guardrails"] = guardrail.summary(repo, clock())  # agent calls the rules stopped
         data["drift"] = drift.assemble(scanner.result("drift")[0] if scanner is not None else None,
-                                       drift.rules_drift(rules_file, repo_files))
+                                       drift.rules_drift(rules_file, repo_files) if frozen_topology is None else [])
         return data
 
     if print_bundle:  # the same assembly the server answers from, for tests, parity and agents offline
@@ -1800,6 +1824,8 @@ def main():
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--repo", type=Path, help="existing local repository")
     source.add_argument("--github", help="GitHub owner/name; optional token via env")
+    source.add_argument("--topology", type=Path,
+                        help="with --bundle-only: a saved discovery topology instead of a repository (replays)")
     parser.add_argument("--github-refresh-seconds", type=int, default=300)
     parser.add_argument("--snapshot-dir", type=Path,
                         help="opt-in private server-side snapshot directory (0700)")
@@ -1807,6 +1833,13 @@ def main():
     parser.add_argument("--thresholds", type=Path, default=None)
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--state-only", action="store_true")
+    parser.add_argument("--environment", default=None,
+                        help="the environment the observations come from (production, staging...); every piece of "
+                             "evidence on the command center carries it")
+    parser.add_argument("--now", default=None,
+                        help="with --bundle-only: evaluate as of this UTC time (YYYY-MM-DDTHH:MM:SSZ), for replays")
+    parser.add_argument("--operations-report", type=Path, default=None,
+                        help="with --bundle-only: a saved operations ledger (aggregates) instead of the folder")
     parser.add_argument("--bundle-only", action="store_true",
                         help="print the entity-context bundle (state, business picture, decision history) and exit")
     parser.add_argument("--view-engine", choices=("python", "rust"), default="python",
@@ -1849,6 +1882,8 @@ def main():
                   "invalid repository root")
         if args.github is not None:
             github_discovery.parse_repository(args.github)
+        check(args.topology is None or (args.bundle_only and not args.state_only),
+              "--topology is for --bundle-only (replays)")
         check(args.snapshot_dir is None or (args.github is not None and not args.state_only),
               "snapshot persistence is for a running --github server only")
         if args.state_only:
@@ -1885,7 +1920,8 @@ def main():
                   decision_model=args.decision_model, dependencies=args.dependencies,
                   print_bundle=args.bundle_only, proposals=args.proposals, rules_file=args.rules,
                   history=args.history, history_seconds=args.history_seconds, operations_dir=args.operations,
-                  live_pulls=args.pulls)
+                  live_pulls=args.pulls, topology_file=args.topology, operations_report_file=args.operations_report,
+                  frozen_now=timestamp(args.now) if args.now is not None else None, environment=args.environment)
         return 0
     except (OSError, RoomError, discover_repo.DiscoveryError,
             github_discovery.GitHubDiscoveryError, snapshot_store.SnapshotError,

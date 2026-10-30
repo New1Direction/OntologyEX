@@ -64,6 +64,8 @@ def control_room_command(args, observations: Path | None) -> list[str]:
         command.append("--allow-link-decisions")
     if args.pulls:
         command.append("--pulls")
+    if getattr(args, "environment", None):
+        command += ["--environment", args.environment]
     history = history_path(args)
     if history is not None:
         command += ["--history", str(history)]
@@ -139,6 +141,7 @@ def main() -> int:
                    help="dependencies confirmed from observed calls (default: beside --feeds)")
     u.add_argument("--port", type=int, default=8765)
     u.add_argument("--allow-link-decisions", action="store_true")
+    u.add_argument("--environment", help="the environment the health observations come from (production, staging...)")
     u.add_argument("--pulls", action="store_true",
                    help="run the read-only API pulls declared in REPO/.ontologyex/operations/pulls.json on their "
                         "intervals (they use the network; keys from environment variables only)")

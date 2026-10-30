@@ -1,0 +1,24 @@
+{
+  "at": "2026-10-29T12:00:00Z",
+  "captured": {
+    "at": "2026-10-29T12:00:00Z",
+    "observations_kept": 7,
+    "skills": [
+      "payments-domain"
+    ],
+    "topology": "as discovered when captured (the repository is not copied)",
+    "window_hours": 72
+  },
+  "environment": "production",
+  "expect": {
+    "cause": [
+      "discovery:service:compose.yml:payments"
+    ],
+    "verdict": "FAULT",
+    "within": 3
+  },
+  "kind": "ONTOLOGYEX_REPLAY_CASE",
+  "name": "payments-error",
+  "notes": "Payments reports errors; refunds and the API rely on it.",
+  "schema_version": 1
+}

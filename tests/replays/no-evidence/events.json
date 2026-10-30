@@ -1,0 +1,27 @@
+{
+  "events": [
+    {
+      "by": "demo (synthetic)",
+      "claim_sha256": "d3391f38fe7586ec55d3e9fba48d859012c00fd8f400bfa1a06549b7319a3118",
+      "event": "REVIEW_SUPPORTS",
+      "ref": "requirements.md and payments.py state the same limit",
+      "rule": "remaining-balance"
+    },
+    {
+      "by": "demo (synthetic)",
+      "claim_sha256": "d3391f38fe7586ec55d3e9fba48d859012c00fd8f400bfa1a06549b7319a3118",
+      "event": "BEHAVIOR_CHECK_PASSED",
+      "ref": "examples/payments-domain fixture checks",
+      "rule": "remaining-balance"
+    },
+    {
+      "by": "demo (synthetic)",
+      "claim_sha256": "fde0750cee8fb57cccd14ce188061e7f0bb1e07d8d194483822f13e985e62a9a",
+      "event": "REVIEW_SUPPORTS",
+      "ref": "",
+      "rule": "positive-amount"
+    }
+  ],
+  "kind": "ONTOLOGYEX_EVIDENCE_EVENTS",
+  "schema_version": 1
+}

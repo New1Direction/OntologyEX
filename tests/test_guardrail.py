@@ -6,7 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -123,6 +123,67 @@ class DecisionTests(Guarded):
         self.assertEqual(blocked["category"], "Decisions")
 
 
+class OutcomeTests(Guarded):
+    """An uncertain result is journaled as unknown, and an identical call waits for a person to check."""
+
+    def event(self, kind, call_id, call=CALL, **extra):
+        return json.dumps({"hook_event_name": kind, "tool_name": TOOL, "tool_input": call, "tool_use_id": call_id,
+                           **extra})
+
+    def pre(self, call_id, call=CALL, at=None):
+        out = g.hook(self.repo, self.event("PreToolUse", call_id, call), at)
+        return json.loads(out)["hookSpecificOutput"] if out else None
+
+    def test_a_call_with_no_recorded_end_holds_the_identical_one(self):
+        self.assertIsNone(self.pre("toolu_1"))  # passes the rules: goes ahead, journaled
+        held = self.pre("toolu_2")  # the first never reported back (a timeout, a crash, still running)
+        self.assertEqual(held["permissionDecision"], "ask")
+        self.assertIn("no known outcome", held["permissionDecisionReason"])
+        self.assertIsNone(self.pre("toolu_3", {**CALL, "amount": 400}))  # a different call is not held
+        text = (self.repo / g.INTENTS).read_text()
+        self.assertNotIn('"amount"', text)  # arguments are fingerprinted, never kept
+        g.hook(self.repo, self.event("PostToolUse", "toolu_2", tool_response={"ok": True}))
+        self.assertIsNone(self.pre("toolu_4"))  # an identical call completed: the earlier one is settled
+        self.assertEqual({r["id"]: r["outcome"] for r in g.outcomes(self.repo, datetime.now(timezone.utc))},
+                         {"toolu_1": "RECONCILED", "toolu_2": "DONE", "toolu_3": "UNKNOWN", "toolu_4": "UNKNOWN"})
+
+    def test_how_a_call_ended_decides_whether_it_is_known(self):
+        self.pre("a")
+        g.hook(self.repo, self.event("PostToolUseFailure", "a", error="insufficient funds", is_interrupt=False))
+        self.assertIsNone(self.pre("b"))  # the tool said it failed: known not to have taken effect
+        g.hook(self.repo, self.event("PostToolUseFailure", "b", error="upstream request timed out"))
+        self.assertEqual(self.pre("c")["permissionDecision"], "ask")  # a timeout: it may have
+        g.hook(self.repo, self.event("PermissionDenied", "c"))
+        g.hook(self.repo, self.event("PostToolUseFailure", "x-unknown", error="timeout"))  # not journaled: ignored
+        found = {r["id"]: r["outcome"] for r in g.outcomes(self.repo, datetime.now(timezone.utc))}
+        self.assertEqual(found, {"a": "FAILED", "b": "UNKNOWN", "c": "NOT_RUN"})
+        self.assertEqual(g.reconcile(self.repo, TOOL, CALL, "Dana", "checked the ledger: no refund")["calls"], 1)
+        self.assertIsNone(self.pre("d"))
+        g.hook(self.repo, self.event("PostToolUseFailure", "d", error="boom", is_interrupt=True))
+        self.assertEqual(self.pre("e")["permissionDecision"], "ask")  # interrupted: unknown
+
+    def test_a_denied_call_is_not_journaled_and_old_unknowns_expire(self):
+        self.assertEqual(self.pre("deny", {**CALL, "amount": 900})["permissionDecision"], "deny")
+        self.assertFalse((self.repo / g.INTENTS).exists())
+        then = datetime.now(timezone.utc) - g.UNKNOWN_HORIZON - timedelta(hours=1)
+        self.pre("old", at=then)
+        self.assertIsNone(self.pre("new"))  # beyond the horizon the guard stops holding identical calls
+
+    def test_the_command_center_names_unknown_outcomes(self):
+        self.pre("toolu_1")
+        found = g.summary(self.repo, datetime.now(timezone.utc))
+        self.assertEqual([r["tool"] for r in found["unknown_outcomes"]], [TOOL])
+        items = command_center.report({"state": {"nodes": [], "edges": []}, "guardrails": found})["items"]
+        item = next(i for i in items if i["kind"] == "OUTCOME_UNKNOWN")
+        self.assertEqual((item["category"], item["standing"]), ("Decisions", "SOURCE"))
+        self.assertEqual(item["evidence"][0]["source"], "guardrail intent journal")
+        cli = subprocess.run([sys.executable, str(SCRIPTS / "guardrail.py"), "reconcile", "--repo", str(self.repo),
+                              "--tool", TOOL, "--by", "Dana", "--note", "checked"], capture_output=True, text=True,
+                             timeout=60)
+        self.assertEqual(json.loads(cli.stdout)["calls"], 1, cli.stderr)
+        self.assertEqual(g.summary(self.repo, datetime.now(timezone.utc))["unknown_outcomes"], [])
+
+
 class HookTests(Guarded):
     def test_claude_code_runs_it_as_a_command(self):
         def run(event):
@@ -149,8 +210,9 @@ class HookTests(Guarded):
         self.assertEqual(len(groups), 2)
         self.assertEqual(groups[0]["hooks"], [theirs])
         self.assertIn("guardrail.py hook --repo", groups[1]["hooks"][0]["command"])
+        self.assertEqual(sorted(written["hooks"]), sorted(g.EVENTS))  # before, and how each call ended
         self.assertEqual(g.remove(self.repo)["status"], "REMOVED")
-        self.assertEqual(json.loads(settings.read_text())["hooks"]["PreToolUse"], [{"matcher": "Bash", "hooks": [theirs]}])
+        self.assertEqual(json.loads(settings.read_text())["hooks"], {"PreToolUse": [{"matcher": "Bash", "hooks": [theirs]}]})
         self.assertEqual(g.remove(self.repo)["status"], "NOT_INSTALLED")
 
     def test_matchers_and_init(self):

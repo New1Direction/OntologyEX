@@ -1,0 +1,15 @@
+{
+  "bundle_id": "7b41bc0fbdf389f3e28d4ccb29e293e654a6c743a7eac1a3e46258ec23e038a6",
+  "files": {
+    "SKILL.md": "5819f347b6dbe762c8c8e4a633835f6b231920d5366d280b862bdd3a1c254f45",
+    "model.json": "5f58f4b38917c075dc84c6657c6ed3fa502a88f5ee5fb9dacc6db80596e21f2d",
+    "references/domain.md": "fc2593477e6793818bbf95845e9cd73d593d3854cf87cdbe56785fa93523feb1",
+    "references/provenance.json": "b2de9b6cfcfa7f7d1320ae9f61c7038843e7df9afb84b564dfc509d5c4d47cf2",
+    "references/review.md": "8f9b3eaf239a9f95ae71d7f76f241b02d90fd772e01d844872759dd9985b0d7f",
+    "references/sources/payments.py": "a366c591b9f771036ca59f13a3934389d8b1f3d6bd68746013a4c1f9c8bdc7eb",
+    "references/sources/requirements.md": "95da92ac21837893552567d29134849fe47c4edd76cefdc0d981b37fd1bededc",
+    "report.html": "f7e56373f2ad64b9766b32e5cf1c549bfd73fd934cefc94589435c0027cbf3c6",
+    "scripts/check.py": "8be6557ac8b702c24ab7373f682b624f4821e42eb0890a9ef365d1538ef80b96"
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,27 @@
+{
+  "kind": "ONTOLOGYEX_SYSTEM_LINKS",
+  "links": [
+    {
+      "binding": "payments.apply_refund",
+      "component": "discovery:service:compose.yml:payments",
+      "declared_by": "demo (synthetic)",
+      "note": "Refund code is deployed in the payments service.",
+      "skill": "payments-domain"
+    },
+    {
+      "binding": "payments.Payment",
+      "component": "discovery:service:compose.yml:ledger",
+      "declared_by": "demo (synthetic)",
+      "note": "Payment records are stored by the ledger service.",
+      "skill": "payments-domain"
+    },
+    {
+      "binding": "payments.Payment",
+      "component": "discovery:service:compose.yml:api",
+      "declared_by": "demo (synthetic)",
+      "note": "The public API returns Payment records.",
+      "skill": "payments-domain"
+    }
+  ],
+  "schema_version": 1
+}

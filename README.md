@@ -69,7 +69,7 @@ single model of your business, the same model your agents read:
 
 | View | What it answers |
 |---|---|
-| **`/command`** | Everything that needs attention, big or small, ranked by importance. Every score is the sum of factors you can read and argue with (how bad, how much of the business reaches it, whether money moves through it), with the next step and the owner to call. |
+| **`/command`** | Everything that needs attention, big or small, ranked by importance. Every score is the sum of factors you can read and argue with (how bad, how much of the business reaches it, whether money moves through it), with the next step and the owner to call. Every finding names its evidence (what was observed, where, when, whether it is still current) and what would refute it; a conclusion on expired evidence reads unknown, and the systems verdict is never "healthy" while something is silent. Saved moments can be replayed to check the conclusions against what really happened. [How](docs/replay.md). |
 | **`/digest`** | What moved since last week: new, fixed, worse, better, *fixed then back*, open longest. Who decided what. The code that shipped and the business it touched. One click to Markdown. |
 | **`/business`** | Your domain skills joined to your live systems: which business actions are at risk, which depend on a failing system, which rules were checked and how far. |
 | **`/owners`** | Who answers for each part: declared in CODEOWNERS (line cited) or inferred from a year of git history. Business actions nobody owns. Code only one person knows. |
@@ -126,7 +126,9 @@ audited. See [entity context](ontology-extraction/references/entity-context.md).
 The rules hold agents' own tools too: `guardrail.py install` adds a Claude Code hook that checks each
 call of a tool you map to a business task against that task's rules before it runs. A broken rule is
 denied with the rule named; an open question, a missing input or code that changed under the rules
-goes to a person; a pass is no decision, never an approval. See [guardrails](docs/guardrails.md).
+goes to a person; a pass is no decision, never an approval. A call that timed out or was interrupted has
+an unknown outcome, so the identical next call waits until someone checks the live state, instead of refunding
+twice. See [guardrails](docs/guardrails.md).
 
 ## ◢ How it stays honest
 
