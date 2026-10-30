@@ -276,6 +276,9 @@ def redact(policy: dict, value, hidden: set[str]):
     if isinstance(value, dict):
         if "path" in value and path_withheld(policy, value["path"]):
             return {"withheld": True, "reason": WITHHELD}
+        if value.get("kind") == "file" and isinstance(value.get("ref"), str) and path_withheld(
+                policy, value["ref"].split(":", 1)[0]):  # a finding's evidence names files by ref (path:lines)
+            return {"withheld": True, "reason": WITHHELD}
         out = {k: redact(policy, v, hidden) for k, v in value.items()}
         if isinstance(value.get("changed"), list):  # file paths a decision's evidence check names
             out["changed"] = [WITHHELD if path_withheld(policy, p) else redact(policy, p, hidden)

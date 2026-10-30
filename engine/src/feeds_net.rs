@@ -124,7 +124,8 @@ pub fn run_prometheus(prom: &Prometheus, target: &PromTarget, getter: &Getter) -
     if let Some(up) = &target.up {
         down = prometheus_value(prom, up, &token, getter)? < 1.0;
     }
-    for (name, query) in [("error_rate_pct", &target.error_rate_pct), ("p95_latency_ms", &target.p95_latency_ms)] {
+    for (name, query) in [("error_rate_pct", &target.error_rate_pct), ("p95_latency_ms", &target.p95_latency_ms),
+                          ("job_lag_seconds", &target.job_lag_seconds)] {
         if let Some(q) = query {
             metrics.insert(name.to_string(), prometheus_value(prom, q, &token, getter)?);
         }

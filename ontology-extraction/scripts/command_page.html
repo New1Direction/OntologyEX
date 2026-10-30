@@ -49,6 +49,12 @@ main{max-width:1200px;margin:0 auto;padding:0 0 40px}
 .next{margin-top:8px;font-size:12px}.next b{color:var(--accent);font-weight:600}
 .links{margin-top:6px;font-size:12px}.links a{margin-right:8px}
 .empty{color:var(--faint);margin:0}
+.verdict{display:flex;gap:10px;align-items:baseline;margin:0 0 8px}.verdict b{font:600 12px var(--mono);letter-spacing:.06em}
+.FAULT{color:var(--risk)}.DEGRADED{color:var(--warn)}.HEALTHY{color:var(--ok)}.INCONCLUSIVE{color:var(--muted)}
+details.ev{margin-top:6px;font-size:12px}details.ev summary{cursor:pointer;color:var(--muted)}
+.evrow{display:grid;grid-template-columns:88px minmax(0,1fr);gap:8px;padding:2px 0;color:var(--muted)}
+.evrow .st{font:600 10px var(--mono)}.COMPLETE{color:var(--ok)}.PARTIAL{color:var(--warn)}.STALE{color:var(--impact)}.MISSING{color:var(--faint)}
+.evrow code{font:11px var(--mono);color:var(--text);overflow-wrap:anywhere}
 </style></head>
 <body>
 <header>
@@ -77,7 +83,16 @@ function item(i){
    i.why?h("p",{class:"why",text:i.why}):null,
    h("div",{class:"factors"},...i.factors.map(f=>h("span",{class:"factor",title:f.detail},h("b",{text:"+"+f.points})," "+f.factor+": "+f.detail))),
    h("div",{class:"next"},h("b",{text:"Next: "}),i.next_step),
+   evidence(i),
    i.links.length>1?h("div",{class:"links"},"Involves: ",...i.links.slice(1).map(id=>link({id,label:id.replace(/^.*:/,"")}))):null))}
+// What a finding rests on: each record, where it came from, when, and whether it is still current.
+function ago(s){if(s==null)return "";return s<120?`${s}s ago`:s<7200?`${Math.round(s/60)} min ago`:s<172800?`${Math.round(s/3600)} h ago`:`${Math.round(s/86400)} days ago`}
+function evidence(i){const ev=i.evidence||[];if(!ev.length&&!i.contradicted_by)return null;
+ const basis=ev.filter(e=>e.role==="basis"),current=basis.filter(e=>e.state==="COMPLETE"||e.state==="PARTIAL").length;
+ return h("details",{class:"ev"},h("summary",{text:`Evidence: ${current} of ${basis.length} current`+(i.unknown_because?` · unknown: ${i.unknown_because}`:"")}),
+  ...ev.map(e=>h("div",{class:"evrow"},h("span",{class:"st "+e.state,text:e.state+(e.role==="context"?" · ctx":"")}),
+   h("span",{},h("code",{text:e.ref}),` ${e.detail}`+(e.source?` · ${e.source}`:"")+(e.environment?` · ${e.environment}`:"")+(e.age_seconds!=null?` · ${ago(e.age_seconds)}`:"")))),
+  i.contradicted_by?h("div",{class:"evrow"},h("span",{class:"st",text:"WOULD REFUTE"}),h("span",{text:i.contradicted_by})):null)}
 function list(){
  const shown=data.items.filter(i=>(level==="ALL"||i.level===level)&&(category==="ALL"||i.category===category));
  const cats=[...new Set(data.items.map(i=>i.category))].sort();
@@ -92,6 +107,8 @@ function render(){
  const top=data.items[0],crit=data.by_level.CRITICAL||0,high=data.by_level.HIGH||0;
  const head=h("div",{class:"sec"},h("h2",{text:"Where the business stands"}),
   h("p",{class:"summary",text:data.total?`${data.total} thing${data.total>1?"s":""} need attention: ${crit} critical, ${high} high.`:"Nothing needs attention in what can be seen."}),
+  data.verdict?h("div",{class:"verdict"},h("b",{class:data.verdict.status,text:"SYSTEMS "+data.verdict.status}),
+   h("span",{class:"note",text:data.verdict.basis+(data.verdict.status==="INCONCLUSIVE"?". Missing evidence is never read as healthy.":"")})):null,
   top?h("p",{class:"note",text:"First: "+top.title+". "+top.next_step}):null,
   h("div",{class:"kpis"},...data.kpis.map(k=>h("div",{class:"kpi "+k.tone},h("b",{text:String(k.value)}),h("span",{text:k.label})))));
  const cov=h("div",{class:"sec"},h("h2",{text:"How much can be seen"}),

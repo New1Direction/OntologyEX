@@ -6,9 +6,9 @@
    "updated": "2026-10-29"
   },
   "clinic/command_center.json": {
-   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
-   "sha256": "d9aeba2931945108c808d37805795d485928a73a7eac832d4c482d1f15786e56",
-   "updated": "2026-10-29"
+   "reason": "every finding carries its evidence (what it rests on, where from, when, whether current) and what would contradict it; the command center states a systems verdict (missing evidence is never healthy)",
+   "sha256": "fbf9c31dfa93866cf922c594694064c2722d7200910208d01065e0d761de25fb",
+   "updated": "2026-10-30"
   },
   "clinic/compliance.json": {
    "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
@@ -41,9 +41,9 @@
    "updated": "2026-10-29"
   },
   "demo/command_center.json": {
-   "reason": "Written operations: the demo's refund policy, terms of service (Word), support page, finance policy and a supplier order form, read for their commitments and held to the records: an unkept support promise, overdue bills against the payment terms, a refund window written as 14 days in the terms and 30 in the policy, and no written procedure for disputes or payouts.",
-   "sha256": "ae362565460f6d7bdaf5c2d40a7c71de118cbf2183b0c96aaac0762adb1e9ec9",
-   "updated": "2026-10-29"
+   "reason": "every finding carries its evidence (what it rests on, where from, when, whether current) and what would contradict it; the command center states a systems verdict (missing evidence is never healthy)",
+   "sha256": "9e5719ae9e6bb2a6800d66af41862f7c1a1939a5eb7d56c541298568395d5051",
+   "updated": "2026-10-30"
   },
   "demo/context.json": {
    "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
@@ -51,9 +51,9 @@
    "updated": "2026-10-29"
   },
   "demo/digest.json": {
-   "reason": "Written operations: the demo's refund policy, terms of service (Word), support page, finance policy and a supplier order form, read for their commitments and held to the records: an unkept support promise, overdue bills against the payment terms, a refund window written as 14 days in the terms and 30 in the policy, and no written procedure for disputes or payouts.",
-   "sha256": "ded99962d937484ece47b65542840f9125bb5a5f7f365f188b0c8f4ed436bab4",
-   "updated": "2026-10-29"
+   "reason": "every finding carries its evidence (what it rests on, where from, when, whether current) and what would contradict it; the command center states a systems verdict (missing evidence is never healthy)",
+   "sha256": "8210f637e8fd6d2423cd858e32ce711e07266e7e4c6de45fb3c4f2bbd801b541",
+   "updated": "2026-10-30"
   },
   "demo/operations.json": {
    "reason": "operations ledger says the state of the live pulls (live: null when no pulls.json is declared)",
@@ -66,9 +66,9 @@
    "updated": "2026-10-29"
   },
   "shop/command_center.json": {
-   "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",
-   "sha256": "335f671ba5c7f64413f23733141dff11efdae8b872698e0199369d7f4ae86f6a",
-   "updated": "2026-10-29"
+   "reason": "every finding carries its evidence (what it rests on, where from, when, whether current) and what would contradict it; the command center states a systems verdict (missing evidence is never healthy)",
+   "sha256": "c1fccee5786395678ae61248c0cfd21215a15bdc2c52b7d5516b25eec585fde0",
+   "updated": "2026-10-30"
   },
   "shop/compliance.json": {
    "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",

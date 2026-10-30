@@ -60,7 +60,7 @@ MAX_CALLS_BYTES = 1024 * 1024
 MAX_COUNT = 2 ** 63 - 1
 CALLS_KIND = "ONTOLOGYEX_OBSERVED_CALLS"
 STAMP = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z")
-METRIC_RULES = ("error_rate_pct", "p95_latency_ms", "probe_latency_ms")
+METRIC_RULES = ("error_rate_pct", "p95_latency_ms", "probe_latency_ms", "job_lag_seconds")
 IDENT = re.compile(r"^discovery:[a-z_]+:[A-Za-z0-9_.~/%:-]{1,600}$")
 SERVICE = re.compile(r"^[A-Za-z0-9_.:/@-]{1,200}$")
 # RFC 3986 characters only (no spaces, controls, or fragments), so every
@@ -205,9 +205,12 @@ def load_config(path: Path) -> dict:
         check(type(targets) is list and 0 < len(targets) <= MAX_TARGETS, "invalid prometheus.targets")
         for i, target in enumerate(targets):
             where = f"prometheus.targets[{i}]"
-            _keys(target, {"component"}, {"up", "error_rate_pct", "p95_latency_ms", "warning", "error"}, where)
+            # job_lag_seconds: how long ago a job last did its work (an indexer's last block, a writer's last
+            # write), so "it answers but stopped working" is seen; thresholds say how old is too old.
+            _keys(target, {"component"}, {"up", "error_rate_pct", "p95_latency_ms", "job_lag_seconds", "warning",
+                                          "error"}, where)
             _component(target["component"], where)
-            queries = [target.get(k) for k in ("up", "error_rate_pct", "p95_latency_ms") if k in target]
+            queries = [target.get(k) for k in ("up", "error_rate_pct", "p95_latency_ms", "job_lag_seconds") if k in target]
             check(queries and all(type(q) is str and 0 < len(q) <= 2000 for q in queries),
                   f"{where}: give at least one PromQL query")
             _thresholds(target.get("warning"), where + ".warning")
@@ -437,7 +440,7 @@ def run_prometheus(prom: dict, target: dict, moment: datetime | None = None,
     down = False
     if "up" in target:
         down = prometheus_value(prom["url"], target["up"], timeout, token, getter) < 1
-    for name in ("error_rate_pct", "p95_latency_ms"):
+    for name in ("error_rate_pct", "p95_latency_ms", "job_lag_seconds"):
         if name in target:
             metrics[name] = prometheus_value(prom["url"], target[name], timeout, token, getter)
     state = classify(metrics, _thresholds(target.get("warning"), "w"),

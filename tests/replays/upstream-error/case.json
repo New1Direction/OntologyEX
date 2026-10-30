@@ -1,0 +1,24 @@
+{
+  "at": "2026-10-29T12:00:00Z",
+  "captured": {
+    "at": "2026-10-29T12:00:00Z",
+    "observations_kept": 7,
+    "skills": [
+      "payments-domain"
+    ],
+    "topology": "as discovered when captured (the repository is not copied)",
+    "window_hours": 72
+  },
+  "environment": "production",
+  "expect": {
+    "cause": [
+      "discovery:service:compose.yml:payments"
+    ],
+    "verdict": "FAULT",
+    "within": 1
+  },
+  "kind": "ONTOLOGYEX_REPLAY_CASE",
+  "name": "upstream-error",
+  "notes": "The API fails because payments, which it depends on, fails: payments is the cause.",
+  "schema_version": 1
+}

@@ -7,7 +7,7 @@ its own process and writes one bounded JSONL file, which the control room reads 
 | Feed | How it gets data | What it reports |
 |---|---|---|
 | **OTLP traces** (push) | Applications, or an OpenTelemetry Collector, export traces to `http://HOST:4318/v1/traces`. Protobuf (the SDK default) or JSON, optional gzip, optional bearer token. | Per `service.name`: error rate and p95 latency of **server** spans over a sliding window. Source `otel`. |
-| **Prometheus** (pull) | Instant queries you write, against one Prometheus base URL. Optional bearer token from an environment variable. | `up`, `error_rate_pct`, `p95_latency_ms` per component. Source `prometheus`. |
+| **Prometheus** (pull) | Instant queries you write, against one Prometheus base URL. Optional bearer token from an environment variable. | `up`, `error_rate_pct`, `p95_latency_ms`, `job_lag_seconds` per component. Source `prometheus`. |
 | **HTTP probes** (pull) | GET an allowlisted health URL. Redirects are not followed. | Up or down from the status code, plus `probe_latency_ms`. Source `health_probe`. |
 
 ## Quick start: the live demo
@@ -22,6 +22,21 @@ This starts small local services, probes them, and sends real spans through the
 OpenTelemetry SDK's standard exporter. `payments` answers 503 and fails about 30% of
 its requests, so IssueRefund shows **AT RISK** and ApproveException **POSSIBLY
 IMPACTED**, from live data. Without the SDK it runs with probes only.
+
+## Freshness: still answering, but stopped working
+
+A service can answer its health check while the work behind it has stopped: an indexer
+stuck on an old block, a writer that has not written for an hour. `job_lag_seconds` is a
+Prometheus query for how long ago the work was last done, with thresholds on it:
+
+```json
+{"component": "discovery:service:compose.yml:indexer",
+ "job_lag_seconds": "time() - max(indexer_last_processed_block_timestamp)",
+ "warning": {"job_lag_seconds": 120}, "error": {"job_lag_seconds": 600}}
+```
+
+The same works for the age of a table's newest row, from whatever exporter reports it. The sample
+is evidence like any other: the command center cites it, with its age, under the finding it supports.
 
 ## Faster: the Rust feeds service
 

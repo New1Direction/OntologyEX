@@ -71,6 +71,9 @@ Then offer what fits:
   (which tool performs which task, where each input is in its arguments) and `guardrail.py install`
   adds a Claude Code PreToolUse hook: a broken rule is denied, an open question asks a person, a pass
   decides nothing (it writes `.claude/settings.json`: ask first; see [guardrails](docs/guardrails.md)).
+- **Check the conclusions against what happened:** each command-center finding names its evidence
+  (`evidence`, `contradicted_by`); `replay.py capture --repo REPO --name NAME` saves what was known at a
+  moment, and `replay.py run` replays saved moments against what really happened (see [replays](docs/replay.md)).
 - **Change one workflow safely:** build a domain skill for it
   ([guided onboarding](ontology-extraction/references/guided-onboarding.md)).
 - **Keep the kit in their project:** `KIT/.venv/bin/python KIT/ontology-extraction/scripts/install.py --project REPO`

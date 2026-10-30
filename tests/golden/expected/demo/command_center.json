@@ -55,6 +55,33 @@
  "items": [
   {
    "category": "Systems",
+   "contradicted_by": "a fresh ok sample from payments newer than <time>",
+   "evidence": [
+    {
+     "age_seconds": 0,
+     "collected_at": "<time>",
+     "component": "discovery:service:compose.yml:payments",
+     "detail": "synthetic reported error",
+     "environment": null,
+     "kind": "observation",
+     "ref": "discovery:service:compose.yml:payments@<time>",
+     "role": "basis",
+     "source": "synthetic",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": 0,
+     "collected_at": "<time>",
+     "component": "discovery:service:compose.yml:payments",
+     "detail": "declares payments (sha256 810f9a71175a)",
+     "environment": null,
+     "kind": "file",
+     "ref": "compose.yml",
+     "role": "context",
+     "source": "repository",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "a system the business relies on reports an error",
@@ -100,6 +127,57 @@
   },
   {
    "category": "Customers",
+   "contradicted_by": "the next complete week's tickets and deals back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "refunds rose to 6.2% of payments (0.4% before), and tickets mentioning IssueRefund, Refund rose to 48 (23 before): two sources agree, so look at what changed in the refund journey",
+     "environment": null,
+     "kind": "record",
+     "ref": "REFUNDS_CONFIRMED_BY_TICKETS usd",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "refunds and tickets about refunds rose together: two sources agree",
@@ -134,6 +212,57 @@
   },
   {
    "category": "Operations",
+   "contradicted_by": "the next complete week's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "1 payout(s) failed in the last 4 weeks: money did not reach the bank",
+     "environment": null,
+     "kind": "record",
+     "ref": "PAYOUT_FAILED payouts usd",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "a payout failed: money did not reach the bank",
@@ -160,6 +289,57 @@
   },
   {
    "category": "Business at risk",
+   "contradicted_by": "fresh ok samples from the failing systems it depends on, or the dependency undone",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": "payments-domain:object:Payment",
+     "detail": "skill payments-domain cites it for Payment",
+     "environment": null,
+     "kind": "file",
+     "ref": "requirements.md:4-4",
+     "role": "context",
+     "source": "skill payments-domain",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": 0,
+     "collected_at": "<time>",
+     "component": "discovery:service:compose.yml:api",
+     "detail": "synthetic reported ok",
+     "environment": null,
+     "kind": "observation",
+     "ref": "discovery:service:compose.yml:api@<time>",
+     "role": "basis",
+     "source": "synthetic",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": 0,
+     "collected_at": "<time>",
+     "component": "discovery:service:compose.yml:api",
+     "detail": "declares api (sha256 810f9a71175a)",
+     "environment": null,
+     "kind": "file",
+     "ref": "compose.yml",
+     "role": "context",
+     "source": "repository",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": 0,
+     "collected_at": "<time>",
+     "component": "discovery:service:compose.yml:ledger",
+     "detail": "synthetic reported ok",
+     "environment": null,
+     "kind": "observation",
+     "ref": "discovery:service:compose.yml:ledger@<time>",
+     "role": "basis",
+     "source": "synthetic",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "a system it runs on depends on a failing one",
@@ -207,6 +387,69 @@
   },
   {
    "category": "Business at risk",
+   "contradicted_by": "fresh ok samples from the systems it runs on, or a person undoing the link",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": "payments-domain:action:IssueRefund",
+     "detail": "skill payments-domain cites it for IssueRefund",
+     "environment": null,
+     "kind": "file",
+     "ref": "requirements.md:18-18",
+     "role": "context",
+     "source": "skill payments-domain",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": 0,
+     "collected_at": "<time>",
+     "component": "discovery:service:compose.yml:api",
+     "detail": "synthetic reported ok",
+     "environment": null,
+     "kind": "observation",
+     "ref": "discovery:service:compose.yml:api@<time>",
+     "role": "basis",
+     "source": "synthetic",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": 0,
+     "collected_at": "<time>",
+     "component": "discovery:service:compose.yml:api",
+     "detail": "declares api (sha256 810f9a71175a)",
+     "environment": null,
+     "kind": "file",
+     "ref": "compose.yml",
+     "role": "context",
+     "source": "repository",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": 0,
+     "collected_at": "<time>",
+     "component": "discovery:service:compose.yml:ledger",
+     "detail": "synthetic reported ok",
+     "environment": null,
+     "kind": "observation",
+     "ref": "discovery:service:compose.yml:ledger@<time>",
+     "role": "basis",
+     "source": "synthetic",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": 0,
+     "collected_at": "<time>",
+     "component": "discovery:service:compose.yml:payments",
+     "detail": "synthetic reported error",
+     "environment": null,
+     "kind": "observation",
+     "ref": "discovery:service:compose.yml:payments@<time>",
+     "role": "basis",
+     "source": "synthetic",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "a linked system reports an error",
@@ -255,6 +498,45 @@
   },
   {
    "category": "Business at risk",
+   "contradicted_by": "fresh ok samples from the systems it runs on, or a person undoing the link",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": "payments-domain:object:Refund",
+     "detail": "skill payments-domain cites it for Refund",
+     "environment": null,
+     "kind": "file",
+     "ref": "requirements.md:5-5",
+     "role": "context",
+     "source": "skill payments-domain",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": 0,
+     "collected_at": "<time>",
+     "component": "discovery:service:compose.yml:payments",
+     "detail": "synthetic reported error",
+     "environment": null,
+     "kind": "observation",
+     "ref": "discovery:service:compose.yml:payments@<time>",
+     "role": "basis",
+     "source": "synthetic",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": 0,
+     "collected_at": "<time>",
+     "component": "discovery:service:compose.yml:payments",
+     "detail": "declares payments (sha256 810f9a71175a)",
+     "environment": null,
+     "kind": "file",
+     "ref": "compose.yml",
+     "role": "context",
+     "source": "repository",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "a linked system reports an error",
@@ -301,6 +583,57 @@
   },
   {
    "category": "Operations",
+   "contradicted_by": "the next complete week's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "refunds were 6.2% of payments in the last 4 weeks, 0.4% in the 4 before",
+     "environment": null,
+     "kind": "record",
+     "ref": "REFUND_RATE_RISING refunds usd",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "refunds take a growing share of what customers pay",
@@ -335,6 +668,57 @@
   },
   {
    "category": "Spend",
+   "contradicted_by": "the next month's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "processor payouts of 34,021.00 over 3 month(s) and 30,879.00 deposited from processors: 3,142.00 is not in the bank lines",
+     "environment": null,
+     "kind": "record",
+     "ref": "PAYOUTS_NOT_IN_BANK transactions usd",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "money the payment processor paid out is not in the bank lines",
@@ -361,6 +745,57 @@
   },
   {
    "category": "Operations",
+   "contradicted_by": "the next complete week's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "2 dispute(s) were open or awaiting a response when exported; an unanswered dispute is lost",
+     "environment": null,
+     "kind": "record",
+     "ref": "DISPUTES_OPEN disputes usd",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "disputes wait for a response, and an unanswered dispute is lost",
@@ -382,6 +817,57 @@
   },
   {
    "category": "Business at risk",
+   "contradicted_by": "fresh ok samples from the failing systems it depends on, or the dependency undone",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": "payments-domain:action:ApproveException",
+     "detail": "skill payments-domain cites it for ApproveException",
+     "environment": null,
+     "kind": "file",
+     "ref": "requirements.md:21-21",
+     "role": "context",
+     "source": "skill payments-domain",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": 0,
+     "collected_at": "<time>",
+     "component": "discovery:service:compose.yml:api",
+     "detail": "synthetic reported ok",
+     "environment": null,
+     "kind": "observation",
+     "ref": "discovery:service:compose.yml:api@<time>",
+     "role": "basis",
+     "source": "synthetic",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": 0,
+     "collected_at": "<time>",
+     "component": "discovery:service:compose.yml:api",
+     "detail": "declares api (sha256 810f9a71175a)",
+     "environment": null,
+     "kind": "file",
+     "ref": "compose.yml",
+     "role": "context",
+     "source": "repository",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": 0,
+     "collected_at": "<time>",
+     "component": "discovery:service:compose.yml:ledger",
+     "detail": "synthetic reported ok",
+     "environment": null,
+     "kind": "observation",
+     "ref": "discovery:service:compose.yml:ledger@<time>",
+     "role": "basis",
+     "source": "synthetic",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "a system it runs on depends on a failing one",
@@ -424,6 +910,57 @@
   },
   {
    "category": "Operations",
+   "contradicted_by": "the next complete week's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "2 disputes against 240 payments (0.83%) in the last 4 weeks",
+     "environment": null,
+     "kind": "record",
+     "ref": "DISPUTE_RATE_HIGH disputes usd",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "disputes are above a common warning level",
@@ -445,6 +982,57 @@
   },
   {
    "category": "Written",
+   "contradicted_by": "the documents or the records changed so they agree",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "contracts/datadog-order-form.txt:4 says \"Payment terms: Net 30.\"; 1 bill(s) are past their due date and not marked paid",
+     "environment": null,
+     "kind": "record",
+     "ref": "WRITTEN_PROMISE_NOT_KEPT written",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "the records show a written promise is not kept",
@@ -466,6 +1054,21 @@
   },
   {
    "category": "Ownership",
+   "contradicted_by": "a CODEOWNERS rule covering its code, or a commit in the last year",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "no CODEOWNERS rule and no commit in a year cover its code",
+     "environment": null,
+     "kind": "absence",
+     "ref": "payments-domain:action:IssueRefund",
+     "role": "basis",
+     "source": "CODEOWNERS and git history",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "nobody is declared to own it, and nobody changed its code in a year",
@@ -511,6 +1114,57 @@
   },
   {
    "category": "Customers",
+   "contradicted_by": "the next complete week's tickets and deals back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "31% of rated tickets were rated bad in the last 4 weeks, 9% in the 4 before",
+     "environment": null,
+     "kind": "record",
+     "ref": "SATISFACTION_DROPPING tickets",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "more customers rate their support as bad",
@@ -532,6 +1186,57 @@
   },
   {
    "category": "Customers",
+   "contradicted_by": "the next complete week's tickets and deals back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "21% of closed deals were won in the last 4 weeks, 54% in the 4 before",
+     "environment": null,
+     "kind": "record",
+     "ref": "WIN_RATE_DOWN deals",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "fewer of the deals that close are won",
@@ -553,6 +1258,57 @@
   },
   {
    "category": "Spend",
+   "contradicted_by": "the next month's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "1 bill(s) are past their due date and not marked paid",
+     "environment": null,
+     "kind": "record",
+     "ref": "BILLS_OVERDUE bills usd",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "bills are past due",
@@ -574,6 +1330,57 @@
   },
   {
    "category": "Written",
+   "contradicted_by": "the documents or the records changed so they agree",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "refund window is written as 14 days and 30 days in different documents: docs/refund-policy.md:3; docs/terms-of-service.docx:3",
+     "environment": null,
+     "kind": "record",
+     "ref": "WRITTEN_RULES_CONFLICT written",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "two documents promise different things",
@@ -595,6 +1402,57 @@
   },
   {
    "category": "Operations",
+   "contradicted_by": "the next complete week's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "the records show invoices, and nothing in the business model or the code is named for them: they are handled somewhere the sources do not show (by hand, in a supplier's dashboard, or in code outside this repository)",
+     "environment": null,
+     "kind": "record",
+     "ref": "HAPPENS_NOT_IN_CODE invoices",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "the records show the business doing something the sources do not show",
@@ -621,6 +1479,57 @@
   },
   {
    "category": "Operations",
+   "contradicted_by": "the next complete week's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "10 invoice(s) marked uncollectible",
+     "environment": null,
+     "kind": "record",
+     "ref": "INVOICES_UNCOLLECTIBLE invoices usd",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "invoices were written off as uncollectible",
@@ -647,6 +1556,57 @@
   },
   {
    "category": "Operations",
+   "contradicted_by": "the next complete week's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "the records show payouts, and nothing in the business model or the code is named for them: they are handled somewhere the sources do not show (by hand, in a supplier's dashboard, or in code outside this repository)",
+     "environment": null,
+     "kind": "record",
+     "ref": "HAPPENS_NOT_IN_CODE payouts",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "the records show the business doing something the sources do not show",
@@ -673,6 +1633,57 @@
   },
   {
    "category": "Operations",
+   "contradicted_by": "the next complete week's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "the records show subscriptions, and nothing in the business model or the code is named for them: they are handled somewhere the sources do not show (by hand, in a supplier's dashboard, or in code outside this repository)",
+     "environment": null,
+     "kind": "record",
+     "ref": "HAPPENS_NOT_IN_CODE subscriptions",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "the records show the business doing something the sources do not show",
@@ -699,6 +1710,57 @@
   },
   {
    "category": "Spend",
+   "contradicted_by": "the next month's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "money out in 2026-09 was 75% above the average of the three months before",
+     "environment": null,
+     "kind": "record",
+     "ref": "SPEND_RISING transactions usd",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "money out jumped against the months before",
@@ -720,6 +1782,57 @@
   },
   {
    "category": "Written",
+   "contradicted_by": "the documents or the records changed so they agree",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "the records show payouts happening, and no document here describes how payouts are handled",
+     "environment": null,
+     "kind": "record",
+     "ref": "PROCEDURE_NOT_WRITTEN written",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "the business does something its documents never describe",
@@ -746,6 +1859,21 @@
   },
   {
    "category": "Unknowns",
+   "contradicted_by": "the question answered in the skill's sources",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": "payments-domain:action:ApproveException",
+     "detail": "the skill records the question here (unknown)",
+     "environment": null,
+     "kind": "file",
+     "ref": "requirements.md:21-21",
+     "role": "basis",
+     "source": "skill payments-domain",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "the sources leave a question open",
@@ -786,6 +1914,57 @@
   },
   {
    "category": "Customers",
+   "contradicted_by": "the next complete week's tickets and deals back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "tickets tagged 'export_csv' went from 4 to 34 against the 4 weeks before",
+     "environment": null,
+     "kind": "record",
+     "ref": "TOPIC_SPIKE tickets",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "one kind of ticket jumped",
@@ -807,6 +1986,57 @@
   },
   {
    "category": "Customers",
+   "contradicted_by": "the next complete week's tickets and deals back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "tickets tagged 'vip' went from 3 to 12 against the 4 weeks before",
+     "environment": null,
+     "kind": "record",
+     "ref": "TOPIC_SPIKE tickets",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "one kind of ticket jumped",
@@ -828,6 +2058,57 @@
   },
   {
    "category": "Customers",
+   "contradicted_by": "the next complete week's tickets and deals back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "25 tickets in the last 4 weeks are tagged 'billing', and nothing in the business model is named for it: a part of the business customers deal with that is not written down",
+     "environment": null,
+     "kind": "record",
+     "ref": "TOPIC_NOT_MODELED billing",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "customers keep raising something nothing in the model is named for",
@@ -854,6 +2135,57 @@
   },
   {
    "category": "Spend",
+   "contradicted_by": "the next month's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "cloud costs in 2026-09 were 45% above 2026-08",
+     "environment": null,
+     "kind": "record",
+     "ref": "CLOUD_COST_RISING cloud_costs usd",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "cloud costs jumped against the month before",
@@ -875,6 +2207,21 @@
   },
   {
    "category": "Ownership",
+   "contradicted_by": "a CODEOWNERS rule covering its code, or a commit in the last year",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "no CODEOWNERS rule and no commit in a year cover its code",
+     "environment": null,
+     "kind": "absence",
+     "ref": "payments-domain:action:ApproveException",
+     "role": "basis",
+     "source": "CODEOWNERS and git history",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "nobody is declared to own it, and nobody changed its code in a year",
@@ -915,6 +2262,57 @@
   },
   {
    "category": "Customers",
+   "contradicted_by": "the next complete week's tickets and deals back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "33 tickets open at the end of the last complete week, 12 four weeks earlier",
+     "environment": null,
+     "kind": "record",
+     "ref": "BACKLOG_GROWING tickets",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "unsolved tickets pile up",
@@ -936,6 +2334,57 @@
   },
   {
    "category": "Customers",
+   "contradicted_by": "the next complete week's tickets and deals back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "the median ticket took 16.2 hours to solve in the last 4 weeks, 8.6 in the 4 before",
+     "environment": null,
+     "kind": "record",
+     "ref": "RESOLUTION_SLOWER tickets",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "tickets take longer to solve",
@@ -957,6 +2406,57 @@
   },
   {
    "category": "Spend",
+   "contradicted_by": "the next month's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "the code uses Sentry, and these records show no payment to it: a free plan, paid from another account or card, or not set up for production",
+     "environment": null,
+     "kind": "record",
+     "ref": "IN_CODE_NOT_PAID Sentry",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "the code uses a supplier nobody is seen paying",
@@ -983,6 +2483,81 @@
   },
   {
    "category": "Compliance",
+   "contradicted_by": "evidence for the controls in the sources, or a person providing it",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Security responsibilities are communicated: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "CC2.2",
+     "role": "basis",
+     "source": "SOC 2",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Sign-in and access are controlled: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "CC6.1",
+     "role": "basis",
+     "source": "SOC 2",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Multi-factor sign-in: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "CC6.1-MFA",
+     "role": "basis",
+     "source": "SOC 2",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Data is encrypted in transit: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "CC6.7",
+     "role": "basis",
+     "source": "SOC 2",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Unauthorized or vulnerable software is prevented: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "CC6.8",
+     "role": "basis",
+     "source": "SOC 2",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Vulnerabilities are found: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "CC7.1",
+     "role": "basis",
+     "source": "SOC 2",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "customers usually ask for this standard, and the sources do not show all of it",
@@ -1009,6 +2584,57 @@
   },
   {
    "category": "Customers",
+   "contradicted_by": "the next complete week's tickets and deals back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "9 of 19 deals lost in the last 4 weeks were lost to 'price'",
+     "environment": null,
+     "kind": "record",
+     "ref": "LOSS_REASON_DOMINANT deals",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "one reason loses most deals",
@@ -1030,6 +2656,57 @@
   },
   {
    "category": "Operations",
+   "contradicted_by": "the next complete week's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "the records show disputes, and nothing in the business model or the code is named for them: they are handled somewhere the sources do not show (by hand, in a supplier's dashboard, or in code outside this repository)",
+     "environment": null,
+     "kind": "record",
+     "ref": "HAPPENS_NOT_IN_CODE disputes",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "the records show the business doing something the sources do not show",
@@ -1051,6 +2728,57 @@
   },
   {
    "category": "Written",
+   "contradicted_by": "the documents or the records changed so they agree",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "the records show disputes happening, and no document here describes how disputes are handled",
+     "environment": null,
+     "kind": "record",
+     "ref": "PROCEDURE_NOT_WRITTEN written",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "the business does something its documents never describe",
@@ -1072,6 +2800,33 @@
   },
   {
    "category": "Suppliers",
+   "contradicted_by": "a second supplier of the kind declared in the sources",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": "discovery:supplier:sendgrid",
+     "detail": "SendGrid: dependency {\"name\": \"shop-web\", \"private\": true, \"dependencies\": {\"@sendgrid/mail\": \"^8.1.0\", \"@sentry/node\": \"^8.0.0\"}}",
+     "environment": null,
+     "kind": "file",
+     "ref": "package.json:1",
+     "role": "basis",
+     "source": "repository",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "no second email and messaging supplier in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "email and messaging",
+     "role": "basis",
+     "source": "repository",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "the only supplier of an important kind",
@@ -1107,6 +2862,57 @@
   },
   {
    "category": "Customers",
+   "contradicted_by": "the next complete week's tickets and deals back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "34 tickets in the last 4 weeks are tagged 'export_csv', and nothing in the business model is named for it: a part of the business customers deal with that is not written down",
+     "environment": null,
+     "kind": "record",
+     "ref": "TOPIC_NOT_MODELED export_csv",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "customers keep raising something nothing in the model is named for",
@@ -1128,6 +2934,57 @@
   },
   {
    "category": "Customers",
+   "contradicted_by": "the next complete week's tickets and deals back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "46 tickets in the last 4 weeks are tagged 'login', and nothing in the business model is named for it: a part of the business customers deal with that is not written down",
+     "environment": null,
+     "kind": "record",
+     "ref": "TOPIC_NOT_MODELED login",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "customers keep raising something nothing in the model is named for",
@@ -1149,6 +3006,33 @@
   },
   {
    "category": "Visibility",
+   "contradicted_by": "a health sample from each silent service",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": "discovery:service:compose.yml:web",
+     "detail": "nothing reports the health of web",
+     "environment": null,
+     "kind": "absence",
+     "ref": "discovery:service:compose.yml:web",
+     "role": "basis",
+     "source": null,
+     "state": "MISSING"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": "discovery:service:compose.yml:worker",
+     "detail": "nothing reports the health of worker",
+     "environment": null,
+     "kind": "absence",
+     "ref": "discovery:service:compose.yml:worker",
+     "role": "basis",
+     "source": null,
+     "state": "MISSING"
+    }
+   ],
    "factors": [
     {
      "detail": "services report no health at all",
@@ -1175,6 +3059,21 @@
   },
   {
    "category": "Ownership",
+   "contradicted_by": "a CODEOWNERS file",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "no CODEOWNERS file in the repository",
+     "environment": null,
+     "kind": "absence",
+     "ref": "CODEOWNERS",
+     "role": "basis",
+     "source": "repository",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "no CODEOWNERS file names who owns any code",
@@ -1196,6 +3095,57 @@
   },
   {
    "category": "Spend",
+   "contradicted_by": "the next month's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "OpenAI was paid for the first time in 2026-09",
+     "environment": null,
+     "kind": "record",
+     "ref": "NEW_SUPPLIER_PAID transactions usd",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "a supplier was paid for the first time",
@@ -1217,6 +3167,57 @@
   },
   {
    "category": "Spend",
+   "contradicted_by": "the next month's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Amazon Web Services is paid (7,962.00 USD in these records) and the code does not use it: a tool people use, a service set up outside this repository, or one nobody needs any more",
+     "environment": null,
+     "kind": "record",
+     "ref": "PAID_NOT_IN_CODE Amazon Web Services",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "a supplier is paid that the code does not use",
@@ -1238,6 +3239,57 @@
   },
   {
    "category": "Spend",
+   "contradicted_by": "the next month's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Datadog is paid (2,700.00 USD in these records) and the code does not use it: a tool people use, a service set up outside this repository, or one nobody needs any more",
+     "environment": null,
+     "kind": "record",
+     "ref": "PAID_NOT_IN_CODE Datadog",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "a supplier is paid that the code does not use",
@@ -1259,6 +3311,57 @@
   },
   {
    "category": "Spend",
+   "contradicted_by": "the next month's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "OpenAI is paid (120.00 USD in these records) and the code does not use it: a tool people use, a service set up outside this repository, or one nobody needs any more",
+     "environment": null,
+     "kind": "record",
+     "ref": "PAID_NOT_IN_CODE OpenAI",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "a supplier is paid that the code does not use",
@@ -1280,6 +3383,57 @@
   },
   {
    "category": "Spend",
+   "contradicted_by": "the next month's records back within the usual range",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Twilio is paid (737.40 USD in these records) and the code does not use it: a tool people use, a service set up outside this repository, or one nobody needs any more",
+     "environment": null,
+     "kind": "record",
+     "ref": "PAID_NOT_IN_CODE Twilio",
+     "role": "basis",
+     "source": "operations ledger (aggregates)",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "bills, sha256 c260fbeb3dd8",
+     "environment": null,
+     "kind": "record",
+     "ref": "bills.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "disputes, sha256 4f73b5d8b455",
+     "environment": null,
+     "kind": "record",
+     "ref": "disputes.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "invoices, sha256 5b47154af9ac",
+     "environment": null,
+     "kind": "record",
+     "ref": "invoices.csv",
+     "role": "context",
+     "source": "operations folder",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "a supplier is paid that the code does not use",
@@ -1301,6 +3455,21 @@
   },
   {
    "category": "Decisions",
+   "contradicted_by": "a person confirming or rejecting each proposal",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "suggested, and not yet confirmed or rejected by anyone",
+     "environment": null,
+     "kind": "decision",
+     "ref": "1 link proposal(s)",
+     "role": "basis",
+     "source": "link suggestions",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "proposals wait for a person",
@@ -1366,5 +3535,23 @@
  ],
  "schema_version": 1,
  "semantics": "IMPORTANCE_RANKS_ATTENTION_NOT_PROBABILITY_OR_APPROVAL",
- "total": 47
+ "total": 47,
+ "verdict": {
+  "basis": "5 of 7 watched system(s) have fresh evidence; silent or expired: web, worker",
+  "causes": [
+   "discovery:service:compose.yml:payments"
+  ],
+  "confidence": "PARTIAL",
+  "evidence": {
+   "fresh": 5,
+   "missing": [
+    "discovery:service:compose.yml:web",
+    "discovery:service:compose.yml:worker"
+   ],
+   "share": 0.714,
+   "watched": 7
+  },
+  "semantics": "SOURCE_REPORTED_HEALTH_MISSING_EVIDENCE_IS_NEVER_HEALTHY",
+  "status": "FAULT"
+ }
 }

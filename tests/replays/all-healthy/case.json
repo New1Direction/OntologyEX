@@ -1,0 +1,22 @@
+{
+  "at": "2026-10-29T12:00:00Z",
+  "captured": {
+    "at": "2026-10-29T12:00:00Z",
+    "observations_kept": 7,
+    "skills": [
+      "payments-domain"
+    ],
+    "topology": "as discovered when captured (the repository is not copied)",
+    "window_hours": 72
+  },
+  "environment": "production",
+  "expect": {
+    "cause": [],
+    "verdict": "HEALTHY",
+    "within": 3
+  },
+  "kind": "ONTOLOGYEX_REPLAY_CASE",
+  "name": "all-healthy",
+  "notes": "Every service reports healthy within its freshness window.",
+  "schema_version": 1
+}

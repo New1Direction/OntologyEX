@@ -177,6 +177,21 @@
  "items": [
   {
    "category": "Visibility",
+   "contradicted_by": "a domain skill for the main workflow",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "no domain skill is loaded",
+     "environment": null,
+     "kind": "absence",
+     "ref": "domain skills",
+     "role": "basis",
+     "source": "control room",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "the business actions are not written down, so nothing here reaches the business",
@@ -198,6 +213,69 @@
   },
   {
    "category": "Compliance",
+   "contradicted_by": "evidence for the controls in the sources, or a person providing it",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Consent is recorded: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "Art. 7",
+     "role": "basis",
+     "source": "GDPR",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "People can get a copy of their data: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "Art. 15/20",
+     "role": "basis",
+     "source": "GDPR",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "People can have their data erased: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "Art. 17",
+     "role": "basis",
+     "source": "GDPR",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Data is kept no longer than needed: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "Art. 5(1)(e)",
+     "role": "basis",
+     "source": "GDPR",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Security of processing: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "Art. 32",
+     "role": "basis",
+     "source": "GDPR",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "a standard that applies asks for controls the sources do not show",
@@ -224,6 +302,69 @@
   },
   {
    "category": "Compliance",
+   "contradicted_by": "evidence for the controls in the sources, or a person providing it",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Contingency plan and backups: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "164.308(a)(7)",
+     "role": "basis",
+     "source": "HIPAA",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Access control: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "164.312(a)(1)",
+     "role": "basis",
+     "source": "HIPAA",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Encryption at rest: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "164.312(a)(2)(iv)",
+     "role": "basis",
+     "source": "HIPAA",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Person authentication: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "164.312(d)",
+     "role": "basis",
+     "source": "HIPAA",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Transmission security: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "164.312(e)(1)",
+     "role": "basis",
+     "source": "HIPAA",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "a standard that applies asks for controls the sources do not show",
@@ -250,6 +391,21 @@
   },
   {
    "category": "Ownership",
+   "contradicted_by": "commits from a second person",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "every commit came from one person",
+     "environment": null,
+     "kind": "record",
+     "ref": "git history, 12 months",
+     "role": "basis",
+     "source": "git",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "only one person changed the whole repository in a year",
@@ -271,6 +427,81 @@
   },
   {
    "category": "Compliance",
+   "contradicted_by": "evidence for the controls in the sources, or a person providing it",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Security responsibilities are communicated: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "CC2.2",
+     "role": "basis",
+     "source": "SOC 2",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Sign-in and access are controlled: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "CC6.1",
+     "role": "basis",
+     "source": "SOC 2",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Multi-factor sign-in: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "CC6.1-MFA",
+     "role": "basis",
+     "source": "SOC 2",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Data is encrypted in transit: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "CC6.7",
+     "role": "basis",
+     "source": "SOC 2",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Unauthorized or vulnerable software is prevented: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "CC6.8",
+     "role": "basis",
+     "source": "SOC 2",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "Vulnerabilities are found: not fully shown in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "CC7.1",
+     "role": "basis",
+     "source": "SOC 2",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "customers usually ask for this standard, and the sources do not show all of it",
@@ -297,6 +528,33 @@
   },
   {
    "category": "Suppliers",
+   "contradicted_by": "a second supplier of the kind declared in the sources",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": "discovery:supplier:amazon-web-services",
+     "detail": "Amazon Web Services: dependency boto3==1.34.0",
+     "environment": null,
+     "kind": "file",
+     "ref": "requirements.txt:4",
+     "role": "basis",
+     "source": "repository",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "no second cloud and hosting supplier in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "cloud and hosting",
+     "role": "basis",
+     "source": "repository",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "the only supplier of an important kind",
@@ -332,6 +590,33 @@
   },
   {
    "category": "Suppliers",
+   "contradicted_by": "a second supplier of the kind declared in the sources",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": "discovery:supplier:twilio",
+     "detail": "Twilio: dependency twilio==9.0.0",
+     "environment": null,
+     "kind": "file",
+     "ref": "requirements.txt:3",
+     "role": "basis",
+     "source": "repository",
+     "state": "COMPLETE"
+    },
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "no second email and messaging supplier in the sources",
+     "environment": null,
+     "kind": "absence",
+     "ref": "email and messaging",
+     "role": "basis",
+     "source": "repository",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "the only supplier of an important kind",
@@ -367,6 +652,21 @@
   },
   {
    "category": "Ownership",
+   "contradicted_by": "a CODEOWNERS file",
+   "evidence": [
+    {
+     "age_seconds": null,
+     "collected_at": null,
+     "component": null,
+     "detail": "no CODEOWNERS file in the repository",
+     "environment": null,
+     "kind": "absence",
+     "ref": "CODEOWNERS",
+     "role": "basis",
+     "source": "repository",
+     "state": "COMPLETE"
+    }
+   ],
    "factors": [
     {
      "detail": "no CODEOWNERS file names who owns any code",
@@ -427,5 +727,18 @@
  ],
  "schema_version": 1,
  "semantics": "IMPORTANCE_RANKS_ATTENTION_NOT_PROBABILITY_OR_APPROVAL",
- "total": 8
+ "total": 8,
+ "verdict": {
+  "basis": "no system reports health, and no business item relies on one",
+  "causes": [],
+  "confidence": "NONE",
+  "evidence": {
+   "fresh": 0,
+   "missing": [],
+   "share": 0.0,
+   "watched": 0
+  },
+  "semantics": "SOURCE_REPORTED_HEALTH_MISSING_EVIDENCE_IS_NEVER_HEALTHY",
+  "status": "INCONCLUSIVE"
+ }
 }

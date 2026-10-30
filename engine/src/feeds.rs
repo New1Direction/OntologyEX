@@ -25,7 +25,7 @@ pub const KEEP_PER_COMPONENT: usize = 8;
 pub const MAX_JSON_DEPTH: usize = 64;
 pub const MAX_OBSERVATION_BYTES: usize = 1024 * 1024;
 pub const MAX_OBSERVATIONS: usize = 4096;
-pub const METRIC_RULES: [&str; 3] = ["error_rate_pct", "p95_latency_ms", "probe_latency_ms"];
+pub const METRIC_RULES: [&str; 4] = ["error_rate_pct", "p95_latency_ms", "probe_latency_ms", "job_lag_seconds"];
 const METRICS: [&str; 6] = ["queue_lag_seconds", "db_pool_utilization_pct", "error_rate_pct",
                             "p95_latency_ms", "job_lag_seconds", "probe_latency_ms"];
 const PERCENT_METRICS: [&str; 2] = ["db_pool_utilization_pct", "error_rate_pct"];
@@ -87,6 +87,8 @@ pub struct PromTarget {
     pub up: Option<String>,
     pub error_rate_pct: Option<String>,
     pub p95_latency_ms: Option<String>,
+    /// How long ago a job last did its work (an indexer's last block, a writer's last write).
+    pub job_lag_seconds: Option<String>,
     pub warning: Thresholds,
     pub error: Thresholds,
 }
@@ -364,17 +366,18 @@ pub fn load_config(path: &Path) -> Res<Config> {
         let mut targets = Vec::new();
         for (i, target) in target_list.iter().enumerate() {
             let where_ = format!("prometheus.targets[{i}]");
-            let t = keys(target, &["component"], &["up", "error_rate_pct", "p95_latency_ms", "warning", "error"], &where_)?;
+            let t = keys(target, &["component"], &["up", "error_rate_pct", "p95_latency_ms", "job_lag_seconds", "warning", "error"], &where_)?;
             let component = component(t.get("component"), &where_)?;
             let query = |k: &str| t.get(k);
-            let present: Vec<&Value> = ["up", "error_rate_pct", "p95_latency_ms"].iter().filter_map(|k| query(k)).collect();
+            let present: Vec<&Value> = ["up", "error_rate_pct", "p95_latency_ms", "job_lag_seconds"].iter().filter_map(|k| query(k)).collect();
             check(!present.is_empty() && present.iter().all(|q| q.as_str().is_some_and(|s| (1..=2000).contains(&python_len(s)))),
                   format!("{where_}: give at least one PromQL query"))?;
             let text = |k: &str| query(k).and_then(Value::as_str).map(str::to_string);
             let warning = thresholds(t.get("warning"), &format!("{where_}.warning"))?;
             let error = thresholds(t.get("error"), &format!("{where_}.error"))?;
             targets.push(PromTarget { component, up: text("up"), error_rate_pct: text("error_rate_pct"),
-                                      p95_latency_ms: text("p95_latency_ms"), warning, error });
+                                      p95_latency_ms: text("p95_latency_ms"), job_lag_seconds: text("job_lag_seconds"),
+                                      warning, error });
         }
         prometheus = Some(Prometheus { url, token_env, interval, timeout, targets });
     }
@@ -433,7 +436,8 @@ impl Config {
                 "url": p.url, "token_env": p.token_env, "interval_seconds": p.interval, "timeout_seconds": p.timeout,
                 "targets": p.targets.iter().map(|t| json!({
                     "component": t.component, "up": t.up, "error_rate_pct": t.error_rate_pct,
-                    "p95_latency_ms": t.p95_latency_ms, "warning": th(&t.warning), "error": th(&t.error)})).collect::<Vec<_>>()})),
+                    "p95_latency_ms": t.p95_latency_ms, "job_lag_seconds": t.job_lag_seconds, "warning": th(&t.warning),
+                    "error": th(&t.error)})).collect::<Vec<_>>()})),
             "otlp": self.otlp.as_ref().map(|o| json!({
                 "services": o.services, "bind": o.bind, "port": o.port, "token_env": o.token_env,
                 "window_seconds": o.window, "emit_seconds": o.emit, "min_requests": o.min_requests,

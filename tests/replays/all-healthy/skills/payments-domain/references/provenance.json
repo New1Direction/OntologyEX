@@ -1,0 +1,732 @@
+{
+  "atoms": [
+    {
+      "atom_id": "atom-0cda46c1e2e8ac235322c8523ff66f99b2d55f4c9bf61c171c22168d0ea5ab85",
+      "content_id": "content-a42e93a12c4d2ed6e781be3decb006ecd613e19c8e1797e4d46a170eabddb353",
+      "evidence_ids": [
+        "E-ledger-consistent"
+      ],
+      "grouping_basis": "IDENTICAL_FILE_BYTES_AND_QUOTE_ONLY",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "source_ids": [
+        "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1"
+      ]
+    },
+    {
+      "atom_id": "atom-136580d18c9eb1f67b81b387a8e53ff32c44c4a7f26d4282d970d226283fb6b7",
+      "content_id": "content-905ea7a5b30134eb99436b59515716c9773203f613e3b94db8b72457cddad690",
+      "evidence_ids": [
+        "E-remaining-code"
+      ],
+      "grouping_basis": "IDENTICAL_FILE_BYTES_AND_QUOTE_ONLY",
+      "independence_group": null,
+      "kind": "implementation",
+      "origin_id": null,
+      "source_ids": [
+        "source-54ce790a28316a2b44d581eee715b428e10801c87b92bb0b9eff33842c682562"
+      ]
+    },
+    {
+      "atom_id": "atom-1d9d4ad31cd90c828ac7c9e16aa612c7a6e14bbdd5e45982b0f7c752f2e762b0",
+      "content_id": "content-35cba7b42795a863d638dfc1b72251deb40c06107ea0faa7aa2b22ef84761ced",
+      "evidence_ids": [
+        "E-Payment"
+      ],
+      "grouping_basis": "IDENTICAL_FILE_BYTES_AND_QUOTE_ONLY",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "source_ids": [
+        "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1"
+      ]
+    },
+    {
+      "atom_id": "atom-20fe52ccedf1f9f6b2a544f808f50a464eb07423ad283f1797437eac5f7be0f3",
+      "content_id": "content-5cc28b03a559803692ba4f4e19d62ac5a14ef8e910e8b662a4567ecab94ce16c",
+      "evidence_ids": [
+        "E-MonetaryAmount"
+      ],
+      "grouping_basis": "IDENTICAL_FILE_BYTES_AND_QUOTE_ONLY",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "source_ids": [
+        "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1"
+      ]
+    },
+    {
+      "atom_id": "atom-3327a3ec0905afa77858206212495ad3853b575b4fe6e3ec0e642535d473e0ca",
+      "content_id": "content-2e3ee197c50bfed928da0dfd14e3e0f5c192acf9c9540796fc370ddcb43de5ab",
+      "evidence_ids": [
+        "E-positive-amount"
+      ],
+      "grouping_basis": "IDENTICAL_FILE_BYTES_AND_QUOTE_ONLY",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "source_ids": [
+        "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1"
+      ]
+    },
+    {
+      "atom_id": "atom-3eddc0f1af407ffa5a7293ae3c75dca0c6505f0020f12c449a88102d25c1de03",
+      "content_id": "content-5c211bf7cc33e2af93bdc126fe0414656650844fc943f27c8eaf2baa9e1a1fbd",
+      "evidence_ids": [
+        "E-refunded-nonnegative"
+      ],
+      "grouping_basis": "IDENTICAL_FILE_BYTES_AND_QUOTE_ONLY",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "source_ids": [
+        "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1"
+      ]
+    },
+    {
+      "atom_id": "atom-4dda4d9549a7b708023c14429f17a4ea4e403b499b15737a50147e45e2344d6f",
+      "content_id": "content-9888a5bfe4c861af3dd46812913c4f768ee9aea760ac8d036ad9237fc0c9d42b",
+      "evidence_ids": [
+        "E-captured-nonnegative"
+      ],
+      "grouping_basis": "IDENTICAL_FILE_BYTES_AND_QUOTE_ONLY",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "source_ids": [
+        "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1"
+      ]
+    },
+    {
+      "atom_id": "atom-586109ff52deb32f8ed673aba97329ee131ccaddacab8ea022c9cc998dda680e",
+      "content_id": "content-37ea4f225f1b7b95ba7be89dccbdbf18f17ccc0e74a8cb82be6668e76244c321",
+      "evidence_ids": [
+        "E-Refund"
+      ],
+      "grouping_basis": "IDENTICAL_FILE_BYTES_AND_QUOTE_ONLY",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "source_ids": [
+        "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1"
+      ]
+    },
+    {
+      "atom_id": "atom-9abaeaf4902afe1c9c0b3652cea1c7a1e1821d1a0199de8e06127547fdee7556",
+      "content_id": "content-d8ae10d3bc26999ae33985835ec79f5c3fb5f828c053a95b2c226a0663142ba4",
+      "evidence_ids": [
+        "E-function-code"
+      ],
+      "grouping_basis": "IDENTICAL_FILE_BYTES_AND_QUOTE_ONLY",
+      "independence_group": null,
+      "kind": "implementation",
+      "origin_id": null,
+      "source_ids": [
+        "source-54ce790a28316a2b44d581eee715b428e10801c87b92bb0b9eff33842c682562"
+      ]
+    },
+    {
+      "atom_id": "atom-a481950147b7f5b7135814a8b878b85be9efb2d760841af870d551f6afe3b6eb",
+      "content_id": "content-4edf4f0883c7caa2c22a4153fbba3d6846f287e90d835ad870b4a5d61c0648e7",
+      "evidence_ids": [
+        "E-remaining-balance"
+      ],
+      "grouping_basis": "IDENTICAL_FILE_BYTES_AND_QUOTE_ONLY",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "source_ids": [
+        "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1"
+      ]
+    },
+    {
+      "atom_id": "atom-b4a8f7b02a66e7eac4ca215e152b5a03bcedc99f93e55e491a3488360e9c9334",
+      "content_id": "content-c78332832f2bc5ca992675deca4b4fafc289d2c81334968477ae2ddbc33a6113",
+      "evidence_ids": [
+        "E-exception"
+      ],
+      "grouping_basis": "IDENTICAL_FILE_BYTES_AND_QUOTE_ONLY",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "source_ids": [
+        "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1"
+      ]
+    },
+    {
+      "atom_id": "atom-c15a5c68ade48f6aea57e6a21f5726b2cbef1e362028f3f5abcb83917ceeb2a0",
+      "content_id": "content-5b5af4ef37c84869363850ccff4d748f8ba85c4663b4312f74d8b202f5900f8d",
+      "evidence_ids": [
+        "E-authorization-required"
+      ],
+      "grouping_basis": "IDENTICAL_FILE_BYTES_AND_QUOTE_ONLY",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "source_ids": [
+        "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1"
+      ]
+    },
+    {
+      "atom_id": "atom-da688f70a0ef3c55c782287c153af01405b4d53d7304bf123ba038d01f2ece2c",
+      "content_id": "content-0e1f298e787760503a704399a1d55f6304890601645e354818e22e6de0e0658d",
+      "evidence_ids": [
+        "E-effect"
+      ],
+      "grouping_basis": "IDENTICAL_FILE_BYTES_AND_QUOTE_ONLY",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "source_ids": [
+        "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1"
+      ]
+    },
+    {
+      "atom_id": "atom-da93624ce45e2558b22f31c4661f6a39fa4f9ef773774c6d6d73ffa8b2dd4f5b",
+      "content_id": "content-62b0224aa94647034543aa12ca3ca09350676da3af5ac35ffae011c72ce9ae8e",
+      "evidence_ids": [
+        "E-SupportAgent"
+      ],
+      "grouping_basis": "IDENTICAL_FILE_BYTES_AND_QUOTE_ONLY",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "source_ids": [
+        "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1"
+      ]
+    },
+    {
+      "atom_id": "atom-e3123ff15079640bf7871dcd1d7f66a88eb5ee2dc12584f33c23b647482b608f",
+      "content_id": "content-46d552fc5ad04f623bf55c95c941263647b7e69ffab3d9f77d8150e7cba1aa5b",
+      "evidence_ids": [
+        "E-relation"
+      ],
+      "grouping_basis": "IDENTICAL_FILE_BYTES_AND_QUOTE_ONLY",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "source_ids": [
+        "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1"
+      ]
+    },
+    {
+      "atom_id": "atom-f4c968bd4ebe961c8e36db28bc2df5e88b731bd46b9a1f1884b36edb43e94580",
+      "content_id": "content-3523a4ca1dfff260f0a72dad5d978b5646b1d9b9a94328a3c1042a0cb22e14f6",
+      "evidence_ids": [
+        "E-ledger-code"
+      ],
+      "grouping_basis": "IDENTICAL_FILE_BYTES_AND_QUOTE_ONLY",
+      "independence_group": null,
+      "kind": "implementation",
+      "origin_id": null,
+      "source_ids": [
+        "source-54ce790a28316a2b44d581eee715b428e10801c87b92bb0b9eff33842c682562"
+      ]
+    },
+    {
+      "atom_id": "atom-f920539b23d3eb3ff23139a973933e044301615d8075197aac81b1c5cafeef90",
+      "content_id": "content-0a28abbcd552f3f692b74093a4771a9a425e8e2192c6e534282a66a5b6461b09",
+      "evidence_ids": [
+        "E-captured-only"
+      ],
+      "grouping_basis": "IDENTICAL_FILE_BYTES_AND_QUOTE_ONLY",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "source_ids": [
+        "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1"
+      ]
+    }
+  ],
+  "attributions": [],
+  "conflict_detection": "RECORDED_CONFLICTS_ONLY_NOT_SEMANTIC_DETECTION",
+  "decision_policy": "NO_VOTING_NO_CONFIDENCE_NO_POLICY_CHANGE",
+  "execution_authorized": false,
+  "items": [
+    {
+      "atom_ids": [
+        "atom-c15a5c68ade48f6aea57e6a21f5726b2cbef1e362028f3f5abcb83917ceeb2a0"
+      ],
+      "content_groups": 1,
+      "declared_independence_groups": [],
+      "declared_origin_ids": [],
+      "evidence_atoms": 1,
+      "evidence_ids": [
+        "E-authorization-required"
+      ],
+      "evidence_records": 1,
+      "id": "authorization-required",
+      "independence_verified": false,
+      "independent_support_count": null,
+      "kind": "rules",
+      "repeated_reference_count": 0,
+      "selected_file_versions": 1,
+      "status": "LINEAGE_UNKNOWN",
+      "task": "IssueRefund",
+      "unattributed_evidence_ids": [
+        "E-authorization-required"
+      ]
+    },
+    {
+      "atom_ids": [
+        "atom-4dda4d9549a7b708023c14429f17a4ea4e403b499b15737a50147e45e2344d6f"
+      ],
+      "content_groups": 1,
+      "declared_independence_groups": [],
+      "declared_origin_ids": [],
+      "evidence_atoms": 1,
+      "evidence_ids": [
+        "E-captured-nonnegative"
+      ],
+      "evidence_records": 1,
+      "id": "captured-nonnegative",
+      "independence_verified": false,
+      "independent_support_count": null,
+      "kind": "rules",
+      "repeated_reference_count": 0,
+      "selected_file_versions": 1,
+      "status": "LINEAGE_UNKNOWN",
+      "task": "IssueRefund",
+      "unattributed_evidence_ids": [
+        "E-captured-nonnegative"
+      ]
+    },
+    {
+      "atom_ids": [
+        "atom-f920539b23d3eb3ff23139a973933e044301615d8075197aac81b1c5cafeef90"
+      ],
+      "content_groups": 1,
+      "declared_independence_groups": [],
+      "declared_origin_ids": [],
+      "evidence_atoms": 1,
+      "evidence_ids": [
+        "E-captured-only"
+      ],
+      "evidence_records": 1,
+      "id": "captured-only",
+      "independence_verified": false,
+      "independent_support_count": null,
+      "kind": "rules",
+      "repeated_reference_count": 0,
+      "selected_file_versions": 1,
+      "status": "LINEAGE_UNKNOWN",
+      "task": "IssueRefund",
+      "unattributed_evidence_ids": [
+        "E-captured-only"
+      ]
+    },
+    {
+      "atom_ids": [
+        "atom-0cda46c1e2e8ac235322c8523ff66f99b2d55f4c9bf61c171c22168d0ea5ab85"
+      ],
+      "content_groups": 1,
+      "declared_independence_groups": [],
+      "declared_origin_ids": [],
+      "evidence_atoms": 1,
+      "evidence_ids": [
+        "E-ledger-consistent"
+      ],
+      "evidence_records": 1,
+      "id": "ledger-consistent",
+      "independence_verified": false,
+      "independent_support_count": null,
+      "kind": "rules",
+      "repeated_reference_count": 0,
+      "selected_file_versions": 1,
+      "status": "LINEAGE_UNKNOWN",
+      "task": "IssueRefund",
+      "unattributed_evidence_ids": [
+        "E-ledger-consistent"
+      ]
+    },
+    {
+      "atom_ids": [
+        "atom-3327a3ec0905afa77858206212495ad3853b575b4fe6e3ec0e642535d473e0ca"
+      ],
+      "content_groups": 1,
+      "declared_independence_groups": [],
+      "declared_origin_ids": [],
+      "evidence_atoms": 1,
+      "evidence_ids": [
+        "E-positive-amount"
+      ],
+      "evidence_records": 1,
+      "id": "positive-amount",
+      "independence_verified": false,
+      "independent_support_count": null,
+      "kind": "rules",
+      "repeated_reference_count": 0,
+      "selected_file_versions": 1,
+      "status": "LINEAGE_UNKNOWN",
+      "task": "IssueRefund",
+      "unattributed_evidence_ids": [
+        "E-positive-amount"
+      ]
+    },
+    {
+      "atom_ids": [
+        "atom-3eddc0f1af407ffa5a7293ae3c75dca0c6505f0020f12c449a88102d25c1de03"
+      ],
+      "content_groups": 1,
+      "declared_independence_groups": [],
+      "declared_origin_ids": [],
+      "evidence_atoms": 1,
+      "evidence_ids": [
+        "E-refunded-nonnegative"
+      ],
+      "evidence_records": 1,
+      "id": "refunded-nonnegative",
+      "independence_verified": false,
+      "independent_support_count": null,
+      "kind": "rules",
+      "repeated_reference_count": 0,
+      "selected_file_versions": 1,
+      "status": "LINEAGE_UNKNOWN",
+      "task": "IssueRefund",
+      "unattributed_evidence_ids": [
+        "E-refunded-nonnegative"
+      ]
+    },
+    {
+      "atom_ids": [
+        "atom-136580d18c9eb1f67b81b387a8e53ff32c44c4a7f26d4282d970d226283fb6b7",
+        "atom-a481950147b7f5b7135814a8b878b85be9efb2d760841af870d551f6afe3b6eb"
+      ],
+      "content_groups": 2,
+      "declared_independence_groups": [],
+      "declared_origin_ids": [],
+      "evidence_atoms": 2,
+      "evidence_ids": [
+        "E-remaining-balance",
+        "E-remaining-code"
+      ],
+      "evidence_records": 2,
+      "id": "remaining-balance",
+      "independence_verified": false,
+      "independent_support_count": null,
+      "kind": "rules",
+      "repeated_reference_count": 0,
+      "selected_file_versions": 2,
+      "status": "LINEAGE_UNKNOWN",
+      "task": "IssueRefund",
+      "unattributed_evidence_ids": [
+        "E-remaining-balance",
+        "E-remaining-code"
+      ]
+    },
+    {
+      "atom_ids": [
+        "atom-b4a8f7b02a66e7eac4ca215e152b5a03bcedc99f93e55e491a3488360e9c9334"
+      ],
+      "content_groups": 1,
+      "declared_independence_groups": [],
+      "declared_origin_ids": [],
+      "evidence_atoms": 1,
+      "evidence_ids": [
+        "E-exception"
+      ],
+      "evidence_records": 1,
+      "id": "exception-authority",
+      "independence_verified": false,
+      "independent_support_count": null,
+      "kind": "unknowns",
+      "repeated_reference_count": 0,
+      "selected_file_versions": 1,
+      "status": "UNKNOWN_RECORDED",
+      "task": "ApproveException",
+      "unattributed_evidence_ids": [
+        "E-exception"
+      ]
+    }
+  ],
+  "notice": "Paths and repeated quotations are not independent corroboration. Origins and independence groups are declared, not verified. Unknown lineage stays unknown. No confidence score, source truth, semantic contradiction detection, or execution authorization.",
+  "records": [
+    {
+      "atom_id": "atom-20fe52ccedf1f9f6b2a544f808f50a464eb07423ad283f1797437eac5f7be0f3",
+      "attribution_status": "UNKNOWN",
+      "basis": null,
+      "content_id": "content-5cc28b03a559803692ba4f4e19d62ac5a14ef8e910e8b662a4567ecab94ce16c",
+      "end_line": 6,
+      "evidence_id": "E-MonetaryAmount",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "path": "requirements.md",
+      "source_id": "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1",
+      "source_sha256": "95da92ac21837893552567d29134849fe47c4edd76cefdc0d981b37fd1bededc",
+      "start_line": 6
+    },
+    {
+      "atom_id": "atom-1d9d4ad31cd90c828ac7c9e16aa612c7a6e14bbdd5e45982b0f7c752f2e762b0",
+      "attribution_status": "UNKNOWN",
+      "basis": null,
+      "content_id": "content-35cba7b42795a863d638dfc1b72251deb40c06107ea0faa7aa2b22ef84761ced",
+      "end_line": 4,
+      "evidence_id": "E-Payment",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "path": "requirements.md",
+      "source_id": "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1",
+      "source_sha256": "95da92ac21837893552567d29134849fe47c4edd76cefdc0d981b37fd1bededc",
+      "start_line": 4
+    },
+    {
+      "atom_id": "atom-586109ff52deb32f8ed673aba97329ee131ccaddacab8ea022c9cc998dda680e",
+      "attribution_status": "UNKNOWN",
+      "basis": null,
+      "content_id": "content-37ea4f225f1b7b95ba7be89dccbdbf18f17ccc0e74a8cb82be6668e76244c321",
+      "end_line": 5,
+      "evidence_id": "E-Refund",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "path": "requirements.md",
+      "source_id": "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1",
+      "source_sha256": "95da92ac21837893552567d29134849fe47c4edd76cefdc0d981b37fd1bededc",
+      "start_line": 5
+    },
+    {
+      "atom_id": "atom-da93624ce45e2558b22f31c4661f6a39fa4f9ef773774c6d6d73ffa8b2dd4f5b",
+      "attribution_status": "UNKNOWN",
+      "basis": null,
+      "content_id": "content-62b0224aa94647034543aa12ca3ca09350676da3af5ac35ffae011c72ce9ae8e",
+      "end_line": 7,
+      "evidence_id": "E-SupportAgent",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "path": "requirements.md",
+      "source_id": "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1",
+      "source_sha256": "95da92ac21837893552567d29134849fe47c4edd76cefdc0d981b37fd1bededc",
+      "start_line": 7
+    },
+    {
+      "atom_id": "atom-c15a5c68ade48f6aea57e6a21f5726b2cbef1e362028f3f5abcb83917ceeb2a0",
+      "attribution_status": "UNKNOWN",
+      "basis": null,
+      "content_id": "content-5b5af4ef37c84869363850ccff4d748f8ba85c4663b4312f74d8b202f5900f8d",
+      "end_line": 16,
+      "evidence_id": "E-authorization-required",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "path": "requirements.md",
+      "source_id": "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1",
+      "source_sha256": "95da92ac21837893552567d29134849fe47c4edd76cefdc0d981b37fd1bededc",
+      "start_line": 16
+    },
+    {
+      "atom_id": "atom-4dda4d9549a7b708023c14429f17a4ea4e403b499b15737a50147e45e2344d6f",
+      "attribution_status": "UNKNOWN",
+      "basis": null,
+      "content_id": "content-9888a5bfe4c861af3dd46812913c4f768ee9aea760ac8d036ad9237fc0c9d42b",
+      "end_line": 12,
+      "evidence_id": "E-captured-nonnegative",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "path": "requirements.md",
+      "source_id": "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1",
+      "source_sha256": "95da92ac21837893552567d29134849fe47c4edd76cefdc0d981b37fd1bededc",
+      "start_line": 12
+    },
+    {
+      "atom_id": "atom-f920539b23d3eb3ff23139a973933e044301615d8075197aac81b1c5cafeef90",
+      "attribution_status": "UNKNOWN",
+      "basis": null,
+      "content_id": "content-0a28abbcd552f3f692b74093a4771a9a425e8e2192c6e534282a66a5b6461b09",
+      "end_line": 15,
+      "evidence_id": "E-captured-only",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "path": "requirements.md",
+      "source_id": "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1",
+      "source_sha256": "95da92ac21837893552567d29134849fe47c4edd76cefdc0d981b37fd1bededc",
+      "start_line": 15
+    },
+    {
+      "atom_id": "atom-da688f70a0ef3c55c782287c153af01405b4d53d7304bf123ba038d01f2ece2c",
+      "attribution_status": "UNKNOWN",
+      "basis": null,
+      "content_id": "content-0e1f298e787760503a704399a1d55f6304890601645e354818e22e6de0e0658d",
+      "end_line": 18,
+      "evidence_id": "E-effect",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "path": "requirements.md",
+      "source_id": "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1",
+      "source_sha256": "95da92ac21837893552567d29134849fe47c4edd76cefdc0d981b37fd1bededc",
+      "start_line": 18
+    },
+    {
+      "atom_id": "atom-b4a8f7b02a66e7eac4ca215e152b5a03bcedc99f93e55e491a3488360e9c9334",
+      "attribution_status": "UNKNOWN",
+      "basis": null,
+      "content_id": "content-c78332832f2bc5ca992675deca4b4fafc289d2c81334968477ae2ddbc33a6113",
+      "end_line": 21,
+      "evidence_id": "E-exception",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "path": "requirements.md",
+      "source_id": "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1",
+      "source_sha256": "95da92ac21837893552567d29134849fe47c4edd76cefdc0d981b37fd1bededc",
+      "start_line": 21
+    },
+    {
+      "atom_id": "atom-9abaeaf4902afe1c9c0b3652cea1c7a1e1821d1a0199de8e06127547fdee7556",
+      "attribution_status": "UNKNOWN",
+      "basis": null,
+      "content_id": "content-d8ae10d3bc26999ae33985835ec79f5c3fb5f828c053a95b2c226a0663142ba4",
+      "end_line": 12,
+      "evidence_id": "E-function-code",
+      "independence_group": null,
+      "kind": "implementation",
+      "origin_id": null,
+      "path": "payments.py",
+      "source_id": "source-54ce790a28316a2b44d581eee715b428e10801c87b92bb0b9eff33842c682562",
+      "source_sha256": "a366c591b9f771036ca59f13a3934389d8b1f3d6bd68746013a4c1f9c8bdc7eb",
+      "start_line": 12
+    },
+    {
+      "atom_id": "atom-f4c968bd4ebe961c8e36db28bc2df5e88b731bd46b9a1f1884b36edb43e94580",
+      "attribution_status": "UNKNOWN",
+      "basis": null,
+      "content_id": "content-3523a4ca1dfff260f0a72dad5d978b5646b1d9b9a94328a3c1042a0cb22e14f6",
+      "end_line": 6,
+      "evidence_id": "E-ledger-code",
+      "independence_group": null,
+      "kind": "implementation",
+      "origin_id": null,
+      "path": "payments.py",
+      "source_id": "source-54ce790a28316a2b44d581eee715b428e10801c87b92bb0b9eff33842c682562",
+      "source_sha256": "a366c591b9f771036ca59f13a3934389d8b1f3d6bd68746013a4c1f9c8bdc7eb",
+      "start_line": 6
+    },
+    {
+      "atom_id": "atom-0cda46c1e2e8ac235322c8523ff66f99b2d55f4c9bf61c171c22168d0ea5ab85",
+      "attribution_status": "UNKNOWN",
+      "basis": null,
+      "content_id": "content-a42e93a12c4d2ed6e781be3decb006ecd613e19c8e1797e4d46a170eabddb353",
+      "end_line": 14,
+      "evidence_id": "E-ledger-consistent",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "path": "requirements.md",
+      "source_id": "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1",
+      "source_sha256": "95da92ac21837893552567d29134849fe47c4edd76cefdc0d981b37fd1bededc",
+      "start_line": 14
+    },
+    {
+      "atom_id": "atom-3327a3ec0905afa77858206212495ad3853b575b4fe6e3ec0e642535d473e0ca",
+      "attribution_status": "UNKNOWN",
+      "basis": null,
+      "content_id": "content-2e3ee197c50bfed928da0dfd14e3e0f5c192acf9c9540796fc370ddcb43de5ab",
+      "end_line": 11,
+      "evidence_id": "E-positive-amount",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "path": "requirements.md",
+      "source_id": "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1",
+      "source_sha256": "95da92ac21837893552567d29134849fe47c4edd76cefdc0d981b37fd1bededc",
+      "start_line": 11
+    },
+    {
+      "atom_id": "atom-3eddc0f1af407ffa5a7293ae3c75dca0c6505f0020f12c449a88102d25c1de03",
+      "attribution_status": "UNKNOWN",
+      "basis": null,
+      "content_id": "content-5c211bf7cc33e2af93bdc126fe0414656650844fc943f27c8eaf2baa9e1a1fbd",
+      "end_line": 13,
+      "evidence_id": "E-refunded-nonnegative",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "path": "requirements.md",
+      "source_id": "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1",
+      "source_sha256": "95da92ac21837893552567d29134849fe47c4edd76cefdc0d981b37fd1bededc",
+      "start_line": 13
+    },
+    {
+      "atom_id": "atom-e3123ff15079640bf7871dcd1d7f66a88eb5ee2dc12584f33c23b647482b608f",
+      "attribution_status": "UNKNOWN",
+      "basis": null,
+      "content_id": "content-46d552fc5ad04f623bf55c95c941263647b7e69ffab3d9f77d8150e7cba1aa5b",
+      "end_line": 8,
+      "evidence_id": "E-relation",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "path": "requirements.md",
+      "source_id": "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1",
+      "source_sha256": "95da92ac21837893552567d29134849fe47c4edd76cefdc0d981b37fd1bededc",
+      "start_line": 8
+    },
+    {
+      "atom_id": "atom-a481950147b7f5b7135814a8b878b85be9efb2d760841af870d551f6afe3b6eb",
+      "attribution_status": "UNKNOWN",
+      "basis": null,
+      "content_id": "content-4edf4f0883c7caa2c22a4153fbba3d6846f287e90d835ad870b4a5d61c0648e7",
+      "end_line": 17,
+      "evidence_id": "E-remaining-balance",
+      "independence_group": null,
+      "kind": "requirement",
+      "origin_id": null,
+      "path": "requirements.md",
+      "source_id": "source-ca7950d1bf683bb046d00135867210f7a66d79de958923b71bd6a74355f6efd1",
+      "source_sha256": "95da92ac21837893552567d29134849fe47c4edd76cefdc0d981b37fd1bededc",
+      "start_line": 17
+    },
+    {
+      "atom_id": "atom-136580d18c9eb1f67b81b387a8e53ff32c44c4a7f26d4282d970d226283fb6b7",
+      "attribution_status": "UNKNOWN",
+      "basis": null,
+      "content_id": "content-905ea7a5b30134eb99436b59515716c9773203f613e3b94db8b72457cddad690",
+      "end_line": 26,
+      "evidence_id": "E-remaining-code",
+      "independence_group": null,
+      "kind": "implementation",
+      "origin_id": null,
+      "path": "payments.py",
+      "source_id": "source-54ce790a28316a2b44d581eee715b428e10801c87b92bb0b9eff33842c682562",
+      "source_sha256": "a366c591b9f771036ca59f13a3934389d8b1f3d6bd68746013a4c1f9c8bdc7eb",
+      "start_line": 25
+    }
+  ],
+  "schema_version": 1,
+  "summary": {
+    "content_groups": 17,
+    "declared_independence_groups": [],
+    "declared_origin_ids": [],
+    "evidence_atoms": 17,
+    "evidence_records": 17,
+    "independence_verified": false,
+    "independent_support_count": null,
+    "selected_file_versions": 2,
+    "unattributed_evidence_ids": [
+      "E-MonetaryAmount",
+      "E-Payment",
+      "E-Refund",
+      "E-SupportAgent",
+      "E-authorization-required",
+      "E-captured-nonnegative",
+      "E-captured-only",
+      "E-effect",
+      "E-exception",
+      "E-function-code",
+      "E-ledger-code",
+      "E-ledger-consistent",
+      "E-positive-amount",
+      "E-refunded-nonnegative",
+      "E-relation",
+      "E-remaining-balance",
+      "E-remaining-code"
+    ]
+  },
+  "warnings": []
+}

@@ -1,0 +1,22 @@
+{
+  "at": "2026-10-29T12:00:00Z",
+  "captured": {
+    "at": "2026-10-29T12:00:00Z",
+    "observations_kept": 6,
+    "skills": [
+      "payments-domain"
+    ],
+    "topology": "as discovered when captured (the repository is not copied)",
+    "window_hours": 72
+  },
+  "environment": "production",
+  "expect": {
+    "cause": [],
+    "verdict": "INCONCLUSIVE",
+    "within": 3
+  },
+  "kind": "ONTOLOGYEX_REPLAY_CASE",
+  "name": "one-silent",
+  "notes": "Everything that reports is healthy, but web reports nothing: that is not healthy.",
+  "schema_version": 1
+}

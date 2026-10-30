@@ -1,0 +1,7 @@
+{"component_id": "discovery:service:compose.yml:web", "expires_after_seconds": 3600, "metrics": {}, "observed_at": "2026-10-29T11:58:00Z", "schema_version": 1, "source": "synthetic", "status": "ok"}
+{"component_id": "discovery:service:compose.yml:api", "expires_after_seconds": 3600, "metrics": {}, "observed_at": "2026-10-29T11:58:00Z", "schema_version": 1, "source": "synthetic", "status": "ok"}
+{"component_id": "discovery:service:compose.yml:payments", "expires_after_seconds": 3600, "metrics": {}, "observed_at": "2026-10-29T11:58:00Z", "schema_version": 1, "source": "synthetic", "status": "error"}
+{"component_id": "discovery:service:compose.yml:ledger", "expires_after_seconds": 3600, "metrics": {}, "observed_at": "2026-10-29T11:58:00Z", "schema_version": 1, "source": "synthetic", "status": "ok"}
+{"component_id": "discovery:service:compose.yml:worker", "expires_after_seconds": 3600, "metrics": {}, "observed_at": "2026-10-29T11:58:00Z", "schema_version": 1, "source": "synthetic", "status": "ok"}
+{"component_id": "discovery:service:compose.yml:queue", "expires_after_seconds": 3600, "metrics": {}, "observed_at": "2026-10-29T11:58:00Z", "schema_version": 1, "source": "synthetic", "status": "ok"}
+{"component_id": "discovery:service:compose.yml:db", "expires_after_seconds": 3600, "metrics": {}, "observed_at": "2026-10-29T11:58:00Z", "schema_version": 1, "source": "synthetic", "status": "ok"}

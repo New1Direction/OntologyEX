@@ -22,6 +22,7 @@ import argparse
 import json
 from pathlib import Path
 import re
+from datetime import datetime
 
 import entity_context as ec
 import ownership
@@ -262,7 +263,7 @@ def _level(score: int) -> str:
 
 
 def _item(kind: str, subject: dict | None, title: str, why: str, reach: list[dict], extra: list[dict] = (),
-          standing: str = "SOURCE", links: list[str] = ()) -> dict:
+          standing: str = "SOURCE", links: list[str] = (), evidence: list[dict] = ()) -> dict:
     """One ranked item with the factors its score is made of."""
     points, reason = SEVERITY[kind]
     business = [r for r in reach if r.get("layer") == "business"]
@@ -279,7 +280,137 @@ def _item(kind: str, subject: dict | None, title: str, why: str, reach: list[dic
     key = digest(canonical([kind, subject["id"] if subject else title]))[:16]
     return {"id": key, "kind": kind, "category": CATEGORY[kind], "level": _level(score), "score": score,
             "title": title, "why": why, "subject": subject, "standing": standing, "factors": factors,
-            "next_step": NEXT_STEP[kind], "links": list(dict.fromkeys([*(subject and [subject["id"]] or []), *links]))[:10]}
+            "next_step": NEXT_STEP[kind], "links": list(dict.fromkeys([*(subject and [subject["id"]] or []), *links]))[:10],
+            "evidence": list(evidence)}
+
+
+# ---------------------------------------------------------------- evidence on every finding
+#
+# Each finding names what it rests on: records of what was observed, read or decided, where from, when, and
+# whether that is still current. `role` says whether a record is the basis of the conclusion or only context
+# (what the finding is about). A conclusion whose basis is all expired or missing is not a conclusion: it reads
+# UNKNOWN. `contradicted_by` says what would show the finding wrong.
+
+EVIDENCE_STATES = ("COMPLETE", "PARTIAL", "STALE", "MISSING")
+HEALTH_KINDS = {"SYSTEM_ERROR", "AT_RISK", "POSSIBLY_IMPACTED", "DEGRADED", "STALE", "NEVER_OBSERVED"}
+CONTRADICTS = {
+    "SYSTEM_ERROR": "a fresh ok sample from {subject} newer than {newest}",
+    "AT_RISK": "fresh ok samples from the systems it runs on, or a person undoing the link",
+    "POSSIBLY_IMPACTED": "fresh ok samples from the failing systems it depends on, or the dependency undone",
+    "DEGRADED": "fresh ok samples from the systems it runs on",
+    "STALE": "a fresh sample from the systems it runs on",
+    "NEVER_OBSERVED": "any health sample from {subject}",
+    "UNOBSERVED_SERVICES": "a health sample from each silent service",
+    "NOT_LINKED": "a confirmed link from this action to a system",
+    "STALE_CONFIRMATION": "the cited files as they were, or a person re-confirming it",
+    "STALE_REPAIR": "the skill rebuilt from the current code, or the lines restored",
+    "DECISIONS_WAITING": "a person confirming or rejecting each proposal",
+    "OPEN_QUESTION": "the question answered in the skill's sources",
+    "LINK_GAP": "the component back in the repository, or the link undone",
+    "NO_BUSINESS_MODEL": "a domain skill for the main workflow",
+    "NO_OWNER": "a CODEOWNERS rule covering its code, or a commit in the last year",
+    "ONE_PERSON": "a second person changing its code",
+    "ONE_PERSON_REPOSITORY": "commits from a second person",
+    "NO_CODEOWNERS": "a CODEOWNERS file",
+    "SINGLE_CRITICAL_SUPPLIER": "a second supplier of the kind declared in the sources",
+    "SINGLE_HIGH_SUPPLIER": "a second supplier of the kind declared in the sources",
+    "AGENT_BLOCKED": "the rule shown wrong for that call, by a person",
+    "CARD_FIELDS": "the fields shown to hold no card data",
+}
+CATEGORY_CONTRADICTS = {
+    "Operations": "the next complete week's records back within the usual range",
+    "Spend": "the next month's records back within the usual range",
+    "Customers": "the next complete week's tickets and deals back within the usual range",
+    "Written": "the documents or the records changed so they agree",
+    "Compliance": "evidence for the controls in the sources, or a person providing it",
+}
+
+
+def _age(collected: str | None, now: datetime | None) -> int | None:
+    if not collected or now is None:
+        return None
+    try:
+        return max(0, int((now - datetime.fromisoformat(collected.replace("Z", "+00:00"))).total_seconds()))
+    except ValueError:
+        return None
+
+
+def _lines(e: dict) -> str:
+    """path:start-end of a cited span (path alone when the lines are not given)."""
+    return (f"{e.get('path')}:{e['start_line']}-{e.get('end_line', e['start_line'])}" if e.get("start_line")
+            else str(e.get("path")))
+
+
+def record(kind: str, ref: str, state: str, detail: str, role: str = "basis", source: str | None = None,
+           component: str | None = None, collected_at: str | None = None, now: datetime | None = None,
+           environment: str | None = None) -> dict:
+    """One piece of evidence: what it is, where it came from, when, and whether it is still current."""
+    return {"kind": kind, "ref": ref, "source": source, "component": component, "environment": environment,
+            "collected_at": collected_at, "age_seconds": _age(collected_at, now), "state": state, "role": role,
+            "detail": detail}
+
+
+def _observations(node: dict, now: datetime | None, environment: str | None, role: str = "basis") -> list[dict]:
+    """A system's health samples as evidence: one per source, current or expired; or the absence of any."""
+    out = []
+    for sample in node.get("observation_sources", []):
+        out.append(record("observation", f"{node['id']}@{sample['observed_at']}", "COMPLETE" if sample["fresh"] else "STALE",
+                          f"{sample['source']} reported {sample['status']}", role, sample["source"], node["id"],
+                          sample["observed_at"], now, environment))
+    if not out:
+        out.append(record("absence", node["id"], "MISSING", f"nothing reports the health of {node['label']}", role,
+                          component=node["id"], environment=environment))
+    return out
+
+
+def attach_evidence(items: list[dict], bundle: dict, now: datetime | None) -> None:
+    """Fill each finding's evidence from what it is about, mark what would contradict it, and demote a
+    conclusion whose basis is all expired or missing to UNKNOWN."""
+    state = bundle.get("state") or {}
+    environment = state.get("environment")
+    nodes = {n["id"]: n for n in state.get("nodes", [])}
+    files = {e["id"]: e for e in state.get("source_evidence", [])}
+    scanned = state.get("discovery_scanned_at") or state.get("generated_at")
+    picture = bundle.get("business") or {}
+    rows = {r["key"]: r for r in [*picture.get("actions", []), *picture.get("objects", [])]}
+    stale_items = {i["id"] for i in (bundle.get("drift") or {}).get("items", []) if i["state"] == "STALE_REPAIR"}
+    for item in items:
+        evidence = list(item.get("evidence") or [])
+        if not evidence:
+            for key in [*([item["subject"]["id"]] if item.get("subject") else []), *item.get("links", [])]:
+                node = nodes.get(key)
+                if node is not None:
+                    role = "basis" if item["kind"] in HEALTH_KINDS else "context"
+                    if item["kind"] in HEALTH_KINDS:
+                        evidence += _observations(node, now, environment, role)
+                    declared = files.get(node.get("evidence_id"))
+                    if declared:
+                        evidence.append(record("file", declared["path"] + (f":{node['source_line']}" if node.get("source_line")
+                                                                           else ""), "COMPLETE",
+                                               f"declares {node['label']} (sha256 {declared['sha256'][:12]})",
+                                               "context" if item["kind"] in HEALTH_KINDS else "basis", "repository",
+                                               key, scanned, now))
+                row = rows.get(key)
+                if row is not None:
+                    for e in row.get("evidence", [])[:3]:
+                        evidence.append(record("file", _lines(e),
+                                               "STALE" if key in stale_items else "COMPLETE",
+                                               f"skill {row.get('skill')} cites it for {row['id']}",
+                                               "context" if item["kind"] in HEALTH_KINDS else "basis",
+                                               f"skill {row.get('skill')}", key))
+        unique: dict[tuple, dict] = {}
+        for e in evidence:  # the subject is also among the links: one record each
+            unique.setdefault((e["kind"], e["ref"], e["role"]), e)
+        item["evidence"] = list(unique.values())[:12]
+        basis = [e for e in item["evidence"] if e["role"] == "basis"]
+        newest = max((e["collected_at"] for e in basis if e.get("collected_at")), default="the last sample")
+        template = CONTRADICTS.get(item["kind"]) or CATEGORY_CONTRADICTS.get(item["category"])
+        item["contradicted_by"] = template.format(subject=(item.get("subject") or {}).get("label") or "it",
+                                                  newest=newest) if template else None
+        if item["standing"] in ("SOURCE", "INFERRED") and not any(e["state"] in ("COMPLETE", "PARTIAL") for e in basis):
+            item["standing"] = "UNKNOWN"
+            item["unknown_because"] = ("its evidence has expired" if any(e["state"] == "STALE" for e in basis)
+                                       else "nothing it rests on is held")
 
 
 def report(bundle: dict) -> dict:
@@ -295,6 +426,7 @@ def report(bundle: dict) -> dict:
             own = [ec._side(entities, entity_id)] if entities.get(entity_id, {}).get("layer") == "business" else []
             reach_cache[entity_id] = own + rows
         return reach_cache[entity_id]
+    system_reach = reach  # `reach` is reused below for what the records reach
 
     def side(entity_id):
         return ec._side(entities, entity_id) if entity_id in entities else None
@@ -308,11 +440,19 @@ def report(bundle: dict) -> dict:
         elif health == "UNLINKED" and "action" in row["key"]:
             items.append(_item("NOT_LINKED", side(row["key"]), f"Nobody can see the systems behind {row['id']}",
                                "No confirmed link ties this action to a system, so its health is unknown.",
-                               reach(row["key"]), standing="UNKNOWN"))
+                               reach(row["key"]), standing="UNKNOWN",
+                               evidence=[record("absence", row["key"], "COMPLETE", "no confirmed link names this action",
+                                                source="links", component=row["key"])]))
         for blocker in row.get("blockers", []):
             if blocker.get("type") in ("unknown", "conflict"):
+                cited = next((x.get("evidence", []) for x in [*row.get("unknowns", []), *row.get("conflicts", [])]
+                              if x.get("id") == blocker.get("id")), [])
                 items.append(_item("OPEN_QUESTION", side(row["key"]), f"Open question on {row['id']}",
-                                   blocker.get("statement") or "", reach(row["key"]), standing="UNKNOWN"))
+                                   blocker.get("statement") or "", reach(row["key"]), standing="UNKNOWN",
+                                   evidence=[record("file", _lines(e), "COMPLETE",
+                                                    f"the skill records the question here ({blocker.get('type')})",
+                                                    source=f"skill {row.get('skill')}", component=row["key"])
+                                             for e in cited[:3]]))
     for node in state.get("nodes", []):
         relied = [r for r in reach(node["id"]) if r.get("layer") == "business"]
         if node.get("status") == "error" and relied:
@@ -329,12 +469,23 @@ def report(bundle: dict) -> dict:
             items.append(_item("STALE_CONFIRMATION", side(mark.get("component")),
                                f"Re-confirm {mark.get('binding')} runs on {(side(mark.get('component')) or {}).get('label')}",
                                "The files this confirmation rested on changed: " + ", ".join(check["changed"]),
-                               reach(mark.get("component")), standing="INFERRED"))
+                               reach(mark.get("component")), standing="INFERRED",
+                               evidence=[record("file", path, "COMPLETE", "read now; it differs from what was recorded "
+                                                "when the link was confirmed", source="repository")
+                                         for path in check["changed"][:6]]
+                               + [record("decision", str(mark.get("id")), "COMPLETE",
+                                         f"a person confirmed {mark.get('binding')} runs on {mark.get('component')}",
+                                         "context", "links")]))
     for rule in picture.get("rule_decided", []):
         if rule.get("status") == "CONFIRMED_BEFORE_EVIDENCE_CHANGED":
             items.append(_item("STALE_CONFIRMATION", side(rule.get("target")), f"Re-confirm the rule: {rule.get('statement')}",
                                f"The lines it cites ({rule['citation']['path']}) changed since it was confirmed.",
-                               reach(rule.get("target")), standing="INFERRED"))
+                               reach(rule.get("target")), standing="INFERRED",
+                               evidence=[record("file", f"{rule['citation']['path']}:{rule['citation']['start_line']}-"
+                                                f"{rule['citation']['end_line']}", "COMPLETE",
+                                                "read now; the lines differ from the ones confirmed", source="repository"),
+                                         record("decision", str(rule.get("id")), "COMPLETE", "a person confirmed the rule",
+                                                "context", "rules")]))
     spans = {(x["skill"], x["evidence"]): x for x in (bundle.get("drift") or {}).get("spans", [])}
     for item in (bundle.get("drift") or {}).get("items", []):  # business items whose cited code changed (drift.py)
         if item["state"] == "STALE_REPAIR":
@@ -342,16 +493,26 @@ def report(bundle: dict) -> dict:
             items.append(_item("STALE_REPAIR", side(item["id"]), f"{item['label']} was modeled from code that changed",
                                "Its cited lines are " + "; ".join(
                                    f"{x['status'].lower().replace('_', ' ')} at {x['path']}:{x['start_line']}-{x['end_line']}"
-                                   for x in where[:3]) + ".", reach(item["id"]), standing="INFERRED"))
+                                   for x in where[:3]) + ".", reach(item["id"]), standing="INFERRED",
+                               evidence=[record("file", f"{x['path']}:{x.get('start_line') or x['from'][0]}", "COMPLETE",
+                                                f"read now: {x['status'].lower().replace('_', ' ')} since the skill was built",
+                                                source="repository", component=item["id"]) for x in where[:6]]))
     for hit in (bundle.get("guardrails") or {}).get("denied_by_rule", []):  # guardrail.py, the last 7 days
         subject = side(f"{hit['skill']}:action:{hit['task']}")
         items.append(_item("AGENT_BLOCKED", subject, f"An agent was stopped {hit['denied']} time(s) by {hit['task']}'s "
                            f"rule {hit['rule']}", f"The guard denied {', '.join(hit['tools'])} because the call broke "
-                           f"the rule {hit['rule']}.", reach(subject["id"]) if subject else []))
+                           f"the rule {hit['rule']}.", reach(subject["id"]) if subject else [],
+                           evidence=[record("record", ".ontologyex/guardrail-audit.jsonl", "COMPLETE",
+                                            f"{hit['denied']} denial(s) of {', '.join(hit['tools'])} in the last "
+                                            f"{(bundle.get('guardrails') or {}).get('days', 7)} days", source="guardrail audit")]))
     for gap in picture.get("link_gaps", []):
         link = gap.get("link") or {}
         items.append(_item("LINK_GAP", None, f"{link.get('binding')} is linked to a component that is gone",
-                           f"{link.get('component')}: {gap.get('reason')}", [], standing="UNKNOWN"))
+                           f"{link.get('component')}: {gap.get('reason')}", [], standing="UNKNOWN",
+                           evidence=[record("decision", f"{link.get('skill')}/{link.get('binding')} -> {link.get('component')}",
+                                            "COMPLETE", f"declared by {link.get('declared_by')}", "context", "links"),
+                                     record("absence", str(link.get("component")), "COMPLETE", str(gap.get("reason")),
+                                            source="repository")]))
     supplier_report = bundle.get("suppliers") or {}
     for category in supplier_report.get("categories", []):
         if category.get("single_supplier"):
@@ -360,7 +521,13 @@ def report(bundle: dict) -> dict:
             supplier = next((s for s in supplier_report.get("suppliers", []) if s["name"] == name), {})
             items.append(_item(kind, side(supplier.get("id")), f"{name} is the only {category['category']} supplier",
                                f"No second {category['category']} supplier is declared in the sources.",
-                               reach(supplier.get("id")) if supplier.get("id") else []))
+                               reach(supplier.get("id")) if supplier.get("id") else [],
+                               evidence=[record("file", f"{e.get('path')}" + (f":{e['line']}" if e.get("line") else ""),
+                                                "COMPLETE", f"{name}: {e.get('kind', 'declared')} {e.get('text') or ''}".strip(),
+                                                source="repository", component=supplier.get("id"))
+                                         for e in supplier.get("evidence", [])[:3] if e.get("path")]
+                               + [record("absence", category["category"], "COMPLETE",
+                                         f"no second {category['category']} supplier in the sources", source="repository")]))
     waiting = {"link": len((picture.get("link_suggestions") or {}).get("suggestions", [])),
                "dependency": len((picture.get("dependency_suggestions") or {}).get("suggestions", [])),
                "rule": len((picture.get("rule_suggestions") or {}).get("suggestions", []))}
@@ -370,17 +537,25 @@ def report(bundle: dict) -> dict:
                                f"Suggested {'dependencies' if kind == 'dependency' else kind + 's'} change nothing until "
                                "someone confirms or rejects them.", [],
                                extra=[{"factor": "volume", "points": min(10, count), "detail": f"{count} waiting"}],
-                               standing="INFERRED"))
+                               standing="INFERRED",
+                               evidence=[record("decision", f"{count} {kind} proposal(s)", "COMPLETE",
+                                                "suggested, and not yet confirmed or rejected by anyone",
+                                                source={"link": "link suggestions", "dependency": "observed calls",
+                                                        "rule": "agent rule proposals"}[kind])]))
     if not picture.get("actions"):
         items.append(_item("NO_BUSINESS_MODEL", None, "The business actions are not written down",
                            "Without them, systems, suppliers and changes cannot be traced to what the business does "
-                           "or what it earns from.", [], standing="UNKNOWN"))
+                           "or what it earns from.", [], standing="UNKNOWN",
+                           evidence=[record("absence", "domain skills", "COMPLETE", "no domain skill is loaded",
+                                            source="control room")]))
     services = [n for n in state.get("nodes", []) if n.get("kind") == "declared_service"]
     silent = [n for n in services if not n.get("observed_at")]
     if silent:
         items.append(_item("UNOBSERVED_SERVICES", None, f"{len(silent)} of {len(services)} services report no health",
                            "Nothing reports on " + ", ".join(sorted({n["label"] for n in silent})[:8])
                            + (", ..." if len({n["label"] for n in silent}) > 8 else "") + ".", [], standing="UNKNOWN",
+                           evidence=[record("absence", n["id"], "MISSING", f"nothing reports the health of {n['label']}",
+                                            component=n["id"], environment=state.get("environment")) for n in silent[:8]],
                            extra=[{"factor": "volume", "points": min(10, len(silent)),
                                    "detail": f"{len(silent)} silent service(s)"}]))
     found = bundle.get("ownership") or {}
@@ -393,18 +568,27 @@ def report(bundle: dict) -> dict:
             if row["status"] == "NO_OWNER":
                 items.append(_item("NO_OWNER", side(row["id"]), f"Nobody owns {row['label']}",
                                    "No CODEOWNERS rule covers its code, and nobody changed it in the last year.",
-                                   reach(row["id"]), standing="UNKNOWN"))
+                                   reach(row["id"]), standing="UNKNOWN",
+                                   evidence=[record("absence", row["id"], "COMPLETE", "no CODEOWNERS rule and no commit "
+                                                    "in a year cover its code", source="CODEOWNERS and git history")]))
             elif "ONE_PERSON" in row["risks"] and not single:
                 items.append(_item("ONE_PERSON", side(row["id"]), f"Only {row['active'][0]['name']} knows "
                                    f"{row['label']}", f"Only {row['active'][0]['name']} changed its code in the "
-                                   "last year.", reach(row["id"]), standing="INFERRED"))
+                                   "last year.", reach(row["id"]), standing="INFERRED",
+                                   evidence=[record("record", "git history, 12 months", "COMPLETE",
+                                                    f"{row['active'][0].get('commits', '?')} commit(s), all by "
+                                                    f"{row['active'][0]['name']}", source="git")]))
         if single:
             items.append(_item("ONE_PERSON_REPOSITORY", None, "One person changed everything this year",
                                "Every commit in the last year came from one person, so what they know is "
-                               "written down nowhere else.", [], standing="INFERRED"))
+                               "written down nowhere else.", [], standing="INFERRED",
+                               evidence=[record("record", "git history, 12 months", "COMPLETE",
+                                                "every commit came from one person", source="git")]))
         if found.get("codeowners") is None and found["entities"]:
             items.append(_item("NO_CODEOWNERS", None, "No CODEOWNERS file",
-                               "Ownership can only be inferred from who changed the code.", [], standing="UNKNOWN"))
+                               "Ownership can only be inferred from who changed the code.", [], standing="UNKNOWN",
+                               evidence=[record("absence", "CODEOWNERS", "COMPLETE", "no CODEOWNERS file in the repository",
+                                                source="repository")]))
     for pack in (bundle.get("compliance") or {}).get("packs", []):
         missing = [c for c in pack["controls"] if c["status"] in ("NOT_SHOWN_IN_SOURCES", "PARTLY_SHOWN")]
         if missing and pack["applies"] in ("APPLIES", "ASKED_BY_CUSTOMERS"):
@@ -414,36 +598,55 @@ def report(bundle: dict) -> dict:
                                + ", ".join(f"{c['id']} {c['title'].lower()}" for c in missing[:6])
                                + ("..." if len(missing) > 6 else "") + ".", [], standing="UNKNOWN",
                                extra=[{"factor": "volume", "points": min(12, 2 * len(missing)),
-                                       "detail": f"{len(missing)} control(s)"}]))
+                                       "detail": f"{len(missing)} control(s)"}],
+                               evidence=[record("absence", c["id"], "COMPLETE", f"{c['title']}: not fully shown in the sources",
+                                                source=pack["name"]) for c in missing[:6]]))
         for risk in pack.get("risks", []):
             if risk["risk"] == "CARD_FIELDS_IN_SCHEMA":
                 items.append(_item("CARD_FIELDS", None, "Card number fields in the data model", risk["detail"] + " "
                                    + ", ".join(f"{e['path']}:{e['line']}" for e in risk["evidence"]), [],
-                                   standing="SOURCE"))
+                                   standing="SOURCE",
+                                   evidence=[record("file", f"{e['path']}:{e['line']}", "COMPLETE", "a field named like card "
+                                                    "data", source="repository") for e in risk["evidence"][:3]]))
     ops = bundle.get("operations") or {}
+    ledger_sources = [record("record", s["file"], "COMPLETE", f"{s.get('stream') or 'records'}, sha256 "
+                             f"{(s.get('sha256') or '')[:12]}", "context", "operations folder")
+                      for s in ops.get("sources", []) if s.get("status") == "READ"][:3]
+
+    def ledger(name: str, detail: str) -> list[dict]:
+        """A finding from the business's own records: the aggregate it rests on, and the files read."""
+        stale = any(x["signal"] in ("PULL_STALE", "PULL_FAILING") for x in ops.get("signals", []))
+        return [record("record", name, "PARTIAL" if stale else "COMPLETE", detail, source="operations ledger (aggregates)",
+                       collected_at=None)] + ledger_sources
     reach = {f["stream"]: [{**e, "layer": "business"} for e in f.get("entities", [])]
              for f in ops.get("code_vs_operations", []) if f["finding"] == "SEEN_AND_MODELED"}
     for signal in ops.get("signals", []):  # from the business's own records, as aggregates
         title = SIGNAL_TITLES[signal["signal"]] + (f": {signal['topic']}" if signal.get("topic") else "")
         items.append(_item(signal["signal"], None, title + (f" ({signal['currency'].upper()})" if signal.get("currency") else ""),
                            signal["detail"][:1].upper() + signal["detail"][1:] + ".", reach.get(signal["stream"], []),
-                           standing="SOURCE", links=[e["id"] for e in reach.get(signal["stream"], [])]))
+                           standing="SOURCE", links=[e["id"] for e in reach.get(signal["stream"], [])],
+                           evidence=ledger(f"{signal['signal']} {signal['stream']}" + (f" {signal['currency']}"
+                                                                                      if signal.get("currency") else ""),
+                                           signal["detail"])))
     for finding in (ops.get("spend") or {}).get("suppliers_vs_spend", []):  # suppliers paid against suppliers used
         if finding["finding"] in ("PAID_NOT_IN_CODE", "IN_CODE_NOT_PAID"):
             items.append(_item(finding["finding"], None,
                                (f"{finding['supplier']} is paid, and the code does not use it"
                                 if finding["finding"] == "PAID_NOT_IN_CODE"
                                 else f"{finding['supplier']} is used, and nobody is seen paying it"),
-                               finding["detail"][:1].upper() + finding["detail"][1:] + ".", [], standing="INFERRED"))
+                               finding["detail"][:1].upper() + finding["detail"][1:] + ".", [], standing="INFERRED",
+                               evidence=ledger(f"{finding['finding']} {finding['supplier']}", finding["detail"])))
     refund_items = [{**e, "layer": "business"} for e in reach.get("refunds", [])]
     for finding in (ops.get("customers") or {}).get("joined", []):  # what tickets and payment records say together
         if finding["finding"] == "REFUNDS_CONFIRMED_BY_TICKETS":
             items.append(_item(finding["finding"], None, f"Refunds and refund tickets rose together ({finding['currency'].upper()})",
                                finding["detail"][:1].upper() + finding["detail"][1:] + ".", refund_items,
-                               links=[e["id"] for e in refund_items]))
+                               links=[e["id"] for e in refund_items],
+                               evidence=ledger(f"{finding['finding']} {finding['currency']}", finding["detail"])))
         elif finding["finding"] == "TOPIC_NOT_MODELED":
             items.append(_item(finding["finding"], None, f"Customers raise {finding['topic']!r}; the model does not name it",
-                               finding["detail"][:1].upper() + finding["detail"][1:] + ".", [], standing="INFERRED"))
+                               finding["detail"][:1].upper() + finding["detail"][1:] + ".", [], standing="INFERRED",
+                               evidence=ledger(f"{finding['finding']} {finding['topic']}", finding["detail"])))
     for finding in ops.get("code_vs_operations", []):
         if finding["finding"] in ("HAPPENS_NOT_IN_CODE", "IN_CODE_NOT_SEEN"):
             what = finding["stream"]
@@ -452,12 +655,15 @@ def report(bundle: dict) -> dict:
                                 if finding["finding"] == "HAPPENS_NOT_IN_CODE"
                                 else f"{what.capitalize()} are built, and the records show none"),
                                finding["detail"][:1].upper() + finding["detail"][1:] + ".",
-                               [{**e, "layer": "business"} for e in finding.get("entities", [])], standing="INFERRED"))
+                               [{**e, "layer": "business"} for e in finding.get("entities", [])], standing="INFERRED",
+                               evidence=ledger(f"{finding['finding']} {what}", finding["detail"])))
     for item in items:
         if item["subject"] and item["subject"]["id"] in owners:
             item["owner"] = owners[item["subject"]["id"]]
         else:
             item["owner"] = None
+    generated = state.get("generated_at")
+    attach_evidence(items, bundle, datetime.fromisoformat(generated.replace("Z", "+00:00")) if generated else None)
     unique = {}
     for item in items:  # one item per kind and subject
         unique.setdefault(item["id"], item)
@@ -465,7 +671,55 @@ def report(bundle: dict) -> dict:
     return {"schema_version": 1, "kind": "COMMAND_CENTER", "items": ranked[:500], "total": len(ranked),
             "by_level": {name: sum(i["level"] == name for i in ranked) for _, name in LEVELS},
             "kpis": kpis(bundle, waiting), "coverage": coverage(bundle, entities), "field": field_profile(bundle, entities),
+            "verdict": verdict(bundle, system_reach, ranked),
             "semantics": "IMPORTANCE_RANKS_ATTENTION_NOT_PROBABILITY_OR_APPROVAL", "execution_authorized": False}
+
+
+WATCHED_KINDS = ("declared_service", "service")  # systems whose health is reported (feeds, traces)
+
+
+def verdict(bundle: dict, reach, ranked: list[dict]) -> dict:
+    """The systems' state as the evidence shows it: FAULT, DEGRADED, HEALTHY or INCONCLUSIVE.
+
+    Watched: every system that ever reported health, and every system a business item relies on. Missing or
+    expired evidence never reads as healthy: with no fault seen and some watched system silent, the answer is
+    INCONCLUSIVE, with the silent systems named. Causes: systems in error, those with no failing system upstream
+    first, in the order the ranking puts them."""
+    nodes = bundle["state"].get("nodes", [])
+    watched = [n for n in nodes if n.get("kind") != "external_supplier" and (
+        n.get("observed_at") is not None or n.get("kind") in WATCHED_KINDS
+        or any(r.get("layer") == "business" for r in reach(n["id"])))]
+    status = {n["id"]: n.get("status") for n in watched}
+    fresh = [n for n in watched if n.get("status") in ("ok", "warning", "error")]
+    missing = [n["id"] for n in watched if n.get("status") in ("stale", "unknown")]
+    order = {}
+    for i, item in enumerate(ranked):
+        for key in [item["subject"]["id"]] if item.get("subject") else []:
+            order.setdefault(key, i)
+        for key in item.get("links", []):
+            order.setdefault(key, i)
+
+    def ranked_ids(ids: list[str]) -> list[str]:
+        return sorted(ids, key=lambda i: (order.get(i, len(ranked)), i))
+    errors = [n for n in watched if n.get("status") == "error"]
+    roots = [n["id"] for n in errors if not set(n.get("potentially_impacted_by", [])) - {n["id"]}]
+    if errors:
+        result, causes = "FAULT", ranked_ids(roots) + ranked_ids([n["id"] for n in errors if n["id"] not in roots])
+    elif any(n.get("status") == "warning" for n in watched):
+        result, causes = "DEGRADED", ranked_ids([n["id"] for n in watched if n.get("status") == "warning"])
+    elif not watched or missing:
+        result, causes = "INCONCLUSIVE", []
+    else:
+        result, causes = "HEALTHY", []
+    share = len(fresh) / len(watched) if watched else 0.0
+    basis = ("no system reports health, and no business item relies on one" if not watched else
+             f"{len(fresh)} of {len(watched)} watched system(s) have fresh evidence"
+             + (f"; silent or expired: {', '.join(n['label'] for n in watched if n['id'] in missing[:5])}"
+                if missing else ""))
+    return {"status": result, "causes": causes[:20], "evidence": {"fresh": len(fresh), "watched": len(watched),
+            "share": round(share, 3), "missing": missing[:50]},
+            "confidence": "HIGH" if watched and not missing else "PARTIAL" if fresh else "NONE", "basis": basis,
+            "semantics": "SOURCE_REPORTED_HEALTH_MISSING_EVIDENCE_IS_NEVER_HEALTHY"}
 
 
 def kpis(bundle: dict, waiting: dict) -> list[dict]:
