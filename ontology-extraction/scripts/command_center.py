@@ -39,6 +39,7 @@ SEVERITY = {
     "STALE_CONFIRMATION": (30, "a person confirmed it, then the evidence changed"),
     "STALE_REPAIR": (25, "the code it was modeled from changed: the model may describe code that is gone"),
     "AGENT_BLOCKED": (30, "an agent tried something a business rule forbids"),
+    "OUTCOME_UNKNOWN": (45, "an agent's call may or may not have taken effect"),
     "SINGLE_CRITICAL_SUPPLIER": (30, "the only supplier of a critical kind"),
     "LINK_GAP": (25, "a confirmed link points at a component that is gone"),
     "OPEN_QUESTION": (25, "the sources leave a question open"),
@@ -93,7 +94,7 @@ SEVERITY = {
     "PULL_STALE": (20, "a live pull has not succeeded for two of its intervals"),
 }
 CATEGORY = {"SYSTEM_ERROR": "Systems", "AT_RISK": "Business at risk", "POSSIBLY_IMPACTED": "Business at risk",
-            "DEGRADED": "Business at risk", "STALE": "Business at risk", "STALE_CONFIRMATION": "Decisions", "STALE_REPAIR": "Decisions", "AGENT_BLOCKED": "Decisions",
+            "DEGRADED": "Business at risk", "STALE": "Business at risk", "STALE_CONFIRMATION": "Decisions", "STALE_REPAIR": "Decisions", "AGENT_BLOCKED": "Decisions", "OUTCOME_UNKNOWN": "Decisions",
             "DECISIONS_WAITING": "Decisions", "SINGLE_CRITICAL_SUPPLIER": "Suppliers", "SINGLE_HIGH_SUPPLIER": "Suppliers",
             "LINK_GAP": "Unknowns", "OPEN_QUESTION": "Unknowns", "NOT_LINKED": "Visibility", "NEVER_OBSERVED": "Visibility",
             "NO_BUSINESS_MODEL": "Visibility", "UNOBSERVED_SERVICES": "Visibility", "NO_OWNER": "Ownership",
@@ -116,6 +117,8 @@ NEXT_STEP = {
     "POSSIBLY_IMPACTED": "Follow the dependency to the failing system; the impact is possible, not confirmed.",
     "DEGRADED": "Check the warning on the linked system before it becomes an error.",
     "STALE_CONFIRMATION": "Re-read the changed lines, then re-confirm or undo the decision.",
+    "OUTCOME_UNKNOWN": "Check the live state of what the call changes; then let the agent retry, or record that it took "
+                       "effect (guardrail.py reconcile). The guard asks before an identical call until then.",
     "AGENT_BLOCKED": "Find out why the agent tried it: a prompt or a task that asks for it, or a rule that is wrong. "
                      "Fix the one that is wrong (the audit is .ontologyex/guardrail-audit.jsonl).",
     "STALE_REPAIR": "Read the changed lines (the drift report names where they are now), then rebuild the skill from "
@@ -315,6 +318,7 @@ CONTRADICTS = {
     "SINGLE_CRITICAL_SUPPLIER": "a second supplier of the kind declared in the sources",
     "SINGLE_HIGH_SUPPLIER": "a second supplier of the kind declared in the sources",
     "AGENT_BLOCKED": "the rule shown wrong for that call, by a person",
+    "OUTCOME_UNKNOWN": "the live state checked, or the same call completed",
     "CARD_FIELDS": "the fields shown to hold no card data",
 }
 CATEGORY_CONTRADICTS = {
@@ -505,6 +509,16 @@ def report(bundle: dict) -> dict:
                            evidence=[record("record", ".ontologyex/guardrail-audit.jsonl", "COMPLETE",
                                             f"{hit['denied']} denial(s) of {', '.join(hit['tools'])} in the last "
                                             f"{(bundle.get('guardrails') or {}).get('days', 7)} days", source="guardrail audit")]))
+    unknown_calls: dict[str, list[dict]] = {}
+    for row in (bundle.get("guardrails") or {}).get("unknown_outcomes", []):  # guardrail.py intent journal
+        unknown_calls.setdefault(row["tool"], []).append(row)
+    for tool, rows in unknown_calls.items():
+        items.append(_item("OUTCOME_UNKNOWN", None, f"{len(rows)} call(s) of {tool} may or may not have taken effect",
+                           f"No result was recorded for them ({rows[-1]['detail']}). An identical call waits for a person.",
+                           [], standing="SOURCE",
+                           evidence=[record("record", ".ontologyex/guardrail-intents.jsonl", "COMPLETE",
+                                            f"{tool} at {r['at']}: {r['detail']}", source="guardrail intent journal",
+                                            collected_at=r["at"], now=None) for r in rows[-5:]]))
     for gap in picture.get("link_gaps", []):
         link = gap.get("link") or {}
         items.append(_item("LINK_GAP", None, f"{link.get('binding')} is linked to a component that is gone",

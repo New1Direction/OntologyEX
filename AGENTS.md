@@ -70,7 +70,8 @@ Then offer what fits:
 - **Hold an agent's tools to the rules:** `guardrail.py init` proposes `.ontologyex/guardrails.json`
   (which tool performs which task, where each input is in its arguments) and `guardrail.py install`
   adds a Claude Code PreToolUse hook: a broken rule is denied, an open question asks a person, a pass
-  decides nothing (it writes `.claude/settings.json`: ask first; see [guardrails](docs/guardrails.md)).
+  decides nothing; a call whose outcome is unknown (timed out, interrupted, no result) holds the identical next
+  call for a person (it writes `.claude/settings.json`: ask first; see [guardrails](docs/guardrails.md)).
 - **Check the conclusions against what happened:** each command-center finding names its evidence
   (`evidence`, `contradicted_by`); `replay.py capture --repo REPO --name NAME` saves what was known at a
   moment, and `replay.py run` replays saved moments against what really happened (see [replays](docs/replay.md)).

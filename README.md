@@ -126,7 +126,9 @@ audited. See [entity context](ontology-extraction/references/entity-context.md).
 The rules hold agents' own tools too: `guardrail.py install` adds a Claude Code hook that checks each
 call of a tool you map to a business task against that task's rules before it runs. A broken rule is
 denied with the rule named; an open question, a missing input or code that changed under the rules
-goes to a person; a pass is no decision, never an approval. See [guardrails](docs/guardrails.md).
+goes to a person; a pass is no decision, never an approval. A call that timed out or was interrupted has
+an unknown outcome, so the identical next call waits until someone checks the live state, instead of refunding
+twice. See [guardrails](docs/guardrails.md).
 
 ## ◢ How it stays honest
 

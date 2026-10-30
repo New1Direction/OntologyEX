@@ -47,8 +47,39 @@ python ontology-extraction/scripts/guardrail.py install --repo REPO
 python ontology-extraction/scripts/guardrail.py remove --repo REPO
 ```
 
-`install` matches only the guarded tools, so other calls never start the hook. It writes
+`install` adds the hook for the guarded tools only, on `PreToolUse` (the decision) and on
+`PostToolUse`, `PostToolUseFailure` and `PermissionDenied` (how each call ended), so other calls never
+start it. It writes
 outside `.ontologyex`, so an agent asks first.
+
+## Outcomes that are not known
+
+A call with an external effect can time out after the effect happened. Retrying it blindly
+refunds twice. So a guarded call that goes ahead is journaled as an intent
+(`REPO/.ontologyex/guardrail-intents.jsonl`: the tool and a fingerprint of its arguments, never
+their values), and Claude Code tells the hook how it ended:
+
+| How it ended | Event | Outcome |
+|---|---|---|
+| completed | `PostToolUse` | done |
+| the tool reported an error ("insufficient funds") | `PostToolUseFailure` | failed: known not to have taken effect |
+| interrupted, or an error that reads like a timeout (timed out, deadline, connection reset, 502/503/504) | `PostToolUseFailure` | **unknown** |
+| a person refused it | `PermissionDenied` | not run |
+| no end recorded (a crash, a timeout before any report, still running) | none | **unknown** |
+
+While an identical call (same tool, same arguments) has an unknown outcome, the next one is
+not dispatched blindly: the hook **asks** a person to check the live state first. It is settled
+when an identical call later completes, or when a person records that they checked:
+
+```bash
+python ontology-extraction/scripts/guardrail.py outcomes --repo REPO
+python ontology-extraction/scripts/guardrail.py reconcile --repo REPO --tool mcp__payments__issue_refund \
+  --by "Dana" --note "checked the ledger: the refund went through"
+```
+
+An unknown outcome older than 72 hours stops holding identical calls. The command center ranks
+unknown outcomes from the last seven days (`OUTCOME_UNKNOWN`). The hook decides and records; it
+never retries, reverses or dispatches anything itself.
 
 ## What is kept
 
