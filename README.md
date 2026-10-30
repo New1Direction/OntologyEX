@@ -192,6 +192,9 @@ Generated from [docs/benchmarks/latest.md](docs/benchmarks/latest.md): release b
 
 With background scans, the slowest page answer after the first load on a real repository
 (documenso: about 3,000 files, 720 commits in a year) fell from **4.2 s to 0.19 s**.
+With the engine, Python, JavaScript/TypeScript and Go are read from syntax trees (tree-sitter) instead of
+patterns: no routes from comments or docstrings, and each router's own prefix followed
+([code surfaces](docs/code-surfaces.md#syntax-trees)).
 Install prebuilt binaries with `python ontology-extraction/scripts/fetch_engine.py`. See [Rust engine](docs/rust-engine.md).
 
 ## ◢ Domain skills: change a workflow without inventing rules

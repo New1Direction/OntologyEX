@@ -1104,7 +1104,9 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             discovered = (native_view_bridge.native_discover(repo) if native_discovery else discover_repo.discover(repo))
             return with_code_surface(discovered, repo, scanner.result("code", wait=False)[0])["nodes"]
         scanner = background_scans.Scanner(repo, [
-            ("code", CODE_SURFACE_SECONDS, lambda: code_surface.scan(repo)),
+            # With the Rust engine, Python, JS/TS and Go are read from syntax trees (tree-sitter).
+            ("code", CODE_SURFACE_SECONDS, lambda: code_surface.scan(
+                repo, native_view_bridge.engine_binary("ontologyex-discover") if native_discovery else None)),
             ("suppliers", CODE_SURFACE_SECONDS, lambda: suppliers.scan(repo, scan_nodes())),
             ("ownership", OWNERSHIP_SECONDS, lambda: ownership.scan_repo(repo, datetime.now(timezone.utc))),
             ("compliance", OWNERSHIP_SECONDS, lambda: compliance.scan_repo(repo)),

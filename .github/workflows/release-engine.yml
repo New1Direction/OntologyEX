@@ -12,6 +12,7 @@ on:
       - 'engine/**'
       - 'tests/rust_discover_parity.py'
       - 'tests/rust_feeds_parity.py'
+      - 'tests/test_code_surface_trees.py'
       - 'ontology-extraction/scripts/fetch_engine.py'
       - '.github/workflows/release-engine.yml'
   workflow_dispatch:
@@ -71,6 +72,7 @@ jobs:
           bin=engine/target/${{ matrix.target }}/release
           python tests/rust_discover_parity.py "$bin/ontologyex-discover" --seeds 200
           python tests/rust_feeds_parity.py "$bin/ontologyex-feeds" --seeds 200
+          ONTOLOGYEX_ENGINE_DIR="$bin" ONTOLOGYEX_REQUIRE_TREES=1 python -m unittest tests.test_code_surface_trees -v
       - name: Package
         run: |
           name=ontologyex-engine-${{ matrix.target }}

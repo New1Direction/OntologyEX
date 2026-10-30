@@ -8,7 +8,7 @@ on every change.
 | Binary | Replaces | Use it for |
 |---|---|---|
 | `ontologyex-feeds` | `feeds.py` | The live-feeds service: HTTP probes, Prometheus queries, and the OTLP/HTTP trace receiver, including calls observed between services. Same config, same observations and calls files. |
-| `ontologyex-discover` | `discover_repo.py` | Repository scanning. Byte-identical JSON. `control_room.py --view-engine rust` uses it. |
+| `ontologyex-discover` | `discover_repo.py` | Repository scanning. Byte-identical JSON. `control_room.py --view-engine rust` uses it. `ontologyex-discover surface` reads what Python, JavaScript/TypeScript and Go code declares from syntax trees (tree-sitter) for `code_surface.py`: more than its patterns see, not the same answers ([code surfaces](code-surfaces.md#syntax-trees)). |
 | `ontologyex-view` | graph views in `control_room.py` | Graph pages, neighborhoods, node detail, incidents, link suggestions (`--view-engine rust`). |
 | `ontologyex-core` | — | The offline projection kernel (topology + observations → health). |
 
@@ -46,6 +46,7 @@ than it saves.
 ontologyex-feeds check --config feeds.json --repo /path/to/repo
 ontologyex-feeds run   --config feeds.json      # or: once
 ontologyex-discover --repo /path/to/repo
+echo '{"repo": "/path/to/repo", "files": ["api/main.py"]}' | ontologyex-discover surface
 python ontology-extraction/scripts/control_room.py --repo /path/to/repo --view-engine rust ...
 ```
 
@@ -155,6 +156,9 @@ refinement proof.
   `fromisoformat` also reads rarer ISO 8601 forms. Both feeds write `...Z`.
 - Discovery: TOML nested 80 or more levels deep, a workflow `name` with an escaped
   lone surrogate, and non-UTF-8 manifest paths are refused or reported differently.
+- The code surface is not a port: from syntax trees it leaves out routes the patterns read in comments,
+  docstrings and strings, and adds router prefixes, chains and re-exports they miss. On the patterns'
+  own test fixture the two give the same answers, which CI checks.
 - Prebuilt binaries cover Linux and macOS. On Windows, use WSL or the Python tools.
 
 ## Releasing

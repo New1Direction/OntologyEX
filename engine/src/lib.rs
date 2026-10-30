@@ -14,6 +14,8 @@ pub mod pyjson;
 pub mod pyyaml;
 #[cfg(feature = "discover")]
 pub mod discover;
+#[cfg(feature = "surface")]
+pub mod surface;
 #[cfg(feature = "feeds")]
 pub mod feeds;
 #[cfg(feature = "feeds")]

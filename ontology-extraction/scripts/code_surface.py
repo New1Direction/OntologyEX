@@ -19,6 +19,13 @@ file and line of each:
   queued jobs and schedules, Spring @Scheduled, sidekiq-cron style schedule.yml
   entries, Vercel crons, BullMQ queues, node-cron, Inngest and trigger.dev tasks.
 
+With the Rust engine (`ontologyex-discover surface`), Python, JavaScript/TypeScript and Go
+files are read from syntax trees instead of patterns: comments and strings are not code,
+calls and decorators may span lines, and each router's own prefix is followed (FastAPI and
+Flask routers, Express `app.use`, gin/echo groups, chi `Route`, gorilla `PathPrefix` and
+`.Methods`), as are chained and Fastify-style routes and re-exported Next.js handlers. The
+other languages, and every file when the engine is missing, are read by the patterns below.
+
 Each finding is a candidate from syntax, not a verified endpoint or table: a route
 may be disabled, a table dropped by a later migration, and code built at runtime is
 not seen. `attach` adds routes and tables to a discovered topology as map nodes,
@@ -94,6 +101,7 @@ TRIGGER_DEV = re.compile(r"\b(?:schedules\.)?task\s*\(\s*\{\s*id\s*:\s*['\"]([\w
 INNGEST = re.compile(r"\.createFunction\s*\(\s*\{\s*id\s*:\s*['\"]([\w:.-]+)['\"]")
 REMIX_LOADER = re.compile(r"^export\s+(?:async\s+)?(?:function|const)\s+loader\b", re.M)
 REMIX_ACTION = re.compile(r"^export\s+(?:async\s+)?(?:function|const)\s+action\b", re.M)
+TREE_SUFFIXES = (".py", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".go")  # what the engine's grammars read
 
 
 def _line(text: str, offset: int) -> int:
@@ -251,14 +259,43 @@ def _pages_api(rel: str) -> str | None:
     return path[:-len("/index")] if path.endswith("/index") else path
 
 
-def scan_file(rel: str, text: str) -> dict[str, list[dict]]:
+def scan_file(rel: str, text: str, facts: dict | None = None) -> dict[str, list[dict]]:
+    """One file's declarations. `facts`: what the engine read from its syntax tree (replaces the patterns)."""
     found: dict[str, list[dict]] = {"routes": [], "operations": [], "tables": [], "jobs": []}
     suffix = Path(rel).suffix.lower()
     name = Path(rel).name
 
-    def route(method: str, path: str, offset: int, framework: str) -> None:
-        found["routes"].append({"method": method.upper(), "path": path, "file": rel, "line": _line(text, offset),
-                                "framework": framework})
+    def route(method: str, path: str, offset: int, framework: str, line: int | None = None) -> None:
+        found["routes"].append({"method": method.upper(), "path": path, "file": rel,
+                                "line": line if line is not None else _line(text, offset), "framework": framework})
+
+    if facts is not None:
+        exports: dict[str, int] = {}
+        for row in facts.get("exports", []):
+            exports.setdefault(row["name"], row["line"])
+        if suffix in (".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"):
+            stem = Path(rel).stem
+            if (path := _remix_route(rel)) is not None:
+                verbs = [(v, exports[n]) for v, n in (("GET", "loader"), ("POST", "action")) if n in exports]
+                for verb, line in verbs or [("PAGE", 1)]:
+                    route(verb, path, 0, "remix", line)
+            elif stem == "page" and suffix in (".tsx", ".jsx", ".js", ".ts") and (path := _next_route(rel)) is not None:
+                route("PAGE", path, 0, "next")
+            elif stem == "route" and (path := _next_route(rel)) is not None:
+                methods = [r for r in facts.get("exports", []) if r["name"] in METHODS]
+                for row in methods:
+                    route(row["name"], path, 0, "next", row["line"])
+                if not methods:
+                    route("ANY", path, 0, "next")
+            elif (path := _pages_api(rel)) is not None:
+                route("ANY", path, max(0, text.find("export default")), "next")
+            elif suffix in (".tsx", ".jsx") and (path := _pages_page(rel)) is not None:
+                route("PAGE", path, max(0, text.find("export default")), "next")
+        for row in facts.get("routes", []):
+            route(row["method"], row["path"], 0, row["framework"], row["line"])
+        for kind in ("operations", "tables", "jobs"):
+            found[kind].extend({**row, "file": rel} for row in facts.get(kind, []))
+        return found
 
     def table(table_name: str, offset: int, source: str) -> None:
         found["tables"].append({"name": table_name, "file": rel, "line": _line(text, offset), "source": source})
@@ -417,11 +454,15 @@ def scan_file(rel: str, text: str) -> dict[str, list[dict]]:
     return found
 
 
-def scan(repo: Path) -> dict:
-    """Every recognized declaration, newest-first order not implied; bounded per kind."""
+def scan(repo: Path, engine: Path | str | None = None) -> dict:
+    """Every recognized declaration, newest-first order not implied; bounded per kind.
+
+    `engine`: an ontologyex-discover binary (or "auto" to look for one) that reads Python,
+    JavaScript/TypeScript and Go from syntax trees; None, or a binary that cannot, uses the patterns.
+    """
     repo = repo.resolve()
     result: dict[str, list[dict]] = {"routes": [], "operations": [], "tables": [], "jobs": []}
-    total, read = 0, 0
+    total, chosen = 0, []
     for rel in walk(repo):
         path = repo / rel
         if path.is_symlink():
@@ -431,9 +472,25 @@ def scan(repo: Path) -> dict:
         if size > limit or total + size > MAX_TOTAL:
             continue
         total += size
-        read += 1
-        for kind, rows in scan_file(rel, path.read_text("utf-8", "replace")).items():
+        chosen.append(rel)
+    trees, parser = None, {"name": "patterns"}
+    if engine is not None:
+        import native_view_bridge
+        try:
+            binary = native_view_bridge.engine_binary("ontologyex-discover") if engine == "auto" else Path(engine)
+            native = native_view_bridge.native_surface(repo, [r for r in chosen if r.lower().endswith(TREE_SUFFIXES)],
+                                                       binary)
+            skipped = set(native["not_parsed"])
+            trees = {rel: native["files"].get(rel, {}) for rel in chosen
+                     if rel.lower().endswith(TREE_SUFFIXES) and rel not in skipped}
+            parser = {"name": "tree-sitter", "languages": native.get("languages", []), "files": len(trees)}
+        except native_view_bridge.NativeViewError as exc:
+            parser = {"name": "patterns", "note": str(exc)}
+    for rel in chosen:
+        text = (repo / rel).read_text("utf-8", "replace")
+        for kind, rows in scan_file(rel, text, trees.get(rel) if trees is not None else None).items():
             result[kind].extend(rows)
+    read = len(chosen)
     # Migrations repeat what a schema declares: keep one row per table name, from a schema
     # (Prisma, Django, ...) before SQL, then the shallowest file.
     seen, tables = set(), []
@@ -448,7 +505,7 @@ def scan(repo: Path) -> dict:
                 row["note"] = "only in migrations"
     result["tables"] = sorted(tables, key=lambda r: (r["file"], r["line"]))
     found = {kind: len(rows) for kind, rows in result.items()}
-    return {"schema_version": 1, "kind": "ONTOLOGYEX_CODE_SURFACE", "files_read": read,
+    return {"schema_version": 1, "kind": "ONTOLOGYEX_CODE_SURFACE", "files_read": read, "parser": parser,
             **{kind: rows[:MAX_PER_KIND] for kind, rows in result.items()},
             "found": found, "omitted": {k: n - MAX_PER_KIND for k, n in found.items() if n > MAX_PER_KIND},
             "semantics": "SYNTAX_CANDIDATES_NOT_VERIFIED_ENDPOINTS_OR_TABLES"}
@@ -533,9 +590,11 @@ def attach(topology: dict, repo: Path, apps: list[dict] | None = None, surface: 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--repo", type=Path, required=True)
+    parser.add_argument("--engine", choices=("auto", "python"), default="auto",
+                        help="auto: read Python, JS/TS and Go from syntax trees when ontologyex-discover is installed")
     args = parser.parse_args()
     try:
-        print(json.dumps(scan(args.repo), indent=2))
+        print(json.dumps(scan(args.repo, "auto" if args.engine == "auto" else None), indent=2))
         return 0
     except (OSError, ValueError) as exc:
         print(json.dumps({"status": "ERROR", "error": str(exc)}))

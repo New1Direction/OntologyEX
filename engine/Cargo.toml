@@ -6,9 +6,12 @@ license = "MIT"
 description = "Bounded, deterministic graph state and health projection for OntologyEX"
 
 [features]
-default = ["discover", "feeds"]
+default = ["discover", "feeds", "surface"]
 # Repository manifest discovery (byte-identical to discover_repo.py).
 discover = ["dep:toml"]
+# What code declares (routes, tables, operations, jobs), read from syntax trees (Python, JS/TS, Go).
+surface = ["discover", "dep:tree-sitter", "dep:tree-sitter-python", "dep:tree-sitter-javascript",
+           "dep:tree-sitter-typescript", "dep:tree-sitter-go"]
 # Live feeds service: HTTP probes, Prometheus, OTLP/HTTP receiver (same files as feeds.py).
 feeds = ["discover", "dep:ureq", "dep:tiny_http", "dep:flate2"]
 
@@ -24,6 +27,12 @@ toml = { version = "0.8", default-features = false, features = ["parse"], option
 ureq = { version = "3", default-features = false, features = ["rustls", "platform-verifier"], optional = true }
 tiny_http = { version = "0.12", default-features = false, optional = true }
 flate2 = { version = "1", default-features = false, features = ["rust_backend"], optional = true }
+# Syntax trees for the code surface: parsing only; the grammars are compiled in, nothing is fetched at run time.
+tree-sitter = { version = "0.25", optional = true }
+tree-sitter-python = { version = "0.25.0", optional = true }
+tree-sitter-javascript = { version = "0.25.0", optional = true }
+tree-sitter-typescript = { version = "0.23.2", optional = true }
+tree-sitter-go = { version = "0.25.0", optional = true }
 
 [lib]
 name = "ontologyex_core"
