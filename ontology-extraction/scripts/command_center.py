@@ -85,6 +85,9 @@ SEVERITY = {
     "WRITTEN_RULES_CONFLICT": (40, "two documents promise different things"),
     "WRITTEN_RULE_NOT_IN_CODE": (25, "a written rule has no matching step in the business model or code"),
     "PROCEDURE_NOT_WRITTEN": (20, "the business does something its documents never describe"),
+    "PULL_FAILING": (35, "a live pull fails, so the operations figures stop updating"),
+    "PULLS_MISCONFIGURED": (35, "pulls.json cannot be read, so no live pull runs"),
+    "PULL_STALE": (20, "a live pull has not succeeded for two of its intervals"),
 }
 CATEGORY = {"SYSTEM_ERROR": "Systems", "AT_RISK": "Business at risk", "POSSIBLY_IMPACTED": "Business at risk",
             "DEGRADED": "Business at risk", "STALE": "Business at risk", "STALE_CONFIRMATION": "Decisions",
@@ -96,7 +99,7 @@ CATEGORY = {"SYSTEM_ERROR": "Systems", "AT_RISK": "Business at risk", "POSSIBLY_
             **{k: "Operations" for k in ("DISPUTES_OPEN", "PAYOUT_FAILED", "REFUND_RATE_RISING", "REVENUE_DOWN",
                                          "DISPUTE_RATE_HIGH", "CHURN_RISING", "FAILED_PAYMENTS_HIGH",
                                          "INVOICES_UNCOLLECTIBLE", "SUBSCRIPTIONS_PAST_DUE", "HAPPENS_NOT_IN_CODE",
-                                         "IN_CODE_NOT_SEEN")},
+                                         "IN_CODE_NOT_SEEN", "PULL_FAILING", "PULLS_MISCONFIGURED", "PULL_STALE")},
             **{k: "Spend" for k in ("PAYOUTS_NOT_IN_BANK", "DEPOSITS_WITHOUT_PAYOUTS", "BILLS_OVERDUE", "SPEND_RISING",
                                     "CLOUD_COST_RISING", "NEW_SUPPLIER_PAID", "PAID_NOT_IN_CODE", "IN_CODE_NOT_PAID")},
             **{k: "Customers" for k in ("REFUNDS_CONFIRMED_BY_TICKETS", "SATISFACTION_DROPPING", "WIN_RATE_DOWN",
@@ -162,6 +165,10 @@ NEXT_STEP = {
     "WRITTEN_RULES_CONFLICT": "Decide which is right, fix the other document, and check which one customers see.",
     "WRITTEN_RULE_NOT_IN_CODE": "Check whether the code enforces it; if not, it depends on people remembering.",
     "PROCEDURE_NOT_WRITTEN": "Write down who handles it, how, and by when, before the person who knows is away.",
+    "PULL_FAILING": "Read the error on the Operations page: usually a key that expired, lost a permission, or is not "
+                    "set in the control room's environment.",
+    "PULLS_MISCONFIGURED": "Fix pulls.json in the operations folder; the Operations page says what is wrong with it.",
+    "PULL_STALE": "Check that the control room runs with --pulls (or the cron job runs), and that the key still works.",
 }
 SIGNAL_TITLES = {"DISPUTES_OPEN": "Disputes waiting for a response", "PAYOUT_FAILED": "A payout failed",
                  "REFUND_RATE_RISING": "Refund rate rising", "REVENUE_DOWN": "Payments taken fell",
@@ -176,7 +183,8 @@ SIGNAL_TITLES = {"DISPUTES_OPEN": "Disputes waiting for a response", "PAYOUT_FAI
                  "RESOLUTION_SLOWER": "Tickets take longer to solve", "LOSS_REASON_DOMINANT": "Deals lost to one reason",
                  "WRITTEN_PROMISE_NOT_KEPT": "A written promise is not kept", "WRITTEN_RULES_CONFLICT": "Documents disagree",
                  "WRITTEN_RULE_NOT_IN_CODE": "A written rule is not in the code",
-                 "PROCEDURE_NOT_WRITTEN": "Not written down"}
+                 "PROCEDURE_NOT_WRITTEN": "Not written down", "PULL_FAILING": "A live pull is failing",
+                 "PULLS_MISCONFIGURED": "Live pulls are misconfigured", "PULL_STALE": "A live pull is out of date"}
 # What a business in each field should be able to see; each found from supplier categories or names in the model.
 FIELDS = {
     "e-commerce": (r"order|cart|checkout|product|sku|inventor|catalog|coupon|fulfil|shipment|storefront", (

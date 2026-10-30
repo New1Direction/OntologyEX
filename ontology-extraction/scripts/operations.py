@@ -52,6 +52,7 @@ import urllib.parse
 import urllib.request
 
 import customers
+import pulls
 import spend
 import written
 
@@ -596,13 +597,16 @@ def read_json(path: Path, rel: str, ledger: Ledger, aggregates: list) -> dict:
             "rows": sum(counts.values()), "rows_used": placed}
 
 
+CONFIG_FILES = ("operations.json", "pulls.json", "pulls.status.json")  # how to read and pull, not records
+
+
 def files_in(folder: Path) -> list[Path]:
     found = []
     for root, dirs, names in os.walk(folder):
         dirs[:] = sorted(d for d in dirs if not d.startswith("."))
         for name in sorted(names):
             path = Path(root) / name
-            if name.startswith(".") or name == "operations.json" or path.is_symlink():
+            if name.startswith(".") or name in CONFIG_FILES or path.is_symlink():
                 continue
             if path.suffix.lower() in (".csv", ".tsv", ".json") + written.SUFFIXES and path.stat().st_size <= MAX_FILE_BYTES:
                 found.append(path)
@@ -793,7 +797,7 @@ def report(folder: Path | None, entities: list[dict] | None = None, min_cell: in
                                 f"{min_cell} records are withheld."}}
     if folder is None or not folder.is_dir():
         return {**base, "status": "NO_OPERATIONS_FOLDER", "folder": str(folder) if folder else None, "sources": [],
-                "currencies": {}, "signals": [], "code_vs_operations": [], "unrecognized": []}
+                "currencies": {}, "signals": [], "code_vs_operations": [], "unrecognized": [], "live": None}
     ledger, aggregates, sources, documents, commitments = Ledger(), [], [], [], []
     book = spend.Book(now or datetime.now(timezone.utc))
     desk = customers.Desk(now or datetime.now(timezone.utc), week_of, customers.vocabulary(entities or []))
@@ -907,13 +911,13 @@ def report(folder: Path | None, entities: list[dict] | None = None, min_cell: in
         signals += writing["signals"]
     present = {s for cur in currencies.values() for s in cur["streams"]} | (
         {"subscriptions"} if any(c["subscriptions_now"] for c in currencies.values()) else set())
-    return {**base, "status": "OK" if read else "NO_RECORDS_READ", "folder": str(folder), "week_in_progress": current,
+    return with_live({**base, "status": "OK" if read else "NO_RECORDS_READ", "folder": str(folder), "week_in_progress": current,
             "month_in_progress": spend.month_of(now or datetime.now(timezone.utc)),
             "sources": sources, "unrecognized": [s for s in sources if s["status"] == "UNRECOGNIZED"],
             "overlaps": overlaps, "streams_present": sorted(present), "currencies": currencies, "spend": spending,
             "customers": customer, "written": writing,
             "signals": sorted(signals, key=lambda s: ({"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2}[s["level"]], s["signal"])),
-            "code_vs_operations": compare(present, entities or [], currencies)}
+            "code_vs_operations": compare(present, entities or [], currencies)}, folder, now or datetime.now(timezone.utc))
 
 
 def folder_revision(folder: Path | None) -> str:
@@ -925,6 +929,16 @@ def folder_revision(folder: Path | None) -> str:
         st = path.stat()
         h.update(f"{path.relative_to(folder).as_posix()}\0{st.st_size}\0{st.st_mtime_ns}\n".encode())
     return h.hexdigest()
+
+
+def with_live(answer: dict, folder: Path | None, now: datetime) -> dict:
+    """The answer with the live pulls' state as of now (pulls.py): read on every request, since it changes with
+    the clock and the status file, while the ledger itself is cached on the folder's files."""
+    live = pulls.health(folder, now)
+    kept = [s for s in answer.get("signals") or [] if s.get("stream") != "pulls"]
+    found = sorted(kept + (live["signals"] if live else []),
+                   key=lambda s: ({"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2}[s["level"]], s["signal"]))
+    return {**answer, "live": live, "signals": found}
 
 
 def with_comparison(answer: dict, entities: list[dict], code_suppliers: list[dict] | None = None) -> dict:
@@ -970,10 +984,21 @@ def compare(present: set, entities: list[dict], currencies: dict) -> list[dict]:
     return out
 
 
+def live_markdown(live: dict | None) -> list[str]:
+    if not live:
+        return []
+    if live.get("error"):
+        return ["## Live pulls", "", f"- pulls.json is not usable: {live['error']}", ""]
+    return ["## Live pulls", "", "| Pull | State | Every | Last success | Next due |", "|---|---|---|---|---|"] + [
+        f"| {r['pull']} | {r['state']} | {r['every_minutes']} min | {r.get('last_success') or 'never'} | "
+        f"{r.get('next_due') or 'now'} |" for r in live["pulls"]] + [""]
+
+
 def markdown(answer: dict) -> str:
     lines = ["# Operations", ""]
     if answer["status"] != "OK":
-        return "\n".join(lines + [f"No records read ({answer['status']}). Drop exports in {answer.get('folder')}.", ""])
+        return "\n".join(lines + [f"No records read ({answer['status']}). Drop exports in {answer.get('folder')}.", ""]
+                         + live_markdown(answer.get("live")))
     lines.append(answer["privacy"]["rule"])
     lines.append("")
     for currency, c in answer["currencies"].items():
@@ -990,6 +1015,7 @@ def markdown(answer: dict) -> str:
     if answer["code_vs_operations"]:
         lines += ["## Code and operations", ""] + [f"- **{f['finding']}** ({f['stream']}): {f['detail']}"
                                                    for f in answer["code_vs_operations"]] + [""]
+    lines += live_markdown(answer.get("live"))
     lines += ["## Sources", ""] + [f"- `{s['file']}`: {s['status'].lower()}" + (
         f", {s.get('stream')}, {s['rows']:,} rows" if s.get("rows") is not None else "") + f", sha256 {s['sha256'][:12]}"
         for s in answer["sources"]]
@@ -997,6 +1023,13 @@ def markdown(answer: dict) -> str:
 
 
 # ---------------------------------------------------------------- pull (read-only API)
+
+def write_aggregate(target: Path, document: dict) -> None:
+    """Whole or not at all: the control room may be reading the folder while a live pull writes."""
+    temporary = target.with_name(f".{target.name}.{os.getpid()}.tmp")
+    temporary.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", "utf-8")
+    temporary.replace(target)
+
 
 STRIPE_STREAMS = (("payments", "/v1/charges", {}), ("refunds", "/v1/refunds", {}),
                   ("disputes", "/v1/disputes", {}), ("payouts", "/v1/payouts", {}),
@@ -1051,7 +1084,7 @@ def pull_stripe(key: str, out: Path, days: int, base: str = "https://api.stripe.
                 "semantics": "AGGREGATES_ONLY_NO_RECORDS"}
     out.mkdir(parents=True, exist_ok=True)
     target = out / "stripe-api.ontologyex-aggregate.json"
-    target.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", "utf-8")
+    write_aggregate(target, document)
     return {"status": "PULLED", "file": str(target), "objects_read": counts}
 
 
@@ -1078,7 +1111,7 @@ def _write_customers(out: Path, name: str, source: str, desk: "customers.Desk", 
                 "semantics": "AGGREGATES_ONLY_NO_RECORDS"}
     out.mkdir(parents=True, exist_ok=True)
     target = out / name
-    target.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", "utf-8")
+    write_aggregate(target, document)
     return {"status": "PULLED", "file": str(target), "objects_read": counts}
 
 
@@ -1147,7 +1180,8 @@ def pull_hubspot(token: str, out: Path, now: datetime | None = None, base: str =
     return _write_customers(out, "hubspot-api.ontologyex-aggregate.json", "hubspot_api", desk, now, {"deals": count})
 
 
-def pull_aws(out: Path, months: int, aws: str = "aws", now: datetime | None = None) -> dict:
+def pull_aws(out: Path, months: int, aws: str = "aws", now: datetime | None = None,
+             profile: str | None = None) -> dict:
     """Monthly cost by service from AWS Cost Explorer, through the aws command line and the credentials it is
     already set up with (a read-only call, ce:GetCostAndUsage; AWS charges a small fee per request). Writes
     aggregates only."""
@@ -1161,6 +1195,7 @@ def pull_aws(out: Path, months: int, aws: str = "aws", now: datetime | None = No
         command = [aws, "ce", "get-cost-and-usage", "--time-period",
                    f"Start={first:%Y-%m-%d},End={(now + timedelta(days=1)):%Y-%m-%d}", "--granularity", "MONTHLY",
                    "--metrics", "UnblendedCost", "--group-by", "Type=DIMENSION,Key=SERVICE", "--output", "json",
+                   *(["--profile", profile] if profile else []),
                    *(["--next-page-token", token] if token else [])]
         try:
             run = subprocess.run(command, capture_output=True, text=True, timeout=180)
@@ -1193,7 +1228,7 @@ def pull_aws(out: Path, months: int, aws: str = "aws", now: datetime | None = No
                 "semantics": "AGGREGATES_ONLY_NO_RECORDS"}
     out.mkdir(parents=True, exist_ok=True)
     target = out / "aws-cost-explorer.ontologyex-aggregate.json"
-    target.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", "utf-8")
+    write_aggregate(target, document)
     return {"status": "PULLED", "file": str(target), "months": sorted({m for by in cells.values() for m in by})}
 
 
@@ -1205,12 +1240,14 @@ def main(argv: list[str] | None = None) -> int:
     rep.add_argument("--format", choices=("json", "markdown"), default="json")
     rep.add_argument("--min-cell", type=int, default=MIN_CELL)
     pull = sub.add_parser("pull", help="aggregate a read-only API into the folder")
-    pull.add_argument("provider", choices=("stripe", "aws", "zendesk", "hubspot"))
+    pull.add_argument("provider", choices=("stripe", "aws", "zendesk", "hubspot", "all"),
+                      help="all: every pull declared in the folder's pulls.json, once (for cron)")
     pull.add_argument("--subdomain", help="zendesk: your Zendesk subdomain (the part before .zendesk.com)")
-    pull.add_argument("--out", type=Path, required=True)
+    pull.add_argument("--out", "--dir", dest="out", type=Path, required=True)
     pull.add_argument("--days", type=int, default=180)
     pull.add_argument("--months", type=int, default=6, help="aws: months of cost by service")
     pull.add_argument("--aws", default="aws", help="aws: the aws command line to run")
+    pull.add_argument("--profile", help="aws: the named profile to use (read-only Cost Explorer access)")
     pull.add_argument("--key-env", default="STRIPE_API_KEY", help="the environment variable holding the key")
     pull.add_argument("--api-base", default="https://api.stripe.com")
     pull.add_argument("--allow-secret-key", action="store_true",
@@ -1221,8 +1258,15 @@ def main(argv: list[str] | None = None) -> int:
             answer = report(args.dir, min_cell=max(1, args.min_cell))
             print(markdown(answer) if args.format == "markdown" else json.dumps(answer, indent=2, sort_keys=True))
             return 0
+        if args.provider == "all":
+            if not (args.out / pulls.CONFIG).is_file():
+                raise OperationsError(f"no {pulls.CONFIG} in {args.out}: declare the pulls there first")
+            done = pulls.run_due(args.out, force=True)
+            print(json.dumps({"pulls": done, "status_file": str(args.out / pulls.STATUS)}, indent=2))
+            return 0 if all(d["ok"] for d in done) else 1
         if args.provider == "aws":
-            print(json.dumps(pull_aws(args.out, min(max(args.months, 1), 36), args.aws), indent=2))
+            print(json.dumps(pull_aws(args.out, min(max(args.months, 1), 36), args.aws, profile=args.profile),
+                             indent=2))
             return 0
         days = min(max(args.days, 1), 3650)
         if args.provider == "zendesk":
@@ -1252,7 +1296,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(pull_stripe(key, args.out, min(max(args.days, 1), 3650), args.api_base,
                                      args.allow_secret_key), indent=2))
         return 0
-    except OperationsError as exc:
+    except (OperationsError, pulls.PullConfigError) as exc:
         print(f"operations: {exc}", file=sys.stderr)
         return 2
 

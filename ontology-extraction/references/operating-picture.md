@@ -178,6 +178,9 @@ business works, and have them put the files in `REPO/.ontologyex/operations/`; `
 customer, or an identifier into anything you write: report the aggregates and signals.
 A pull (`operations.py pull stripe|aws|zendesk|hubspot`; `aws` runs their `aws` command line)
 goes over the network: ask first. Stripe needs a restricted, read-only key the user sets in their
-own environment; never ask for a key in chat, and never use a secret key. When a file is not recognized, write its `operations.json` entry
+own environment; never ask for a key in chat, and never use a secret key. To keep the figures current, they declare pulls in
+`REPO/.ontologyex/operations/pulls.json` (provider, interval, and the name of the environment
+variable holding the key, never the key) and start `operate.py up --pulls`; ask before that too,
+and read `PULL_FAILING` or `PULL_STALE` as figures that have stopped updating. When a file is not recognized, write its `operations.json` entry
 from the column names the page lists. See `docs/operations.md`.
 

@@ -52,6 +52,41 @@ STRIPE_API_KEY=rk_live_... python ontology-extraction/scripts/operations.py pull
   the overlap is reported.
 - **It goes over the network**, so an agent asks before running it.
 
+### Keep it current: live pulls
+
+Declare the pulls once, in `pulls.json` in the operations folder, and they run on their own
+intervals while the control room is up:
+
+```json
+{"pulls": [
+  {"provider": "stripe", "every_minutes": 60, "days": 180},
+  {"provider": "aws", "every_minutes": 360, "months": 6, "profile": "billing-read"},
+  {"provider": "zendesk", "subdomain": "acme", "every_minutes": 60, "days": 120},
+  {"provider": "hubspot", "every_minutes": 120}
+]}
+```
+
+```bash
+STRIPE_API_KEY=rk_live_... python ontology-extraction/scripts/operate.py up --repo REPO --pulls
+# or once, from cron:
+STRIPE_API_KEY=rk_live_... python ontology-extraction/scripts/operations.py pull all --dir REPO/.ontologyex/operations
+```
+
+- **Same pulls, same rules.** Each runs the `operations.py pull` above: read-only, aggregates
+  only, a secret Stripe key refused.
+- **Keys from the environment only.** The file names an environment variable (`key_env`; by
+  default `STRIPE_API_KEY`, `HUBSPOT_TOKEN`, and `ZENDESK_OAUTH_TOKEN` or `ZENDESK_EMAIL` and
+  `ZENDESK_API_TOKEN`), never a key: a field holding a key is refused, and an error that echoes a
+  key has it masked. AWS uses the `aws` command line's own credentials, with `profile` if given.
+- **Nothing runs unless asked.** Without `--pulls` (or the cron line) nothing goes over the
+  network. Intervals are 15 minutes to a week, and each pull runs at most once per interval.
+- **Its state is on the page.** `pulls.status.json` beside it records, for each pull, when it last
+  ran and succeeded, what it read (counts) and when it runs next. The Operations page shows it
+  under *Live sources*, and the command center raises `PULL_FAILING` (the last run failed, with
+  the masked error), `PULL_STALE` (no success for two intervals: the figures are getting old) and
+  `PULLS_MISCONFIGURED` (the file cannot be used, and says why).
+- `api_base` exists for tests and may only point at this machine.
+
 ### Spend: bank, card, bills and cloud
 
 The same folder takes where the money goes, kept as **monthly** aggregates:
@@ -213,6 +248,7 @@ progress is shown, never compared):
 | `FAILED_PAYMENTS_HIGH` | 15% or more of at least 20 attempts failed |
 | `INVOICES_UNCOLLECTIBLE` | invoices were marked uncollectible |
 | `SUBSCRIPTIONS_PAST_DUE` | subscriptions were past due when exported |
+| `PULL_FAILING`, `PULL_STALE`, `PULLS_MISCONFIGURED` | a live pull failed, is two intervals old, or `pulls.json` cannot be used |
 
 ### Code and operations
 

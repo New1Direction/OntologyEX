@@ -55,7 +55,8 @@ Then offer what fits:
   HIPAA and GDPR to the evidence in the code;
   `/operations` shows what the business actually does from its own records (exports dropped in
   `REPO/.ontologyex/operations`, kept as weekly aggregates only; a read-only pull needs their key and
-  their yes, see [operations](docs/operations.md));
+  their yes, and `up --pulls` keeps the ones declared in `pulls.json` current, see
+  [operations](docs/operations.md));
   `feed_setup.py` adds health checks and `otel_setup.py` adds
   traces between services, one command per service with no code change (see
   [operating picture](ontology-extraction/references/operating-picture.md)).

@@ -39,6 +39,7 @@ import digest
 import ownership
 import compliance
 import operations
+import pulls
 import background_scans
 import stale_view
 import github_discovery
@@ -892,7 +893,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
           discovery_engine: str = "python", dependencies: Path | None = None,
           print_bundle: bool = False, proposals: Path | None = None, rules_file: Path | None = None,
           history: Path | None = None, history_seconds: int = 300,
-          operations_dir: Path | None = None) -> None:
+          operations_dir: Path | None = None, live_pulls: bool = False) -> None:
     check(0 <= port <= 65535, "invalid port")
     # The business's own records (exports, pulled aggregates), read as weekly aggregates only.
     if operations_dir is None and repo is not None:
@@ -1179,7 +1180,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         if operations_cache.get("key") != key:  # ticket subjects are matched against the business items' names
             operations_cache["key"], operations_cache["report"] = key, operations.report(operations_dir, entities,
                                                                                          now=now)
-        found = operations_cache["report"]
+        found = operations.with_live(operations_cache["report"], operations_dir, now)
         return operations.with_comparison(found, entities, (data.get("suppliers") or {}).get("suppliers"))
 
     def bundle() -> dict:
@@ -1722,7 +1723,13 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 stop_worker.wait(history_seconds)
         recorder = Thread(target=record_loop, name="ontologyex-history", daemon=True)
 
-    # No external listener. The only writes are the opt-in decisions and history above.
+    puller = None
+    if live_pulls:  # opt-in: the read-only API pulls declared in pulls.json, each on its own interval
+        check(operations_dir is not None, "--pulls needs --repo or --operations")
+        pulls.load(operations_dir)  # refuse a bad pulls.json before starting
+        puller = pulls.Puller(operations_dir, entities=lambda: list(entity_context._entities(model()).values()))
+
+    # No external listener. The only writes are the opt-in decisions, history and pulled aggregates above.
     try:
         with ThreadingHTTPServer(("127.0.0.1", port), Handler) as server:
             print(f"OntologyEX local control room: http://127.0.0.1:{server.server_port}",
@@ -1738,11 +1745,17 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             if recorder is not None:
                 recorder.start()
                 print(f"Recording the ranking for the weekly digest: {history}", flush=True)
+            if puller is not None:
+                puller.start()
+                print(f"Live pulls: {len(pulls.load(operations_dir))} declared in {operations_dir / pulls.CONFIG}",
+                      flush=True)
             server.serve_forever()
     finally:
         stop_worker.set()
         if scanner is not None:
             scanner.stop()
+        if puller is not None:
+            puller.stop()
         for thread in (worker, recorder):
             if thread is not None and thread.is_alive():
                 thread.join(timeout=2)
@@ -1786,6 +1799,9 @@ def main():
     parser.add_argument("--operations", type=Path, default=None,
                         help="the business's own records: exports and pulled aggregates, read as weekly "
                              "aggregates only (default: REPO/.ontologyex/operations)")
+    parser.add_argument("--pulls", action="store_true",
+                        help="run the read-only API pulls declared in the operations folder's pulls.json, each on "
+                             "its interval (keys from environment variables only)")
     parser.add_argument("--allow-link-decisions", action="store_true",
                         help="let the local business page confirm or reject link and dependency suggestions")
     parser.add_argument("--decision-model", action="store_true",
@@ -1834,7 +1850,8 @@ def main():
                   allow_link_decisions=args.allow_link_decisions,
                   decision_model=args.decision_model, dependencies=args.dependencies,
                   print_bundle=args.bundle_only, proposals=args.proposals, rules_file=args.rules,
-                  history=args.history, history_seconds=args.history_seconds, operations_dir=args.operations)
+                  history=args.history, history_seconds=args.history_seconds, operations_dir=args.operations,
+                  live_pulls=args.pulls)
         return 0
     except (OSError, RoomError, discover_repo.DiscoveryError,
             github_discovery.GitHubDiscoveryError, snapshot_store.SnapshotError,
