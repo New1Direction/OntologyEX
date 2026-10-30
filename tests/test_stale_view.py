@@ -116,7 +116,9 @@ class EndToEndTests(unittest.TestCase):
             before = confirmed()
 
             code = Path(built["repo"]) / "domain/payments.py"  # the code changes while they read
-            code.write_text(code.read_text() + "\n# refunds now need a second approver\n")
+            code.write_text(code.read_text().replace(  # the cited lines change; edits elsewhere would not count
+                "def apply_refund(payment: Payment, amount_minor: int)",
+                "def apply_refund(payment: Payment, amount_minor: int, approver=None)"))
             time.sleep(0.05)
             status, body = decide([refund["id"]], "confirm", {refund["id"]: shown[refund["id"]]})
             self.assertEqual((status, body["status"], body["changed"]), (409, "STALE_VIEW", [refund["id"]]))

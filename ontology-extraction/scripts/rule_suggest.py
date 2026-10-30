@@ -23,7 +23,7 @@ from pathlib import Path, PurePosixPath
 import re
 
 import decisions
-import entity_context
+import drift
 from policy_check import DomainError, MAX_TOTAL, parse_json, require, safe_file
 import watermark
 
@@ -94,13 +94,19 @@ def _rows(rows: object, seen: set) -> list[dict]:
     for row in rows:
         require(type(row) is dict and set(row) in (
             {"target", "statement", "citation", "evidence", "declared_by", "note"},
-            {"target", "statement", "citation", "evidence", "declared_by", "note", "lines_sha256"}),
+            {"target", "statement", "citation", "evidence", "declared_by", "note", "lines_sha256"},
+            {"target", "statement", "citation", "evidence", "declared_by", "note", "lines_sha256", "lines_norm"}),
             "rules: unexpected row fields")
         require(_text(row["target"], 1024) and _text(row["statement"], 500) and valid_citation(row["citation"])
                 and valid_evidence(row["evidence"]), "rules: invalid rule")
         require(row.get("lines_sha256") is None or (type(row["lines_sha256"]) is str
                                                     and SHA256.fullmatch(row["lines_sha256"])),
                 "rules: invalid cited-lines hash")
+        norm = row.get("lines_norm")
+        require(norm is None or (type(norm) is dict and set(norm) == {"norm_sha256", "norm_lines"}
+                                 and type(norm["norm_sha256"]) is str and SHA256.fullmatch(norm["norm_sha256"])
+                                 and type(norm["norm_lines"]) is int and 0 < norm["norm_lines"] <= 200),
+                "rules: invalid normalized cited-lines hash")
         require(_text(row["declared_by"], 120) and type(row["note"]) is str and len(row["note"]) <= 500,
                 "rules: invalid decider or note")
         require(rule_key(row) not in seen, "rules: a rule is decided twice")
@@ -137,8 +143,21 @@ def check_citation(files: watermark.RepoFiles, citation: dict) -> dict:
     if citation["end_line"] > len(lines):
         return {"status": "LINES_OUT_OF_RANGE", "path": rel, "file_lines": len(lines)}
     text = "\n".join(lines[citation["start_line"] - 1:citation["end_line"]])
+    norm = drift.fingerprint(text)
     return {"status": "LINES_FOUND", "path": rel, "lines_sha256": hashlib.sha256(text.encode()).hexdigest(),
+            "lines_norm": {"norm_sha256": norm["norm_sha256"], "norm_lines": norm["norm_lines"]},
             "quote": text[:1200], "quote_truncated": len(text) > 1200}
+
+
+def citation_drift(files: watermark.RepoFiles, row: dict) -> dict:
+    """Where a confirmed rule's cited lines are now (drift.py): unchanged, moved, reformatted, changed or gone."""
+    citation = row["citation"]
+    if secret(citation["path"]):
+        return {"status": "NOT_RECORDED"}
+    rel, lines = drift.read_lines(files, citation["path"])
+    recorded = ({"sha256": row["lines_sha256"], **(row.get("lines_norm") or {})} if row.get("lines_sha256") else None)
+    return {"path": rel or citation["path"],
+            **drift.locate(lines, citation["start_line"], citation["end_line"], recorded=recorded)}
 
 
 def suggest(proposals: list[dict], confirmed: list[dict], rejected: list[dict], entity_ids: set[str],
@@ -172,14 +191,18 @@ def confirmed_view(confirmed: list[dict], files: watermark.RepoFiles) -> list[di
     """Confirmed rules as the business picture shows them, each with its cited lines checked again."""
     out = []
     for row in confirmed:
-        now = check_citation(files, row["citation"])
-        recorded = {row["citation"]["path"]: row["lines_sha256"]} if row.get("lines_sha256") else None
-        current = {row["citation"]["path"]: now["lines_sha256"]} if now.get("lines_sha256") else {}
-        check = entity_context.evidence_check(recorded, current)
+        found = citation_drift(files, row)
+        # Lines that moved, or were only reformatted, still say what the person confirmed: read them where they are.
+        where = ({**row["citation"], "start_line": found["start_line"], "end_line": found["end_line"]}
+                 if found.get("start_line") else row["citation"])
+        now = check_citation(files, where)
+        check = ("NOT_RECORDED" if not row.get("lines_sha256") else
+                 "CURRENT" if found["status"] in ("UNCHANGED", "MOVED", "REFORMATTED") else "CHANGED_SINCE_DECISION")
         out.append({"id": decisions.decision_id(*rule_key(row)), "target": row["target"], "statement": row["statement"],
-                    "status": "CONFIRMED_BEFORE_EVIDENCE_CHANGED" if check["status"] == "CHANGED_SINCE_DECISION"
+                    "status": "CONFIRMED_BEFORE_EVIDENCE_CHANGED" if check == "CHANGED_SINCE_DECISION"
                     else "CONFIRMED_BY_PERSON",
-                    "citation": row["citation"], "quote": now.get("quote"), "evidence_check": check["status"],
+                    "citation": row["citation"], "quote": now.get("quote"), "evidence_check": check,
+                    "drift": {k: found[k] for k in ("status", "start_line", "end_line", "from") if k in found},
                     "declared_by": row["declared_by"], "note": row["note"],
                     "proposed_by": row["evidence"]["proposed_by"]})
     return out
@@ -194,8 +217,10 @@ def apply_decisions(path: Path, by: str, note: str = "", confirm: list[dict] = (
 
     def row(s: dict, record: bool) -> dict:
         lines = (s.get("citation_check") or {}).get("lines_sha256")
+        norm = (s.get("citation_check") or {}).get("lines_norm")
         return {"target": s["target"], "statement": s["statement"], "citation": s["citation"],
-                "evidence": s["evidence"], **({"lines_sha256": lines} if record and lines else {})}
+                "evidence": s["evidence"], **({"lines_sha256": lines} if record and lines else {}),
+                **({"lines_norm": norm} if record and lines and norm else {})}
     return decisions.apply(path, read=read_rule_document, kind=RULE_KIND, confirmed_field="confirmed",
                            key=rule_key, name="rules", max_rows=MAX_RULES, by=by, note=note,
                            confirm=[row(s, True) for s in confirm], reject=[row(s, False) for s in reject],
@@ -211,7 +236,7 @@ def reconfirm_rows(confirmed: list[dict], ids: list[str], files: watermark.RepoF
         check = check_citation(files, by_id[i]["citation"])
         require(check["status"] == "LINES_FOUND", f"the cited lines of {i} cannot be read now: {check['status']}")
         out.append({k: v for k, v in by_id[i].items() if k not in ("declared_by", "note")}
-                   | {"lines_sha256": check["lines_sha256"]})
+                   | {"lines_sha256": check["lines_sha256"], "lines_norm": check["lines_norm"]})
     return out
 
 

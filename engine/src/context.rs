@@ -575,7 +575,10 @@ pub fn change_impact(bundle: &Value) -> Result<Value, String> {
             let empty = Map::new();
             let recorded = get(mark, "recorded").as_object().unwrap_or(&empty);
             let now = get(mark, "now").as_object().unwrap_or(&empty);
-            if recorded.contains_key(*path) || now.contains_key(*path) {
+            // `span:PATH` holds only the cited lines (watermark.py): a change to PATH touches the link, and
+            // needs re-confirming only if it changes those lines, which the evidence check says once it lands.
+            let span = format!("span:{path}");
+            if recorded.contains_key(*path) || now.contains_key(*path) || recorded.contains_key(&span) || now.contains_key(&span) {
                 for holder in holders.get(&(key_str(get(mark, "skill")), key_str(get(mark, "binding")))).into_iter().flatten() {
                     touch(holder, "CONFIRMED_LINK_EVIDENCE_CHANGES", path, Value::Null);
                 }

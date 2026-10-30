@@ -36,6 +36,7 @@ import rule_suggest
 import suppliers
 import command_center
 import digest
+import drift
 import ownership
 import compliance
 import operations
@@ -1017,7 +1018,7 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         result["link_watermarks"] = [
             {"id": decisions.decision_id(*link_suggest.link_key(row)), "skill": row["skill"],
              "binding": row["binding"], "component": row["component"], "recorded": row.get("evidence"),
-             "now": marks.now(*link_suggest.link_key(row))} for row in link_rows]
+             "now": marks.now(*link_suggest.link_key(row), recorded=row.get("evidence"))} for row in link_rows]
         checks = {(m["skill"], m["binding"], m["component"]): entity_context.evidence_check(m["recorded"], m["now"])
                   for m in result["link_watermarks"]}
         result["link_decided"] = [
@@ -1106,6 +1107,9 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             ("suppliers", CODE_SURFACE_SECONDS, lambda: suppliers.scan(repo, scan_nodes())),
             ("ownership", OWNERSHIP_SECONDS, lambda: ownership.scan_repo(repo, datetime.now(timezone.utc))),
             ("compliance", OWNERSHIP_SECONDS, lambda: compliance.scan_repo(repo)),
+            # Where each skill's cited lines are now: unchanged, moved, reformatted, changed or gone (drift.py).
+            ("drift", CODE_SURFACE_SECONDS,
+             lambda: drift.skill_drift(skills, watermark.RepoFiles(repo, ttl=0)) if skills else None),
         ])
 
     def snapshot(observation_rows: list[dict] | None = None) -> dict:
@@ -1189,6 +1193,8 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
         data["ownership"] = ownership.report(data, scanner.result("ownership")[0] if scanner is not None else None)
         data["compliance"] = compliance.report(data, scanner.result("compliance")[0] if scanner is not None else None)
         data["operations"] = operations_report(data)
+        data["drift"] = drift.assemble(scanner.result("drift")[0] if scanner is not None else None,
+                                       drift.rules_drift(rules_file, repo_files))
         return data
 
     if print_bundle:  # the same assembly the server answers from, for tests, parity and agents offline
@@ -1341,6 +1347,30 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             elif route.path == "/compliance":  # the pack in the query is read by the page
                 page = (Path(__file__).resolve().parent / "compliance_page.html").read_bytes()
                 payload, mime, code = page, "text/html; charset=utf-8", 200
+            elif route.path == "/api/drift":  # where the lines the model cites are now
+                mime = "application/json; charset=utf-8"
+                try:
+                    params = parse_qs(route.query, strict_parsing=True, max_num_fields=2) if route.query else {}
+                    entity, shape = params.get("id", [None]), params.get("format", ["json"])
+                    if not set(params) <= {"id", "format"} or len(entity) != 1 or len(shape) != 1 \
+                            or shape[0] not in ("json", "markdown") or (entity[0] is not None and len(entity[0]) > 300):
+                        raise graph_view_api.ViewError("drift takes id and format")
+                    answer = bundle()["drift"]
+                    if entity[0] is not None:  # one business item: its state and the spans it cites
+                        mine = [i for i in answer["items"] if i["id"] == entity[0]]
+                        cited = {(i["skill"], e) for i in mine for e in i["evidence"]}
+                        answer = {**answer, "items": mine,
+                                  "spans": [x for x in answer["spans"] if (x["skill"], x["evidence"]) in cited],
+                                  "rules": [r for r in answer["rules"] if r["target"] == entity[0]]}
+                    if shape[0] == "markdown":
+                        payload, mime, code = drift.markdown(answer).encode(), "text/markdown; charset=utf-8", 200
+                    else:
+                        payload, code = json.dumps(answer, sort_keys=True).encode(), 200
+                except graph_view_api.ViewError:
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, DomainError, discover_repo.DiscoveryError,
+                        github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
             elif route.path == "/api/compliance":  # what each pack asks for and what the sources show
                 mime = "application/json; charset=utf-8"
                 try:

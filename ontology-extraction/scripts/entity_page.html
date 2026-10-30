@@ -240,7 +240,9 @@ function render(){const e=ctx.entity,c=ctx.standing_counts;document.title="Ontol
   ctx.source_evidence.length?null:h("p",{class:"empty",text:"No file evidence attached."}));
  const owner=section("Owner",null,h("p",{class:"muted",text:"Reading CODEOWNERS and history…"}));
  fillOwner(owner,e.id);
- $("side").replaceChildren(owner,impact,changes,unknown,ev,
+ const drift=section("Cited code now",null,h("p",{class:"muted",text:"Finding the cited lines again…"}));
+ fillDrift(drift,e.id);
+ $("side").replaceChildren(owner,drift,impact,changes,unknown,ev,
   section("Boundaries",null,h("p",{class:"note",text:"This is a reading of local sources and recorded decisions. Status is source-reported. Nothing here runs or approves an action."})))}
 
 // Who owns it: declared in CODEOWNERS (line cited), or who changed its code most in a year.
@@ -255,6 +257,25 @@ async function fillOwner(box,id){let rows=[];
  if(r.through)kids.push(h("div",{class:"faint",text:"Through the systems it runs on."}));
  if(r.risks.includes("ONE_PERSON"))kids.push(h("div",{class:"warn",text:"Only one person changed it in the last year."}));
  box.lastChild.replaceWith(h("div",{class:"item"},...kids),h("p",{class:"note"},h("a",{href:"/owners",text:"All owners"})))}
+
+// Where the lines this item was modeled from are now: unchanged, moved, reformatted, changed or gone (drift.py).
+const DRIFT={CURRENT:["CURRENT","the cited lines are where they were"],REPAIRED:["REPAIRED","the cited lines moved; read at their new place"],
+ STALE_REPAIR:["STALE_REPAIR","the cited code changed: the model may describe code that is gone"]};
+async function fillDrift(box,id){let d;
+ try{d=await getJSON("/api/drift?id="+encodeURIComponent(id));if(current!==id)return}
+ catch(err){if(current===id)box.lastChild.replaceWith(h("p",{class:"empty",text:"Not available: "+err.message}));return}
+ const item=d.items[0];
+ if(!item&&!d.rules.length){box.lastChild.replaceWith(h("p",{class:"empty",text:"Not modeled from cited lines (no skill evidence or confirmed rule)."}));return}
+ const kids=[];
+ if(item){const [label,why]=DRIFT[item.state]||[item.state,""];
+  kids.push(h("div",{class:"item"},h("div",{},h("span",{class:"chip "+(item.state==="STALE_REPAIR"?"warn":""),text:label})," ",h("span",{class:"muted",text:why}))))}
+ for(const x of d.spans.filter(x=>x.status!=="UNCHANGED"))kids.push(h("div",{class:"item"},
+  h("div",{class:"path",text:`${x.path}:${x.start_line||x.from[0]}-${x.end_line||x.from[1]} · ${words(x.status)}${x.from&&x.status!=="CHANGED"?` (was ${x.from[0]}-${x.from[1]})`:""}`}),
+  x.nearest?h("div",{class:"faint",text:`Nearest look-alike: lines ${x.nearest.start_line}-${x.nearest.end_line}, ${Math.round(x.nearest.similarity*100)}% alike`}):null));
+ for(const r of d.rules.filter(r=>r.status!=="UNCHANGED"&&r.status!=="NOT_RECORDED"))kids.push(h("div",{class:"item"},
+  h("div",{class:"muted",text:"Rule: "+r.statement}),h("div",{class:"path",text:`${r.citation.path}:${r.citation.start_line}-${r.citation.end_line} · ${words(r.status)}${r.start_line?` (now ${r.start_line}-${r.end_line})`:""}`})));
+ if(kids.length===1&&item&&item.state==="CURRENT")kids.push(h("p",{class:"note",text:`${item.evidence.length} cited span(s), each where it was.`}));
+ box.lastChild.replaceWith(...kids)}
 
 function explainBox(){const input=h("input",{type:"search",autocomplete:"off",maxlength:"200",placeholder:"How is this connected to… (search)","aria-label":"Explain a connection"});
  const list=h("div",{class:"results"}),out=h("div",{});

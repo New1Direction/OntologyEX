@@ -36,6 +36,7 @@ SEVERITY = {
     "POSSIBLY_IMPACTED": (40, "a system it runs on depends on a failing one"),
     "DEGRADED": (35, "a linked system reports a warning"),
     "STALE_CONFIRMATION": (30, "a person confirmed it, then the evidence changed"),
+    "STALE_REPAIR": (25, "the code it was modeled from changed: the model may describe code that is gone"),
     "SINGLE_CRITICAL_SUPPLIER": (30, "the only supplier of a critical kind"),
     "LINK_GAP": (25, "a confirmed link points at a component that is gone"),
     "OPEN_QUESTION": (25, "the sources leave a question open"),
@@ -90,7 +91,7 @@ SEVERITY = {
     "PULL_STALE": (20, "a live pull has not succeeded for two of its intervals"),
 }
 CATEGORY = {"SYSTEM_ERROR": "Systems", "AT_RISK": "Business at risk", "POSSIBLY_IMPACTED": "Business at risk",
-            "DEGRADED": "Business at risk", "STALE": "Business at risk", "STALE_CONFIRMATION": "Decisions",
+            "DEGRADED": "Business at risk", "STALE": "Business at risk", "STALE_CONFIRMATION": "Decisions", "STALE_REPAIR": "Decisions",
             "DECISIONS_WAITING": "Decisions", "SINGLE_CRITICAL_SUPPLIER": "Suppliers", "SINGLE_HIGH_SUPPLIER": "Suppliers",
             "LINK_GAP": "Unknowns", "OPEN_QUESTION": "Unknowns", "NOT_LINKED": "Visibility", "NEVER_OBSERVED": "Visibility",
             "NO_BUSINESS_MODEL": "Visibility", "UNOBSERVED_SERVICES": "Visibility", "NO_OWNER": "Ownership",
@@ -113,6 +114,8 @@ NEXT_STEP = {
     "POSSIBLY_IMPACTED": "Follow the dependency to the failing system; the impact is possible, not confirmed.",
     "DEGRADED": "Check the warning on the linked system before it becomes an error.",
     "STALE_CONFIRMATION": "Re-read the changed lines, then re-confirm or undo the decision.",
+    "STALE_REPAIR": "Read the changed lines (the drift report names where they are now), then rebuild the skill from "
+                    "the current code or re-cite the evidence.",
     "SINGLE_CRITICAL_SUPPLIER": "Decide whether a second provider or a written fallback is needed.",
     "SINGLE_HIGH_SUPPLIER": "Note who owns this supplier and what happens if it is down.",
     "LINK_GAP": "Undo the link or confirm the component that replaced it.",
@@ -329,6 +332,14 @@ def report(bundle: dict) -> dict:
             items.append(_item("STALE_CONFIRMATION", side(rule.get("target")), f"Re-confirm the rule: {rule.get('statement')}",
                                f"The lines it cites ({rule['citation']['path']}) changed since it was confirmed.",
                                reach(rule.get("target")), standing="INFERRED"))
+    spans = {(x["skill"], x["evidence"]): x for x in (bundle.get("drift") or {}).get("spans", [])}
+    for item in (bundle.get("drift") or {}).get("items", []):  # business items whose cited code changed (drift.py)
+        if item["state"] == "STALE_REPAIR":
+            where = [spans[(item["skill"], e)] for e in item["changed"] if (item["skill"], e) in spans]
+            items.append(_item("STALE_REPAIR", side(item["id"]), f"{item['label']} was modeled from code that changed",
+                               "Its cited lines are " + "; ".join(
+                                   f"{x['status'].lower().replace('_', ' ')} at {x['path']}:{x['start_line']}-{x['end_line']}"
+                                   for x in where[:3]) + ".", reach(item["id"]), standing="INFERRED"))
     for gap in picture.get("link_gaps", []):
         link = gap.get("link") or {}
         items.append(_item("LINK_GAP", None, f"{link.get('binding')} is linked to a component that is gone",

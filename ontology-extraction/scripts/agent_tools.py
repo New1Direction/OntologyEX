@@ -180,6 +180,15 @@ TOOLS = {
                        "name, and the reverse. Aggregates only: no customer, row or identifier is ever in it. Give "
                        "weeks to include the weekly series too.",
         "input": _schema({}, {"weeks": _text("weeks", "include the weekly series: yes", 3)})},
+    "source_drift": {
+        "kind": READ_ONLY, "title": "Where the cited code is now",
+        "description": "Every line span the model cites (each domain skill's evidence, each confirmed rule's "
+                       "citation) found again in the repository as it is now: UNCHANGED, REFORMATTED (whitespace "
+                       "only), MOVED (the same text at other lines, with where), CHANGED (gone from the file, with "
+                       "the nearest look-alike lines) or FILE_GONE; and each business object or action resting on "
+                       "them: CURRENT, REPAIRED (its evidence only moved) or STALE_REPAIR (its evidence changed: "
+                       "the model may describe code that is no longer there). Optional id: one business item.",
+        "input": _schema({}, {"id": _text("id", "an entity ID from search_entities", 1024)})},
     "list_stale_decisions": {
         "kind": READ_ONLY, "title": "Decisions to re-check",
         "description": "Confirmed links whose evidence (the file hashes recorded when a person confirmed them) "
@@ -556,6 +565,16 @@ class Tools:
         if args.get("weeks") is None:  # the headline figures, signals and findings; the series on request
             found["currencies"] = {c: {k: v for k, v in cur.items() if k != "streams"}
                                    for c, cur in found.get("currencies", {}).items()}
+        return self._out({**found, "execution_authorized": False}, hidden)
+
+    def source_drift(self, args: dict) -> dict:
+        bundle, hidden = self._model(*([args["id"]] if args.get("id") else []))
+        found = dict(bundle.get("drift") or {"kind": "SOURCE_DRIFT", "items": [], "spans": [], "rules": []})
+        if args.get("id"):
+            found["items"] = [i for i in found.get("items", []) if i["id"] == args["id"]]
+            cited = {(i["skill"], e) for i in found["items"] for e in i["evidence"]}
+            found["spans"] = [x for x in found.get("spans", []) if (x["skill"], x["evidence"]) in cited]
+            found["rules"] = [r for r in found.get("rules", []) if r["target"] == args["id"]]
         return self._out({**found, "execution_authorized": False}, hidden)
 
     def list_stale_decisions(self, args: dict) -> dict:

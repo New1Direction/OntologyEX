@@ -143,7 +143,8 @@ def random_bundle(rng: random.Random) -> dict:
     shas = ["a" * 64, "b" * 64]
     def evidence():
         return rng.choice([None, {}, {"compose.yml": rng.choice(shas)},
-                           {"compose.yml": rng.choice(shas), "src/é.py": rng.choice(shas)}])
+                           {"compose.yml": rng.choice(shas), "src/é.py": rng.choice(shas)},
+                           {"compose.yml": rng.choice(shas), "span:src/é.py": rng.choice(shas)}])  # cited lines only
     watermarks = [{"id": f"d{i}", "skill": r["skill"], "binding": r["binding"], "component": r["component"],
                    "recorded": evidence(), "now": evidence() or {}} for i, r in enumerate(decided)
                   if rng.random() < 0.8]
