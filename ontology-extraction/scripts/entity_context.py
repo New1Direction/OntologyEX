@@ -447,8 +447,9 @@ def change_impact(bundle: dict, changes: dict) -> dict:
     Touched: systems declared in a changed file; business objects and actions whose
     skill cites a changed file, whose binding's source code changed, or whose binding
     changed in a new skill version; both ends of every confirmed
-    link whose recorded evidence includes a changed file (those links will need
-    re-confirming once the change lands). Impacted: what relies on a touched entity,
+    link whose recorded evidence includes a changed file (those recorded by whole file will
+    need re-confirming once the change lands; those recorded by cited lines, only if it
+    changes those lines). Impacted: what relies on a touched entity,
     with the strongest path's standing. Declared reachability, not runtime impact.
     """
     _check(isinstance(bundle, dict) and isinstance(bundle.get("state"), dict), "expected a context bundle")
@@ -497,7 +498,9 @@ def change_impact(bundle: dict, changes: dict) -> dict:
         for mark in picture.get("link_watermarks", []):
             recorded = mark.get("recorded") if isinstance(mark.get("recorded"), dict) else {}
             now = mark.get("now") if isinstance(mark.get("now"), dict) else {}
-            if path in recorded or path in now:
+            # `span:PATH` holds only the cited lines (watermark.py): a change to PATH touches the link, and
+            # needs re-confirming only if it changes those lines, which the evidence check says once it lands.
+            if any(k in recorded or k in now for k in (path, f"span:{path}")):
                 for holder in holders.get((mark.get("skill"), mark.get("binding")), []):
                     touch(holder, "CONFIRMED_LINK_EVIDENCE_CHANGES", path, None)
                 touch(mark.get("component"), "CONFIRMED_LINK_EVIDENCE_CHANGES", path, None)

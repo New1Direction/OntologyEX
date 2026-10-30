@@ -191,8 +191,9 @@ class EndToEndTests(unittest.TestCase):
                           if s["binding"] == "payments.apply_refund")
             self.assertEqual(decide([refund["id"]], "confirm")[0], 200)
             row = next(r for r in bv.read_link_document(Path(built["links"]))[0] if r["binding"] == "payments.apply_refund")
-            self.assertEqual(sorted(row["evidence"]), ["compose.yml", "domain/payments.py",
-                                                       "skill:payments-domain/payments.py"])
+            # The binding is recorded by its cited lines (span:), not the whole file it is in.
+            self.assertEqual(sorted(row["evidence"]), ["compose.yml", "skill:payments-domain/payments.py",
+                                                       "span:domain/payments.py"])
 
             def link():
                 found = get("/api/context?id=" + REFUND)
@@ -202,11 +203,17 @@ class EndToEndTests(unittest.TestCase):
             self.assertEqual((link()["standing"], link()["evidence_check"]["status"]), ("CONFIRMED", "CURRENT"))
 
             code = Path(built["repo"]) / "domain/payments.py"
-            code.write_text(code.read_text() + "\n# refunds now go through the worker\n")
+            # Edits elsewhere in the file, and moving the cited lines, are not a change to what was confirmed.
+            code.write_text("# moved down\n\n" + code.read_text() + "\n# refunds now go through the worker\n")
+            time.sleep(0.05)
+            self.assertEqual((link()["standing"], link()["evidence_check"]["status"]), ("CONFIRMED", "CURRENT"))
+            code.write_text(code.read_text().replace("def apply_refund(payment: Payment, amount_minor: int)",
+                                                     "def apply_refund(payment: Payment, amount_minor: int, force=False)"))
             time.sleep(0.05)
             stale = link()
             self.assertEqual((stale["standing"], stale["basis"]), ("INFERRED", "CONFIRMED_BEFORE_EVIDENCE_CHANGED"))
-            self.assertEqual(stale["evidence_check"]["changed"], ["domain/payments.py"])
+            # The cited lines are gone, so the whole file is what can be compared now.
+            self.assertEqual(stale["evidence_check"]["changed"], ["domain/payments.py", "span:domain/payments.py"])
             decided = next(r for r in get("/api/business")["link_decided"] if r["id"] == refund["id"])
             self.assertEqual(decided["evidence_check"], "CHANGED_SINCE_DECISION")
 

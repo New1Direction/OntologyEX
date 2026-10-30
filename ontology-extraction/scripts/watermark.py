@@ -5,8 +5,12 @@ When a person confirms that a binding runs on a component, the decision records 
 SHA-256 of what they were looking at:
 
 - the file that declares the component (from discovery, the repository's current bytes);
-- the binding's source file in the repository, found by its path or by a unique
-  path suffix (a skill cites paths relative to its own sources);
+- the binding's cited lines in the repository (`span:PATH`, the hash of the quoted lines with
+  whitespace evened out), found wherever they are in that file now (drift.py), so editing
+  other parts of the file, moving the lines or re-indenting them is not a change. The file
+  is found by its path or by a unique path suffix (a skill cites paths relative to its own
+  sources). When the quote is not in the file, the whole file's hash is recorded instead;
+  decisions recorded before span hashes keep being compared by whole file;
 - the hash the domain skill was compiled from (`skill:NAME/PATH`), which changes when
   the skill is rebuilt from changed code.
 
@@ -74,8 +78,8 @@ class RepoFiles:
             return None
 
 
-def binding_sources(skills: list[Path]) -> dict[tuple[str, str], tuple[str, str | None]]:
-    """(skill, binding) -> (cited source path, the sha256 the skill was compiled from)."""
+def binding_sources(skills: list[Path]) -> dict[tuple[str, str], tuple[str, str | None, dict | None]]:
+    """(skill, binding) -> (cited source path, the sha256 the skill was compiled from, the cited span)."""
     found = {}
     for path in skills:
         _, model = evidence_grade.load_skill(path)
@@ -85,7 +89,9 @@ def binding_sources(skills: list[Path]) -> dict[tuple[str, str], tuple[str, str 
             source = records.get(concept.get("source"))
             cited = source["path"] if source else ""
             sha = (compiled.get(cited) or {}).get("sha256") if cited else None
-            found[(model["name"], concept["id"])] = (cited, sha if type(sha) is str else None)
+            span = ({"quote": source["quote"], "start_line": source["start_line"], "end_line": source["end_line"]}
+                    if source and type(source.get("quote")) is str else None)
+            found[(model["name"], concept["id"])] = (cited, sha if type(sha) is str else None, span)
     return found
 
 
@@ -102,17 +108,25 @@ class Marks:
             if record and type(record.get("path")) is str and type(record.get("sha256")) is str:
                 self.components[node["id"]] = (record["path"], record["sha256"])
 
-    def now(self, skill: str, binding: str, component: str) -> dict[str, str]:
+    def now(self, skill: str, binding: str, component: str, recorded: dict | None = None) -> dict[str, str]:
+        """The evidence as it is now, keyed as `recorded` keyed it (whole file or span), or as a new decision records it."""
+        import drift  # noqa: PLC0415 - drift imports this module
         out: dict[str, str] = {}
         if component in self.components:
             path, sha = self.components[component]
             out[path] = sha
-        cited, compiled = self.bindings.get((skill, binding), ("", None))
+        cited, compiled, span = self.bindings.get((skill, binding), ("", None, None))
         if compiled:
             out[f"skill:{skill}/{cited}"] = compiled
         rel = self.files.find(cited)
         if rel is not None:
-            sha = self.files.sha256(rel)
-            if sha is not None:
-                out[rel] = sha
+            whole = isinstance(recorded, dict) and rel in recorded  # decided before span hashes
+            found = (drift.locate(drift.read_lines(self.files, rel)[1], span["start_line"], span["end_line"],
+                                  quote=span["quote"]) if span and not whole else {"status": "NOT_RECORDED"})
+            if found["status"] in ("UNCHANGED", "MOVED", "REFORMATTED"):
+                out[f"span:{rel}"] = drift.fingerprint(span["quote"])["norm_sha256"]
+            else:
+                sha = self.files.sha256(rel)
+                if sha is not None:
+                    out[rel] = sha
         return dict(sorted(out.items())[:MAX_PATHS])

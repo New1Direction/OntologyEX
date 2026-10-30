@@ -140,7 +140,7 @@ class ServedTests(unittest.TestCase):
                 self.assertEqual(json.load(resp)["status"], "OK")  # the first request had its result
             with urllib.request.urlopen(base + "/api/scans", timeout=10) as resp:
                 scans = {s["scan"]: s for s in json.load(resp)["scans"]}
-            self.assertEqual(set(scans), {"code", "suppliers", "ownership", "compliance"})
+            self.assertEqual(set(scans), {"code", "suppliers", "ownership", "compliance", "drift"})
             for name, row in scans.items():
                 self.assertTrue(row["revision"] and row["committed_at"], name)
                 self.assertIsNone(row["error"], name)

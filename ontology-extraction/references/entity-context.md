@@ -228,6 +228,7 @@ running control room, `--bundle FILE` reads a file from
 | `recent_changes` | read | the newest recorded decisions, for one entity or all |
 | `list_suggestions` | read | proposals nobody has decided, with strength, signals and proposer |
 | `list_stale_decisions` | read | confirmed links whose evidence changed since, with the changed files |
+| `source_drift` | read | every cited span found again (unchanged, reformatted, moved, changed, gone) and the business items needing repair |
 | `list_suppliers` | read | the outside companies the business runs on, what relies on each, single suppliers |
 | `what_needs_attention` | read | everything that needs attention, ranked, with factors, next steps, coverage and field |
 | `weekly_digest` | read | what changed in the last N days: new, fixed, worse, better, decisions, code shipped |
