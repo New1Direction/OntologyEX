@@ -93,7 +93,8 @@ const SIGNAL={DISPUTES_OPEN:"Disputes waiting for a response",PAYOUT_FAILED:"A p
  TICKETS_RISING:"Support tickets rising",TOPIC_SPIKE:"A kind of ticket jumped",BACKLOG_GROWING:"Support backlog growing",
  RESOLUTION_SLOWER:"Tickets take longer to solve",LOSS_REASON_DOMINANT:"Deals lost to one reason",
  WRITTEN_PROMISE_NOT_KEPT:"A written promise is not kept",WRITTEN_RULES_CONFLICT:"Documents disagree",
- WRITTEN_RULE_NOT_IN_CODE:"A written rule is not in the code",PROCEDURE_NOT_WRITTEN:"Not written down"};
+ WRITTEN_RULE_NOT_IN_CODE:"A written rule is not in the code",PROCEDURE_NOT_WRITTEN:"Not written down",
+ PULL_FAILING:"A live pull is failing",PULLS_MISCONFIGURED:"Live pulls are misconfigured",PULL_STALE:"A live pull is out of date"};
 const FINDING={HAPPENS_NOT_IN_CODE:"HAPPENS, NOT IN THE SOURCES",IN_CODE_NOT_SEEN:"BUILT, NOT SEEN",SEEN_AND_MODELED:"SEEN AND MODELED"};
 function money(v,cur){if(v==null)return "withheld";try{return new Intl.NumberFormat(undefined,{style:"currency",currency:cur.toUpperCase(),maximumFractionDigits:0}).format(v)}catch(_){return v.toLocaleString()+" "+cur.toUpperCase()}}
 const pct=v=>v==null?"–":(100*v).toFixed(v<0.01?2:1)+"%";
@@ -210,6 +211,19 @@ function writtenSection(d){const w=d.written;if(!w)return [];
   ...conflicts,...unwritten,rows.length?h("div",{style:"margin-top:8px"},...rows):h("p",{class:"empty",text:"No commitment found in the documents (refund windows, approval thresholds, response times, payment terms, notice periods, uptime)."}),
   h("div",{class:"wrap",style:"margin-top:12px"},h("table",{},h("tr",{},...["Document","Kind","Read as","Commitments"].map(x=>h("th",{text:x}))),...docs)),
   h("p",{class:"note",style:"margin-top:8px",text:"Found by sentence patterns, so a promise worded differently is missed; each one cites its line. Emails, phone numbers and long numbers in quotes are masked."}))]}
+const PULL_STATE={FRESH:["up to date","SHOWN"],STALE:["out of date","MEDIUM"],FAILING:["failing","HIGH"],NOT_RUN_YET:["not run yet",""]};
+function ago(t){if(!t)return "never";const m=Math.round((Date.now()-Date.parse(t))/60000);
+ return m<1?"just now":m<60?m+" min ago":m<2880?Math.round(m/60)+" h ago":Math.round(m/1440)+" days ago"}
+function every(m){return m%1440===0?`every ${m/1440} day${m>1440?"s":""}`:m%60===0?`every ${m/60} h`:`every ${m} min`}
+function liveSection(d){const l=d.live;if(!l)return [];
+ if(l.error)return [h("div",{class:"sec"},h("h2",{text:"Live sources"}),h("p",{class:"note"},h("code",{text:"pulls.json"})," cannot be used: "+l.error))];
+ const rows=l.pulls.map(r=>h("tr",{},h("td",{class:"mono",style:"white-space:nowrap",text:r.pull}),h("td",{},h("span",{class:"chip "+(PULL_STATE[r.state]||["",""])[1],text:(PULL_STATE[r.state]||[r.state])[0]})),
+  h("td",{style:"white-space:nowrap",text:every(r.every_minutes)}),h("td",{style:"white-space:nowrap",title:r.last_success||"",text:ago(r.last_success)}),
+  h("td",{text:r.objects_read?Object.entries(r.objects_read).map(([k,v])=>`${v.toLocaleString()} ${k}`).join(", "):"–"}),
+  h("td",{class:"note",text:r.state==="FAILING"?r.detail:r.next_due?"next "+r.next_due.replace("T"," ").replace("Z"," UTC"):"on the next check"})));
+ return [h("div",{class:"sec"},h("h2",{},h("span",{text:"Live sources · read-only pulls"}),h("span",{text:`${l.pulls.length} declared`})),
+  h("div",{class:"wrap"},h("table",{},h("tr",{},...["Pull","State","Runs","Last success","Read","Next / error"].map(t=>h("th",{text:t}))),...rows)),
+  h("p",{class:"note",style:"margin-top:8px",text:"Declared in pulls.json; they run while the control room is started with --pulls, or by operations.py pull all from cron. Keys come from environment variables only and are never written. Each pull keeps aggregates only."}))]}
 function empty(d){return h("div",{class:"sec"},h("p",{class:"summary",text:"No records read yet"}),
  h("p",{class:"note",text:"Operations shows what the business actually does, from its own records, kept as weekly aggregates only. Drop exports in this folder:"}),
  h("pre",{text:d.folder||"REPO/.ontologyex/operations"}),
@@ -217,7 +231,7 @@ function empty(d){return h("div",{class:"sec"},h("p",{class:"summary",text:"No r
  h("pre",{text:"STRIPE_API_KEY=rk_... python ontology-extraction/scripts/operations.py pull stripe --out "+(d.folder||"REPO/.ontologyex/operations")}),
  h("p",{class:"note",text:d.privacy.rule}))}
 function render(d){
- if(d.status!=="OK"){$("body").replaceChildren(empty(d));return}
+ if(d.status!=="OK"){$("body").replaceChildren(empty(d),...liveSection(d));return}
  const parts=[];
  const sigs=h("div",{class:"sec"},h("h2",{},h("span",{text:"What needs a person"}),h("span",{text:`${d.signals.length}`})));
  if(!d.signals.length)sigs.append(h("p",{class:"empty",text:"Nothing in the last four complete weeks stands out."}));
@@ -232,6 +246,7 @@ function render(d){
   h("p",{class:"note",style:"margin-bottom:6px",text:"What the records show the business doing, against what the business model and the code name. Matched by words, so it is inferred."}),
   ...d.code_vs_operations.map(f=>h("div",{class:"find"},h("b",{text:FINDING[f.finding]}),`${TITLE[f.stream]}: ${f.detail}`,
    ...(f.entities||[]).slice(0,3).map(e=>[" · ",h("a",{href:"/entity?id="+encodeURIComponent(e.id),text:e.label||e.id})]).flat()))));
+ parts.push(...liveSection(d));
  const rows=d.sources.map(x=>h("tr",{},h("td",{class:"mono",text:x.file}),h("td",{text:x.status==="READ"?(x.stream||"").split(",").map(k=>TITLE[k]||k).join(", "):x.status.toLowerCase()}),
   h("td",{text:x.status!=="READ"?"–":x.rows==null?"aggregate":x.rows.toLocaleString()}),h("td",{text:x.columns_used?`${x.columns_used.join(", ")}${x.columns_matched_only&&x.columns_matched_only.length?"; "+x.columns_matched_only.join(", ")+" only matched against known suppliers":""} (${x.columns_not_read} not read)${x.hint?". "+x.hint:""}`:x.recognized_by||x.hint||""}),
   h("td",{class:"mono",style:"white-space:nowrap",text:(x.sha256||"").slice(0,10)})));

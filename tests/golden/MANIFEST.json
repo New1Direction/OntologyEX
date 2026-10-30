@@ -56,9 +56,9 @@
    "updated": "2026-10-29"
   },
   "demo/operations.json": {
-   "reason": "Written operations: the demo's refund policy, terms of service (Word), support page, finance policy and a supplier order form, read for their commitments and held to the records: an unkept support promise, overdue bills against the payment terms, a refund window written as 14 days in the terms and 30 in the policy, and no written procedure for disputes or payouts.",
-   "sha256": "abcc835d516b494793a6fa657830e611e06b628c80820ac98a363598600af023",
-   "updated": "2026-10-29"
+   "reason": "operations ledger says the state of the live pulls (live: null when no pulls.json is declared)",
+   "sha256": "c23d257cdcd47c5b039eb79f06c474dfd6a142af3bee721b14277d345e0364db",
+   "updated": "2026-10-30"
   },
   "shop/change_impact.json": {
    "reason": "First golden fixtures: the demo, a shop and a clinic, with their expected outputs.",

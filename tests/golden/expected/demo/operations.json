@@ -2352,6 +2352,7 @@
  "execution_authorized": false,
  "folder": "<root>/demo/business/.ontologyex/operations",
  "kind": "OPERATIONS_LEDGER",
+ "live": null,
  "month_in_progress": "2026-10",
  "overlaps": [],
  "privacy": {

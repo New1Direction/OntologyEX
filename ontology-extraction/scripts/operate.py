@@ -62,6 +62,8 @@ def control_room_command(args, observations: Path | None) -> list[str]:
         command += ["--events", str(args.events)]
     if args.allow_link_decisions:
         command.append("--allow-link-decisions")
+    if args.pulls:
+        command.append("--pulls")
     history = history_path(args)
     if history is not None:
         command += ["--history", str(history)]
@@ -137,6 +139,9 @@ def main() -> int:
                    help="dependencies confirmed from observed calls (default: beside --feeds)")
     u.add_argument("--port", type=int, default=8765)
     u.add_argument("--allow-link-decisions", action="store_true")
+    u.add_argument("--pulls", action="store_true",
+                   help="run the read-only API pulls declared in REPO/.ontologyex/operations/pulls.json on their "
+                        "intervals (they use the network; keys from environment variables only)")
     u.add_argument("--history", type=Path, help="where to record the ranking (default: REPO/.ontologyex/history.jsonl)")
     u.add_argument("--no-history", action="store_true", help="do not record the ranking for the weekly digest")
     u.add_argument("--engine", choices=("auto", "python", "rust"), default="auto",

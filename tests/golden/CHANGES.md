@@ -48,3 +48,7 @@ here with its reason, or CI fails.
 - `demo/command_center.json`
 - `demo/digest.json`
 - `demo/operations.json`
+
+## 2026-10-30: operations ledger says the state of the live pulls (live: null when no pulls.json is declared)
+
+- `demo/operations.json`
