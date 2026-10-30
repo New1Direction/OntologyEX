@@ -564,7 +564,7 @@ def scan(repo: Path) -> dict:
             twin = next((a for a in apps if not a.get("role") and a["service"] == f"{freed}-2"), None)
             if twin:
                 twin["service"] = freed
-    code = code_surface.scan(repo)
+    code = code_surface.scan(repo, "auto")  # syntax trees when the Rust engine is installed, else patterns
     present = {m.group(2) for d in datastores if (m := DATASTORES.search(d["image"].lower()))}
     present |= {"postgres" for x in present if x in ("postgis", "timescale", "cockroach")}
     present |= {"redis" for x in present if x == "valkey"} | {"mongodb" for x in present if x == "mongo"}
@@ -695,7 +695,7 @@ def scan(repo: Path) -> dict:
                                 for t in sorted(code["tables"], key=lambda t: bool(t.get("note")))[:80]],
                      "jobs": [f"{j['kind']} {j['name']}  ({j['file']}:{j['line']})" for j in code["jobs"][:30]],
                      "full_list": f"{sys.executable} {Path(code_surface.__file__).resolve()} --repo {repo}",
-                     "semantics": code["semantics"]}, "docs": docs, "read_first": read_first,
+                     "read_by": code["parser"]["name"], "semantics": code["semantics"]}, "docs": docs, "read_first": read_first,
             "not_assessed": ["what the code does at runtime", "production data, money, and users",
                              "anything outside this repository"],
             "semantics": "WHAT_FILES_DECLARE_NOT_WHAT_RUNS"}

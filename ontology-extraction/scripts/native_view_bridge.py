@@ -16,7 +16,7 @@ from threading import BoundedSemaphore
 
 MAX_INPUT_BYTES = 16 * 1024 * 1024
 MAX_OUTPUT_BYTES = 8 * 1024 * 1024
-MAX_BINARY_BYTES = 64 * 1024 * 1024
+MAX_BINARY_BYTES = 256 * 1024 * 1024  # debug builds carry their symbols; release builds are a few MB
 MAX_CONCURRENT = 2
 TIMEOUT_SECONDS = 5.0
 COMMANDS = frozenset({"summary", "page", "neighborhood", "node", "incident", "suggest-links",
@@ -123,6 +123,32 @@ def native_discover(repo: Path, binary: Path | None = None) -> dict:
             or result.get("kind") != "UNREVIEWED_BUSINESS_DISCOVERY_PREVIEW"
             or result.get("execution_authorized") is not False):
         raise NativeViewError("native discovery violates trust contract")
+    return result
+
+
+SURFACE_TIMEOUT_SECONDS = 180.0
+
+
+def native_surface(repo: Path, files: list[str], binary: Path | None = None) -> dict:
+    """What the code in `files` declares, read from syntax trees by `ontologyex-discover surface`
+    (Python, JavaScript/TypeScript and Go); code_surface.py places the facts and reads the other files."""
+    binary = checked_binary(Path(binary) if binary is not None else engine_binary("ontologyex-discover"))
+    request = json.dumps({"repo": str(repo), "files": files}).encode()
+    try:
+        process = subprocess.run([str(binary), "surface"], input=request, stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE, timeout=SURFACE_TIMEOUT_SECONDS, check=False, env=CLEAN_ENV)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise NativeViewError("native code surface unavailable or timed out") from exc
+    if len(process.stdout) > MAX_DISCOVERY_OUTPUT:
+        raise NativeViewError("native code surface output byte budget exceeded")
+    try:
+        result = json.loads(process.stdout.decode("utf-8"), object_pairs_hook=no_duplicates) if process.stdout else None
+    except (UnicodeError, ValueError, TypeError) as exc:
+        raise NativeViewError("native code surface returned invalid JSON") from exc
+    if (process.returncode != 0 or type(result) is not dict or result.get("kind") != "ONTOLOGYEX_CODE_SURFACE_FACTS"
+            or type(result.get("files")) is not dict or type(result.get("not_parsed")) is not list):
+        # An ontologyex-discover from before the surface command prints its usage and exits 2.
+        raise NativeViewError("this ontologyex-discover cannot read code surfaces (update it with fetch_engine.py)")
     return result
 
 

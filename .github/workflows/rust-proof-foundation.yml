@@ -13,6 +13,8 @@ on:
       - 'tests/rust_http_smoke.py'
       - 'tests/rust_incident_parity.py'
       - 'tests/test_native_view_bridge.py'
+      - 'tests/test_code_surface_trees.py'
+      - 'tests/test_code_surface.py'
       - 'ontology-extraction/scripts/native_view_bridge.py'
       - 'ontology-extraction/scripts/control_room.py'
       - 'ontology-extraction/scripts/business_view.py'
@@ -114,6 +116,8 @@ jobs:
         run: python tests/golden.py check --engine-dir engine/target/debug --require-rust
       - name: Benchmark smoke, a correctness gate (debug builds, quick runs; the times are not quoted anywhere)
         run: python tests/bench_rust_engines.py --engine-dir engine/target/debug --quick --json "$RUNNER_TEMP/bench.json" --markdown "$GITHUB_STEP_SUMMARY"
+      - name: Code surface from syntax trees (tree-sitter) gives the patterns' answers on their fixture, and more
+        run: ONTOLOGYEX_REQUIRE_TREES=1 python -m unittest tests.test_code_surface_trees tests.test_overview -v
       - name: Verify the control room reads native discovery like Python discovery
         run: python -m unittest tests.test_native_view_bridge -v
       - name: Entity routes on the Rust engine, and agent tools end to end

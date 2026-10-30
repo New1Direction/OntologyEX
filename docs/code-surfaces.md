@@ -45,6 +45,31 @@ for the agent. Each is a SOURCE_SYNTAX_CANDIDATE with its file and line, never a
 verified endpoint or table: a route may be disabled, a table dropped by a later
 migration, and anything built at runtime is not seen.
 
+### Syntax trees
+
+With the Rust engine installed (`fetch_engine.py`, or a local build), Python,
+JavaScript/TypeScript and Go files are read from syntax trees (tree-sitter grammars compiled
+into `ontologyex-discover`; nothing is downloaded or run) instead of patterns. `overview.py scan`
+uses it when present, and so does the control room when discovery runs on Rust. What changes:
+
+- **Comments, docstrings and strings are not code.** A route in a docstring example or a
+  commented-out line is no longer counted, nor a table name inside a string.
+- **Each router keeps its own prefix.** FastAPI `APIRouter(prefix=...)` and Flask
+  `Blueprint(url_prefix=...)` per router (and `include_router` / `register_blueprint` with a
+  prefix in the same file), Express `app.use("/api", router)` and Hono `app.route(...)`,
+  gin and echo `Group`, chi `Route("/x", func(r chi.Router) {...})`, gorilla
+  `PathPrefix(...).Subrouter()`.
+- **More route shapes.** Calls and decorators spanning lines, Express `router.route("/x")
+  .get().post()` and Hono chains, Fastify `route({method, url})`, gorilla `.Methods("POST")`,
+  Go raw-string paths, and Next.js handlers re-exported as `export { handler as GET }`.
+
+Other languages and files (Ruby, PHP, Java/Kotlin, GraphQL, Prisma, SQL, schedules) are still
+read by patterns, and so is everything when the engine is missing or predates the `surface`
+command; `code_surface.py` says which in `parser`. On the patterns' own test fixture both give
+the same answers, which CI checks; elsewhere the trees are the more precise reading. Run
+`python ontology-extraction/scripts/code_surface.py --repo REPO --engine python` for the
+patterns alone.
+
 ## Scope limitations
 
 In GitHub mode, only this explicit Next.js/Drizzle source shape is currently supported.
@@ -54,8 +79,7 @@ from filename proximity or an unreviewed regex match.
 
 Unsupported frameworks and incomplete/oversized schema files must
 remain visible as a coverage gap. No tables or routes are invented to
-fill those gaps. A future parser can add AST-derived semantics and an
-actual read-only database metadata connector to verify deployed tables.
+fill those gaps. A read-only database metadata connector could later verify deployed tables.
 
 With large businesses, a future hosted API must send only graph tiles
 relevant to the active lens, not the complete graph to the browser.
