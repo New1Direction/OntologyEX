@@ -63,6 +63,8 @@ Then offer what fits:
 - **Ask about it as an agent, safely:** `KIT/.venv/bin/python KIT/ontology-extraction/scripts/agent_tools.py serve`
   gives MCP tools over a running control room: read tools, and propose tools (links,
   dependencies, rules) whose proposals a person confirms (see [entity context](ontology-extraction/references/entity-context.md)).
+  Call `check_answerable` with their question first: it says what the sources cover, what they do not,
+  and what is recorded as open, so you know when to say "the sources do not say".
 - **Before they merge a change:** `KIT/.venv/bin/python KIT/ontology-extraction/scripts/change_impact.py --repo REPO --base main --head BRANCH --bundle BUNDLE --markdown`
   says what it touches in their business and what relies on it (git is only read); `drift.py check`
   says which cited lines moved or changed under the model, and `drift.py hook install` prints it after

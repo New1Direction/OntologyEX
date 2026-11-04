@@ -114,7 +114,7 @@ python ontology-extraction/scripts/agent_tools.py serve --control-room http://12
   --agent claude --operator "Your Name" --audit audit.jsonl
 ```
 
-An MCP server over the running control room. **Fifteen read tools**: `what_needs_attention`,
+An MCP server over the running control room. **Sixteen read tools**: `check_answerable`, `what_needs_attention`,
 `weekly_digest`, `who_owns`, `compliance_status`, `operations_status`, `list_suppliers`, `analyze_change`,
 `analyze_impact`, `get_entity_context`, `explain_relationship`, `search_entities`,
 `list_suggestions`, `list_stale_decisions`, `source_drift`, `recent_changes`. **Three propose tools**:
@@ -122,6 +122,13 @@ An MCP server over the running control room. **Fifteen read tools**: `what_needs
 confirms or rejects. There is no destructive tool, and the server refuses to register one. Every
 agent runs under its own policy (tools allowed, files and entities withheld), and every call is
 audited. See [entity context](ontology-extraction/references/entity-context.md).
+
+`check_answerable` is the pre-flight an agent runs before it answers: for each word of the question, the
+business items, rules, systems or records that name it and the lines behind them; the words nothing
+covers; the open questions the sources record there; and the kinds of source it needs and lacks (owners,
+records, live health). It matches words and decides nothing, with no model involved. Whether all this
+makes an agent right more often is measured, not claimed: [`evals/`](evals/README.md) asks the same
+model the same questions with and without OntologyEX and scores the answers without a model judge.
 
 The rules hold agents' own tools too: `guardrail.py install` adds a Claude Code hook that checks each
 call of a tool you map to a business task against that task's rules before it runs. A broken rule is

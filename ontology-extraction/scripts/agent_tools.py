@@ -180,6 +180,15 @@ TOOLS = {
                        "name, and the reverse. Aggregates only: no customer, row or identifier is ever in it. Give "
                        "weeks to include the weekly series too.",
         "input": _schema({}, {"weeks": _text("weeks", "include the weekly series: yes", 3)})},
+    "check_answerable": {
+        "kind": READ_ONLY, "title": "Can the sources answer this?",
+        "description": "Before answering a question about the business, check what the sources cover: for each term "
+                       "of the question, the business items, systems, rules or records that name it and the lines "
+                       "behind them; the terms nothing covers; open questions the sources record there; and whether "
+                       "the kind of source the question needs (ownership, the business's records, live health, "
+                       "compliance evidence) is loaded. Verdict ANSWERABLE, PARTLY or NOT_IN_SOURCES. When it is not "
+                       "ANSWERABLE, say what the sources do not cover instead of guessing. No model is called.",
+        "input": _schema({"question": _text("question", "the question, in plain words", 500)})},
     "source_drift": {
         "kind": READ_ONLY, "title": "Where the cited code is now",
         "description": "Every line span the model cites (each domain skill's evidence, each confirmed rule's "
@@ -569,6 +578,19 @@ class Tools:
             found["currencies"] = {c: {k: v for k, v in cur.items() if k != "streams"}
                                    for c, cur in found.get("currencies", {}).items()}
         return self._out({**found, "execution_authorized": False}, hidden)
+
+    def check_answerable(self, args: dict) -> dict:
+        import answerable  # noqa: PLC0415
+        bundle, hidden = self._model()
+        try:
+            found = answerable.check(bundle, args["question"])
+        except ValueError as exc:
+            raise ToolError("INVALID_ARGUMENTS", str(exc)) from None
+        for term in found["covered"]:  # a match resting on a withheld file is withheld whole, rule text and all
+            term["covered_by"] = [{"withheld": True, "reason": WITHHELD} if any(
+                path_withheld(self.policy, e.get("path") or "") for e in row["evidence"]) else row
+                for row in term["covered_by"]]
+        return self._out(found, hidden)
 
     def source_drift(self, args: dict) -> dict:
         bundle, hidden = self._model(*([args["id"]] if args.get("id") else []))

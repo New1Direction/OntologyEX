@@ -1,0 +1,535 @@
+{
+ "schema_version": 1,
+ "kind": "ONTOLOGYEX_AGENT_EVAL",
+ "name": "demo-shop",
+ "description": "The synthetic shop from examples/operating-picture, as of 2026-10-29T12:00:00Z: code, compose, manifests, written policies and exported records in the repository; live health only through OntologyEX. 'live' questions can only be answered by an agent that has OntologyEX; they are reported apart.",
+ "repo": {
+  "build": "demo",
+  "at": "2026-10-29T12:00:00Z"
+ },
+ "questions": [
+  {
+   "id": "refund-captured-only",
+   "category": "rules",
+   "question": "Which payments can be refunded?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "captured"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "domain/requirements.md",
+     "lines": [
+      15,
+      15
+     ],
+     "anchor": "Only a Payment with status captured"
+    },
+    {
+     "path": "domain/payments.py",
+     "lines": [
+      23,
+      24
+     ],
+     "anchor": "payment is not captured"
+    }
+   ]
+  },
+  {
+   "id": "refund-ceiling",
+   "category": "rules",
+   "question": "What is the most that can be refunded on one payment?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "captured_minor minus refunded_minor",
+      "captured minus refunded",
+      "captured amount minus",
+      "not yet been refunded",
+      "not already refunded",
+      "remaining",
+      "remainder",
+      "refundable remainder"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "domain/requirements.md",
+     "lines": [
+      17,
+      17
+     ],
+     "anchor": "must not exceed captured_minor minus refunded_minor"
+    },
+    {
+     "path": "domain/payments.py",
+     "lines": [
+      25,
+      26
+     ],
+     "anchor": "amount outside refundable remainder"
+    }
+   ]
+  },
+  {
+   "id": "refund-minimum",
+   "category": "rules",
+   "question": "What is the smallest refund amount allowed?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "positive",
+      "greater than zero",
+      "greater than 0",
+      "more than zero",
+      "more than 0",
+      "at least 1",
+      "at least one"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "domain/requirements.md",
+     "lines": [
+      11,
+      11
+     ],
+     "anchor": "strictly positive integer"
+    }
+   ]
+  },
+  {
+   "id": "requester-verified",
+   "category": "rules",
+   "question": "Does the payments code itself verify that the person asking for a refund is allowed to?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "does not verify",
+      "doesn't verify",
+      "not verify",
+      "no verification",
+      "does not check",
+      "doesn't check",
+      "not check",
+      "not verified"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "domain/requirements.md",
+     "lines": [
+      16,
+      16
+     ],
+     "anchor": "does not verify identity or permission"
+    }
+   ]
+  },
+  {
+   "id": "large-refund-approval",
+   "category": "written",
+   "question": "What do refunds over $500 need before they are issued?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "manager",
+      "manager's"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "docs/refund-policy.md",
+     "lines": [
+      5,
+      5
+     ],
+     "anchor": "Refunds over $500 need a manager's approval"
+    }
+   ]
+  },
+  {
+   "id": "refund-window",
+   "category": "written",
+   "question": "How many days do customers have to ask for a refund?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "30"
+     ]
+    },
+    {
+     "any": [
+      "14"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "docs/refund-policy.md",
+     "lines": [
+      3,
+      3
+     ],
+     "anchor": "within 30 days"
+    }
+   ]
+  },
+  {
+   "id": "support-promise",
+   "category": "written",
+   "question": "How quickly does the business promise to resolve support tickets?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "8 hours",
+      "eight hours"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "docs/support.md",
+     "lines": [
+      3,
+      3
+     ],
+     "anchor": "within 8 hours"
+    }
+   ]
+  },
+  {
+   "id": "supplier-payment-terms",
+   "category": "written",
+   "question": "How quickly does the business promise to pay supplier invoices?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "30 days",
+      "thirty days",
+      "net 30"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "docs/finance-policy.md",
+     "lines": [
+      3,
+      3
+     ],
+     "anchor": "within 30 days"
+    },
+    {
+     "path": "contracts/datadog-order-form.txt",
+     "lines": [
+      4,
+      4
+     ],
+     "anchor": "Net 30"
+    }
+   ]
+  },
+  {
+   "id": "datadog-notice",
+   "category": "written",
+   "question": "How much notice is needed to stop the Datadog order from renewing?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "60 days",
+      "sixty days",
+      "60 days'"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "contracts/datadog-order-form.txt",
+     "lines": [
+      3,
+      3
+     ],
+     "anchor": "60 days' written notice"
+    }
+   ]
+  },
+  {
+   "id": "payments-down-impact",
+   "category": "systems",
+   "question": "If the payments service goes down, which other services are affected?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "api"
+     ]
+    },
+    {
+     "any": [
+      "web"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "compose.yml",
+     "lines": [
+      2,
+      5
+     ],
+     "anchor": "depends_on: [payments, db]"
+    }
+   ]
+  },
+  {
+   "id": "payments-dependencies",
+   "category": "systems",
+   "question": "What does the payments service depend on?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "ledger"
+     ]
+    },
+    {
+     "any": [
+      "db",
+      "database"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "compose.yml",
+     "lines": [
+      6,
+      7
+     ],
+     "anchor": "depends_on: [ledger, db]"
+    }
+   ]
+  },
+  {
+   "id": "worker-dependencies",
+   "category": "systems",
+   "question": "What does the worker depend on?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "queue"
+     ]
+    },
+    {
+     "any": [
+      "db",
+      "database"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "compose.yml",
+     "lines": [
+      10,
+      11
+     ],
+     "anchor": "depends_on: [queue, db]"
+    }
+   ]
+  },
+  {
+   "id": "email-supplier",
+   "category": "suppliers",
+   "question": "Which company does the shop use to send email?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "sendgrid"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "package.json",
+     "lines": [
+      1,
+      1
+     ],
+     "anchor": "@sendgrid/mail"
+    }
+   ]
+  },
+  {
+   "id": "payments-health",
+   "category": "live",
+   "question": "Is the payments service healthy right now?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "error",
+      "errors",
+      "erroring",
+      "failing",
+      "unhealthy",
+      "not healthy"
+     ]
+    }
+   ],
+   "citations": []
+  },
+  {
+   "id": "payments-error-rate",
+   "category": "live",
+   "question": "What error rate is the payments service reporting?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "12.5"
+     ]
+    }
+   ],
+   "citations": []
+  },
+  {
+   "id": "queue-lag",
+   "category": "live",
+   "question": "How far behind is the queue?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "95"
+     ]
+    }
+   ],
+   "citations": []
+  },
+  {
+   "id": "refund-rate",
+   "category": "records",
+   "question": "What share of payments were refunded in the last 4 weeks, and how does that compare with the 4 weeks before?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "6.2"
+     ]
+    },
+    {
+     "any": [
+      "0.4"
+     ]
+    }
+   ],
+   "citations": []
+  },
+  {
+   "id": "payouts-missing",
+   "category": "records",
+   "question": "How much money paid out by the payment processor is missing from the bank account?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "3142",
+      "3142.00"
+     ]
+    }
+   ],
+   "citations": []
+  },
+  {
+   "id": "disputes-open",
+   "category": "records",
+   "question": "How many disputes are waiting for a response?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "2",
+      "two"
+     ]
+    }
+   ],
+   "citations": []
+  },
+  {
+   "id": "payout-failed",
+   "category": "records",
+   "question": "Did any payout fail in the last 4 weeks? How many?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "1",
+      "one"
+     ]
+    }
+   ],
+   "citations": []
+  },
+  {
+   "id": "approve-exception",
+   "category": "unanswerable",
+   "question": "Who may approve an exception to the refund rules?",
+   "answerable": false,
+   "facts": [],
+   "citations": [
+    {
+     "path": "domain/requirements.md",
+     "lines": [
+      21,
+      21
+     ],
+     "anchor": "is unspecified"
+    }
+   ]
+  },
+  {
+   "id": "return-on-ad-spend",
+   "category": "unanswerable",
+   "question": "What was the return on ad spend in June?",
+   "answerable": false,
+   "facts": [],
+   "citations": []
+  },
+  {
+   "id": "payments-on-call",
+   "category": "unanswerable",
+   "question": "Who is on call for the payments service this week?",
+   "answerable": false,
+   "facts": [],
+   "citations": []
+  },
+  {
+   "id": "issuerefund-owner",
+   "category": "unanswerable",
+   "question": "Which person owns the IssueRefund code?",
+   "answerable": false,
+   "facts": [],
+   "citations": []
+  }
+ ]
+}

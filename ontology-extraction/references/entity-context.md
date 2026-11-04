@@ -221,6 +221,7 @@ running control room, `--bundle FILE` reads a file from
 
 | Tool | Kind | Answers |
 | --- | --- | --- |
+| `check_answerable` | read | before answering: what the sources cover for each word of a question (with lines), what they do not, open questions there, and the kinds of source it needs and lacks |
 | `search_entities` | read | entity IDs by words in the name, ID or summary |
 | `get_entity_context` | read | everything above for one entity |
 | `explain_relationship` | read | every path of up to three hops between two entities, strongest first |
