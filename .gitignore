@@ -31,3 +31,6 @@ ontology-extraction/bin/
 
 # Lean build output
 proofs/lean/.lake/
+
+# Agent eval runs (answers, scores, reports)
+evals/runs/

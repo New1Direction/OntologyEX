@@ -36,6 +36,7 @@ import rule_suggest
 import suppliers
 import command_center
 import digest
+import answerable
 import drift
 import guardrail
 import ownership
@@ -1375,6 +1376,19 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
             elif route.path == "/compliance":  # the pack in the query is read by the page
                 page = (Path(__file__).resolve().parent / "compliance_page.html").read_bytes()
                 payload, mime, code = page, "text/html; charset=utf-8", 200
+            elif route.path == "/api/answerable":  # can the sources answer this question? (answerable.py)
+                mime = "application/json; charset=utf-8"
+                try:
+                    params = parse_qs(route.query, strict_parsing=True, max_num_fields=1) if route.query else {}
+                    asked = params.get("q", [])
+                    if set(params) != {"q"} or len(asked) != 1:
+                        raise graph_view_api.ViewError("answerable takes q")
+                    payload, code = json.dumps(answerable.check(bundle(), asked[0]), sort_keys=True).encode(), 200
+                except (graph_view_api.ViewError, ValueError):
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, DomainError, discover_repo.DiscoveryError,
+                        github_discovery.GitHubDiscoveryError, OSError, TypeError, KeyError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
             elif route.path == "/api/drift":  # where the lines the model cites are now
                 mime = "application/json; charset=utf-8"
                 try:

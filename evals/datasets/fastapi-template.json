@@ -1,0 +1,327 @@
+{
+ "schema_version": 1,
+ "kind": "ONTOLOGYEX_AGENT_EVAL",
+ "name": "fastapi-template",
+ "description": "A public repository (fastapi/full-stack-fastapi-template) at a pinned commit: rules in code, the system around it, and questions its sources do not answer.",
+ "repo": {
+  "git": "https://github.com/fastapi/full-stack-fastapi-template",
+  "commit": "f4bcfaba7c85be3c6332cc74a20819f586dcdbc6"
+ },
+ "questions": [
+  {
+   "id": "read-others-item",
+   "category": "rules",
+   "question": "Can a normal (non-superuser) user read an item that belongs to another user? What happens?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "403",
+      "not enough permissions",
+      "forbidden"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "backend/app/api/routes/items.py",
+     "lines": [
+      56,
+      57
+     ],
+     "anchor": "Not enough permissions"
+    }
+   ]
+  },
+  {
+   "id": "list-users",
+   "category": "rules",
+   "question": "Who is allowed to list all users?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "superuser",
+      "superusers",
+      "super user",
+      "super users",
+      "admin",
+      "admins"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "backend/app/api/routes/users.py",
+     "lines": [
+      32,
+      35
+     ],
+     "anchor": "get_current_active_superuser"
+    },
+    {
+     "path": "backend/app/api/deps.py",
+     "lines": [
+      52,
+      55
+     ],
+     "anchor": "doesn't have enough privileges"
+    }
+   ]
+  },
+  {
+   "id": "superuser-self-delete",
+   "category": "rules",
+   "question": "Can a superuser delete their own account?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "no",
+      "not allowed",
+      "cannot",
+      "can't",
+      "403"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "backend/app/api/routes/users.py",
+     "lines": [
+      137,
+      140
+     ],
+     "anchor": "Super users are not allowed to delete themselves"
+    }
+   ]
+  },
+  {
+   "id": "token-lifetime",
+   "category": "rules",
+   "question": "How long does a login access token last?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "8 days",
+      "eight days",
+      "11520 minutes",
+      "11520"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "backend/app/core/config.py",
+     "lines": [
+      24,
+      25
+     ],
+     "anchor": "60 * 24 * 8"
+    }
+   ]
+  },
+  {
+   "id": "reset-token-lifetime",
+   "category": "rules",
+   "question": "How long is a password reset token valid?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "48 hours",
+      "48 hours.",
+      "two days",
+      "2 days",
+      "48"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "backend/app/core/config.py",
+     "lines": [
+      57,
+      57
+     ],
+     "anchor": "EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48"
+    }
+   ]
+  },
+  {
+   "id": "password-minimum",
+   "category": "rules",
+   "question": "What is the minimum password length at sign-up?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "8",
+      "eight"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "backend/app/models.py",
+     "lines": [
+      27,
+      27
+     ],
+     "anchor": "min_length=8"
+    }
+   ]
+  },
+  {
+   "id": "password-hashing",
+   "category": "rules",
+   "question": "How are passwords hashed?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "argon2"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "backend/app/core/security.py",
+     "lines": [
+      5,
+      7
+     ],
+     "anchor": "Argon2Hasher"
+    }
+   ]
+  },
+  {
+   "id": "recovery-enumeration",
+   "category": "rules",
+   "question": "Does the password recovery flow reveal whether an email address is registered?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "no",
+      "does not",
+      "doesn't",
+      "not reveal",
+      "same message",
+      "same response"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "backend/app/api/routes/login.py",
+     "lines": [
+      73,
+      73
+     ],
+     "anchor": "If that email is registered"
+    },
+    {
+     "path": "backend/app/api/routes/login.py",
+     "lines": [
+      86,
+      88
+     ],
+     "anchor": "Don't reveal that the user doesn't exist"
+    }
+   ]
+  },
+  {
+   "id": "database",
+   "category": "systems",
+   "question": "Which database does the backend use, and which version?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "postgres",
+      "postgresql"
+     ]
+    },
+    {
+     "any": [
+      "18"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "compose.yml",
+     "lines": [
+      20,
+      21
+     ],
+     "anchor": "postgres:18"
+    }
+   ]
+  },
+  {
+   "id": "data-objects",
+   "category": "systems",
+   "question": "Which database tables hold the application's data?",
+   "answerable": true,
+   "facts": [
+    {
+     "any": [
+      "user",
+      "users"
+     ]
+    },
+    {
+     "any": [
+      "item",
+      "items"
+     ]
+    }
+   ],
+   "citations": [
+    {
+     "path": "backend/app/models.py",
+     "lines": [
+      51,
+      51
+     ],
+     "anchor": "class User(UserBase, table=True)"
+    },
+    {
+     "path": "backend/app/models.py",
+     "lines": [
+      87,
+      87
+     ],
+     "anchor": "class Item(ItemBase, table=True)"
+    }
+   ]
+  },
+  {
+   "id": "revenue-last-month",
+   "category": "unanswerable",
+   "question": "How much revenue did the product make last month?",
+   "answerable": false,
+   "facts": [],
+   "citations": []
+  },
+  {
+   "id": "uptime-sla",
+   "category": "unanswerable",
+   "question": "What uptime does the service promise its customers?",
+   "answerable": false,
+   "facts": [],
+   "citations": []
+  },
+  {
+   "id": "pricing",
+   "category": "unanswerable",
+   "question": "How much does a paid plan cost?",
+   "answerable": false,
+   "facts": [],
+   "citations": []
+  }
+ ]
+}
