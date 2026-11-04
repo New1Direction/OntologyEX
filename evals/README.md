@@ -54,6 +54,10 @@ pip install anthropic
 export ANTHROPIC_API_KEY=...   # or a profile from `ant auth login`
 ```
 
+Where `ANTHROPIC_API_KEY` already means something else (an agent harness that runs on its own key, a
+cloud session), keep the eval's key in a variable of its own and pass its name: `--key-env
+ONTOLOGYEX_EVAL_API_KEY`. The key is read from the environment only; it is never written to the run.
+
 ```bash
 python evals/agent_ab.py run evals/datasets/demo-shop.json --out evals/runs/demo-shop --model claude-opus-5-5 --effort medium
 ```

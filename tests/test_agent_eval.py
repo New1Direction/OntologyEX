@@ -227,6 +227,14 @@ class HarnessTests(unittest.TestCase):
             with self.assertRaisesRegex(agent_ab.EvalError, "not empty"):
                 agent_ab.run(DATASET, self.out, agent_ab.ScriptedAgent(script), "scripted")
 
+    def test_a_missing_key_variable_is_said_plainly(self):
+        run = subprocess.run([sys.executable, str(ROOT / "evals/agent_ab.py"), "run", str(DATASET), "--out",
+                              str(Path(self.tmp.name) / "keyless"), "--key-env", "ONTOLOGYEX_EVAL_KEY_FOR_TEST"],
+                             capture_output=True, text=True, timeout=60, env={"PATH": "/usr/bin:/bin"})
+        self.assertEqual(run.returncode, 2)
+        self.assertTrue("ONTOLOGYEX_EVAL_KEY_FOR_TEST is not set" in run.stderr or "anthropic package" in run.stderr,
+                        run.stderr)
+
     def test_whole_words(self):
         self.assertTrue(agent_ab.says(agent_ab.normalize("Refunds: **30 days**"), "30 days"))
         self.assertFalse(agent_ab.says("within 300 days", "30"))
