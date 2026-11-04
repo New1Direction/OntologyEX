@@ -25,7 +25,8 @@ the file lines it rests on. Scoring is deterministic, with no model as judge:
 The report gives each arm's numbers, the difference, and the questions OntologyEX fixed and broke.
 
 Running the agents needs the `anthropic` package (`pip install anthropic`) and an API key
-(`ANTHROPIC_API_KEY`, or a profile from `ant auth login`). `--agent scripted:FILE` replays a script
+(`ANTHROPIC_API_KEY`, a profile from `ant auth login`, or `--key-env NAME` to read it from a variable
+of its own). `--agent scripted:FILE` replays a script
 instead of a model (CI uses it to test the harness). Refusals are scored as they come: no fallback
 model is used, so each arm measures one model. The repositories are only read.
 """
@@ -218,13 +219,18 @@ class OntologyEx:
 class ClaudeAgent:
     """A manual tool-use loop over the Messages API (official SDK), so every call and token is counted."""
 
-    def __init__(self, model: str, effort: str):
+    def __init__(self, model: str, effort: str, key_env: str | None = None):
         try:
             import anthropic
         except ImportError:
             raise EvalError("running agents needs the anthropic package: pip install anthropic") from None
         self.anthropic = anthropic
-        self.client = anthropic.Anthropic()
+        if key_env:  # the key from a variable of its own, so it never mixes with another tool's ANTHROPIC_API_KEY
+            if not os.environ.get(key_env):
+                raise EvalError(f"{key_env} is not set: put the API key in that environment variable")
+            self.client = anthropic.Anthropic(api_key=os.environ[key_env])
+        else:  # ANTHROPIC_API_KEY, or a profile from `ant auth login`
+            self.client = anthropic.Anthropic()
         self.model, self.effort = model, effort
 
     def answer(self, question: str, tools: list[dict], execute) -> dict:
@@ -460,6 +466,8 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--model", default="claude-opus-5-5")
     r.add_argument("--effort", choices=("low", "medium", "high", "xhigh", "max"), default="medium")
     r.add_argument("--agent", default="claude", help="claude, or scripted:FILE")
+    r.add_argument("--key-env", default=None, metavar="NAME",
+                   help="read the API key from this environment variable (default: ANTHROPIC_API_KEY or an ant profile)")
     r.add_argument("--only", nargs="*", help="question ids")
     p = sub.add_parser("report", help="the report of a finished run")
     p.add_argument("run", type=Path)
@@ -480,7 +488,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.agent.startswith("scripted:"):
             agent, name = ScriptedAgent(Path(args.agent.split(":", 1)[1])), args.agent
         else:
-            agent, name = ClaudeAgent(args.model, args.effort), f"{args.model} (effort {args.effort})"
+            agent, name = ClaudeAgent(args.model, args.effort, args.key_env), f"{args.model} (effort {args.effort})"
         found = run(args.dataset, args.out, agent, name, only=args.only)
         print(markdown(found))
         return 0
