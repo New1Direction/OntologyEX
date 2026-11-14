@@ -429,17 +429,21 @@
   {
    "id": "refund-rate",
    "category": "records",
-   "question": "What share of payments were refunded in the last 4 weeks, and how does that compare with the 4 weeks before?",
+   "question": "As of 2026-10-29, what was total refund value as a percentage of gross successful payment value in the last 4 completed Monday-to-Sunday weeks, and in the 4 completed weeks before that?",
    "answerable": true,
    "facts": [
     {
      "any": [
-      "6.2"
+      "6.2",
+      "6.22",
+      "6.222"
      ]
     },
     {
      "any": [
-      "0.4"
+      "0.4",
+      "0.36",
+      "0.358"
      ]
     }
    ],
@@ -463,7 +467,7 @@
   {
    "id": "disputes-open",
    "category": "records",
-   "question": "How many disputes are waiting for a response?",
+   "question": "How many disputes remain open, counting both needs_response and under_review statuses?",
    "answerable": true,
    "facts": [
     {

@@ -45,12 +45,43 @@ a 7,700-file monorepo, and a company handbook with no code at all.
 
 ## ◢ The control room
 
+With Python 3.11 or newer installed, set up a local checkout and point it at the
+repository you want to explore:
+
 ```bash
+git clone https://github.com/New1Direction/OntologyEX.git
+cd OntologyEX
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install 'PyYAML==6.0.3'
 python ontology-extraction/scripts/operate.py up --repo /path/to/your/repo
 ```
 
-One command, on your machine. Loopback only, read-only, nothing deployed. Nine views over a
-single model of your business, the same model your agents read:
+On Windows, create the environment with `py -3 -m venv .venv`, then activate it
+with `.venv\Scripts\activate` in Command Prompt or `.venv\Scripts\Activate.ps1`
+in PowerShell. Run the remaining `python` commands in that terminal.
+
+Open the printed **Twin** link for a single view of modeled workflows, reported
+service status, configured threshold signals, and a hypothetical unavailable-service scenario. The scenario
+follows recorded dependencies; it does not change the system or prove an outage.
+Without a domain skill or connected observations, the page says what is missing.
+Signals need a connected metric feed and a user-selected threshold; they do not
+predict outages. See the [early-signal example and limits](docs/operating-picture.md#early-signals).
+
+Open the printed **Business** link for a source-backed preview of the repository's
+services, routes, data structures and outside providers, even
+before a domain skill is loaded. Open a source location to inspect its recorded line;
+the page shows which scans are still running and what the sources do not establish.
+**Command** ranks what needs attention, and **Systems** shows the broader discovered map.
+Without configured feeds, health is
+unknown; a compiled domain skill adds modeled business actions and rules with their
+review status. If the
+port is busy, add `--port 8766` to the final command and open the new printed link.
+
+The control room runs on your machine and listens on loopback only. It reads the
+repository and, by default, records local history in `REPO/.ontologyex/history.jsonl`
+for the digest; add `--no-history` to turn that off. Nothing is deployed. Nine views
+over a single model of your business, the same model your agents read:
 
 <table>
 <tr>
@@ -71,7 +102,7 @@ single model of your business, the same model your agents read:
 |---|---|
 | **`/command`** | Everything that needs attention, big or small, ranked by importance. Every score is the sum of factors you can read and argue with (how bad, how much of the business reaches it, whether money moves through it), with the next step and the owner to call. Every finding names its evidence (what was observed, where, when, whether it is still current) and what would refute it; a conclusion on expired evidence reads unknown, and the systems verdict is never "healthy" while something is silent. Saved moments can be replayed to check the conclusions against what really happened. [How](docs/replay.md). |
 | **`/digest`** | What moved since last week: new, fixed, worse, better, *fixed then back*, open longest. Who decided what. The code that shipped and the business it touched. One click to Markdown. |
-| **`/business`** | Your domain skills joined to your live systems: which business actions are at risk, which depend on a failing system, which rules were checked and how far. |
+| **`/business`** | A source-backed repository preview to start; with domain skills, business actions and objects joined to systems: which actions are at risk, which depend on a failing system, and which rules were checked and how far. |
 | **`/owners`** | Who answers for each part: declared in CODEOWNERS (line cited) or inferred from a year of git history. Business actions nobody owns. Code only one person knows. |
 | **`/compliance`** | SOC 2, PCI DSS v4.0, HIPAA and GDPR mapped to what the code shows, with the lines cited, and what only a person can provide. An evidence map for preparing an audit, not an audit. |
 | **`/operations`** | What the business actually does, from its own records: payments, refunds, disputes, payouts, subscriptions and invoices by week; bank and card lines, bills and cloud costs by month; support tickets and sales deals by week (aggregates only, never a row, a customer, a ticket's subject or a person paid); policies, terms and contracts read for their promises, each held to the records; payouts checked against the bank, suppliers paid against suppliers the code uses, refunds against refund tickets, documents that disagree, and what happens that nobody wrote down. Read-only pulls from Stripe, AWS, Zendesk and HubSpot can run on a schedule (`up --pulls`), and a pull that fails or falls behind says so. [How](docs/operations.md). |
@@ -101,6 +132,11 @@ See it in ten seconds, no setup beyond Python 3.11 and PyYAML:
 ```bash
 python examples/operating-picture/demo.py --serve   # then open http://127.0.0.1:8765/command
 ```
+
+For the complete fictional digital-twin example, open
+`http://127.0.0.1:8765/twin`. Its business model, links, and health reports are
+synthetic; they are not discovered from a real company. Select a service under
+“What if” to explore recorded dependencies while its reported status stays separate.
 
 Live health is real telemetry: `feed_setup.py propose` lists the health checks your compose files
 declare, `otel_setup.py run --service web -- npm start` adds OpenTelemetry traces to a Node or
@@ -246,11 +282,14 @@ state, concurrency and integration safety.
 ## ◢ Build on it
 
 ```bash
-python -m pip install 'PyYAML==6.0.3'
+python -m pip install -r examples/cachetools-domain/requirements-case.txt
 python -m unittest discover -s tests            # the suite, including golden fixtures
 python tests/golden.py check                     # just the pinned answers
 cargo test --locked --manifest-path engine/Cargo.toml
 ```
+
+The full Python suite includes the real-source cachetools case, so it needs that
+requirements file even though PyYAML alone is enough for the control room.
 
 A change meant to alter an answer is made with `python tests/golden.py update --reason "why"`.
 Useful contributions: a scoped real-source example, a failing behavioral case, or a documented

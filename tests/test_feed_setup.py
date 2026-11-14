@@ -303,6 +303,9 @@ class OperateUp(unittest.TestCase):
                 self.assertIsNotNone(status, lines)
                 self.assertEqual((status["status"], status["feeds_engine"]), ("UP", "python"))
                 self.assertEqual(status["observations"], str(Path(tmp) / "observations.jsonl"))
+                # UP means this launcher's own control room has bound and can serve requests.
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/command", timeout=5) as response:
+                    self.assertEqual(response.status, 200)
                 counts, deadline = {}, time.monotonic() + 60
                 while counts.get("ok") != 1 and time.monotonic() < deadline:
                     try:
@@ -332,6 +335,31 @@ class OperateUp(unittest.TestCase):
                                  capture_output=True, text=True, timeout=60)
         self.assertEqual(run.returncode, 1)
         self.assertEqual(json.loads(run.stdout)["status"], "ERROR")
+
+    def test_occupied_port_is_not_reported_as_up(self):
+        # A different process listening is not evidence that this launch succeeded.
+        with socket.socket() as occupied, tempfile.TemporaryDirectory() as tmp:
+            occupied.bind(("127.0.0.1", 0))
+            occupied.listen()
+            port = occupied.getsockname()[1]
+            run = subprocess.run([sys.executable, str(SCRIPTS / "operate.py"), "up", "--repo", tmp,
+                                  "--port", str(port), "--no-history"],
+                                 capture_output=True, text=True, timeout=30)
+        self.assertNotEqual(run.returncode, 0)
+        self.assertNotIn('"status": "UP"', run.stdout)
+        self.assertIn(f"Port {port} is already in use", run.stdout)
+        self.assertIn("--port 8766", run.stdout)
+
+    def test_missing_repository_says_what_to_fix(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            missing = Path(tmp) / "does-not-exist"
+            run = subprocess.run([sys.executable, str(SCRIPTS / "operate.py"), "up", "--repo", str(missing)],
+                                 capture_output=True, text=True, timeout=30)
+        self.assertNotEqual(run.returncode, 0)
+        message = json.loads(run.stdout)
+        self.assertEqual(message["status"], "ERROR")
+        self.assertIn("--repo", message["error"])
+        self.assertIn(str(missing), message["error"])
 
 
 if __name__ == "__main__":

@@ -13,9 +13,9 @@ PACKAGE = (
     "scripts/install.py", "scripts/onboard.py", "scripts/evidence.py",
     "scripts/evidence_grade.py", "scripts/statement_lint.py", "scripts/decide.py",
     "scripts/propose_sources.py", "scripts/conflict_scan.py", "scripts/link_suggest.py",
-    "scripts/business_view.py", "scripts/discover_repo.py",
+    "scripts/business_view.py", "scripts/first_look.py", "scripts/discover_repo.py",
     # Operating picture runtime: control room, its views, live feeds, and RDF export.
-    "scripts/control_room.py", "scripts/operating_picture.html", "scripts/layout_engine.js",
+    "scripts/control_room.py", "scripts/operating_picture.html", "scripts/twin_page.html", "scripts/layout_engine.js",
     "scripts/entity_context.py", "scripts/entity_page.html", "scripts/agent_tools.py", "scripts/watermark.py",
     "scripts/change_impact.py", "scripts/impact_page.html", "scripts/change_plan.py", "scripts/rule_suggest.py",
     "scripts/suppliers.py", "scripts/suppliers_page.html", "scripts/command_center.py", "scripts/command_page.html",

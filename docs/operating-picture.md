@@ -13,6 +13,26 @@ run on, so one screen answers:
 It is a read-only, loopback view at `/business`, next to the existing
 system map at `/`.
 
+## First look at your repository
+
+Start the control room with `operate.py up --repo /path/to/repo` and open its
+Business link. Before a domain skill is loaded, the page shows a bounded preview
+of manifests, declared services, source-detected routes and data structures, and
+recognized providers. It shows manifest discoveries while the slower code and
+provider scans are still running; pending, failed, and outdated scans are named
+instead of reported as empty. The preview shows up to 12 items per category and
+links to the broader system or supplier view for the rest.
+
+Each item points to the file the scanner recorded. When the scan recorded an
+exact line, **View source** shows that line only if the file still has the same
+hash as the displayed discovery. Changed, missing, sensitive, or unrecorded
+lines are identified instead. Secret-named files and lines matching common
+secret patterns are withheld; this filtering is not an exhaustive secret scanner.
+No model or API key is required. These are source candidates, not evidence that
+the component runs or that the repository describes the whole business. The
+page identifies what is not established and links to workflow onboarding and
+live feeds.
+
 ## One command
 
 ```bash
@@ -22,6 +42,55 @@ python examples/operating-picture/demo.py --serve
 Open `http://127.0.0.1:8765/business`. The demo builds a fictional business
 repository, the payments domain skill, declared links, **synthetic** health
 samples, and synthetic grade events. No real system is observed.
+
+Open `http://127.0.0.1:8765/twin` for a single view of modeled workflows,
+reported service status, and an unavailable-service scenario. Choose a service
+and select **Explore impact** to see its recorded dependents, their relationship
+standing, and links to evidence. This is bounded graph reachability, not a
+prediction or a test of the real system; the scenario does not change any
+observation. Without a workflow model or service observations the page says so;
+detected code operations appear as source candidates rather than business facts.
+This demo uses a pre-authored model and synthetic reports: it is not yet automatic
+creation of a complete twin for an arbitrary company.
+
+## Early signals
+
+Try the fictional payments example in a **new** output directory:
+
+```bash
+python examples/operating-picture/demo.py --early-warning --out build/early-signal --serve --port 8766
+```
+
+At `http://127.0.0.1:8766/twin`, the source reports payments as `ok` while two
+synthetic p95 latency readings, 650 ms and 720 ms, exceed an invented 500 ms
+threshold. **Explore connected effects** follows the recorded dependency paths,
+including fictional examples up to four connections away. The page marks whether
+each path is source-declared, recorded as confirmed, or inferred. These are
+possible connections, not proof of downstream failures. The synthetic readings
+expire after an hour; restart the demo in a fresh output directory to renew them.
+
+For your own system, configure a [feed](live-feeds.md) that supplies a metric
+and write a thresholds file, for example:
+
+```json
+{"schema_version": 1, "warning_above": {"p95_latency_ms": 500}}
+```
+
+The number is an example, not a recommended threshold. Pick it for your own
+workload. This configuration applies the same threshold to that metric across
+all services; per-service thresholds are not supported yet. Start the usual
+launcher with `--feeds /path/to/feeds.json --thresholds /path/to/thresholds.json`
+(and, optionally, `--skill` and `--links` to connect the business workflow).
+Signals require two **distinct**, fresh readings above the threshold from the
+same source label. A duplicate reading does not count twice; ambiguous prior
+readings suppress the signal. Reports are local producer claims, not verified
+measurements. An empty signals list does not mean all systems are healthy.
+
+The [synthetic replay](../evals/early-warning.md) shows both missed failures and
+false alarms alongside a one-reading baseline. It exercises the implementation,
+but does not establish forecasting quality. To assess that, record historical
+metrics and independently labeled incidents for a consenting client, choose
+thresholds without using the test period, and replay on later held-out periods.
 
 ## Your own business
 

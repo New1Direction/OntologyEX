@@ -1,0 +1,116 @@
+{
+  "kind": "ONTOLOGYEX_CHANGE_IMPACT_EVAL",
+  "schema_version": 1,
+  "description": "Source-checked, predeclared change-impact questions. The model sees each question, not these expected facts. Cite source; distinguish declared behavior from runtime effects.",
+  "repositories": [
+    {
+      "id": "fastapi-template",
+      "url": "https://github.com/fastapi/full-stack-fastapi-template.git",
+      "commit": "f4bcfaba7c85be3c6332cc74a20819f586dcdbc6",
+      "tasks": [
+        {
+          "id": "item-update-permission",
+          "question": "A proposed change would remove the owner-or-superuser check from the item update endpoint in backend/app/api/routes/items.py. What current behavior, repository test, and frontend caller should a reviewer inspect? Cite the evidence and distinguish potential impact from observed runtime behavior.",
+          "facts": [
+            {"id": "owner_check", "expected": "The update rejects a non-superuser who does not own the item with 403.", "evidence": [{"path": "backend/app/api/routes/items.py", "start": 75, "end": 90, "anchor": "item.owner_id != current_user.id"}]},
+            {"id": "test", "expected": "The update-not-enough-permissions test expects 403.", "evidence": [{"path": "backend/tests/api/routes/test_items.py", "start": 114, "end": 126, "anchor": "status_code == 403"}]},
+            {"id": "caller", "expected": "The frontend EditItem component calls ItemsService.updateItem.", "evidence": [{"path": "frontend/src/components/Items/EditItem.tsx", "start": 60, "end": 62, "anchor": "ItemsService.updateItem"}]}
+          ]
+        },
+        {
+          "id": "self-delete",
+          "question": "The DELETE /users/me endpoint in backend/app/api/routes/users.py is being changed. What are its current restrictions and item-deletion relationship, which frontend flow calls it, and which tests cover it? Cite the evidence; do not infer production usage.",
+          "facts": [
+            {"id": "restriction", "expected": "Self-delete returns 403 for a superuser and deletes the current user otherwise.", "evidence": [{"path": "backend/app/api/routes/users.py", "start": 132, "end": 143, "anchor": "Super users are not allowed to delete themselves"}]},
+            {"id": "cascade", "expected": "User.items declares cascade_delete and Item.owner_id declares ondelete CASCADE; runtime database configuration is not established by these declarations alone.", "evidence": [{"path": "backend/app/models.py", "start": 50, "end": 55, "anchor": "cascade_delete=True"}, {"path": "backend/app/models.py", "start": 87, "end": 93, "anchor": "ondelete=\"CASCADE\""}]},
+            {"id": "caller", "expected": "DeleteConfirmation calls UsersService.deleteUserMe and logs out on success.", "evidence": [{"path": "frontend/src/components/UserSettings/DeleteConfirmation.tsx", "start": 25, "end": 31, "anchor": "UsersService.deleteUserMe"}]},
+            {"id": "test", "expected": "Tests cover successful self-delete and the superuser rejection.", "evidence": [{"path": "backend/tests/api/routes/test_users.py", "start": 436, "end": 443, "anchor": "users/me"}, {"path": "backend/tests/api/routes/test_users.py", "start": 451, "end": 460, "anchor": "status_code == 403"}]}
+          ]
+        },
+        {
+          "id": "api-prefix",
+          "question": "Suppose the backend API prefix changes from /api/v1. What configuration and router mounting determine the prefix, and which generated frontend client and backend test references should be reviewed? Cite the evidence.",
+          "facts": [
+            {"id": "prefix_config", "expected": "API_V1_STR defaults to /api/v1 and the main app includes api_router under that prefix.", "evidence": [{"path": "backend/app/core/config.py", "start": 22, "end": 22, "anchor": "API_V1_STR"}, {"path": "backend/app/main.py", "start": 35, "end": 35, "anchor": "prefix=settings.API_V1_STR"}]},
+            {"id": "routers", "expected": "The API router includes login, users, utils, and items routers.", "evidence": [{"path": "backend/app/api/main.py", "start": 6, "end": 10, "anchor": "include_router(items.router)"}]},
+            {"id": "generated_client", "expected": "The generated frontend SDK contains literal /api/v1/items/ paths.", "evidence": [{"path": "frontend/src/client/sdk.gen.ts", "start": 287, "end": 298, "anchor": "/api/v1/items/"}]},
+            {"id": "backend_tests", "expected": "Backend item tests use settings.API_V1_STR rather than a fixed literal for the request.", "evidence": [{"path": "backend/tests/api/routes/test_items.py", "start": 10, "end": 16, "anchor": "settings.API_V1_STR"}]}
+          ]
+        },
+        {
+          "id": "token-subject",
+          "question": "Suppose the access token's subject representation changes in backend/app/core/security.py. Trace the repository's login producer, current-user consumer, and one frontend token use. Cite the relevant source and avoid guessing about external clients.",
+          "facts": [
+            {"id": "claim", "expected": "create_access_token encodes the subject as a string in the sub claim.", "evidence": [{"path": "backend/app/core/security.py", "start": 22, "end": 26, "anchor": "\"sub\": str(subject)"}]},
+            {"id": "producer", "expected": "The login endpoint passes user.id as the token subject.", "evidence": [{"path": "backend/app/api/routes/login.py", "start": 37, "end": 41, "anchor": "user.id"}]},
+            {"id": "consumer", "expected": "get_current_user decodes the token into TokenPayload and looks up User by token_data.sub.", "evidence": [{"path": "backend/app/api/deps.py", "start": 30, "end": 43, "anchor": "token_data.sub"}]},
+            {"id": "frontend", "expected": "The frontend stores the returned access_token in localStorage or configures it as client auth.", "evidence": [{"path": "frontend/src/hooks/useAuth.ts", "start": 41, "end": 46, "anchor": "localStorage.setItem"}, {"path": "frontend/src/main.tsx", "start": 15, "end": 20, "anchor": "localStorage.getItem"}]}
+          ]
+        },
+        {
+          "id": "item-title-limit",
+          "question": "Suppose item titles are limited to 30 characters instead of the current limit. Which backend create/update models and frontend form validation would need review? Cite what is actually declared; do not assume a database migration is necessary.",
+          "facts": [
+            {"id": "create_model", "expected": "ItemBase currently limits title to 255, and ItemCreate inherits ItemBase.", "evidence": [{"path": "backend/app/models.py", "start": 69, "end": 77, "anchor": "max_length=255"}]},
+            {"id": "update_model", "expected": "ItemUpdate separately limits title to 255.", "evidence": [{"path": "backend/app/models.py", "start": 80, "end": 83, "anchor": "max_length=255"}]},
+            {"id": "forms", "expected": "AddItem and EditItem currently validate a minimum title length but declare no maximum in those schemas.", "evidence": [{"path": "frontend/src/components/Items/AddItem.tsx", "start": 33, "end": 36, "anchor": "title: z.string().min(1"}, {"path": "frontend/src/components/Items/EditItem.tsx", "start": 33, "end": 36, "anchor": "title: z.string().min(1"}]}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "express",
+      "url": "https://github.com/expressjs/express.git",
+      "commit": "43fca52d28a422c8be48fd489cbd4f2d6152bab6",
+      "tasks": [
+        {
+          "id": "query-parser",
+          "question": "A proposed change alters Express's default query parser. Trace the default setting, compilation, req.query consumer, and an affected test. Cite the source; do not assume how a particular deployment configures it.",
+          "facts": [
+            {"id": "default", "expected": "Express defaults the query parser to simple.", "evidence": [{"path": "lib/application.js", "start": 93, "end": 99, "anchor": "this.set('query parser', 'simple')"}]},
+            {"id": "compilation", "expected": "app.set compiles the parser; simple uses querystring.parse and extended uses parseExtendedQueryString.", "evidence": [{"path": "lib/application.js", "start": 363, "end": 368, "anchor": "compileQueryParser(val)"}, {"path": "lib/utils.js", "start": 162, "end": 177, "anchor": "querystring.parse"}]},
+            {"id": "consumer", "expected": "req.query uses query parser fn and returns an empty object when parsing is disabled.", "evidence": [{"path": "lib/request.js", "start": 230, "end": 240, "anchor": "query parser fn"}]},
+            {"id": "test", "expected": "Tests distinguish default/simple literal keys from extended nested query parsing.", "evidence": [{"path": "test/req.query.js", "start": 17, "end": 31, "anchor": "parse complex keys"}]}
+          ]
+        },
+        {
+          "id": "trust-proxy",
+          "question": "A proposed change alters the default trust proxy setting. Which request properties and tests indicate a possible effect on forwarded client IP or protocol? Cite the default and relevant implementation and tests; do not claim the change is deployed.",
+          "facts": [
+            {"id": "default", "expected": "The default trust proxy setting is false.", "evidence": [{"path": "lib/application.js", "start": 93, "end": 99, "anchor": "this.set('trust proxy', false)"}]},
+            {"id": "protocol", "expected": "req.protocol uses X-Forwarded-Proto only when the socket address is trusted.", "evidence": [{"path": "lib/request.js", "start": 297, "end": 314, "anchor": "X-Forwarded-Proto"}]},
+            {"id": "ip", "expected": "req.ip uses proxyaddr with the compiled trust function.", "evidence": [{"path": "lib/request.js", "start": 340, "end": 342, "anchor": "proxyaddr(this, trust)"}]},
+            {"id": "tests", "expected": "The protocol and IP tests exercise forwarded headers with trust enabled or disabled.", "evidence": [{"path": "test/req.protocol.js", "start": 20, "end": 33, "anchor": "X-Forwarded-Proto"}, {"path": "test/req.ip.js", "start": 8, "end": 22, "anchor": "X-Forwarded-For"}]}
+          ]
+        },
+        {
+          "id": "json-parser",
+          "question": "Suppose the body-parser dependency changes how JSON request bodies are parsed. Which exported Express middleware is connected to it, where is the dependency declared, and which tests demonstrate the expected behavior? Cite source and do not claim a specific third-party change has occurred.",
+          "facts": [
+            {"id": "dependency", "expected": "body-parser is a declared dependency.", "evidence": [{"path": "package.json", "start": 34, "end": 36, "anchor": "body-parser"}]},
+            {"id": "exports", "expected": "Express imports body-parser and exports json, raw, text and urlencoded from it.", "evidence": [{"path": "lib/express.js", "start": 15, "end": 15, "anchor": "require('body-parser')"}, {"path": "lib/express.js", "start": 77, "end": 81, "anchor": "exports.json = bodyParser.json"}]},
+            {"id": "tests", "expected": "The JSON middleware tests cover parsing JSON and invalid input.", "evidence": [{"path": "test/express.json.js", "start": 10, "end": 16, "anchor": "should parse JSON"}, {"path": "test/express.json.js", "start": 43, "end": 49, "anchor": "should 400"}]}
+          ]
+        },
+        {
+          "id": "send-file",
+          "question": "Suppose res.sendFile changes its path validation. Which existing validation and download wrapper depend on it, and which tests would help review the impact? Cite evidence rather than assuming all consumers are visible.",
+          "facts": [
+            {"id": "validation", "expected": "sendFile requires a string path and, unless a root is specified, an absolute path.", "evidence": [{"path": "lib/response.js", "start": 382, "end": 397, "anchor": "path must be absolute or specify root"}]},
+            {"id": "download", "expected": "res.download resolves the path when needed, sets attachment headers, then calls sendFile.", "evidence": [{"path": "lib/response.js", "start": 459, "end": 485, "anchor": "return this.sendFile"}]},
+            {"id": "tests", "expected": "The sendFile tests exercise missing/non-string/non-absolute paths, and the download tests exercise attachments.", "evidence": [{"path": "test/res.sendFile.js", "start": 15, "end": 34, "anchor": "non-string path"}, {"path": "test/res.download.js", "start": 15, "end": 28, "anchor": "Content-Disposition"}]}
+          ]
+        },
+        {
+          "id": "mount-app",
+          "question": "Suppose app.use changes how it mounts a child Express application. Trace how the router, child mountpath and parent, and mounted handler are connected; identify a test to review. Cite evidence and avoid claims about external applications.",
+          "facts": [
+            {"id": "router", "expected": "app.use forwards ordinary middleware to router.use.", "evidence": [{"path": "lib/application.js", "start": 216, "end": 222, "anchor": "router.use(path, fn)"}]},
+            {"id": "child", "expected": "For a child application it sets mountpath and parent, and installs a wrapper invoking the child handler.", "evidence": [{"path": "lib/application.js", "start": 225, "end": 235, "anchor": "fn.mountpath = path"}]},
+            {"id": "test", "expected": "The app.use tests cover mount points and child parent.", "evidence": [{"path": "test/app.use.js", "start": 37, "end": 68, "anchor": "blog.parent"}]}
+          ]
+        }
+      ]
+    }
+  ]
+}
