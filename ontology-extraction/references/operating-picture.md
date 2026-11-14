@@ -98,6 +98,12 @@ python "$SKILL_ROOT/scripts/control_room.py" --repo REPO --skill SKILL --links l
 
 Health is what linked systems report. It never proves that an action works.
 
+To evaluate a configured threshold against supplied past readings, incidents and
+existing alerts, use [historical signal replay](historical-signal-replay.md). It
+distinguishes the time a reading occurred from when it became available and
+shows conflicts and unreviewed outcomes. It does not verify the supplied times,
+reconstruct a past business graph, or prove that a rule predicts outages.
+
 If the user's services do not send traces yet, offer one-command tracing:
 
 ```bash

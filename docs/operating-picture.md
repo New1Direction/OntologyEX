@@ -91,6 +91,10 @@ false alarms alongside a one-reading baseline. It exercises the implementation,
 but does not establish forecasting quality. To assess that, record historical
 metrics and independently labeled incidents for a consenting client, choose
 thresholds without using the test period, and replay on later held-out periods.
+The [historical signal replay](historical-signal-replay.md) accepts structured
+cases with separate event and availability times and compares the simulated
+signal with supplied existing alerts. It does not reconstruct historical graph
+connections or independently verify the supplied records.
 
 ## Your own business
 

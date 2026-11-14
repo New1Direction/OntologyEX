@@ -49,5 +49,7 @@ separately in the browser flow, not scored by this replay.
 Before drawing conclusions about a client, use time-stamped observations and
 independently verified incident labels, freeze thresholds and topology before
 the test period, include quiet periods and gaps, and compare against the alerts
-the team already uses. The present script accepts only this synthetic fixture;
-an ingestion and evaluation workflow for real historical cases remains work to do.
+the team already uses. This particular script accepts only the synthetic fixture.
+The separate [historical signal replay](../docs/historical-signal-replay.md)
+accepts structured user-supplied cases with event and availability times; it
+does not independently verify those claims or evaluate historical topology.

@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
-"""Replays: what the control room concluded from what was known at a moment, held to what really happened.
+"""Replay saved control-room inputs at a chosen moment and compare against supplied outcomes.
 
     python replay.py capture --repo REPO --name payments-outage [--at TIME] [--observations FILE]
                              [--skill SKILL ...] [--links FILE] [--events FILE] [--dependencies FILE]
                              [--rules FILE] [--thresholds FILE] [--window-hours 24]
     python replay.py run REPO/.ontologyex/replays/*  [--format json|markdown]
 
-`capture` saves what the control room reads, as of a moment, into
+`capture` saves what the control room reads at capture time into
 REPO/.ontologyex/replays/NAME/: the discovered topology, the health observations up to that
 moment (the last --window-hours), the skills, links, events, dependencies and rules, and the
 operations ledger (aggregates only, never an export). It writes `case.json` with an empty
 `expect`: say what really happened (the verdict and the cause) once it is known.
 
+A past --at filters observations by their event time, but these legacy observations do not
+record when they became available. The repository, topology, links and other inputs are read
+at capture time. A retrospective capture is not proof those inputs were known at --at.
+
 `run` rebuilds each case through the control room's own assembly (`--bundle-only` with the saved
-topology and `--now` set to the moment), so only what was known then is used, and asks:
+topology and `--now` set to the moment). It cannot independently establish when the saved inputs
+became available. It asks:
 
 - verdict: did it say FAULT, DEGRADED, HEALTHY or INCONCLUSIVE as expected? Missing or expired
   evidence must never read HEALTHY;
@@ -121,7 +126,8 @@ def capture(repo: Path, name: str, at: datetime | None = None, observations: Pat
     case = {"schema_version": 1, "kind": KIND, "name": name, "at": stamp(at), "environment": environment,
             "captured": {"at": stamp(datetime.now(timezone.utc)), "observations_kept": kept,
                          "window_hours": window_hours, "skills": [s.name for s in skills],
-                         "topology": "as discovered when captured (the repository is not copied)"},
+                         "topology": "as discovered when captured (the repository is not copied)",
+                         "timing_limit": "OBSERVATION_AVAILABILITY_AND_PAST_TOPOLOGY_NOT_VERIFIED"},
             "expect": {"verdict": None, "cause": [], "within": 3,
                        "note": "Say what really happened: FAULT, DEGRADED, HEALTHY or INCONCLUSIVE, and the "
                                "component or business item that was the cause."},
@@ -129,7 +135,8 @@ def capture(repo: Path, name: str, at: datetime | None = None, observations: Pat
     write("case.json", case)
     found = evaluate(target)
     return {"status": "CAPTURED", "case": str(target), "observations": kept, "concluded": found["verdict"],
-            "top": found["top"][:5]}
+            "top": found["top"][:5],
+            "timing_limit": "OBSERVATION_AVAILABILITY_AND_PAST_TOPOLOGY_NOT_VERIFIED"}
 
 
 # ---------------------------------------------------------------- run
@@ -216,7 +223,9 @@ def evaluate(folder: Path) -> dict:
     checks["never_healthy_without_evidence"] = not (verdict["status"] == "HEALTHY" and verdict["evidence"]["missing"])
     checks["citations"] = len(cited) == len(conclusions)
     checks["read_only"] = digest(folder) == before
-    return {"case": case["name"], "at": case["at"], "expected": {k: expect.get(k) for k in ("verdict", "cause", "within")},
+    return {"case": case["name"], "at": case["at"],
+            "timing_limit": "OBSERVATION_AVAILABILITY_AND_PAST_TOPOLOGY_NOT_VERIFIED",
+            "expected": {k: expect.get(k) for k in ("verdict", "cause", "within")},
             "verdict": verdict, "top": [{"title": i["title"], "kind": i["kind"], "score": i["score"],
                                          "subject": (i.get("subject") or {}).get("id"), "next_step": i["next_step"]}
                                         for i in report["items"][:10]],
@@ -246,12 +255,14 @@ def run(folders: list[Path]) -> dict:
                         "citation_coverage": round(sum(covered) / len(covered), 3) if covered else None,
                         "healthy_without_evidence": sum(not r["checks"]["never_healthy_without_evidence"]
                                                         for r in results)},
-            "semantics": "REPLAYED_FROM_WHAT_WAS_KNOWN_AT_EACH_MOMENT_NOT_LIVE_STATE"}
+            "semantics": "REPLAYED_FROM_SAVED_INPUTS_HISTORICAL_AVAILABILITY_NOT_INDEPENDENTLY_VERIFIED"}
 
 
 def markdown(report: dict) -> str:
     s = report["summary"]
     lines = ["# Replays", "",
+             "Saved inputs are replayed at the selected time. When observations became available and whether the "
+             "saved topology, models, decisions and other inputs existed at that time are not verified.", "",
              f"{s['passed']} of {s['cases']} case(s) passed; {s['verdicts_right']} of {s['scored']} verdict(s) right"
              + (f"; cause within the top N: {int(s['cause_within_rate'] * 100)}%" if s["cause_within_rate"] is not None else "")
              + (f"; citation coverage {int(s['citation_coverage'] * 100)}%" if s["citation_coverage"] is not None else "")

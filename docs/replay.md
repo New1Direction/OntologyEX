@@ -30,7 +30,7 @@ come with the ones that have no failing system upstream first.
 
 ## Replays
 
-`replay.py` keeps what the control room knew at a moment, and replays it later:
+`replay.py` captures the control room's current inputs and replays those saved inputs at a chosen time:
 
 ```bash
 python ontology-extraction/scripts/replay.py capture --repo REPO --name payments-outage \
@@ -40,10 +40,15 @@ python ontology-extraction/scripts/replay.py capture --repo REPO --name payments
 python ontology-extraction/scripts/replay.py run REPO/.ontologyex/replays/*
 ```
 
-`capture` saves the discovered topology (not the repository), the health observations of the
-window before the moment (`--at`, default now; `--window-hours`, default 24), the skills, links,
-events, dependencies and rules, and the operations ledger: aggregates only, never an export. Run it
-during an incident, or right after, so the topology is the one of that moment.
+`capture` saves the topology discovered **when capture runs** (not the repository), health observations
+whose event timestamps fall in the window before `--at` (default now; `--window-hours`, default 24),
+the skills, links, events, dependencies, rules and operations ledger: aggregates only, never an export.
+Run it during an incident, or as close as practical, so the topology is more likely to match that moment.
+
+**A retrospective `--at` does not reconstruct what was known then.** Legacy observation rows record
+when a reading happened, not when it became available. The topology, skills, links, decisions and other
+files are read at capture time, and may have changed since `--at`. Capture and replay reports now mark
+that timing as unverified; an old case has the same limitation even if it predates the warning.
 
 `run` rebuilds each case through the control room's own assembly (`--bundle-only` with the saved
 topology and `--now` at the moment) from a copy, and checks:
@@ -53,7 +58,11 @@ topology and `--now` at the moment) from a copy, and checks:
 - **citations**: every top conclusion cites evidence the case holds (coverage, 100% expected);
 - **reads only**: the case is unchanged; no repository is read; nothing is written.
 
-It exits 1 when a case fails, so it can run in CI. A case without `expect` is still replayed and
+For separately supplied historical metric and alert records with explicit availability times, use the
+[historical signal replay](historical-signal-replay.md). It evaluates a single threshold signal against
+supplied outcomes and existing alerts. It does not reconstruct or verify a historical business graph.
+
+`replay.py run` exits 1 when a case fails, so it can run in CI. A case without `expect` is still replayed and
 measured, not scored. The repository is not in a case, so confirmations are not re-checked against
 it in a replay (shown as not re-checked).
 
