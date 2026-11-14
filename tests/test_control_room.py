@@ -100,8 +100,46 @@ class ControlRoomTests(unittest.TestCase):
         leading = self.node(state, self.db)["leading_indicators"]
         self.assertEqual(len(leading), 1)
         self.assertEqual(leading[0]["rule"], "TWO_CONSECUTIVE_FRESH_BREACHES")
+        self.assertEqual(leading[0]["source"], "synthetic")
+        self.assertEqual(leading[0]["previous_observed_at"], old["observed_at"])
+        self.assertEqual(leading[0]["current_observed_at"], new["observed_at"])
         self.assertEqual(state["leading_indicator_semantics"],
                          "USER_CONFIGURED_THRESHOLD_NOT_OUTAGE_PREDICTION")
+
+    def test_identical_retries_and_equivalent_timezones_are_one_sample(self):
+        sample = self.record(metrics={"queue_lag_seconds": 150})
+        duplicate = {**sample, "observed_at": "2026-10-27T17:00:00+01:00"}
+        state = self.state([sample, duplicate], {"queue_lag_seconds": 100})
+        self.assertEqual(self.node(state, self.db)["status"], "ok")
+        self.assertEqual(self.node(state, self.db)["leading_indicators"], [])
+
+    def test_prior_conflict_does_not_become_a_threshold_signal(self):
+        first = self.record(date=NOW-timedelta(seconds=15), metrics={"queue_lag_seconds": 150})
+        ambiguous = self.record(date=NOW-timedelta(seconds=15), metrics={"queue_lag_seconds": 200})
+        current = self.record(metrics={"queue_lag_seconds": 210})
+        a = self.state([first, current, ambiguous], {"queue_lag_seconds": 100})
+        b = self.state([ambiguous, current, first], {"queue_lag_seconds": 100})
+        self.assertEqual(a, b)
+        self.assertEqual(self.node(a, self.db)["status"], "ok")
+        self.assertEqual(self.node(a, self.db)["leading_indicators"], [])
+        self.assertIn("CONFLICTING_PRIOR_OBSERVATIONS", [gap["reason"] for gap in a["gaps"]])
+
+    def test_samples_from_different_sources_are_not_a_history(self):
+        a = self.record(date=NOW-timedelta(seconds=15), source="health_probe",
+                        metrics={"queue_lag_seconds": 150})
+        b = self.record(source="otel", metrics={"queue_lag_seconds": 200})
+        state = self.state([a, b], {"queue_lag_seconds": 100})
+        self.assertEqual(self.node(state, self.db)["status"], "ok")
+        self.assertEqual(self.node(state, self.db)["leading_indicators"], [])
+
+    def test_fractional_seconds_are_ordered_as_instants(self):
+        old = self.record(date=NOW, metrics={"queue_lag_seconds": 150})
+        new = self.record(date=NOW+timedelta(microseconds=500000), metrics={"queue_lag_seconds": 200})
+        state = room.build_state(self.graph, [new, old], {"queue_lag_seconds": 100},
+                                 NOW+timedelta(seconds=1))
+        node = self.node(state, self.db)
+        self.assertEqual(node["observed_at"], new["observed_at"])
+        self.assertEqual(node["leading_indicators"][0]["current"], 200)
 
     def test_prior_stale_warning_not_used(self):
         old = self.record(date=NOW-timedelta(minutes=10), ttl=30,

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "name": "Fictional payments latency: deliberately constructed cases",
+  "data": "SYNTHETIC_NOT_PRODUCTION",
+  "start": "2026-01-01T12:00:00Z",
+  "metric": "p95_latency_ms",
+  "threshold": 500,
+  "sample_ttl_seconds": 90,
+  "decision_minutes": [0, 1, 2, 3, 4, 5],
+  "follow_up_end_minute": 10,
+  "cases": [
+    {"id": "persistent-before-failure", "readings": [[0, 300], [1, 550], [2, 600], [3, 610], [4, 620], [5, 650], [6, 950]], "failure_minute": 6},
+    {"id": "abrupt-failure", "readings": [[0, 300], [1, 310], [2, 320], [3, 310], [4, 300], [5, 320], [6, 950]], "failure_minute": 6},
+    {"id": "single-spike-before-failure", "readings": [[0, 300], [1, 310], [2, 300], [3, 310], [4, 300], [5, 700], [6, 950]], "failure_minute": 6},
+    {"id": "brief-spike-no-failure", "readings": [[0, 300], [1, 700], [2, 300], [3, 310], [4, 300], [5, 310]], "failure_minute": null},
+    {"id": "persistent-spike-no-failure", "readings": [[0, 300], [1, 550], [2, 600], [3, 300], [4, 310], [5, 300]], "failure_minute": null},
+    {"id": "stable-no-failure", "readings": [[0, 300], [1, 310], [2, 300], [3, 310], [4, 300], [5, 310]], "failure_minute": null},
+    {"id": "no-samples-before-failure", "readings": [[6, 950]], "failure_minute": 6},
+    {"id": "stale-sample-no-failure", "readings": [[0, 700]], "decision_minutes": [4, 5], "failure_minute": null}
+  ]
+}

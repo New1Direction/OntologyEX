@@ -175,6 +175,7 @@ class SnapshotTests(unittest.TestCase):
     def test_insecure_existing_directory_refused(self):
         other = self.root / "public-cache"
         other.mkdir(mode=0o755)
+        other.chmod(0o755)  # mkdir's mode is filtered by the caller's umask
         with self.assertRaises(ss.SnapshotError):
             ss.SnapshotStore(other)
 

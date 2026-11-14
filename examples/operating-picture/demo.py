@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timedelta, timezone
+import errno
 import importlib.util
 import json
 import shutil
@@ -41,6 +42,15 @@ COMPOSE = """services:
     depends_on: [queue, db]
   queue: {}
   db: {}
+"""
+# Extra fictional dependencies let the early-signal example demonstrate the
+# path up to four connections away. They are declarations, not incident facts.
+EARLY_WARNING_CONNECTIONS = """  order_events:
+    depends_on: [api]
+  revenue_reporting:
+    depends_on: [order_events]
+  sales_dashboard:
+    depends_on: [revenue_reporting]
 """
 SERVICE = "discovery:service:compose.yml:"
 # Synthetic samples: (service, status, metrics). Nothing here is a real observation.
@@ -278,12 +288,14 @@ def write_spend(folder: Path, now: datetime, payouts: list, rng, write) -> None:
                                            "lineItem/UsageAccountId"], usage)
 
 
-def build(out: Path, now: datetime | None = None, unlinked: bool = False) -> dict:
+def build(out: Path, now: datetime | None = None, unlinked: bool = False,
+          early_warning: bool = False) -> dict:
     require(not out.exists(), "demo output already exists; choose a fresh directory")
     now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     repo = out / "business"
     (repo / ".github/workflows").mkdir(parents=True)
-    (repo / "compose.yml").write_text(COMPOSE, encoding="utf-8")
+    (repo / "compose.yml").write_text(COMPOSE + (EARLY_WARNING_CONNECTIONS if early_warning else ""),
+                                      encoding="utf-8")
     (repo / "package.json").write_text(json.dumps({"name": "shop-web", "private": True, "dependencies": {
         "@sendgrid/mail": "^8.1.0", "@sentry/node": "^8.0.0"}}) + "\n", encoding="utf-8")
     (repo / ".github/workflows/ci.yml").write_text(
@@ -313,10 +325,22 @@ def build(out: Path, now: datetime | None = None, unlinked: bool = False) -> dic
          "declared_by": "demo (synthetic)", "note": note} for binding, service, note in LINKS]}))
     stamp = now.isoformat().replace("+00:00", "Z")
     health = out / "health.jsonl"
-    health.write_text("".join(json.dumps({
-        "schema_version": 1, "component_id": SERVICE + name, "observed_at": stamp,
-        "status": status, "source": "synthetic", "expires_after_seconds": 86400,
-        "metrics": metrics}, sort_keys=True) + "\n" for name, status, metrics in HEALTH), encoding="utf-8")
+    rows = [{"schema_version": 1, "component_id": SERVICE + name, "observed_at": stamp,
+             "status": status, "source": "synthetic", "expires_after_seconds": 86400,
+             "metrics": metrics} for name, status, metrics in HEALTH
+            if not early_warning or name not in ("payments", "queue")]
+    thresholds = None
+    if early_warning:
+        # An invented threshold and two invented samples, before any reported
+        # failure. This demonstrates the interface, not predictive ability.
+        for minutes_ago, latency in ((2, 650), (1, 720)):
+            rows.append({"schema_version": 1, "component_id": SERVICE + "payments",
+                         "observed_at": (now - timedelta(minutes=minutes_ago)).isoformat().replace("+00:00", "Z"),
+                         "status": "ok", "source": "synthetic", "expires_after_seconds": 3600,
+                         "metrics": {"p95_latency_ms": latency}})
+        thresholds = out / "thresholds.json"
+        thresholds.write_bytes(canonical({"schema_version": 1, "warning_above": {"p95_latency_ms": 500}}))
+    health.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in rows), encoding="utf-8")
     events = out / "events.json"
     evidence_grade.record(skill, events, "remaining-balance", "REVIEW_SUPPORTS", "demo (synthetic)",
                           "requirements.md and payments.py state the same limit")
@@ -327,9 +351,11 @@ def build(out: Path, now: datetime | None = None, unlinked: bool = False) -> dic
     command = [sys.executable, str(ROOT / "ontology-extraction/scripts/control_room.py"),
                "--repo", str(repo), "--skill", str(skill), "--links", str(links),
                "--events", str(events), "--observations", str(health)]
+    if thresholds:
+        command += ["--thresholds", str(thresholds)]
     return {"status": "DEMO_BUILT", "data": "SYNTHETIC_NOT_PRODUCTION", "repo": str(repo),
             "skill": str(skill), "links": str(links), "events": str(events), "observations": str(health),
-            "command": command}
+            "thresholds": str(thresholds) if thresholds else None, "command": command}
 
 
 def main() -> int:
@@ -339,19 +365,30 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--start-unlinked", action="store_true",
                         help="start with no links and confirm suggested ones in the page")
+    parser.add_argument("--early-warning", action="store_true",
+                        help="show a synthetic payments latency threshold signal")
     args = parser.parse_args()
     try:
-        result = build(args.out, unlinked=args.start_unlinked)
+        result = build(args.out, unlinked=args.start_unlinked, early_warning=args.early_warning)
     except (DomainError, OSError, ValueError) as exc:
         print(canonical({"status": "ERROR", "error": str(exc)}).decode(), end="")
         return 1
     print(canonical(result).decode(), end="")
     if args.serve:
         import control_room
-        print(f"Open http://127.0.0.1:{args.port}/business", flush=True)
-        control_room.serve(Path(result["repo"]), Path(result["observations"]), None, args.port,
-                           skills=[Path(result["skill"])], links=Path(result["links"]),
-                           events=Path(result["events"]), allow_link_decisions=True)
+        print(f"Starting the digital twin demo on http://127.0.0.1:{args.port}/twin "
+              f"(business map: http://127.0.0.1:{args.port}/business)", flush=True)
+        try:
+            control_room.serve(Path(result["repo"]), Path(result["observations"]),
+                               Path(result["thresholds"]) if result["thresholds"] else None, args.port,
+                               skills=[Path(result["skill"])], links=Path(result["links"]),
+                               events=Path(result["events"]), allow_link_decisions=True)
+        except OSError as exc:
+            if exc.errno != errno.EADDRINUSE:
+                raise
+            print(f"Port {args.port} is already in use. Stop the other application or choose another port "
+                  "with --port.", file=sys.stderr)
+            return 1
     return 0
 
 

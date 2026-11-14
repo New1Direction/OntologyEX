@@ -84,8 +84,11 @@ To configure per-metric leading-warning thresholds:
 
 Threshold values are domain and workload specific. No guessed thresholds
 are installed by default. The scorer requires two consecutive fresh readings
-of a configured metric above threshold from the same source label; otherwise
+at distinct times of a configured metric above threshold from the same source label; otherwise
 an ok sample remains ok. An error sample stays error.
+Identical duplicate rows count once, and conflicting prior rows cannot form a
+threshold signal. Signal details include the two values, timestamps, source
+label and configured threshold. Source labels are not authenticated.
 
 A sample older than its own expires_after_seconds is marked STALE. That
 component is not treated as actively healthy *or actively failed*. A status

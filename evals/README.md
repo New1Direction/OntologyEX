@@ -1,5 +1,10 @@
 # Does OntologyEX make an agent right more often?
 
+For cross-file change-impact questions with the same offline coding shell in both arms, see the
+[change-impact evaluation](change-impact.md).
+For a deliberately constructed comparison of early-signal rules, including misses and missing
+data, see the [synthetic early-warning replay](early-warning.md).
+
 `agent_ab.py` asks the same model the same questions about a repository twice:
 
 | Arm | The agent can |
@@ -20,6 +25,12 @@ and the file lines it rests on. No model grades another. Scoring is deterministi
 The report gives each arm's numbers, the difference, every question OntologyEX **fixed** (right only
 with it) and **broke** (right only without it), and a breakdown by category.
 
+These scores are indicators, not a semantic review. A correct paraphrase or an alternative valid
+citation can miss the gold rubric; conversely, the required phrases can appear alongside an incorrect
+claim. Read the saved answers and check consequential claims against the sources before treating a
+score as evidence of correctness. The saved call list contains tool names, not their arguments or
+responses.
+
 ## Datasets
 
 | Dataset | Repository | Questions |
@@ -38,6 +49,9 @@ Read the categories apart. **live** questions (payments health, its error rate, 
 answered from live health, which is not in the repository: the control arm cannot get them right, and
 counting them in a headline would flatter OntologyEX. **records** questions are answerable in both arms,
 from the exported CSVs in the repository, but take arithmetic over weeks of rows without OntologyEX.
+The refund-rate question asks for refund **value** divided by payment value over completed weeks,
+not the percentage of payment records refunded; the open-dispute question includes both
+`needs_response` and `under_review` statuses.
 **unanswerable** questions measure whether the agent says "the sources do not say" instead of guessing;
 one of them (`approve-exception`) sits next to a nearby rule that tempts a wrong answer.
 
@@ -73,6 +87,7 @@ questions first: the report counts input and output tokens per arm, which is wha
 Choices that keep the comparison fair:
 
 - one model per run, the same in both arms, with the same system prompt, file tools and turn limit;
+- the same 64,000-character limit per tool result in both arms; longer results are explicitly marked truncated;
 - no fallback model: a refusal or an exhausted turn limit is scored as it came;
 - the OntologyEX tools run under the default agent policy, read-only, with every call audited;
 - the repository is only read, in both arms.

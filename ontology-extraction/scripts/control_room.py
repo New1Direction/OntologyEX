@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Event, Lock, RLock, Thread
+import errno
 import hmac
 import json
 import math
@@ -26,6 +27,7 @@ import code_surface
 import decide
 import discover_repo
 import evidence_grade
+import first_look
 import decisions
 import dependency_suggest
 import change_impact
@@ -216,18 +218,34 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
         if t > now:
             gaps.append({"source": component_id, "reason": "FUTURE_OBSERVATION_IGNORED"})
             continue
-        grouped[component_id].append(record)
+        # Normalize even when called directly (rather than via read_observations).
+        # Equivalent timezone spellings must represent one sample, not two.
+        grouped[component_id].append({**record, "observed_at": t.isoformat().replace("+00:00", "Z")})
     conflicts = set()
+    histories = {}
     for component_id, records in grouped.items():
-        records.sort(key=lambda r: (r["observed_at"], r["source"], r["status"]))
+        records.sort(key=lambda r: (timestamp(r["observed_at"]), r["source"],
+                                    json.dumps(r, sort_keys=True)))
+        # A retry may write the exact same sample more than once. Group by
+        # source and instant, and collapse identical records within that instant.
+        # Distinct records at the same instant are ambiguous, not a history.
+        by_source = defaultdict(lambda: defaultdict(dict))
+        for record in records:
+            instant = timestamp(record["observed_at"])
+            by_source[record["source"]][instant][json.dumps(record, sort_keys=True)] = record
+        histories[component_id] = {
+            source: [list(samples.values()) for _, samples in sorted(instants.items())]
+            for source, instants in by_source.items()
+        }
         # Never let JSONL line order decide health: one source that disagrees
         # with itself at its newest timestamp fails closed. Different sources
         # are combined below by severity, which no line order can change.
-        for source in {r["source"] for r in records}:
-            mine = [r for r in records if r["source"] == source]
-            newest = [r for r in mine if r["observed_at"] == mine[-1]["observed_at"]]
-            if len({json.dumps(r, sort_keys=True) for r in newest}) > 1:
+        for source, history in histories[component_id].items():
+            if len(history[-1]) > 1:
                 conflicts.add(component_id)
+            if len(history) > 1 and len(history[-2]) > 1:
+                gaps.append({"source": component_id,
+                             "reason": "CONFLICTING_PRIOR_OBSERVATIONS"})
         if component_id in conflicts:
             gaps.append({"source": component_id,
                          "reason": "CONFLICTING_SAME_TIMESTAMP_OBSERVATIONS"})
@@ -243,11 +261,9 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
         sources = []
         if latest is not None and node["id"] not in conflicts:
             # Newest sample per source; each source expires on its own TTL.
-            per_source = {}
-            for record in values:
-                per_source[record["source"]] = record
             fresh = []
-            for source, record in sorted(per_source.items()):
+            for source, history in sorted(histories[node["id"]].items()):
+                record = history[-1][0]
                 age = (now - timestamp(record["observed_at"])).total_seconds()
                 is_fresh = age <= record["expires_after_seconds"]
                 sources.append({"source": source, "status": record["status"],
@@ -260,13 +276,13 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
                 # The most severe fresh source decides; an ok elsewhere cannot hide it.
                 worst = min(severity[r["status"]] for r in fresh)
                 latest = max((r for r in fresh if severity[r["status"]] == worst),
-                             key=lambda r: (r["observed_at"], r["source"]))
+                             key=lambda r: (timestamp(r["observed_at"]), r["source"]))
                 state = latest["status"]
                 for current in fresh:
-                    mine = [r for r in values if r["source"] == current["source"]]
-                    if len(mine) < 2:
+                    history = histories[node["id"]][current["source"]]
+                    if len(history) < 2 or len(history[-2]) != 1:
                         continue
-                    prior = mine[-2]
+                    prior = history[-2][0]
                     prior_age = (now - timestamp(prior["observed_at"])).total_seconds()
                     if prior_age > prior["expires_after_seconds"]:
                         continue
@@ -278,6 +294,9 @@ def build_state(topology: dict, observations: list[dict], thresholds: dict,
                                 "metric": metric, "threshold": threshold,
                                 "current": current["metrics"][metric],
                                 "previous": prior["metrics"][metric],
+                                "source": current["source"],
+                                "previous_observed_at": prior["observed_at"],
+                                "current_observed_at": current["observed_at"],
                                 "rule": "TWO_CONSECUTIVE_FRESH_BREACHES"})
                 if state == "ok" and leading:
                     state = "warning"
@@ -369,7 +388,7 @@ background:#071018;color:#d5e9eb}*{box-sizing:border-box}body{margin:0;backgroun
 min-height:100vh}header{padding:20px 24px;border-bottom:1px solid #254452;display:flex;align-items:center;
 justify-content:space-between;gap:20px}h1{font-size:19px;letter-spacing:.12em;margin:0}small,.muted{color:#839fab}
 header small{display:block;letter-spacing:.11em;margin-bottom:6px;color:#50b5af}
-#business-view,#entity-view{display:inline-block;margin-top:6px;font-size:12px;color:#7fd6d2}
+#business-view,#twin-view,#entity-view{display:inline-block;margin-top:6px;font-size:12px;color:#7fd6d2}
 #entity-page{display:block;margin-top:8px;font-size:12px;color:#7fd6d2}
 main#workspace{position:relative;display:flex;flex-direction:column;gap:12px;padding:12px;
 width:100%;min-height:520px;overflow:visible}
@@ -411,7 +430,7 @@ header>div:last-child #mode{flex-basis:100%;font-size:11px}
 @media(prefers-reduced-motion:reduce){#workspace>section{transition:none!important}}
 </style></head>
 <body><header><div><small>ONTOLOGYEX // LOCAL OBSERVABILITY</small>
-<h1>BUSINESS CONTROL ROOM</h1><a id="business-view" href="/business">Business operating picture →</a> <a id="entity-view" href="/entity">Entities →</a></div><div><select id="lens" aria-label="Graph lens">
+<h1>BUSINESS CONTROL ROOM</h1><a id="business-view" href="/business">Business operating picture →</a> <a id="twin-view" href="/twin">Digital twin →</a> <a id="entity-view" href="/entity">Entities →</a></div><div><select id="lens" aria-label="Graph lens">
 <option value="all">ALL SYSTEMS</option><option value="api">API ROUTES</option>
 <option value="database">DATABASE</option><option value="services">SERVICES</option>
 </select> <input id="graph-search" type="search" aria-label="Find graph node" maxlength="90" placeholder="Find node…"/>
@@ -1135,6 +1154,55 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
              lambda: drift.skill_drift(skills, watermark.RepoFiles(repo, ttl=0)) if skills else None),
         ])
 
+    # The first look must not wait for the first code/supplier scan. Cache only
+    # the quick manifest discovery; enrich it when each scan has a matching revision.
+    first_cache: dict = {}
+    first_lock = Lock()
+
+    def first_state() -> tuple[dict, dict]:
+        if repo is None:
+            return snapshot(), {name: {"status": "NOT_AVAILABLE"} for name in ("code", "suppliers")}
+        with first_lock:
+            current = clock()
+            revision = background_scans.revision(repo)
+            if (first_cache.get("revision") != revision or "topology" not in first_cache or
+                    (current - first_cache["at"]).total_seconds() > 5):
+                topology = (native_view_bridge.native_discover(repo) if native_discovery
+                            else discover_repo.discover(repo))
+                check(background_scans.revision(repo) == revision,
+                      "repository changed during preview; retrying")
+                first_cache.update(topology=topology, revision=revision, at=current)
+            topology = first_cache["topology"]
+            jobs = {row["scan"]: row for row in scanner.status()["scans"]}
+            scans = {}
+            values = {}
+            for name in ("code", "suppliers"):
+                row = jobs[name]
+                value, error = scanner.result(name, wait=False)
+                status = ("PENDING" if row["revision"] is None else
+                          "STALE" if row["revision"] != revision[:16] else
+                          "ERROR" if error else "READY")
+                scans[name] = {"status": status, "running": row["running"],
+                               "committed_at": row["committed_at"],
+                               "error": error if status == "ERROR" else None}
+                values[name] = value if status == "READY" else None
+            if values["code"] is not None:
+                try:
+                    topology = code_surface.attach(topology, repo, surface=values["code"])
+                except (ValueError, OSError, KeyError, TypeError):
+                    scans["code"] = {"status": "ERROR", "running": False,
+                                     "committed_at": None, "error": "Code evidence unavailable"}
+            if values["suppliers"] is not None:
+                try:
+                    topology = suppliers.with_suppliers(topology, values["suppliers"], repo)
+                except (ValueError, OSError, KeyError, TypeError):
+                    scans["suppliers"] = {"status": "ERROR", "running": False,
+                                          "committed_at": None, "error": "Supplier evidence unavailable"}
+            check(background_scans.revision(repo) == revision, "repository changed during preview; retrying")
+            full = build_state(topology, read_observations(observations), rules, current)
+            full["discovery_freshness"] = "AS_OF_LATEST_SUCCESSFUL_SCAN"
+            return full, scans
+
     def snapshot(observation_rows: list[dict] | None = None) -> dict:
         current = clock()
         if frozen_topology is not None:  # a replay: the topology as it was saved
@@ -1247,6 +1315,9 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 payload, mime, code = b"Request rejected", "text/plain", 414
             elif route.path == "/" and not route.query:
                 payload, mime, code = PAGE.encode("utf-8"), "text/html; charset=utf-8", 200
+            elif route.path == "/twin" and not route.query:
+                page = (Path(__file__).resolve().parent / "twin_page.html").read_bytes()
+                payload, mime, code = page, "text/html; charset=utf-8", 200
             elif route.path == "/business" and not route.query:
                 page = (Path(__file__).resolve().parent / "operating_picture.html").read_text(encoding="utf-8")
                 page = page.replace('<meta name="ontologyex-write-token" content=""/>',
@@ -1295,6 +1366,32 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                     payload, code = b'{"status":"NO_LOCAL_REPOSITORY","scans":[]}', 200
                 else:
                     payload, code = json.dumps(scanner.status(), sort_keys=True).encode(), 200
+            elif route.path in ("/api/first-look", "/api/first-look/source"):
+                mime = "application/json; charset=utf-8"
+                try:
+                    if route.path == "/api/first-look":
+                        if route.query:
+                            raise first_look.FirstLookError("first look takes no parameters")
+                        if skills:
+                            answer = {"applicable": False}
+                        else:
+                            full, scans = first_state()
+                            answer = first_look.project(full, scans)
+                    else:
+                        try:
+                            params = parse_qs(route.query, strict_parsing=True, max_num_fields=2)
+                        except ValueError as exc:
+                            raise first_look.FirstLookError("invalid source query") from exc
+                        if set(params) != {"id", "sha256"} or any(len(v) != 1 for v in params.values()):
+                            raise first_look.FirstLookError("source requires one item ID and source hash")
+                        full, _ = first_state()
+                        answer = first_look.source(repo, full, params["id"][0], params["sha256"][0])
+                    payload, code = json.dumps(answer, sort_keys=True).encode(), 200
+                except (first_look.FirstLookError, UnicodeError):
+                    payload, code = b'{"status":"INVALID_QUERY"}', 400
+                except (RoomError, DomainError, discover_repo.DiscoveryError, github_discovery.GitHubDiscoveryError,
+                        native_view_bridge.NativeViewError, OSError, ValueError, TypeError, KeyError):
+                    payload, code = b'{"status":"SOURCE_UNAVAILABLE"}', 503
             elif route.path in ("/api/links/batches", "/api/dependencies/batches", "/api/rules/batches"):
                 # The recorded decision batches, newest first: who, when, what, and whether undone.
                 mime = "application/json; charset=utf-8"
@@ -1821,6 +1918,11 @@ def serve(repo: Path | None, observations: Path | None, thresholds: Path | None,
                 puller.start()
                 print(f"Live pulls: {len(pulls.load(operations_dir))} declared in {operations_dir / pulls.CONFIG}",
                       flush=True)
+            # The launcher waits for this per-process signal rather than mistaking another
+            # application on the same port for a successfully started control room.
+            ready_marker = os.environ.get("ONTOLOGYEX_LAUNCH_READY")
+            if ready_marker:
+                print(ready_marker, flush=True)
             server.serve_forever()
     finally:
         stop_worker.set()
@@ -1941,7 +2043,11 @@ def main():
             github_discovery.GitHubDiscoveryError, snapshot_store.SnapshotError,
             native_view_bridge.NativeViewError, DomainError, decide.DecisionError, ValueError,
             TypeError, RecursionError) as exc:
-        print(json.dumps({"status": "ERROR", "reason": str(exc)}))
+        reason = str(exc)
+        if isinstance(exc, OSError) and exc.errno == errno.EADDRINUSE and not (args.state_only or args.bundle_only):
+            reason = (f"Port {args.port} is already in use. Stop the other application or choose a different "
+                      "port, for example --port 8766.")
+        print(json.dumps({"status": "ERROR", "reason": reason}))
         return 1
 
 

@@ -50,6 +50,19 @@ class BusinessViewTests(unittest.TestCase):
         return bv.project([self.skill], self.state(rows), self.links if links is None else links,
                           self.events if events == "default" else events)
 
+    def test_demo_explains_an_occupied_port(self):
+        with socket.socket() as occupied, tempfile.TemporaryDirectory() as tmp:
+            occupied.bind(("127.0.0.1", 0))
+            occupied.listen()
+            port = occupied.getsockname()[1]
+            run = subprocess.run([sys.executable, str(ROOT / "examples/operating-picture/demo.py"),
+                                  "--out", str(Path(tmp) / "demo"), "--serve", "--port", str(port)],
+                                 capture_output=True, text=True, timeout=30)
+        self.assertNotEqual(run.returncode, 0)
+        self.assertIn(f"Port {port} is already in use", run.stderr)
+        self.assertIn("--port", run.stderr)
+        self.assertNotIn("Traceback", run.stderr)
+
     def by_id(self, items):
         return {item["id"]: item for item in items}
 

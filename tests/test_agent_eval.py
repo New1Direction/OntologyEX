@@ -76,6 +76,23 @@ class AnswerableTests(unittest.TestCase):
         self.assertEqual((found["verdict"], found["uncovered"]), ("ANSWERABLE", []))
         self.assertIn({"present": True, "source": "health", "what": "live health (feeds or traces)"}, found["needs"])
 
+    def test_the_demo_operations_finding_survives_the_tool_output_limit(self):
+        ox = agent_ab.OntologyEx(self.prepared["bundle"], Path(self.tmp.name) / "eval-audit.jsonl")
+        raw = ox.call("operations_status", {})
+        self.assertNotIn("3,142.00", raw[:12_000])  # the earlier cutoff lost this finding
+        shown = json.loads(agent_ab.tool_output(raw))
+        signals = {item["signal"]: item for item in shown["signals"]}
+        self.assertIn("3,142.00", signals["PAYOUTS_NOT_IN_BANK"]["detail"])
+
+    def test_refund_rate_accepts_more_precise_equivalent_percentages(self):
+        questions = agent_ab.load_dataset(DATASET)["questions"]
+        question = next(q for q in questions if q["id"] == "refund-rate")
+        repo = agent_ab.Repo(self.prepared["repo"])
+        def scored(answer):
+            return agent_ab.score(question, {"stop": "submitted", "submitted": submit(answer, True)}, repo)["correct"]
+        self.assertTrue(scored("Refund value was 6.22% of payment value, versus 0.36% before."))
+        self.assertFalse(scored("Refund value was 6.22% of payment value, versus 0.32% before."))
+
     def test_the_agent_tool_and_its_arguments(self):
         tools = agent_tools.Tools(agent_tools.Source(None, self.prepared["bundle"]), agent_tools.load_policy(None),
                                   agent_tools.Audit(Path(self.tmp.name) / "audit.jsonl", "claude", "Dana"), None)
@@ -240,6 +257,32 @@ class HarnessTests(unittest.TestCase):
         self.assertFalse(agent_ab.says("within 300 days", "30"))
         self.assertTrue(agent_ab.says(agent_ab.normalize("3,142.00 is missing"), "3142.00"))
         self.assertFalse(agent_ab.says("rapid", "api"))
+
+    def test_hidden_root_files_are_readable_and_citations_resolve(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            policy = root / ".ontologyex" / "operations" / "docs" / "refund-policy.md"
+            policy.parent.mkdir(parents=True)
+            policy.write_text("Refunds within 30 days.\n", encoding="utf-8")
+            repo = agent_ab.Repo(root)
+            rel = ".ontologyex/operations/docs/refund-policy.md"
+            self.assertEqual(repo.resolve(rel), rel)
+            self.assertEqual(repo.resolve("./" + rel), rel)
+            self.assertIn("Refunds within 30 days", repo.call("read_file", {"path": rel}))
+            self.assertIsNone(repo.resolve("../" + rel))
+            question = {"id": "policy", "answerable": True, "facts": [{"any": ["30 days"]}],
+                        "citations": [{"path": "docs/refund-policy.md", "lines": [1, 1]}]}
+            result = {"stop": "submitted", "submitted": submit("30 days", True, (rel, 1, 1))}
+            found = agent_ab.score(question, result, repo)
+            self.assertEqual((found["citations_valid"], found["grounded"], found["strict"]), (1, True, True))
+
+    def test_large_tool_result_is_preserved_or_marked_truncated(self):
+        # The demo's operations response is over 40k characters, with findings after 12k.
+        content = "a" * 40_000 + "payout finding"
+        self.assertEqual(agent_ab.tool_output(content), content)
+        clipped = agent_ab.tool_output("a" * (agent_ab.MAX_OUTPUT + 1))
+        self.assertLessEqual(len(clipped), agent_ab.MAX_OUTPUT)
+        self.assertIn("Tool output truncated", clipped)
 
 
 if __name__ == "__main__":

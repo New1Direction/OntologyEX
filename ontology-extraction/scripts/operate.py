@@ -23,15 +23,18 @@ import argparse
 import json
 import os
 from pathlib import Path
+import secrets
 import signal
 import subprocess
 import sys
+from threading import Event, Thread
 import time
 
 import feeds
 import native_view_bridge
 
 HERE = Path(__file__).resolve().parent
+STARTUP_TIMEOUT_SECONDS = 30
 
 
 def feeds_command(config: Path, engine: str) -> tuple[list[str], str]:
@@ -51,6 +54,8 @@ def control_room_command(args, observations: Path | None) -> list[str]:
     command = [sys.executable, str(HERE / "control_room.py"), "--repo", str(args.repo), "--port", str(args.port)]
     if observations is not None:
         command += ["--observations", str(observations)]
+    if getattr(args, "thresholds", None) is not None:
+        command += ["--thresholds", str(args.thresholds)]
     dependencies = args.dependencies or (args.feeds.parent / "dependencies.json" if args.feeds else None)
     if dependencies is not None:
         command += ["--dependencies", str(dependencies)]
@@ -88,36 +93,81 @@ def stop(processes: list[subprocess.Popen]) -> None:
             process.wait(timeout=max(0.1, deadline - time.monotonic()))
         except subprocess.TimeoutExpired:
             process.kill()
+            process.wait()
+
+
+def forward_control_room(process: subprocess.Popen, marker: str, ready: Event) -> None:
+    """Forward the child's output and notice its private, per-launch readiness signal."""
+    try:
+        for line in process.stdout:
+            if line.rstrip("\r\n") == marker:
+                ready.set()
+            else:
+                print(line, end="", flush=True)
+    finally:
+        process.stdout.close()
 
 
 def up(args) -> int:
     processes: list[subprocess.Popen] = []
     observations = None
     engine = None
-    if args.feeds is not None:
-        config = feeds.load_config(args.feeds)  # refuse a bad config before starting anything
-        observations = feeds.output_path(config)
-        # The control room refuses a missing file; with traces only, none is written before traffic.
-        observations.parent.mkdir(parents=True, exist_ok=True)
-        observations.touch(exist_ok=True)
-        command, engine = feeds_command(args.feeds, args.engine)
-        processes.append(subprocess.Popen(command))
-    processes.append(subprocess.Popen(control_room_command(args, observations)))
-    history = history_path(args)
-    print(json.dumps({"status": "UP", "command": f"http://127.0.0.1:{args.port}/command",
-                      "digest": f"http://127.0.0.1:{args.port}/digest",
-                      "history": str(history) if history else None,
-                      "business": f"http://127.0.0.1:{args.port}/business",
-                      "system_map": f"http://127.0.0.1:{args.port}/",
-                      "feeds_engine": engine, "observations": str(observations) if observations else None,
-                      "stop": "Ctrl-C"}, indent=2), flush=True)
     previous = signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
+    reader = None
     try:
+        if args.feeds is not None:
+            config = feeds.load_config(args.feeds)  # refuse a bad config before starting anything
+            observations = feeds.output_path(config)
+            # The control room refuses a missing file; with traces only, none is written before traffic.
+            observations.parent.mkdir(parents=True, exist_ok=True)
+            observations.touch(exist_ok=True)
+            command, engine = feeds_command(args.feeds, args.engine)
+            processes.append(subprocess.Popen(command))
+        # A live port alone cannot identify our child: another app might already own it.
+        # The control room sends this unique marker only after it has bound and initialized.
+        marker = "ONTOLOGYEX_READY_" + secrets.token_hex(16)
+        env = {**os.environ, "ONTOLOGYEX_LAUNCH_READY": marker}
+        room = subprocess.Popen(control_room_command(args, observations), stdout=subprocess.PIPE,
+                                text=True, errors="replace", bufsize=1, env=env)
+        processes.append(room)
+        ready = Event()
+        reader = Thread(target=forward_control_room, args=(room, marker, ready), daemon=True)
+        reader.start()
+        deadline = time.monotonic() + STARTUP_TIMEOUT_SECONDS
+        while not ready.wait(0.05):
+            for process in processes:
+                code = process.poll()
+                if code is not None:
+                    if process is room:
+                        reader.join(timeout=1)  # show its explanation before the stop notice
+                    name = "feeds" if process is not room else "control room"
+                    print(json.dumps({"status": "STOPPED", "process": name, "exit_code": code}), flush=True)
+                    return code or 1
+            if time.monotonic() >= deadline:
+                print(json.dumps({"status": "ERROR", "error": "Control room did not start within "
+                                  f"{STARTUP_TIMEOUT_SECONDS} seconds."}), flush=True)
+                return 1
+        # Startup can fail just as the readiness signal arrives.
+        for process in processes:
+            code = process.poll()
+            if code is not None:
+                name = "feeds" if process is not room else "control room"
+                print(json.dumps({"status": "STOPPED", "process": name, "exit_code": code}), flush=True)
+                return code or 1
+        history = history_path(args)
+        print(json.dumps({"status": "UP", "twin": f"http://127.0.0.1:{args.port}/twin",
+                          "business": f"http://127.0.0.1:{args.port}/business",
+                          "command": f"http://127.0.0.1:{args.port}/command",
+                          "digest": f"http://127.0.0.1:{args.port}/digest",
+                          "history": str(history) if history else None,
+                          "system_map": f"http://127.0.0.1:{args.port}/",
+                          "feeds_engine": engine, "observations": str(observations) if observations else None,
+                          "stop": "Ctrl-C"}, indent=2), flush=True)
         while True:
             for process in processes:
                 code = process.poll()
                 if code is not None:
-                    name = "feeds" if engine and process is processes[0] else "control room"
+                    name = "feeds" if process is not room else "control room"
                     print(json.dumps({"status": "STOPPED", "process": name, "exit_code": code}), flush=True)
                     return code or 1
             time.sleep(0.5)
@@ -126,6 +176,8 @@ def up(args) -> int:
     finally:
         signal.signal(signal.SIGTERM, previous)
         stop(processes)
+        if reader is not None:
+            reader.join(timeout=2)
 
 
 def main() -> int:
@@ -137,6 +189,8 @@ def main() -> int:
     u.add_argument("--skill", type=Path, action="append", default=[])
     u.add_argument("--links", type=Path)
     u.add_argument("--events", type=Path)
+    u.add_argument("--thresholds", type=Path,
+                   help="user-configured metric thresholds for two-sample signals")
     u.add_argument("--dependencies", type=Path,
                    help="dependencies confirmed from observed calls (default: beside --feeds)")
     u.add_argument("--port", type=int, default=8765)
@@ -151,8 +205,11 @@ def main() -> int:
                    help="feeds engine: auto uses ontologyex-feeds when it is installed")
     args = parser.parse_args()
     try:
-        if not (0 < args.port <= 65535 and args.repo.is_dir()):
-            raise ValueError("expected a repository directory and a port 1..65535")
+        if not args.repo.is_dir() or args.repo.is_symlink():
+            raise ValueError(f"Repository folder not found or is a symlink: {args.repo}. "
+                             "Pass an existing folder with --repo.")
+        if not 0 < args.port <= 65535:
+            raise ValueError("Port must be between 1 and 65535.")
         return up(args)
     except (feeds.FeedError, native_view_bridge.NativeViewError, OSError, ValueError) as exc:
         print(json.dumps({"status": "ERROR", "error": str(exc)}))

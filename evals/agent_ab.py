@@ -54,7 +54,9 @@ ARMS = ("control", "treatment")
 ONTOLOGYEX_TOOLS = ("check_answerable", "search_entities", "get_entity_context", "explain_relationship",
                     "what_needs_attention", "operations_status", "who_owns", "list_suppliers", "source_drift")
 SKIP = {".git", "node_modules", ".venv", "__pycache__", "dist", "build", ".next", "target"}
-MAX_OUTPUT = 12_000
+# Both arms get the same limit. A full operations_status response for the demo
+# exceeds 12,000 characters, with material findings after that point.
+MAX_OUTPUT = 64_000
 MAX_TURNS = 24
 SYSTEM = (
     "You answer questions about a business from its repository. Use the tools to find the answer in the sources. "
@@ -150,7 +152,9 @@ class Repo:
 
     def resolve(self, path: str) -> str | None:
         """A cited path as the repository names it: itself, or the one file ending in it."""
-        path = path.strip().lstrip("./").replace("\\", "/")
+        path = path.strip().replace("\\", "/")
+        while path.startswith("./"):
+            path = path[2:]
         if path in self.files:
             return path
         ends = [f for f in self.files if f.endswith("/" + path)]
@@ -216,6 +220,14 @@ class OntologyEx:
 
 # ---------------------------------------------------------------- agents
 
+def tool_output(content: str) -> str:
+    """Bound tool output without silently presenting a cut-off result as complete."""
+    if len(content) <= MAX_OUTPUT:
+        return content
+    notice = "\n[Tool output truncated; later content was omitted.]"
+    return content[:MAX_OUTPUT - len(notice)] + notice
+
+
 class ClaudeAgent:
     """A manual tool-use loop over the Messages API (official SDK), so every call and token is counted."""
 
@@ -260,7 +272,7 @@ class ClaudeAgent:
                             "turns": turn + 1}
                 calls.append(use.name)
                 results.append({"type": "tool_result", "tool_use_id": use.id,
-                                "content": execute(use.name, dict(use.input))[:MAX_OUTPUT]})
+                                "content": tool_output(execute(use.name, dict(use.input)))})
             messages.append({"role": "user", "content": results})
         return {"stop": "max_turns", "calls": calls, "usage": usage, "turns": MAX_TURNS}
 

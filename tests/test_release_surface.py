@@ -114,9 +114,13 @@ print(ds.canonical({'paths': sorted(files), 'upstream_commit': pin['commit']}).d
             self.assertFalse((project / 'build').exists())
             installed = project / '.claude/skills/ontology-extraction'
             self.assertTrue((installed / 'SKILL.md').is_file())
+            self.assertTrue((installed / 'scripts/twin_page.html').is_file())
             help_result = subprocess.run([sys.executable, '-B', str(installed / 'scripts/onboard.py'), '--help'],
                                          cwd=temp, env=env, capture_output=True, text=True, timeout=20)
             self.assertEqual(help_result.returncode, 0, help_result.stderr)
+            room_help = subprocess.run([sys.executable, '-B', str(installed / 'scripts/control_room.py'), '--help'],
+                                       cwd=temp, env=env, capture_output=True, text=True, timeout=20)
+            self.assertEqual(room_help.returncode, 0, room_help.stderr)
 
 
 if __name__ == '__main__':
