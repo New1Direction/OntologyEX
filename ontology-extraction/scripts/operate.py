@@ -32,6 +32,7 @@ import time
 
 import feeds
 import native_view_bridge
+import observation_history
 
 HERE = Path(__file__).resolve().parent
 STARTUP_TIMEOUT_SECONDS = 30
@@ -112,16 +113,26 @@ def up(args) -> int:
     processes: list[subprocess.Popen] = []
     observations = None
     engine = None
+    recording = None
+    record_observations = getattr(args, "record_observations", False)
+    if record_observations and args.feeds is None:
+        raise ValueError("--record-observations requires --feeds")
+    if record_observations and args.engine == "rust":
+        raise ValueError("Observation recording currently requires the Python feeds engine; choose --engine python or auto")
     previous = signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
     reader = None
     try:
         if args.feeds is not None:
             config = feeds.load_config(args.feeds)  # refuse a bad config before starting anything
             observations = feeds.output_path(config)
+            # Recording is implemented at the Python feed publication point.
+            command, engine = feeds_command(args.feeds, "python" if record_observations else args.engine)
+            if record_observations:
+                recording = observation_history.default_path(args.repo)
+                command += ["--record-history", str(recording)]
             # The control room refuses a missing file; with traces only, none is written before traffic.
             observations.parent.mkdir(parents=True, exist_ok=True)
             observations.touch(exist_ok=True)
-            command, engine = feeds_command(args.feeds, args.engine)
             processes.append(subprocess.Popen(command))
         # A live port alone cannot identify our child: another app might already own it.
         # The control room sends this unique marker only after it has bound and initialized.
@@ -160,6 +171,7 @@ def up(args) -> int:
                           "command": f"http://127.0.0.1:{args.port}/command",
                           "digest": f"http://127.0.0.1:{args.port}/digest",
                           "history": str(history) if history else None,
+                          "observation_history": str(recording) if recording else None,
                           "system_map": f"http://127.0.0.1:{args.port}/",
                           "feeds_engine": engine, "observations": str(observations) if observations else None,
                           "stop": "Ctrl-C"}, indent=2), flush=True)
@@ -201,6 +213,8 @@ def main() -> int:
                         "intervals (they use the network; keys from environment variables only)")
     u.add_argument("--history", type=Path, help="where to record the ranking (default: REPO/.ontologyex/history.jsonl)")
     u.add_argument("--no-history", action="store_true", help="do not record the ranking for the weekly digest")
+    u.add_argument("--record-observations", action="store_true",
+                   help="opt in to private local feed observation history (uses the Python feeds engine)")
     u.add_argument("--engine", choices=("auto", "python", "rust"), default="auto",
                    help="feeds engine: auto uses ontologyex-feeds when it is installed")
     args = parser.parse_args()

@@ -27,6 +27,10 @@ decision window, so the replay cannot use it to claim an earlier warning. The
 report compares the synthetic two-reading rule with synthetic existing alerts;
 these cases are a demonstration, **not evidence of predictive performance**.
 
+An opt-in [local observation history](observation-history.md) can prepare an
+unreviewed case from newly published feed readings. It starts with unknown capture
+coverage; recorded samples alone do not prove that no readings were missed.
+
 | Outcome in the fictional cases | Replayed two-reading rule | Supplied existing alerts |
 | --- | ---: | ---: |
 | Hit before the labeled incident | 1 | 2 |
@@ -50,6 +54,7 @@ availability times are refused rather than silently treated as known data.
 | `threshold.training_data_available_through` | The latest time that training data was available. Use `null` when the threshold was selected before every decision window. For a retrospectively selected threshold, supply a cutoff before each test window and no later than selection. This is an assertion about the training data, not an audit of what the person saw. |
 | `window.start`, `window.end`, `step_seconds` | Inclusive decision points at the specified cadence. One case has at most 301 decision points. A warning is evaluated at these points, not continuously between them. |
 | `window.follow_up_end` | The end of the period in which an independently reviewed incident would count for this case. It must be after the decision window. |
+| `capture_coverage` (optional) | For recorded cases, `unknown` prevents the replayed rule from being scored even if a simulated warning is shown. A reviewer may assert `complete` with an evidence reference; that assertion is not independently verified. Cases without this field retain sampled-freshness behavior and do not prove continuous coverage. |
 | `outcome` | `incident` with an `incident_at` after the decision window and within follow-up; `no_incident` for an assessed quiet period from window start through follow-up; or `unreviewed` when the outcome still needs a person. An unreviewed outcome may carry a candidate incident time, but is never scored. All require an `evidence_ref`. |
 | `observations[].observed_at` | When the metric reading was made. |
 | `observations[].available_at` | When the reading first became available to the monitored system, **not when a historical file was imported today**. It may be later than `observed_at`, but not earlier. |

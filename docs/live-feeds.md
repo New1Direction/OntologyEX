@@ -92,6 +92,12 @@ otherwise `feeds.py`) and the control room reading its observations. Add `--skil
 and `--links` as you would for `control_room.py`. Ctrl-C stops both; if one exits,
 the other is stopped too.
 
+To keep normalized readings beyond the live file's rolling window, explicitly add
+`--record-observations`. This uses the Python feed engine and a private local database;
+it does not backfill or prove continuous source coverage. See
+[local observation history](observation-history.md) for inspecting gaps and preparing
+an unreviewed replay. The existing `--no-history` flag controls digest history separately.
+
 ## Send traces from your services, one command each
 
 Health from probes needs nothing in your code. Calls between services need traces.
