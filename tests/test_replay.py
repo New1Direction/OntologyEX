@@ -139,6 +139,7 @@ class CaptureTests(unittest.TestCase):
             self.assertEqual(run.returncode, 0, run.stderr)
             answer = json.loads(run.stdout)
             self.assertEqual((answer["observations"], answer["concluded"]["status"]), (1, "FAULT"))
+            self.assertEqual(answer["timing_limit"], "OBSERVATION_AVAILABILITY_AND_PAST_TOPOLOGY_NOT_VERIFIED")
             case = Path(built["repo"]) / ".ontologyex/replays/outage"
             self.assertEqual(sorted(p.name for p in case.iterdir()),
                              ["case.json", "links.json", "observations.jsonl", "operations.json", "skills", "topology.json"])
@@ -148,7 +149,10 @@ class CaptureTests(unittest.TestCase):
                 self.assertNotIn(needle, ledger)
             meta = json.loads((case / "case.json").read_text())
             self.assertEqual((meta["expect"]["verdict"], meta["environment"]), (None, "production"))
+            self.assertEqual(meta["captured"]["timing_limit"],
+                             "OBSERVATION_AVAILABILITY_AND_PAST_TOPOLOGY_NOT_VERIFIED")
             result = replay.evaluate(case)
+            self.assertEqual(result["timing_limit"], "OBSERVATION_AVAILABILITY_AND_PAST_TOPOLOGY_NOT_VERIFIED")
             self.assertFalse(result["scored"])
             self.assertTrue(result["passed"])  # unscored: only the standing checks (citations, read-only)
             again = subprocess.run([sys.executable, str(SCRIPTS / "replay.py"), "capture", "--repo", built["repo"],

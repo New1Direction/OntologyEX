@@ -75,8 +75,11 @@ Then offer what fits:
   decides nothing; a call whose outcome is unknown (timed out, interrupted, no result) holds the identical next
   call for a person (it writes `.claude/settings.json`: ask first; see [guardrails](docs/guardrails.md)).
 - **Check the conclusions against what happened:** each command-center finding names its evidence
-  (`evidence`, `contradicted_by`); `replay.py capture --repo REPO --name NAME` saves what was known at a
-  moment, and `replay.py run` replays saved moments against what really happened (see [replays](docs/replay.md)).
+  (`evidence`, `contradicted_by`); `replay.py capture --repo REPO --name NAME` saves the inputs read when
+  capture runs, and `replay.py run` replays them at the chosen time. A retrospective capture cannot verify
+  when readings became available or whether its current topology and decisions existed at that time
+  (see [replays](docs/replay.md)). For supplied historical readings and existing alerts with separate
+  event and availability times, use [historical signal replay](ontology-extraction/references/historical-signal-replay.md).
 - **Change one workflow safely:** build a domain skill for it
   ([guided onboarding](ontology-extraction/references/guided-onboarding.md)).
 - **Keep the kit in their project:** `KIT/.venv/bin/python KIT/ontology-extraction/scripts/install.py --project REPO`

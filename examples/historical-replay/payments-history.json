@@ -1,0 +1,361 @@
+{
+  "schema_version": 1,
+  "kind": "ONTOLOGYEX_HISTORICAL_SIGNAL_DATASET",
+  "name": "synthetic-payments-history",
+  "metric": "p95_latency_ms",
+  "threshold": {
+    "above": 500,
+    "selected_at": "2026-10-25T12:00:00Z",
+    "training_data_available_through": null
+  },
+  "cases": [
+    {
+      "id": "persistent-before-incident",
+      "component": "discovery:service:compose.yml:payments",
+      "window": {
+        "start": "2026-11-01T12:00:00Z",
+        "end": "2026-11-01T12:05:00Z",
+        "follow_up_end": "2026-11-01T12:10:00Z",
+        "step_seconds": 60
+      },
+      "outcome": {
+        "state": "incident",
+        "incident_at": "2026-11-01T12:06:00Z",
+        "evidence_ref": "fixture:persistent-before-incident"
+      },
+      "baseline": {
+        "coverage": "complete",
+        "alerts": [
+          {
+            "ref": "fixture:existing-alert",
+            "alerted_at": "2026-11-01T12:04:00Z",
+            "available_at": "2026-11-01T12:04:00Z"
+          }
+        ]
+      },
+      "observations": [
+        {
+          "ref": "sample-0",
+          "observed_at": "2026-11-01T12:00:00Z",
+          "available_at": "2026-11-01T12:00:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 300
+        },
+        {
+          "ref": "sample-1",
+          "observed_at": "2026-11-01T12:01:00Z",
+          "available_at": "2026-11-01T12:01:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 650
+        },
+        {
+          "ref": "sample-2",
+          "observed_at": "2026-11-01T12:02:00Z",
+          "available_at": "2026-11-01T12:02:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 720
+        },
+        {
+          "ref": "sample-3",
+          "observed_at": "2026-11-01T12:03:00Z",
+          "available_at": "2026-11-01T12:03:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 710
+        },
+        {
+          "ref": "sample-4",
+          "observed_at": "2026-11-01T12:04:00Z",
+          "available_at": "2026-11-01T12:04:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 730
+        },
+        {
+          "ref": "sample-5",
+          "observed_at": "2026-11-01T12:05:00Z",
+          "available_at": "2026-11-01T12:05:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 740
+        }
+      ]
+    },
+    {
+      "id": "late-arriving-reading",
+      "component": "discovery:service:compose.yml:payments",
+      "window": {
+        "start": "2026-11-02T12:00:00Z",
+        "end": "2026-11-02T12:05:00Z",
+        "follow_up_end": "2026-11-02T12:10:00Z",
+        "step_seconds": 60
+      },
+      "outcome": {
+        "state": "incident",
+        "incident_at": "2026-11-02T12:06:00Z",
+        "evidence_ref": "fixture:late-arriving-reading"
+      },
+      "baseline": {
+        "coverage": "complete",
+        "alerts": [
+          {
+            "ref": "fixture:existing-alert",
+            "alerted_at": "2026-11-02T12:04:00Z",
+            "available_at": "2026-11-02T12:04:00Z"
+          }
+        ]
+      },
+      "observations": [
+        {
+          "ref": "sample-0",
+          "observed_at": "2026-11-02T12:00:00Z",
+          "available_at": "2026-11-02T12:00:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 300
+        },
+        {
+          "ref": "sample-1",
+          "observed_at": "2026-11-02T12:01:00Z",
+          "available_at": "2026-11-02T12:01:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 650
+        },
+        {
+          "ref": "late-sample",
+          "observed_at": "2026-11-02T12:02:00Z",
+          "available_at": "2026-11-02T12:07:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 720
+        }
+      ]
+    },
+    {
+      "id": "signal-without-incident",
+      "component": "discovery:service:compose.yml:payments",
+      "window": {
+        "start": "2026-11-03T12:00:00Z",
+        "end": "2026-11-03T12:05:00Z",
+        "follow_up_end": "2026-11-03T12:10:00Z",
+        "step_seconds": 60
+      },
+      "outcome": {
+        "state": "no_incident",
+        "incident_at": null,
+        "evidence_ref": "fixture:signal-without-incident"
+      },
+      "baseline": {
+        "coverage": "complete",
+        "alerts": []
+      },
+      "observations": [
+        {
+          "ref": "sample-0",
+          "observed_at": "2026-11-03T12:00:00Z",
+          "available_at": "2026-11-03T12:00:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 300
+        },
+        {
+          "ref": "sample-1",
+          "observed_at": "2026-11-03T12:01:00Z",
+          "available_at": "2026-11-03T12:01:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 650
+        },
+        {
+          "ref": "sample-2",
+          "observed_at": "2026-11-03T12:02:00Z",
+          "available_at": "2026-11-03T12:02:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 720
+        },
+        {
+          "ref": "sample-3",
+          "observed_at": "2026-11-03T12:03:00Z",
+          "available_at": "2026-11-03T12:03:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 300
+        },
+        {
+          "ref": "sample-4",
+          "observed_at": "2026-11-03T12:04:00Z",
+          "available_at": "2026-11-03T12:04:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 300
+        },
+        {
+          "ref": "sample-5",
+          "observed_at": "2026-11-03T12:05:00Z",
+          "available_at": "2026-11-03T12:05:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 300
+        }
+      ]
+    },
+    {
+      "id": "conflicting-readings",
+      "component": "discovery:service:compose.yml:payments",
+      "window": {
+        "start": "2026-11-04T12:00:00Z",
+        "end": "2026-11-04T12:05:00Z",
+        "follow_up_end": "2026-11-04T12:10:00Z",
+        "step_seconds": 60
+      },
+      "outcome": {
+        "state": "no_incident",
+        "incident_at": null,
+        "evidence_ref": "fixture:conflicting-readings"
+      },
+      "baseline": {
+        "coverage": "complete",
+        "alerts": []
+      },
+      "observations": [
+        {
+          "ref": "sample-0",
+          "observed_at": "2026-11-04T12:00:00Z",
+          "available_at": "2026-11-04T12:00:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 300
+        },
+        {
+          "ref": "sample-1",
+          "observed_at": "2026-11-04T12:01:00Z",
+          "available_at": "2026-11-04T12:01:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 650
+        },
+        {
+          "ref": "conflict-a",
+          "observed_at": "2026-11-04T12:02:00Z",
+          "available_at": "2026-11-04T12:02:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 720
+        },
+        {
+          "ref": "conflict-b",
+          "observed_at": "2026-11-04T12:02:00Z",
+          "available_at": "2026-11-04T12:02:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 280
+        }
+      ]
+    },
+    {
+      "id": "outcome-needs-review",
+      "component": "discovery:service:compose.yml:payments",
+      "window": {
+        "start": "2026-11-05T12:00:00Z",
+        "end": "2026-11-05T12:05:00Z",
+        "follow_up_end": "2026-11-05T12:10:00Z",
+        "step_seconds": 60
+      },
+      "outcome": {
+        "state": "unreviewed",
+        "incident_at": "2026-11-05T12:06:00Z",
+        "evidence_ref": "fixture:outcome-needs-review"
+      },
+      "baseline": {
+        "coverage": "complete",
+        "alerts": [
+          {
+            "ref": "fixture:existing-alert",
+            "alerted_at": "2026-11-05T12:04:00Z",
+            "available_at": "2026-11-05T12:04:00Z"
+          }
+        ]
+      },
+      "observations": [
+        {
+          "ref": "sample-0",
+          "observed_at": "2026-11-05T12:00:00Z",
+          "available_at": "2026-11-05T12:00:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 300
+        },
+        {
+          "ref": "sample-1",
+          "observed_at": "2026-11-05T12:01:00Z",
+          "available_at": "2026-11-05T12:01:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 650
+        },
+        {
+          "ref": "sample-2",
+          "observed_at": "2026-11-05T12:02:00Z",
+          "available_at": "2026-11-05T12:02:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 720
+        },
+        {
+          "ref": "sample-3",
+          "observed_at": "2026-11-05T12:03:00Z",
+          "available_at": "2026-11-05T12:03:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 710
+        },
+        {
+          "ref": "sample-4",
+          "observed_at": "2026-11-05T12:04:00Z",
+          "available_at": "2026-11-05T12:04:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 730
+        },
+        {
+          "ref": "sample-5",
+          "observed_at": "2026-11-05T12:05:00Z",
+          "available_at": "2026-11-05T12:05:00Z",
+          "source": "synthetic",
+          "status": "ok",
+          "ttl_seconds": 600,
+          "value": 740
+        }
+      ]
+    }
+  ]
+}

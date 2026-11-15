@@ -4,6 +4,8 @@ For cross-file change-impact questions with the same offline coding shell in bot
 [change-impact evaluation](change-impact.md).
 For a deliberately constructed comparison of early-signal rules, including misses and missing
 data, see the [synthetic early-warning replay](early-warning.md).
+For supplied historical cases with availability times and existing-alert evidence, see the
+[historical signal replay](../docs/historical-signal-replay.md).
 
 `agent_ab.py` asks the same model the same questions about a repository twice:
 
