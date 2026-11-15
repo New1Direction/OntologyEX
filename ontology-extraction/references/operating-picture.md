@@ -103,6 +103,9 @@ existing alerts, use [historical signal replay](historical-signal-replay.md). It
 distinguishes the time a reading occurred from when it became available and
 shows conflicts and unreviewed outcomes. It does not verify the supplied times,
 reconstruct a past business graph, or prove that a rule predicts outages.
+If the user wants to retain new feed observations for later review, explicitly
+enable and inspect [local observation history](observation-history.md). It uses
+the Python feed engine and cannot establish continuous coverage by itself.
 
 If the user's services do not send traces yet, offer one-command tracing:
 

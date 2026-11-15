@@ -80,6 +80,8 @@ Then offer what fits:
   when readings became available or whether its current topology and decisions existed at that time
   (see [replays](docs/replay.md)). For supplied historical readings and existing alerts with separate
   event and availability times, use [historical signal replay](ontology-extraction/references/historical-signal-replay.md).
+  With the user's opt-in, [local observation history](ontology-extraction/references/observation-history.md)
+  records new normalized feed readings for later review; it does not prove continuous coverage.
 - **Change one workflow safely:** build a domain skill for it
   ([guided onboarding](ontology-extraction/references/guided-onboarding.md)).
 - **Keep the kit in their project:** `KIT/.venv/bin/python KIT/ontology-extraction/scripts/install.py --project REPO`

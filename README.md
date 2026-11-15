@@ -71,6 +71,10 @@ The [historical signal replay](docs/historical-signal-replay.md) compares that
 rule with supplied past alerts and incidents, keeping late and conflicting
 readings visible for review. Its times and incident labels are user-supplied,
 not independently verified.
+With a configured feed, add `--record-observations` to the `operate.py up` command
+to keep a private local history for later review. It starts from that point, uses
+the Python feed engine, and does not establish continuous coverage. See
+[local observation history](docs/observation-history.md).
 
 Open the printed **Business** link for a source-backed preview of the repository's
 services, routes, data structures and outside providers, even

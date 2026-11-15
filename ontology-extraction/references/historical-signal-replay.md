@@ -2,9 +2,10 @@
 
 Use this local workflow when a user supplies historical metric readings, incident
 labels and existing alerts. It compares the simulated two-reading threshold rule
-with those alerts. Each reading needs both its event time and the time it became
+with those alerts. Each reading needs both its observation time and the time it became
 available to the monitored system. If availability is unknown, do not substitute
-the event time or claim the replay proves what was known then.
+the observation time or claim the replay proves what was known then. A normalized
+observation's timestamp is not necessarily the start time of the underlying event.
 
 Ask the user to prepare a dataset in `REPO/.ontologyex/`; read only what they
 authorize and keep client records and generated reports there. Run:
@@ -19,6 +20,13 @@ The report is a standalone offline HTML file. It sends no alerts. The tool does
 not authenticate the supplied data, reconstruct the historical business graph,
 or prove that it can predict future failures. Never infer a confirmed outcome
 from `unreviewed`, or a clean no-alarm from `insufficient_data`.
+
+To retain new feed readings locally and prepare an unreviewed case, see
+[local observation history](observation-history.md). Its export sets recording
+coverage to unknown. This prevents scoring the rule until a reviewer asserts complete
+capture coverage with an evidence reference, even if a simulated warning is shown.
+Cases that do not supply `capture_coverage` retain the original replay behavior:
+freshness is assessed at decision points, not as proof of continuous capture.
 
 The following is a complete **fictional** example. Replace every field with
 appropriately scoped, reviewed records for a real case; never put credentials

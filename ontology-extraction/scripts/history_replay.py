@@ -3,7 +3,7 @@
 
     python history_replay.py --input history.json --format html --out report.html
 
-Every sample carries the time it happened and the time it became available.
+Every sample carries its observation time and when it became available.
 The latter is supplied by the dataset owner and is not independently verified.
 No service is contacted, no alerts are sent, and input files are never changed.
 """
@@ -84,7 +84,17 @@ def validate(dataset):
     require(type(cases) is list and 0 < len(cases) <= MAX_CASES, "dataset needs 1..20 cases")
     ids = set()
     for case in cases:
-        shape(case, {"id", "component", "window", "outcome", "baseline", "observations"}, "case")
+        fields = {"id", "component", "window", "outcome", "baseline", "observations"}
+        require(type(case) is dict and fields <= set(case) <= fields | {"capture_coverage"},
+                "case: unexpected or missing fields")
+        if "capture_coverage" in case:
+            capture = case["capture_coverage"]
+            shape(capture, {"state", "evidence_ref"}, "capture coverage")
+            require(capture["state"] in ("unknown", "complete"), "invalid capture coverage")
+            if capture["state"] == "complete":
+                reference(capture["evidence_ref"], "capture coverage evidence")
+            else:
+                require(capture["evidence_ref"] is None, "unknown capture coverage must not claim evidence")
         reference(case["id"], "case id")
         require(case["id"] not in ids, "case ids must be unique")
         ids.add(case["id"])
@@ -249,7 +259,9 @@ def replay_case(dataset, case):
     # One initial step allows a two-sample rule to warm up. Subsequent gaps
     # make an unwarned case unscorable rather than a miss or a clean no-alarm.
     coverage_checks = decisions[1:]
-    signal_coverage = bool(coverage_checks) and all(d["covered"] for d in coverage_checks)
+    capture = case.get("capture_coverage")
+    signal_coverage = (bool(coverage_checks) and all(d["covered"] for d in coverage_checks) and
+                       (capture is None or capture["state"] == "complete"))
     eligible_alerts = [a for a in case["baseline"]["alerts"]
                        if start <= instant(a["available_at"], "alert.available_at") <= end]
     eligible_alerts.sort(key=lambda a: (instant(a["available_at"], "alert.available_at"), a["ref"]))
@@ -257,8 +269,12 @@ def replay_case(dataset, case):
     baseline_at = instant(baseline_alert["available_at"], "alert.available_at") if baseline_alert else None
     incident_at = (instant(case["outcome"]["incident_at"], "outcome.incident_at")
                    if case["outcome"]["state"] == "incident" else None)
-    def policy(warning_at, coverage, ref, complete_label):
-        return {"outcome": assess(case["outcome"], warning_at, coverage),
+    def policy(warning_at, coverage, ref, complete_label, capture_unknown=False):
+        # Missing captured readings could change even an apparent warning, not
+        # just an apparent absence of warning. Keep it visible but unscored.
+        outcome = ("insufficient_data" if capture_unknown and case["outcome"]["state"] != "unreviewed"
+                   else assess(case["outcome"], warning_at, coverage))
+        return {"outcome": outcome,
                 "coverage": complete_label if coverage else "partial_or_unknown",
                 "first_warning_at": iso(warning_at) if warning_at else None, "evidence_ref": ref,
                 "lead_seconds": int((incident_at - warning_at).total_seconds())
@@ -271,10 +287,11 @@ def replay_case(dataset, case):
                       else "retrospective_holdout")
     return {"id": case["id"], "component": case["component"], "window": case["window"],
             "threshold_mode": threshold_mode,
-            "outcome": case["outcome"], "baseline": case["baseline"],
+            "outcome": case["outcome"], "baseline": case["baseline"], "capture_coverage": capture,
             "policies": {"two_samples": policy(signal_at, signal_coverage,
                                                signal_decision["signals"] if signal_decision else None,
-                                               "fresh_at_sampled_decisions_after_warmup"),
+                                               "fresh_at_sampled_decisions_after_warmup",
+                                               capture_unknown=capture is not None and capture["state"] == "unknown"),
                          "existing_alerts": policy(baseline_at, case["baseline"]["coverage"] == "complete",
                                                    baseline_alert["ref"] if baseline_alert else None, "complete")},
             "outside_alert_refs": sorted(a["ref"] for a in case["baseline"]["alerts"] if a not in eligible_alerts),
@@ -301,7 +318,7 @@ def run(dataset):
             "semantics": "USER_SUPPLIED_TIMES_AND_LABELS_NOT_INDEPENDENTLY_VERIFIED",
             "limitations": ["This simulates a threshold rule on supplied cases; it does not establish that the rule ran at the time or predict future incidents.",
                             "Observation availability, incident labels, baseline coverage, threshold selection and any training cutoff are user assertions.",
-                            "Freshness is checked at supplied decision points using the supplied TTL, not continuously.",
+                            "Freshness is checked at supplied decision points using the supplied TTL, not continuously. Capture coverage, when supplied, is a user assertion.",
                             "Only a single component is evaluated per case; topology and downstream effects are not evaluated.",
                             "Results count cases, not unique incidents; overlapping cases can count the same event more than once."],
             "overlapping_cases": overlaps,
@@ -323,6 +340,7 @@ def render_html(report):
              f'{(" · claimed training availability cutoff: " + esc(report["threshold"]["training_data_available_through"])) if report["threshold"]["training_data_available_through"] else ""}</p>',
              '<div class="notice">This simulates a rule on supplied history, not a prediction of future incidents or proof the rule ran then. '
              'Availability times, outcome labels, training cutoff and baseline coverage are supplied by the dataset owner and are not independently verified. '
+             'An observation time is not necessarily the time the underlying event began. '
              'Unreviewed outcomes and missing data are kept separate from hits and misses. '
              'Results count cases rather than unique incidents.</div>',
              '<h2>Results</h2><table><thead><tr><th>Outcome</th><th>Replayed two-reading rule</th><th>Existing alerts</th></tr></thead><tbody>']
@@ -341,6 +359,11 @@ def render_html(report):
         if case["threshold_mode"] == "retrospective_holdout":
             lines.append('<p>Retrospective holdout: the threshold was selected after this window; '
                          'the supplied training availability cutoff predates it and has not been independently verified.</p>')
+        if case["capture_coverage"] is not None:
+            capture = case["capture_coverage"]
+            lines.append(f'<p>Recording coverage: <strong>{esc(capture["state"])}</strong>'
+                         f'{(" · reviewer evidence: <code>" + esc(capture["evidence_ref"]) + "</code>") if capture["evidence_ref"] else ""}. '
+                         'Coverage assertions are not independently verified.</p>')
         time_label = " · candidate time " if case["outcome"]["state"] == "unreviewed" else " at "
         lines.append(f'<p>Supplied outcome: <strong>{esc(case["outcome"]["state"])}</strong>'
                      f'{(time_label + esc(case["outcome"]["incident_at"])) if case["outcome"]["incident_at"] else ""} '
@@ -364,7 +387,7 @@ def render_html(report):
                                      for v in conflict["variants"])
                 lines.append(f'<li>{esc(conflict["source"])} at {esc(conflict["observed_at"])}: {esc(variants)}</li>')
             lines.append('</ul><p class="muted">The replay does not choose between conflicting samples.</p>')
-        lines.append('<details><summary>Review observation times and sources</summary><table><thead><tr><th>Reference</th><th>Happened</th><th>Available</th><th>Source / status</th><th>Value</th></tr></thead><tbody>')
+        lines.append('<details><summary>Review observation times and sources</summary><table><thead><tr><th>Reference</th><th>Observed</th><th>Available</th><th>Source / status</th><th>Value</th></tr></thead><tbody>')
         for row in case["observations"]:
             lines.append(f'<tr><td>{esc(row["ref"])}</td><td>{esc(row["observed_at"])}</td><td>{esc(row["available_at"])}</td>'
                          f'<td>{esc(row["source"])} / {esc(row["status"])}</td><td>{esc(row["value"])}</td></tr>')

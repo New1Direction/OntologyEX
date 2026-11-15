@@ -31,6 +31,8 @@ import math
 import os
 from pathlib import Path
 import re
+import signal
+import sqlite3
 import struct
 import tempfile
 from threading import Event, Lock, Thread
@@ -41,6 +43,7 @@ import urllib.request
 import zlib
 
 import control_room
+import observation_history
 
 FEED_KIND = "ONTOLOGYEX_FEEDS"
 MAX_CONFIG_BYTES = 65536
@@ -297,9 +300,10 @@ def retain(rows: list[dict], keep: int) -> list[dict]:
 class ObservationStore:
     """Keeps the newest samples per component in one JSONL file, rewritten atomically."""
 
-    def __init__(self, path: Path, keep: int = KEEP_PER_COMPONENT):
+    def __init__(self, path: Path, keep: int = KEEP_PER_COMPONENT, recorder=None):
         self.path = path
         self.keep = keep
+        self.recorder = recorder
         self.lock = Lock()
 
     def add(self, rows: list[dict]) -> int:
@@ -320,7 +324,14 @@ class ObservationStore:
                 handle.flush()
                 os.fsync(handle.fileno())
             Path(handle.name).replace(self.path)
-            control_room.read_observations(self.path)  # the control room must accept it
+            published = control_room.read_observations(self.path)  # the control room must accept it
+            if self.recorder:
+                # A batch can itself exceed the live limit. Record only rows actually
+                # published, and count the rest as omitted instead of inventing availability.
+                visible = {observation_history.canonical(row) for row in published}
+                selected = [observation_history.normalized(row) for row in rows]
+                selected = [row for row in selected if observation_history.canonical(row) in visible]
+                self.recorder.record(selected, observation_history.now(), omitted=len(rows) - len(selected))
             return len(rows)
 
 
@@ -857,10 +868,10 @@ def otlp_handler(window: SpanWindow, token: str):
 # ---------------------------------------------------------------- runner
 
 class FeedRunner:
-    def __init__(self, config: dict, getter=fetch):
+    def __init__(self, config: dict, getter=fetch, recorder=None):
         self.config = config
         self.getter = getter
-        self.store = ObservationStore(output_path(config), config.get("keep_per_component", KEEP_PER_COMPONENT))
+        self.store = ObservationStore(output_path(config), config.get("keep_per_component", KEEP_PER_COMPONENT), recorder)
         self.status_path = output_path(config).with_suffix(".status.json")
         self.calls_path = output_path(config).with_suffix(".calls.json")
         self.status: dict[str, dict] = {}
@@ -980,6 +991,8 @@ def main() -> int:
         p.add_argument("--config", type=Path, required=True)
         if name == "check":
             p.add_argument("--repo", type=Path, required=True)
+        else:
+            p.add_argument("--record-history", type=Path, help="opt in to a private local observation database")
     args = parser.parse_args()
     try:
         config = load_config(args.config)
@@ -987,19 +1000,41 @@ def main() -> int:
             result = check_against(config, args.repo)
             print(json.dumps(result, indent=2))
             return 0 if result["status"] == "OK" else 2
-        runner = FeedRunner(config)
-        if args.command == "once":
-            print(json.dumps({"written": runner.poll_once(), "output": str(output_path(config)),
-                              "feeds": runner.status}, indent=2))
+        recorder = observation_history.Recorder(args.record_history) if args.record_history else None
+        clean = False
+        previous = {}
+        try:
+            runner = FeedRunner(config, recorder=recorder)
+            if recorder and args.command == "run":
+                for sig in (signal.SIGTERM, signal.SIGINT):
+                    previous[sig] = signal.signal(sig, lambda *_: runner.stop.set())
+            if args.command == "once":
+                print(json.dumps({"written": runner.poll_once(), "output": str(output_path(config)),
+                                  "feeds": runner.status}, indent=2))
+            else:
+                print(f"OntologyEX feeds writing {output_path(config)}", flush=True)
+                if recorder:
+                    print(f"Observation history recording to {args.record_history}", flush=True)
+                if runner.window:
+                    otlp = config["otlp"]
+                    print(f"OTLP/HTTP traces: http://{otlp.get('bind', '127.0.0.1')}:{otlp.get('port', 4318)}/v1/traces",
+                          flush=True)
+                runner.run()
+            clean = True
             return 0
-        print(f"OntologyEX feeds writing {output_path(config)}", flush=True)
-        if runner.window:
-            otlp = config["otlp"]
-            print(f"OTLP/HTTP traces: http://{otlp.get('bind', '127.0.0.1')}:{otlp.get('port', 4318)}/v1/traces",
-                  flush=True)
-        runner.run()
-        return 0
-    except (FeedError, control_room.RoomError, OSError) as exc:
+        except KeyboardInterrupt:
+            # An interruption outside the run loop may have occurred after file
+            # publication but before the journal commit. Leave a failed session.
+            if recorder:
+                print(json.dumps({"status": "ERROR", "error": "Recording interrupted; review the session for gaps"}))
+                return 1
+            return 0
+        finally:
+            for sig, handler in previous.items():
+                signal.signal(sig, handler)
+            if recorder:
+                recorder.close(clean=clean)
+    except (FeedError, control_room.RoomError, observation_history.RecordingError, sqlite3.Error, OSError) as exc:
         print(json.dumps({"status": "ERROR", "error": str(exc)}))
         return 1
     except KeyboardInterrupt:
