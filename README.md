@@ -9,8 +9,8 @@
 
 </div>
 
-In the live example, open **Journeys**, choose **Choose a plan, pay, become a subscriber**, and select
-**Webhook records the subscription**. The evidence inspector links to the
+In the live example, open **Journeys** and select **Webhook records the subscription**
+under **Choose a plan, pay, become a subscriber**. The evidence inspector links to the
 [Stripe webhook handler at a pinned commit](https://github.com/vercel/nextjs-subscription-payments/blob/bdd0813206e47e6b218d42f15a7976c8a0d3c3eb/app/api/webhooks/route.ts#L67-L77),
 where a completed Checkout session in subscription mode calls the subscription update function.
 
