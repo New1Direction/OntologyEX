@@ -2,9 +2,19 @@
 
 <img src="docs/media/banner.svg" alt="OntologyEX: the business behind your code, mapped, ranked, proven. Read-only, every claim cited, a person decides." width="100%">
 
-**Point an agent at a repository. Get back the business it runs:**<br>
-**who it serves, how money moves, what is breaking, who owns it, what an auditor will ask,<br>
-and what changed this week. Every claim linked to the line it rests on.**
+**Map how a business works from its codebase, with source citations for each finding.**
+
+**[Open the live subscription example](https://new1direction.github.io/OntologyEX/docs/examples/nextjs-subscription-payments.html)** ·
+**[Try it on your repository](#-give-it-to-your-agent)**
+
+</div>
+
+In the live example, open **Journeys** and select **Webhook records the subscription**
+under **Choose a plan, pay, become a subscriber**. The evidence inspector links to the
+[Stripe webhook handler at a pinned commit](https://github.com/vercel/nextjs-subscription-payments/blob/bdd0813206e47e6b218d42f15a7976c8a0d3c3eb/app/api/webhooks/route.ts#L67-L77),
+where a completed Checkout session in subscription mode calls the subscription update function.
+
+<div align="center">
 
 [![Validator](https://github.com/New1Direction/OntologyEX/actions/workflows/validator.yml/badge.svg)](https://github.com/New1Direction/OntologyEX/actions/workflows/validator.yml)
 [![Rust + Lean](https://github.com/New1Direction/OntologyEX/actions/workflows/rust-proof-foundation.yml/badge.svg)](https://github.com/New1Direction/OntologyEX/actions/workflows/rust-proof-foundation.yml)
@@ -12,8 +22,6 @@ and what changed this week. Every claim linked to the line it rests on.**
 [![Engine](https://img.shields.io/badge/engine-Rust%20%E2%89%A1%20Python-4cc3d9)](docs/rust-engine.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-13846f)](LICENSE)
 
-**[Live example](https://new1direction.github.io/OntologyEX/docs/examples/nextjs-subscription-payments.html)** ·
-**[Give it to your agent](#-give-it-to-your-agent)** ·
 **[The control room](#-the-control-room)** ·
 **[How it stays honest](#-how-it-stays-honest)** ·
 **[Verified four ways](#-verified-four-ways)** ·
